@@ -16,13 +16,15 @@
 - `packages/shared`：共享类型、工具函数、常量
 - `packages/database`：数据库 schema、migration、seed
 
-## 硬性规则（必须遵守，CI 会验证）
+## 硬规则
 
-1. 单文件不超过 300 行
-2. 新增代码必须有对应测试
-3. 使用结构化日志，禁止 `console.log`
-4. 禁止提交真实密钥、token、密码或个人敏感配置
-5. 新增环境变量必须同步更新 `.env.example`
+- 修改代码前，先给出可选方案并等待确认。
+- 默认使用中文沟通、说明和评审。
+- 未经确认，不进行实质性代码写入、删除、迁移、重构。
+- 不得覆盖、回滚或污染用户已有未提交改动。
+- 新发现的稳定约定，需要提示是否沉淀到公共规范。
+- 单文件不超过 300 行
+- 使用结构化日志，禁止 `console.log`
 
 ## 开发命令
 
@@ -37,14 +39,6 @@
 - `pnpm typecheck`
 
 如具体子项目命令不同，以对应 `package.json` scripts 和 `turbo.json` pipeline 为准。
-
-## Turborepo 规则
-
-- 新增 app 或 package 时，必须接入 pnpm workspace
-- 新增可缓存任务时，必须同步更新 `turbo.json`
-- `build`、`test`、`lint`、`typecheck` 应保持可被 turbo 调度
-- 不要在 package 之间引入循环依赖
-- shared package 不得依赖具体 app
 
 ## 测试要求
 
@@ -79,15 +73,6 @@
 ## 文档查询
 
 涉及库、框架、SDK、API、CLI 工具或云服务的问题时，必须使用 ctx7 查询当前文档。
-
-流程：
-
-1. `npx ctx7@latest library <name> "<user's question>"`
-2. 选择最佳 `/org/project`
-3. `npx ctx7@latest docs <libraryId> "<user's question>"`
-
-如果 ctx7 出现额度错误，提示用户登录或设置 `CONTEXT7_API_KEY`。
-如果出现网络/DNS 错误，应按环境规则在 sandbox 外重试。
 
 ## 提交规范
 
