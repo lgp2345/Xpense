@@ -12,7 +12,7 @@
 
 - `apps/mobile`：React Native App
 - `apps/web`：React Web
-- `apps/api`：NestJS API
+- `apps/server`：NestJS API
 - `packages/shared`：共享类型、工具函数、常量
 - `packages/database`：数据库 schema、migration、seed
 
