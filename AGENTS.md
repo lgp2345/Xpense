@@ -3,27 +3,17 @@
 ## 项目简介
 
 个人记账系统，包括 APP 端、WEB 端和 API 服务。
-技术栈：React Native、React、NestJS、PostgreSQL。
-仓库采用 Turborepo + pnpm workspace 管理。
-
-## 仓库结构
-
-默认目录结构：
-
-- `apps/mobile`：React Native App
-- `apps/web`：React Web
-- `apps/server`：NestJS API
-- `packages/shared`：共享类型、工具函数、常量
-- `packages/database`：数据库 schema、migration、seed
+本文件只记录 Agent 执行规则；项目架构、技术栈、目录结构和系统边界详见同目录 `ARCHITECTURE.md`。
 
 ## 硬规则
 
 - 修改代码前，先给出可选方案并等待确认。
 - 默认使用中文沟通、说明和评审。
 - 未经确认，不进行实质性代码写入、删除、迁移、重构。
+- 读取文件、运行只读检查、给出方案不需要确认；写入、删除、迁移、重构、安装依赖、提交代码必须确认。
 - 不得覆盖、回滚或污染用户已有未提交改动。
 - 新发现的稳定约定，需要提示是否沉淀到公共规范。
-- 单文件不超过 300 行
+- 业务源文件原则上不超过 300 行；生成文件、migration、lockfile、快照、配置聚合文件除外。
 - 使用结构化日志，禁止 `console.log`
 
 ## 开发命令
@@ -48,13 +38,10 @@
 - 测试不得依赖真实外部服务
 - 不允许为了通过测试删除或弱化有效断言
 
-## 代码规范
+## 实现边界
 
-- 保持模块职责单一，避免大文件和大函数
-- React / React Native 组件只保留必要 UI 逻辑，复杂逻辑抽到 hook 或 service
-- NestJS 按 module、controller、service、repository 分层
-- 共享类型和通用工具优先放入 `packages/shared`
-- 数据库相关 schema、migration、seed 放入 `packages/database`
+- 代码组织、目录职责、共享包边界、数据库归属、金额和时间策略详见 `ARCHITECTURE.md`
+- 不得为了完成局部任务绕过既有架构边界；需要调整架构时先给方案并等待确认
 
 ## 日志规范
 
@@ -62,13 +49,6 @@
 - 服务端必须使用结构化 logger
 - 日志中不得输出密码、token、银行卡号等敏感信息
 - 错误日志应包含可追踪上下文，但不能泄露用户隐私
-
-## 数据库规范
-
-- 数据库变更必须通过 migration 管理
-- migration 文件命名应能说明业务意图
-- 涉及金额的字段不得使用浮点数
-- 删除数据优先考虑软删除，除非明确需要物理删除
 
 ## 文档查询
 
