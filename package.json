@@ -21,6 +21,7 @@
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "turbo": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "zod": "catalog:"
   }
 }

@@ -4,19 +4,37 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@biomejs/biome':
+      specifier: 2.5.1
+      version: 2.5.1
+    turbo:
+      specifier: ^2.9.18
+      version: 2.9.18
+    typescript:
+      specifier: ^6.0.3
+      version: 6.0.3
+    zod:
+      specifier: ^4.4.3
+      version: 4.4.3
+
 importers:
 
   .:
     devDependencies:
       '@biomejs/biome':
-        specifier: 2.5.1
+        specifier: 'catalog:'
         version: 2.5.1
       turbo:
-        specifier: ^2.9.18
+        specifier: 'catalog:'
         version: 2.9.18
       typescript:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
 
 packages:
 
@@ -116,6 +134,9 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+
 snapshots:
 
   '@biomejs/biome@2.5.1':
@@ -181,3 +202,5 @@ snapshots:
       '@turbo/windows-arm64': 2.9.18
 
   typescript@6.0.3: {}
+
+  zod@4.4.3: {}
