@@ -1,0 +1,32 @@
+name: xpense
+
+services:
+  server:
+    build:
+      context: ../..
+      dockerfile: infra/compose/Dockerfile.server
+    environment:
+      PORT: "4000"
+      WEB_ORIGIN: http://localhost:5173
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/compose/Dockerfile.web
+      args:
+        VITE_API_BASE_URL: http://localhost:4000
+    environment:
+      VITE_API_BASE_URL: http://localhost:4000
+    ports:
+      - "5173:5173"
+    depends_on:
+      server:
+        condition: service_healthy
