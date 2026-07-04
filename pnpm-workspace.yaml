@@ -2,6 +2,10 @@ packages:
   - apps/*
   - packages/*
 
+allowBuilds:
+  argon2: true
+  esbuild: true
+
 catalog:
   '@biomejs/biome': 2.5.1
   '@types/node': ^24.10.2

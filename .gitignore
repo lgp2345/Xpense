@@ -12,6 +12,12 @@ out
 # turbo
 .turbo
 
+# worktrees
+.worktrees
+
+# pnpm local store
+.pnpm-store
+
 # env
 .env
 .env.local
