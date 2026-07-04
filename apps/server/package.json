@@ -6,6 +6,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "check": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
     "dev": "tsx watch src/main.ts",
     "lint": "biome check src",
     "start": "node dist/main.js",
