@@ -24,3 +24,6 @@ export type HelloResponse = z.infer<typeof HelloResponseSchema>;
 export function makeHelloMessage(): string {
   return `Hello from ${APP_NAME} API`;
 }
+
+export * from "./auth.js";
+export * from "./rbac.js";
