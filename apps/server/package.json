@@ -9,6 +9,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
+    "db:seed:rbac": "tsx src/db/seed-rbac.ts",
     "dev": "tsx watch src/main.ts",
     "lint": "biome check src",
     "start": "node dist/main.js",
