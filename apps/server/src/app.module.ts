@@ -4,9 +4,10 @@ import { ZodValidationPipe } from "nestjs-zod";
 
 import { ServerConfigModule } from "./config/config.module.js";
 import { FoundationModule } from "./foundation/foundation.module.js";
+import { AuthModule } from "./modules/auth/auth.module.js";
 
 @Module({
-  imports: [ServerConfigModule, FoundationModule],
+  imports: [ServerConfigModule, FoundationModule, AuthModule],
   providers: [
     {
       provide: APP_PIPE,
