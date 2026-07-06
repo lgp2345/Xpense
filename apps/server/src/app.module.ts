@@ -7,9 +7,17 @@ import { FoundationModule } from "./foundation/foundation.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
 import { IamModule } from "./modules/iam/iam.module.js";
 import { OrganizationsModule } from "./modules/organizations/organizations.module.js";
+import { UserModule } from "./modules/user/user.module.js";
 
 @Module({
-  imports: [ServerConfigModule, FoundationModule, AuthModule, OrganizationsModule, IamModule],
+  imports: [
+    ServerConfigModule,
+    FoundationModule,
+    AuthModule,
+    OrganizationsModule,
+    IamModule,
+    UserModule,
+  ],
   providers: [
     {
       provide: APP_PIPE,
