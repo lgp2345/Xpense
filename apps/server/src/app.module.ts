@@ -3,6 +3,7 @@ import { APP_PIPE } from "@nestjs/core";
 import { ZodValidationPipe } from "nestjs-zod";
 
 import { ServerConfigModule } from "./config/config.module.js";
+import { DbModule } from "./db/db.module.js";
 import { FoundationModule } from "./foundation/foundation.module.js";
 import { AuditModule } from "./modules/audit/audit.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
@@ -13,6 +14,7 @@ import { UserModule } from "./modules/user/user.module.js";
 @Module({
   imports: [
     ServerConfigModule,
+    DbModule,
     FoundationModule,
     AuthModule,
     OrganizationsModule,
