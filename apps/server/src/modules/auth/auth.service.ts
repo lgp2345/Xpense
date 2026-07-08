@@ -4,6 +4,7 @@ import type { AuthTokensResponse, ClientType } from "@xpense/shared";
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { ServerConfigService } from "../../config/config.service.js";
+import { AuditService } from "../audit/audit.service.js";
 import { type AuthRefreshSession, AuthRepository } from "./auth.repository.js";
 import { PasswordService } from "./password.service.js";
 import { TokenService } from "./token.service.js";
@@ -35,13 +36,14 @@ export type SessionResponse = {
 };
 
 @Injectable()
-@Dependencies(AuthRepository, PasswordService, TokenService, ServerConfigService)
+@Dependencies(AuthRepository, PasswordService, TokenService, ServerConfigService, AuditService)
 export class AuthService {
   constructor(
     private readonly repository: AuthRepository,
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly config: ServerConfigService,
+    private readonly auditService: AuditService,
   ) {}
 
   async login(input: LoginInput): Promise<AuthTokensResponse> {
@@ -49,12 +51,39 @@ export class AuthService {
     const user = await this.repository.findActiveUserByEmail(email);
 
     if (!user) {
+      await this.auditService.append({
+        organizationId: null,
+        actorUserId: null,
+        action: "auth.login.failed",
+        targetType: "user",
+        result: "failed",
+        metadata: {
+          email,
+          clientType: input.clientType,
+          reason: "user_not_found",
+          ip: input.ip,
+        },
+      });
       throw this.unauthenticated("Invalid credentials");
     }
 
     const passwordMatches = await this.passwordService.verify(user.passwordHash, input.password);
 
     if (!passwordMatches || !user.defaultOrganizationId) {
+      await this.auditService.append({
+        organizationId: user.defaultOrganizationId,
+        actorUserId: user.id,
+        action: "auth.login.failed",
+        targetType: "user",
+        targetId: user.id,
+        result: "failed",
+        metadata: {
+          email,
+          clientType: input.clientType,
+          reason: passwordMatches ? "missing_default_organization" : "password_mismatch",
+          ip: input.ip,
+        },
+      });
       throw this.unauthenticated("Invalid credentials");
     }
 
@@ -82,6 +111,20 @@ export class AuthService {
       organizationId: user.defaultOrganizationId,
     });
 
+    await this.auditService.append({
+      organizationId: user.defaultOrganizationId,
+      actorUserId: user.id,
+      action: "auth.login.succeeded",
+      targetType: "session",
+      targetId: session.id,
+      result: "succeeded",
+      metadata: {
+        clientType: input.clientType,
+        deviceName: input.deviceName,
+        ip: input.ip,
+      },
+    });
+
     return {
       accessToken,
       refreshToken,
@@ -93,6 +136,17 @@ export class AuthService {
     const session = await this.repository.findActiveSessionByRefreshTokenHash(refreshTokenHash);
 
     if (!session) {
+      await this.auditService.append({
+        organizationId: null,
+        actorUserId: null,
+        action: "auth.refresh.failed",
+        targetType: "session",
+        result: "failed",
+        metadata: {
+          reason: "session_not_found",
+          refreshToken: input.refreshToken,
+        },
+      });
       throw this.unauthenticated("Invalid refresh session");
     }
 
@@ -102,10 +156,38 @@ export class AuthService {
     );
 
     if (!tokenMatches) {
+      await this.auditService.append({
+        organizationId: session.currentOrganizationId,
+        actorUserId: session.userId,
+        action: "auth.refresh.failed",
+        targetType: "session",
+        targetId: session.id,
+        result: "failed",
+        metadata: {
+          reason: "token_mismatch",
+          refreshToken: input.refreshToken,
+        },
+      });
       throw this.unauthenticated("Invalid refresh session");
     }
 
-    this.assertRefreshSessionUsable(session);
+    try {
+      this.assertRefreshSessionUsable(session);
+    } catch (error) {
+      await this.auditService.append({
+        organizationId: session.currentOrganizationId,
+        actorUserId: session.userId,
+        action: "auth.refresh.failed",
+        targetType: "session",
+        targetId: session.id,
+        result: "failed",
+        metadata: {
+          reason: "session_unusable",
+          refreshToken: input.refreshToken,
+        },
+      });
+      throw error;
+    }
 
     const nextRefreshToken = this.tokenService.createRefreshToken();
     const nextRefreshTokenHash = await this.tokenService.hashRefreshToken(nextRefreshToken);
@@ -124,6 +206,15 @@ export class AuthService {
       organizationId: session.currentOrganizationId,
     });
 
+    await this.auditService.append({
+      organizationId: session.currentOrganizationId,
+      actorUserId: session.userId,
+      action: "auth.refresh.succeeded",
+      targetType: "session",
+      targetId: session.id,
+      result: "succeeded",
+    });
+
     return {
       accessToken,
       refreshToken: nextRefreshToken,
@@ -132,6 +223,14 @@ export class AuthService {
 
   async logout(authContext: AuthContext): Promise<void> {
     await this.repository.revokeSession(authContext.sessionId);
+    await this.auditService.append({
+      organizationId: authContext.organizationId,
+      actorUserId: authContext.userId,
+      action: "auth.logout.succeeded",
+      targetType: "session",
+      targetId: authContext.sessionId,
+      result: "succeeded",
+    });
   }
 
   async listSessions(authContext: AuthContext): Promise<SessionResponse[]> {
@@ -148,10 +247,26 @@ export class AuthService {
     }
 
     await this.repository.revokeSession(sessionId);
+    await this.auditService.append({
+      organizationId: authContext.organizationId,
+      actorUserId: authContext.userId,
+      action: "auth.session.revoked",
+      targetType: "session",
+      targetId: sessionId,
+      result: "succeeded",
+    });
   }
 
   async revokeAllSessions(authContext: AuthContext): Promise<void> {
     await this.repository.revokeAllUserSessions(authContext.userId);
+    await this.auditService.append({
+      organizationId: authContext.organizationId,
+      actorUserId: authContext.userId,
+      action: "auth.sessions.revokedAll",
+      targetType: "user",
+      targetId: authContext.userId,
+      result: "succeeded",
+    });
   }
 
   private createRefreshTokenExpiresAt(): Date {

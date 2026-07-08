@@ -8,6 +8,7 @@ import {
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
+import { AuditService } from "../audit/audit.service.js";
 import type { CreateMemberDto } from "./dto/create-member.dto.js";
 import type { CreateRoleDto } from "./dto/create-role.dto.js";
 import type { UpdateMemberDto } from "./dto/update-member.dto.js";
@@ -16,9 +17,12 @@ import { IamRepository } from "./iam.repository.js";
 import type { IamMember, IamPermission, IamRole } from "./iam.types.js";
 
 @Injectable()
-@Dependencies(IamRepository)
+@Dependencies(IamRepository, AuditService)
 export class IamService {
-  constructor(private readonly repository: IamRepository) {}
+  constructor(
+    private readonly repository: IamRepository,
+    private readonly auditService: AuditService,
+  ) {}
 
   listMembers(authContext: AuthContext): Promise<IamMember[]> {
     return this.repository.listMembers(authContext.organizationId);
@@ -36,12 +40,27 @@ export class IamService {
 
     await this.ensureRoleInCurrentOrganization(authContext.organizationId, dto.roleId);
 
-    return this.repository.createMember({
+    const member = await this.repository.createMember({
       organizationId: authContext.organizationId,
       userId: dto.userId,
       roleId: dto.roleId,
       status: "active",
     });
+
+    await this.auditService.appendRequired({
+      organizationId: authContext.organizationId,
+      actorUserId: authContext.userId,
+      action: "member.created",
+      targetType: "member",
+      targetId: member.id,
+      result: "succeeded",
+      metadata: {
+        userId: dto.userId,
+        roleTo: dto.roleId,
+      },
+    });
+
+    return member;
   }
 
   async updateMember(
@@ -73,6 +92,50 @@ export class IamService {
       );
     }
 
+    if (dto.roleId && dto.roleId !== member.roleId) {
+      await this.auditService.appendRequired({
+        organizationId: authContext.organizationId,
+        actorUserId: authContext.userId,
+        action: "member.role.changed",
+        targetType: "member",
+        targetId: memberId,
+        result: "succeeded",
+        metadata: {
+          userId: member.userId,
+          roleFrom: member.roleId,
+          roleTo: dto.roleId,
+        },
+      });
+    }
+
+    if (member.status !== dto.status && dto.status === "disabled") {
+      await this.auditService.appendRequired({
+        organizationId: authContext.organizationId,
+        actorUserId: authContext.userId,
+        action: "member.disabled",
+        targetType: "member",
+        targetId: memberId,
+        result: "succeeded",
+        metadata: {
+          userId: member.userId,
+        },
+      });
+    }
+
+    if (member.status !== dto.status && dto.status === "active") {
+      await this.auditService.appendRequired({
+        organizationId: authContext.organizationId,
+        actorUserId: authContext.userId,
+        action: "member.enabled",
+        targetType: "member",
+        targetId: memberId,
+        result: "succeeded",
+        metadata: {
+          userId: member.userId,
+        },
+      });
+    }
+
     return updatedMember;
   }
 
@@ -98,6 +161,32 @@ export class IamService {
       roleId: role.id,
       permissionKeys: dto.permissionKeys,
     });
+
+    await this.auditService.appendRequired({
+      organizationId: authContext.organizationId,
+      actorUserId: authContext.userId,
+      action: "role.created",
+      targetType: "role",
+      targetId: role.id,
+      result: "succeeded",
+      metadata: {
+        key: dto.key,
+      },
+    });
+
+    if (dto.permissionKeys.length > 0) {
+      await this.auditService.appendRequired({
+        organizationId: authContext.organizationId,
+        actorUserId: authContext.userId,
+        action: "role.permissions.changed",
+        targetType: "role",
+        targetId: role.id,
+        result: "succeeded",
+        metadata: {
+          permissionKeys: dto.permissionKeys,
+        },
+      });
+    }
 
     return role;
   }
@@ -125,6 +214,37 @@ export class IamService {
       });
     }
 
+    if (dto.name !== undefined || dto.description !== undefined) {
+      await this.auditService.appendRequired({
+        organizationId: authContext.organizationId,
+        actorUserId: authContext.userId,
+        action: "role.updated",
+        targetType: "role",
+        targetId: roleId,
+        result: "succeeded",
+        metadata: {
+          nameFrom: role.name,
+          nameTo: dto.name,
+          descriptionFrom: role.description,
+          descriptionTo: dto.description,
+        },
+      });
+    }
+
+    if (dto.permissionKeys) {
+      await this.auditService.appendRequired({
+        organizationId: authContext.organizationId,
+        actorUserId: authContext.userId,
+        action: "role.permissions.changed",
+        targetType: "role",
+        targetId: roleId,
+        result: "succeeded",
+        metadata: {
+          permissionKeys: dto.permissionKeys,
+        },
+      });
+    }
+
     return updatedRole;
   }
 
@@ -147,6 +267,17 @@ export class IamService {
     }
 
     await this.repository.deleteRole(authContext.organizationId, roleId);
+    await this.auditService.appendRequired({
+      organizationId: authContext.organizationId,
+      actorUserId: authContext.userId,
+      action: "role.deleted",
+      targetType: "role",
+      targetId: roleId,
+      result: "succeeded",
+      metadata: {
+        key: role.key,
+      },
+    });
   }
 
   listPermissions(_authContext: AuthContext): Promise<IamPermission[]> {

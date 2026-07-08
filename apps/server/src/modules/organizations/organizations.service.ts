@@ -3,15 +3,17 @@ import type { AuthTokensResponse } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
+import { AuditService } from "../audit/audit.service.js";
 import { TokenService } from "../auth/token.service.js";
 import { OrganizationsRepository, type UserOrganization } from "./organizations.repository.js";
 
 @Injectable()
-@Dependencies(OrganizationsRepository, TokenService)
+@Dependencies(OrganizationsRepository, TokenService, AuditService)
 export class OrganizationsService {
   constructor(
     private readonly repository: OrganizationsRepository,
     private readonly tokenService: TokenService,
+    private readonly auditService: AuditService,
   ) {}
 
   listOrganizations(authContext: AuthContext): Promise<UserOrganization[]> {
@@ -36,12 +38,24 @@ export class OrganizationsService {
 
     await this.repository.updateSessionOrganization(authContext.sessionId, organizationId);
 
-    return {
-      accessToken: await this.tokenService.signAccessToken({
-        userId: authContext.userId,
-        sessionId: authContext.sessionId,
-        organizationId,
-      }),
-    };
+    const accessToken = await this.tokenService.signAccessToken({
+      userId: authContext.userId,
+      sessionId: authContext.sessionId,
+      organizationId,
+    });
+
+    await this.auditService.append({
+      organizationId,
+      actorUserId: authContext.userId,
+      action: "organization.switched",
+      targetType: "organization",
+      targetId: organizationId,
+      result: "succeeded",
+      metadata: {
+        fromOrganizationId: authContext.organizationId,
+      },
+    });
+
+    return { accessToken };
   }
 }

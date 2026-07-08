@@ -74,9 +74,12 @@ describe("IamService", () => {
         },
       ]),
     };
-    const service = new IamService(repository as never);
+    const auditService = {
+      appendRequired: vi.fn().mockResolvedValue(undefined),
+    };
+    const service = new IamService(repository as never, auditService as never);
 
-    return { repository, service };
+    return { auditService, repository, service };
   }
 
   it("uses authContext.organizationId for member queries", async () => {
@@ -88,7 +91,7 @@ describe("IamService", () => {
   });
 
   it("creates a member in the current organization and rejects duplicates", async () => {
-    const { repository, service } = createHarness();
+    const { auditService, repository, service } = createHarness();
 
     await expect(
       service.createMember(authContext, { userId: "user-1", roleId: "role-custom" }),
@@ -99,6 +102,16 @@ describe("IamService", () => {
       roleId: "role-custom",
       status: "active",
     });
+    expect(auditService.appendRequired).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        actorUserId: "actor-1",
+        action: "member.created",
+        targetType: "member",
+        targetId: "member-1",
+        result: "succeeded",
+      }),
+    );
 
     repository.findMemberByOrganizationAndUser.mockResolvedValue(activeMember);
 
@@ -141,7 +154,7 @@ describe("IamService", () => {
   });
 
   it("creates roles and replaces their permissions", async () => {
-    const { repository, service } = createHarness();
+    const { auditService, repository, service } = createHarness();
 
     await expect(
       service.createRole(authContext, {
@@ -162,6 +175,37 @@ describe("IamService", () => {
       roleId: "role-custom",
       permissionKeys: ["transactions.read", "transactions.create"],
     });
+    expect(auditService.appendRequired).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        actorUserId: "actor-1",
+        action: "role.created",
+        targetType: "role",
+        targetId: "role-custom",
+      }),
+    );
+    expect(auditService.appendRequired).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        actorUserId: "actor-1",
+        action: "role.permissions.changed",
+        targetType: "role",
+        targetId: "role-custom",
+      }),
+    );
+  });
+
+  it("blocks IAM mutation success when required audit write fails", async () => {
+    const { auditService, service } = createHarness();
+    auditService.appendRequired.mockRejectedValue(new Error("audit unavailable"));
+
+    await expect(
+      service.createRole(authContext, {
+        key: "bookkeeper",
+        name: "Bookkeeper",
+        permissionKeys: [],
+      }),
+    ).rejects.toThrow("audit unavailable");
   });
 
   it("rejects duplicate role keys in the current organization", async () => {

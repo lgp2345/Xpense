@@ -64,9 +64,16 @@ describe("OrganizationsService", () => {
           async (payload) => `access:${payload.sessionId}:${payload.organizationId}`,
         ),
     };
-    const service = new OrganizationsService(repository as never, tokenService as never);
+    const auditService = {
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const service = new OrganizationsService(
+      repository as never,
+      tokenService as never,
+      auditService as never,
+    );
 
-    return { service, sessions, repository, tokenService, activeMemberships };
+    return { auditService, service, sessions, repository, tokenService, activeMemberships };
   }
 
   it("lists active organizations for the current user", async () => {
@@ -79,7 +86,7 @@ describe("OrganizationsService", () => {
   });
 
   it("switches current organization only for the current session", async () => {
-    const { service, sessions, tokenService } = createHarness();
+    const { auditService, service, sessions, tokenService } = createHarness();
 
     await expect(service.switchCurrentOrganization(authContext, "org-b")).resolves.toEqual({
       accessToken: "access:session-1:org-b",
@@ -92,6 +99,15 @@ describe("OrganizationsService", () => {
       sessionId: "session-1",
       organizationId: "org-b",
     });
+    expect(auditService.append).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "organization.switched",
+        actorUserId: "user-1",
+        organizationId: "org-b",
+        targetType: "organization",
+        targetId: "org-b",
+      }),
+    );
   });
 
   it("rejects switching to an organization where the user is not active member", async () => {
