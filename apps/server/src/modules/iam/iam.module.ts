@@ -6,10 +6,14 @@ import { AccessRepository } from "./access.repository.js";
 import { AccessService } from "./access.service.js";
 import { AuthGuard } from "./guards/auth.guard.js";
 import { RbacGuard } from "./guards/rbac.guard.js";
+import { IamController } from "./iam.controller.js";
+import { IamRepository } from "./iam.repository.js";
+import { IamService } from "./iam.service.js";
 
 @Module({
   imports: [AuthModule, DbModule],
-  providers: [AccessRepository, AccessService, AuthGuard, RbacGuard],
+  controllers: [IamController],
+  providers: [AccessRepository, AccessService, AuthGuard, RbacGuard, IamRepository, IamService],
   exports: [AccessService, AuthGuard, RbacGuard],
 })
 export class IamModule {}
