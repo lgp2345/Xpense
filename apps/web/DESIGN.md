@@ -1,282 +1,512 @@
-# Design System Inspired by Supabase
+# Xpense Web Design System
 
-## 1. Visual Theme & Atmosphere
+## 1. 文档定位
 
-Supabase's website is a dark-mode-native developer platform that channels the aesthetic of a premium code editor — deep black backgrounds (`#0f0f0f`, `#171717`) with emerald green accents (`#3ecf8e`, `#00c573`) that reference the brand's open-source, PostgreSQL-green identity. The design system feels like it was born in a terminal window and evolved into a sophisticated marketing surface without losing its developer soul.
+本文件定义 Xpense Web 后台的默认视觉语言和 UI 设计约束。后续新增页面、组件、数据图表、空状态和交互反馈均以本文档为设计依据。
 
-The typography is built on "Circular" — a geometric sans-serif with rounded terminals that softens the technical edge. At 72px with a 1.00 line-height, the hero text is compressed to its absolute minimum vertical space, creating dense, impactful statements that waste nothing. The monospace companion (Source Code Pro) appears sparingly for uppercase technical labels with 1.2px letter-spacing, creating the "developer console" markers that connect the marketing site to the product experience.
+设计参考：
 
-What makes Supabase distinctive is its sophisticated HSL-based color token system. Rather than flat hex values, Supabase uses HSL with alpha channels for nearly every color (`--colors-crimson4`, `--colors-purple5`, `--colors-slateA12`), enabling a nuanced layering system where colors interact through transparency. This creates depth through translucency — borders at `rgba(46, 46, 46)`, surfaces at `rgba(41, 41, 41, 0.84)`, and accents at partial opacity all blend with the dark background to create a rich, dimensional palette from minimal color ingredients.
+- [Synthex UI - Analytics SaaS Dashboard](https://dribbble.com/shots/27131881-Synthex-UI-Analytics-SaaS-Dashboard)
+- 已确认方向：冷雾青白、低对比、模块化分析工作台、轻量数据可视化
 
-The green accent (`#3ecf8e`) appears selectively — in the Supabase logo, in link colors (`#00c573`), and in border highlights (`rgba(62, 207, 142, 0.3)`) — always as a signal of "this is Supabase" rather than as a decorative element. Pill-shaped buttons (9999px radius) for primary CTAs contrast with standard 6px radius for secondary elements, creating a clear visual hierarchy of importance.
+这套语言服务于个人记账、预算管理、资产分析和账单提醒。它不是通用后台模板，也不是营销页面风格。
 
-**Key Characteristics:**
+## 2. 核心设计判断
 
-- Dark-mode-native: near-black backgrounds (`#0f0f0f`, `#171717`) — never pure black
-- Emerald green brand accent (`#3ecf8e`, `#00c573`) used sparingly as identity marker
-- Circular font — geometric sans-serif with rounded terminals
-- Source Code Pro for uppercase technical labels (1.2px letter-spacing)
-- HSL-based color token system with alpha channels for translucent layering
-- Pill buttons (9999px) for primary CTAs, 6px radius for secondary
-- Neutral gray scale from `#171717` through `#898989` to `#fafafa`
-- Border system using dark grays (`#2e2e2e`, `#363636`, `#393939`)
-- Minimal shadows — depth through border contrast and transparency
-- Radix color primitives (crimson, purple, violet, indigo, yellow, tomato, orange, slate)
+Xpense Web 应被理解为一件安静、精确的个人财务分析工具。
 
-## 2. Color Palette & Roles
+核心关键词：
 
-### Brand
+- 冷雾未来主义
+- 连续分析画布
+- 编辑器式信息架构
+- 超低对比层次
+- 轻字重几何排版
+- 模块可组合感
+- 克制的空间重叠
+- 高信息密度但不拥挤
 
-- **Supabase Green** (`#3ecf8e`): Primary brand color, logo, accent borders
-- **Green Link** (`#00c573`): Interactive green for links and actions
-- **Green Border** (`rgba(62, 207, 142, 0.3)`): Subtle green border accent
+用户进入页面后，应先看到资金状态和异常，再看到趋势与明细，最后完成记账、调整预算或处理账单。
 
-### Neutral Scale (Dark Mode)
+## 3. 必须遵守的视觉原则
 
-- **Near Black** (`#0f0f0f`): Primary button background, deepest surface
-- **Dark** (`#171717`): Page background, primary canvas
-- **Dark Border** (`#242424`): Horizontal rule, section dividers
-- **Border Dark** (`#2e2e2e`): Card borders, tab borders
-- **Mid Border** (`#363636`): Button borders, dividers
-- **Border Light** (`#393939`): Secondary borders
-- **Charcoal** (`#434343`): Tertiary borders, dark accents
-- **Dark Gray** (`#4d4d4d`): Heavy secondary text
-- **Mid Gray** (`#898989`): Muted text, link color
-- **Light Gray** (`#b4b4b4`): Secondary link text
-- **Near White** (`#efefef`): Light border, subtle surface
-- **Off White** (`#fafafa`): Primary text, button text
+### 3.1 连续画布优先
 
-### Radix Color Tokens (HSL-based)
+页面主体是一块连续的财务分析画布，不是由大量白色卡片拼成的 Bento 模板。
 
-- **Slate Scale**: `--colors-slate5` through `--colors-slateA12` — neutral progression
-- **Purple**: `--colors-purple4`, `--colors-purple5`, `--colors-purpleA7` — accent spectrum
-- **Violet**: `--colors-violet10` (`hsl(251, 63.2%, 63.2%)`) — vibrant accent
-- **Crimson**: `--colors-crimson4`, `--colors-crimsonA9` — warm accent / alert
-- **Indigo**: `--colors-indigoA2` — subtle blue wash
-- **Yellow**: `--colors-yellowA7` — attention/warning
-- **Tomato**: `--colors-tomatoA4` — error accent
-- **Orange**: `--colors-orange6` — warm accent
+- 通过留白、背景色差、局部分隔线和内容对齐组织信息。
+- 只有真正需要悬浮、拖放、聚焦或独立操作的内容才使用卡片。
+- 主要趋势图可以跨越多个栅格列，成为页面视觉锚点。
+- 次级模块允许局部重叠，但不得影响可读性和点击区域。
 
-### Surface & Overlay
+### 3.2 低对比不等于低可读性
 
-- **Glass Dark** (`rgba(41, 41, 41, 0.84)`): Translucent dark overlay
-- **Slate Alpha** (`hsla(210, 87.8%, 16.1%, 0.031)`): Ultra-subtle blue wash
-- **Fixed Scale Alpha** (`hsla(200, 90.3%, 93.4%, 0.109)`): Light frost overlay
+- 大面积背景和容器保持低对比。
+- 正文、金额、状态和交互控件必须满足可访问性对比要求。
+- 不使用整体模糊、低透明文字或过曝效果模拟参考图。
+- 环境雾、景深和显示器透视只属于宣传展示图，不进入真实产品界面。
 
-### Shadows
+### 3.3 层级依靠字号与空间
 
-- Supabase uses **almost no shadows** in its dark theme. Depth is created through border contrast and surface color differences rather than box-shadows. Focus states use `rgba(0, 0, 0, 0.1) 0px 4px 12px` — minimal, functional.
+- 不依赖粗黑字体建立层级。
+- 不依赖厚边框或重阴影分隔模块。
+- 主金额、页面标题、模块标题、正文和辅助信息必须形成明显字号梯度。
+- 同一层级保持一致的间距、字重和颜色。
 
-## 3. Typography Rules
+### 3.4 数据优先
 
-### Font Families
+- 装饰不得压过财务数据。
+- 图表必须表达真实业务含义，不添加无意义曲线或伪指标。
+- 收入、支出、结余、预算和余额要使用一致的颜色语义。
+- 金额、日期、币种和正负号遵循全局业务规范。
 
-- **Primary**: `Circular`, with fallbacks: `custom-font, Helvetica Neue, Helvetica, Arial`
-- **Monospace**: `Source Code Pro`, with fallbacks: `Office Code Pro, Menlo`
+## 4. 页面与展示图的边界
 
-### Hierarchy
+### 4.1 真实产品页面
 
-| Role            | Font            | Size           | Weight  | Line Height  | Letter Spacing | Notes                       |
-| --------------- | --------------- | -------------- | ------- | ------------ | -------------- | --------------------------- |
-| Display Hero    | Circular        | 72px (4.50rem) | 400     | 1.00 (tight) | normal         | Maximum density, zero waste |
-| Section Heading | Circular        | 36px (2.25rem) | 400     | 1.25 (tight) | normal         | Feature section titles      |
-| Card Title      | Circular        | 24px (1.50rem) | 400     | 1.33         | -0.16px        | Slight negative tracking    |
-| Sub-heading     | Circular        | 18px (1.13rem) | 400     | 1.56         | normal         | Secondary headings          |
-| Body            | Circular        | 16px (1.00rem) | 400     | 1.50         | normal         | Standard body text          |
-| Nav Link        | Circular        | 14px (0.88rem) | 500     | 1.00–1.43    | normal         | Navigation items            |
-| Button          | Circular        | 14px (0.88rem) | 500     | 1.14 (tight) | normal         | Button labels               |
-| Caption         | Circular        | 14px (0.88rem) | 400–500 | 1.43         | normal         | Metadata, tags              |
-| Small           | Circular        | 12px (0.75rem) | 400     | 1.33         | normal         | Fine print, footer links    |
-| Code Label      | Source Code Pro | 12px (0.75rem) | 400     | 1.33         | 1.2px          | `text-transform: uppercase` |
+真实产品界面必须：
 
-### Principles
+- 使用正视、清晰、无透视的布局。
+- 保持所有文字和图表锐利。
+- 提供键盘焦点、悬停、按下、加载、空状态和错误状态。
+- 在关闭透明效果后仍可理解和操作。
 
-- **Weight restraint**: Nearly all text uses weight 400 (regular/book). Weight 500 appears only for navigation links and button labels. There is no bold (700) in the detected system — hierarchy is created through size, not weight.
-- **1.00 hero line-height**: The hero text is compressed to absolute zero leading. This is the defining typographic gesture — text that feels like a terminal command: dense, efficient, no wasted vertical space.
-- **Negative tracking on cards**: Card titles use -0.16px letter-spacing, a subtle tightening that differentiates them from body text without being obvious.
-- **Monospace as ritual**: Source Code Pro in uppercase with 1.2px letter-spacing is the "developer console" voice — used sparingly for technical labels that connect to the product experience.
-- **Geometric personality**: Circular's rounded terminals create warmth in what could otherwise be a cold, technical interface. The font is the humanizing element.
+### 4.2 宣传或设计参考图
 
-## 4. Component Stylings
+仅在 Dribbble 展示图、品牌宣传图或发布素材中允许：
 
-### Buttons
+- 显示器或设备外框。
+- 三分之四透视。
+- 冷蓝环境光。
+- 轻度景深和远端模糊。
+- 更强的高曝光、薄荷泛光和空间漂浮效果。
 
-**Primary Pill (Dark)**
+不得直接把宣传渲染参数作为生产 CSS。
 
-- Background: `#0f0f0f`
-- Text: `#fafafa`
-- Padding: 8px 32px
-- Radius: 9999px (full pill)
-- Border: `1px solid #fafafa` (white border on dark)
-- Focus shadow: `rgba(0, 0, 0, 0.1) 0px 4px 12px`
-- Use: Primary CTA ("Start your project")
+## 5. 颜色系统
 
-**Secondary Pill (Dark, Muted)**
+### 5.1 主色板
 
-- Background: `#0f0f0f`
-- Text: `#fafafa`
-- Padding: 8px 32px
-- Radius: 9999px
-- Border: `1px solid #2e2e2e` (dark border)
-- Opacity: 0.8
-- Use: Secondary CTA alongside primary
+| Token | 建议值 | 用途 |
+| --- | --- | --- |
+| `--color-canvas` | `#F4FAF7` | 页面主画布 |
+| `--color-canvas-cool` | `#DFF3EB` | 冷雾背景与浅色区域 |
+| `--color-canvas-blue` | `#D5E9E2` | 选中态、筛选器与轻提示 |
+| `--color-surface` | `rgba(255, 255, 255, 0.64)` | 半透明浮层 |
+| `--color-surface-solid` | `#F8FCFA` | 透明效果降级表面 |
+| `--color-ink` | `#163144` | 主文字、主图标、主操作 |
+| `--color-ink-strong` | `#081018` | 需要最高对比的正文 |
+| `--color-ink-muted` | `#73898D` | 次级说明、坐标和元信息 |
+| `--color-ink-soft` | `#A5C2BD` | 禁用态和背景辅助信息 |
+| `--color-line` | `rgba(22, 49, 68, 0.10)` | 分隔线、图表网格 |
+| `--color-line-strong` | `rgba(22, 49, 68, 0.18)` | 交互边界和聚焦区域 |
 
-**Ghost Button**
+### 5.2 业务语义色
 
-- Background: transparent
-- Text: `#fafafa`
-- Padding: 8px
-- Radius: 6px
-- Border: `1px solid transparent`
-- Use: Tertiary actions, icon buttons
+| Token | 建议值 | 用途 |
+| --- | --- | --- |
+| `--color-income` | `#285E68` | 收入、正向现金流 |
+| `--color-expense` | `#E76F67` | 支出、超预算和紧急账单 |
+| `--color-budget` | `#7772C8` | 预算对比和次级数据系列 |
+| `--color-warning` | `#C98A4B` | 即将到期、接近阈值 |
+| `--color-success` | `#3D7A68` | 成功、健康状态 |
+| `--color-error` | `#C95050` | 错误和失败状态 |
 
-### Cards & Containers
+### 5.3 使用比例
 
-- Background: dark surfaces (`#171717` or slightly lighter)
-- Border: `1px solid #2e2e2e` or `#363636`
-- Radius: 8px–16px
-- No visible shadows — borders define edges
-- Internal padding: 16px–24px
+- 画布和浅色中性色约占 80%。
+- 深海军蓝文字、图标和主操作约占 15%。
+- 珊瑚红、紫色、警示色等语义色合计不超过 5%。
+- 不使用大面积紫蓝渐变、彩虹渐变或霓虹色。
+- 支出红只表达真实负向语义，不作为装饰色。
 
-### Tabs
+### 5.4 背景
 
-- Border: `1px solid #2e2e2e`
-- Radius: 9999px (pill tabs)
-- Active: green accent or lighter surface
-- Inactive: dark, muted
+推荐使用非常轻的单色冷调渐变：
 
-### Links
+```css
+background:
+  radial-gradient(circle at 78% 0%, rgb(169 194 204 / 20%), transparent 34%),
+  linear-gradient(180deg, #e7f1f0 0%, #f4faf7 52%, #f8fcfa 100%);
+```
 
-- **Green**: `#00c573` — Supabase-branded links
-- **Primary Light**: `#fafafa` — standard links on dark
-- **Secondary**: `#b4b4b4` — muted links
-- **Muted**: `#898989` — tertiary links, footer
+渐变只提供空气感，不得形成明显色块、光球或 AI 风格网状背景。
 
-### Navigation
+## 6. 字体与排版
 
-- Dark background matching page (`#171717`)
-- Supabase logo with green icon
-- Circular 14px weight 500 for nav links
-- Clean horizontal layout with product dropdown
-- Green "Start your project" CTA pill button
-- Sticky header behavior
+### 6.1 字体
 
-## 5. Layout Principles
+- 拉丁字符与数字优先使用 `Urbanist`。
+- 中文优先使用系统可用的圆润现代无衬线字体。
+- 推荐回退：`PingFang SC`, `Microsoft YaHei`, `Noto Sans SC`, `sans-serif`。
+- 不使用衬线字体、装饰字体或等宽字体作为主要界面字体。
 
-### Spacing System
+建议字体栈：
 
-- Base unit: 8px
-- Scale: 1px, 4px, 6px, 8px, 12px, 16px, 20px, 24px, 32px, 40px, 48px, 90px, 96px, 128px
-- Notable large jumps: 48px → 90px → 96px → 128px for major section spacing
+```css
+font-family:
+  Urbanist,
+  "PingFang SC",
+  "Microsoft YaHei",
+  "Noto Sans SC",
+  sans-serif;
+```
 
-### Grid & Container
+如项目尚未包含 Urbanist，安装或引入字体前必须按项目规则确认。
 
-- Centered content with generous max-width
-- Full-width dark sections with constrained inner content
-- Feature grids: icon-based grids with consistent card sizes
-- Logo grids for "Trusted by" sections
-- Footer: multi-column on dark background
+### 6.2 字重
 
-### Breakpoints
+- `300`：超大金额和展示数字。
+- `400`：正文、标签、模块标题。
+- `500`：按钮、选中导航、需要强调的操作。
+- 原则上不使用 `600` 和 `700`。
 
-| Name    | Width  | Key Changes                         |
-| ------- | ------ | ----------------------------------- |
-| Mobile  | <600px | Single column, stacked layout       |
-| Desktop | >600px | Multi-column grids, expanded layout |
+### 6.3 字号层级
 
-_Note: Supabase uses a notably minimal breakpoint system — primarily a single 600px breakpoint, suggesting a mobile-first approach with progressive enhancement._
+| 角色 | 桌面字号 | 字重 | 行高 |
+| --- | --- | --- | --- |
+| 页面标题 | `30-36px` | `400` | `1.15` |
+| 主金额 | `56-72px` | `300` | `1.0` |
+| 大型指标 | `36-48px` | `300-400` | `1.05` |
+| 模块标题 | `20-24px` | `400` | `1.25` |
+| 卡片标题 | `16-18px` | `400-500` | `1.35` |
+| 正文 | `14-16px` | `400` | `1.5` |
+| 标签与坐标 | `12-13px` | `400-500` | `1.4` |
 
-### Whitespace Philosophy
+### 6.4 数字排版
 
-- **Dramatic section spacing**: 90px–128px between major sections creates a cinematic pacing — each section is its own scene in the dark void.
-- **Dense content blocks**: Within sections, spacing is tight (16px–24px), creating concentrated information clusters.
-- **Border-defined space**: Instead of whitespace + shadows for separation, Supabase uses thin borders on dark backgrounds — separation through line, not gap.
+- 金额数字使用等宽数字特性：`font-variant-numeric: tabular-nums`。
+- 货币符号与金额不得断行。
+- 金额保留位数遵循业务规范，不为了视觉整齐伪造小数。
+- 正数和负数必须同时通过符号、文本或图例表达，不能只依赖颜色。
 
-### Border Radius Scale
+## 7. 布局系统
 
-- Standard (6px): Ghost buttons, small elements
-- Comfortable (8px): Cards, containers
-- Medium (11px–12px): Mid-size panels
-- Large (16px): Feature cards, major containers
-- Pill (9999px): Primary buttons, tab indicators
+### 7.1 桌面框架
 
-## 6. Depth & Elevation
+- 推荐设计基准：`1440-1600px` 宽。
+- 左侧编辑器式导航宽度：`240-288px`。
+- 顶部工作区工具栏高度：`64-72px`。
+- 主内容边距：`28-40px`。
+- 使用 12 列栅格，列间距 `16-20px`。
+- 页面最大内容宽度不应过度收窄，分析图表需要横向空间。
 
-| Level                   | Treatment                         | Use                          |
-| ----------------------- | --------------------------------- | ---------------------------- |
-| Flat (Level 0)          | No shadow, border `#2e2e2e`       | Default state, most surfaces |
-| Subtle Border (Level 1) | Border `#363636` or `#393939`     | Interactive elements, hover  |
-| Focus (Level 2)         | `rgba(0, 0, 0, 0.1) 0px 4px 12px` | Focus states only            |
-| Green Accent (Level 3)  | Border `rgba(62, 207, 142, 0.3)`  | Brand-highlighted elements   |
+### 7.2 编辑器式侧栏
 
-**Shadow Philosophy**: Supabase deliberately avoids shadows. In a dark-mode-native design, shadows are nearly invisible and serve no purpose. Instead, depth is communicated through a sophisticated border hierarchy — from `#242424` (barely visible) through `#2e2e2e` (standard) to `#393939` (prominent). The green accent border (`rgba(62, 207, 142, 0.3)`) at 30% opacity is the "elevated" state — the brand color itself becomes the depth signal.
+侧栏不是独立深色块，应与画布共享同一冷雾背景。
 
-## 7. Do's and Don'ts
+- 支持分组、展开、缩进和数字徽标。
+- 当前项使用细窄深蓝竖向标记和浅薄荷背景。
+- 导航图标与文字保持单色。
+- 底部工具区可使用浅色圆形控件和一个深蓝主操作。
+- 不使用彩色导航图标或大面积品牌色填充。
 
-### Do
+### 7.3 工作区工具栏
 
-- Use near-black backgrounds (`#0f0f0f`, `#171717`) — depth comes from the gray border hierarchy
-- Apply Supabase green (`#3ecf8e`, `#00c573`) sparingly — it's an identity marker, not a decoration
-- Use Circular at weight 400 for nearly everything — 500 only for buttons and nav
-- Set hero text to 1.00 line-height — the zero-leading is the typographic signature
-- Create depth through border color differences (`#242424` → `#2e2e2e` → `#363636`)
-- Use pill shape (9999px) exclusively for primary CTAs and tabs
-- Employ HSL-based colors with alpha for translucent layering effects
-- Use Source Code Pro uppercase labels for developer-context markers
+- 菜单、搜索、刷新、导出和分享保持轻量。
+- 图标按钮使用圆形或圆角方形触控区域。
+- 工具栏不得与页面标题争夺视觉权重。
+- 主操作每个页面最多一个深蓝实心按钮。
 
-### Don't
+### 7.4 模块托盘
 
-- Don't add box-shadows — they're invisible on dark backgrounds and break the border-defined depth system
-- Don't use bold (700) text weight — the system uses 400 and 500 only
-- Don't apply green to backgrounds or large surfaces — it's for borders, links, and small accents
-- Don't use warm colors (crimson, orange) as primary design elements — they exist as semantic tokens for states
-- Don't increase hero line-height above 1.00 — the density is intentional
-- Don't use large border radius (16px+) on buttons — pills (9999px) or standard (6px), nothing in between
-- Don't lighten the background above `#171717` for primary surfaces — the darkness is structural
-- Don't forget the translucent borders — `rgba` border colors are the layering mechanism
+首页或可配置分析页可以使用漂浮模块托盘：
 
-## 8. Responsive Behavior
+- 一个添加模块块。
+- 两到四个大小不完全相同的模块入口。
+- 模块后方可露出一张小型预览卡，形成空间重叠。
+- 支持拖放时使用低对比虚线占位区。
+- 模块托盘是可配置能力的表达，不应出现在所有页面。
 
-### Breakpoints
+### 7.5 主分析画布
 
-| Name    | Width  | Key Changes                                     |
-| ------- | ------ | ----------------------------------------------- |
-| Mobile  | <600px | Single column, stacked features, condensed nav  |
-| Desktop | >600px | Multi-column grids, full nav, expanded sections |
+- 一张主图表承担页面视觉重心。
+- 主金额和辅助指标可直接排版在画布上，无需每个指标单独成卡。
+- 次级信息采用不对称布局，避免三张等宽等高卡片。
+- 页面首屏可露出下一层内容，提示继续滚动。
 
-### Collapsing Strategy
+## 8. 形状、边界与层次
 
-- Hero: 72px → scales down proportionally
-- Feature grids: multi-column → single column stacked
-- Logo row: horizontal → wrapped grid
-- Navigation: full → hamburger
-- Section spacing: 90–128px → 48–64px
-- Buttons: inline → full-width stacked
+### 8.1 圆角规则
 
-## 9. Agent Prompt Guide
+全站采用固定的超大圆角 Token。范围值只用于设计探索，生产实现必须使用以下固定值：
 
-### Quick Color Reference
+- 主分析面板、主容器：`32px`。
+- 普通信息卡片、交易、账户、提醒和账单模块：`24px`。
+- 输入框、筛选器和次级按钮：`16px`。
+- 胶囊筛选器和主操作：`9999px`。
+- 圆形图标按钮和头像：`50%`。
+- 表格行、列表分隔区、图表内部元素和纯布局容器不额外添加圆角。
 
-- Background: `#0f0f0f` (button), `#171717` (page)
-- Text: `#fafafa` (primary), `#b4b4b4` (secondary), `#898989` (muted)
-- Brand green: `#3ecf8e` (brand), `#00c573` (links)
-- Borders: `#242424` (subtle), `#2e2e2e` (standard), `#363636` (prominent)
-- Green border: `rgba(62, 207, 142, 0.3)` (accent)
+除非组件库或平台规范明确要求，不得在页面中引入新的圆角数值。这样可以保证参考图中的柔软感来自统一的形状系统，而不是每个组件自行选择圆角。
 
-### Example Component Prompts
+### 8.2 边界
 
-- "Create a hero section on #171717 background. Headline at 72px Circular weight 400, line-height 1.00, #fafafa text. Sub-text at 16px Circular weight 400, line-height 1.50, #b4b4b4. Pill CTA button (#0f0f0f bg, #fafafa text, 9999px radius, 8px 32px padding, 1px solid #fafafa border)."
-- "Design a feature card: #171717 background, 1px solid #2e2e2e border, 16px radius. Title at 24px Circular weight 400, letter-spacing -0.16px. Body at 14px weight 400, #898989 text."
-- "Build navigation bar: #171717 background. Circular 14px weight 500 for links, #fafafa text. Supabase logo with green icon left-aligned. Green pill CTA 'Start your project' right-aligned."
-- "Create a technical label: Source Code Pro 12px, uppercase, letter-spacing 1.2px, #898989 text."
-- "Design a framework logo grid: 6-column layout on dark, grayscale logos at 60% opacity, 1px solid #2e2e2e border between sections."
+- 默认边界：`1px solid rgba(22, 49, 68, 0.10)`。
+- 悬停边界：`rgba(22, 49, 68, 0.18)`。
+- 聚焦边界必须清晰，不得因追求低对比而隐藏。
+- 不使用深灰粗边框。
 
-### Iteration Guide
+### 8.3 阴影
 
-1. Start with #171717 background — everything is dark-mode-native
-2. Green is the brand identity marker — use it for links, logo, and accent borders only
-3. Depth comes from borders (#242424 → #2e2e2e → #363636), not shadows
-4. Weight 400 is the default for everything — 500 only for interactive elements
-5. Hero line-height of 1.00 is the signature typographic move
-6. Pill (9999px) for primary actions, 6px for secondary, 8-16px for cards
-7. HSL with alpha channels creates the sophisticated translucent layering
+阴影必须染入背景色，不使用纯黑阴影：
+
+```css
+box-shadow:
+  inset 0 1px 0 rgb(255 255 255 / 55%),
+  0 18px 52px rgb(42 79 91 / 7%);
+```
+
+- 普通区域尽量不用阴影。
+- 仅浮层、拖拽模块、Tooltip 和弹窗使用明显层次。
+- 同一屏幕不超过三个高层级浮层。
+
+### 8.4 透明效果
+
+- 半透明用于浮层、筛选器、Tooltip 和模块托盘。
+- 数据列表、输入表单和长正文优先使用稳定实色表面。
+- 必须提供不支持 `backdrop-filter` 时的实色降级。
+- 透明背景上的文字必须保持 WCAG AA 对比度。
+
+## 9. 图标系统
+
+- 优先使用 `@phosphor-icons/react`。
+- 备选为 HugeIcons、Radix Icons 或 Tabler Icons。
+- 同一页面只使用一个图标家族。
+- 统一线宽 `1.5px` 或同等视觉重量。
+- 图标使用圆润端点、简洁几何结构和单色深蓝。
+- 标准尺寸：导航 `18-20px`，按钮 `18-20px`，辅助图标 `14-16px`。
+- 不手绘 SVG 图标，不使用 Emoji 代替功能图标。
+- 银行或支付品牌 Logo 仅在账户识别确有必要时使用，不作为装饰。
+
+## 10. 数据可视化
+
+### 10.1 图表视觉语言
+
+Xpense 图表的标志性元素：
+
+- 浅灰蓝虚线网格。
+- 深海军蓝圆形采样点。
+- 斜线纹理面积填充。
+- 细趋势线和克制的坐标标签。
+- 半透明浮动 Tooltip。
+- 细长圆角柱，而不是粗重实心柱。
+
+### 10.2 收支趋势
+
+- 收入使用深海军蓝或灰青。
+- 支出使用珊瑚红，但饱和度和线宽低于收入主线。
+- 同时显示两条曲线时，应通过图例、线型和节点区分，不能只靠颜色。
+- 面积填充优先使用斜线纹理，不使用厚重纯色覆盖。
+- Tooltip 显示日期、收入、支出和变化原因。
+
+### 10.3 预算
+
+- 总预算可使用圆弧或环形进度。
+- 分类预算优先使用数字、剩余额度和细微刻度，不堆叠粗进度条。
+- 接近阈值才使用警示色。
+- 超预算时必须同时显示超出金额和处理入口。
+
+### 10.4 账户与资产
+
+- 账户分布使用细柱、比例条或简化环形图。
+- 品牌颜色不能破坏页面主色板。
+- 余额列表必须与总资产口径一致。
+
+### 10.5 无障碍
+
+- 图表必须有文本摘要或可访问数据表。
+- Hover 信息同时支持键盘焦点。
+- 色盲模式下仍可通过线型、纹理和标签区分数据系列。
+
+## 11. 核心组件规范
+
+### 11.1 财务总览
+
+- 主金额是第一视觉层级。
+- 收入、支出、结余、储蓄率使用松散的两列或四列排版。
+- 不拆成四张相同 KPI 卡。
+- 环比或同比使用小型文本标签，不使用夸张徽章。
+
+### 11.2 最近交易
+
+- 显示交易名称、分类、时间、账户和金额。
+- 使用稀疏分隔或行间留白，不使用厚重表格网格。
+- 收入和支出符号必须明确。
+- 超过五条时提供“查看全部”，不要无限延长首页列表。
+
+### 11.3 账户概览
+
+- 展示账户名称、类型、余额和占比。
+- 可配合一张简洁分布图。
+- 账户 Logo 尺寸和颜色必须收敛，不形成彩色图标墙。
+
+### 11.4 智能提醒
+
+- 提醒必须基于真实规则或分析结果。
+- 每条提醒说明事实、影响和建议动作。
+- 不设计成聊天机器人气泡。
+- 普通提醒使用冷雾表面，紧急提醒才使用警示色。
+
+### 11.5 即将到期账单
+
+- 展示账单名称、到期日、金额和状态。
+- 到期日比装饰图标更重要。
+- 临近或逾期才显示警示标记。
+- 提供管理账单或立即处理入口。
+
+### 11.6 筛选器
+
+- 时间、账户、分类和收支类型使用胶囊筛选器。
+- 同一行优先不超过四个。
+- 激活状态通过文字、填充和图标共同表达。
+- 移动端改为筛选抽屉或底部面板。
+
+### 11.7 按钮
+
+- 每个主要视图最多一个深蓝实心主按钮。
+- 次级操作使用浅色或描边按钮。
+- 纯图标按钮必须有可访问名称和 Tooltip。
+- 桌面按钮高度不低于 `40px`，触控目标不低于 `44px`。
+
+## 12. 交互与动效
+
+整体动效强度应保持克制，目标是解释状态变化，不是制造展示效果。
+
+- Hover：边界略增强，表面轻微提亮。
+- Press：缩放至 `0.98` 或下移 `1px`。
+- 模块拖放：使用真实位置过渡、占位区域和清晰落点。
+- Tooltip：使用淡入和 `4-8px` 位移。
+- 图表加载：允许一次性绘制或透明度渐入，不持续循环。
+- 页面进入：关键模块可短暂错峰出现，间隔不超过 `60ms`。
+- 只动画 `transform` 和 `opacity`。
+- 必须尊重 `prefers-reduced-motion`。
+
+## 13. 响应式策略
+
+### 13.1 宽屏
+
+- `>= 1440px`：完整侧栏、模块托盘、超宽趋势图和多列次级模块。
+
+### 13.2 标准桌面与平板横屏
+
+- `1024-1439px`：侧栏缩窄，减少模块托盘数量，主趋势图保持整行。
+- 次级模块从三列降为两列。
+
+### 13.3 平板与移动端
+
+- `< 1024px`：侧栏切换为抽屉或图标导航。
+- `< 768px`：所有分析模块转为单列。
+- 图表允许横向滚动或切换更简化的时间范围。
+- 模块托盘改为横向滚动列表，不进行悬浮重叠。
+- 最近交易保留主要查询和录入流程。
+- 页面内不允许依赖固定宽度缩放整个桌面界面。
+
+## 14. 状态设计
+
+每个数据模块都必须覆盖：
+
+- 加载状态：骨架屏形状匹配最终内容。
+- 空状态：解释为什么为空，并给出创建交易、添加账户或设置预算的动作。
+- 错误状态：说明失败对象和重试方式。
+- 部分数据状态：标明缺失范围，不伪造完整趋势。
+- 禁用状态：保留可识别标签，不只降低透明度。
+
+## 15. 内容与数据规范
+
+- 界面文案使用简洁、直接的中文。
+- 不使用营销口号、假 AI 术语或含糊提示。
+- 不使用 `John Doe`、`Acme` 等模板数据。
+- 示例数据使用符合中文个人财务场景的名称，但必须标明为示例。
+- 时间范围、币种、金额精度和时区遵循项目业务规范。
+- 日志、错误提示和 UI 不显示敏感账户信息或完整银行卡号。
+
+## 16. 推荐设计 Token
+
+```css
+:root {
+  --xp-canvas: #f4faf7;
+  --xp-canvas-cool: #dff3eb;
+  --xp-canvas-blue: #d5e9e2;
+  --xp-surface: rgb(255 255 255 / 64%);
+  --xp-surface-solid: #f8fcfa;
+  --xp-ink: #163144;
+  --xp-ink-strong: #081018;
+  --xp-ink-muted: #73898d;
+  --xp-line: rgb(22 49 68 / 10%);
+  --xp-line-strong: rgb(22 49 68 / 18%);
+  --xp-income: #285e68;
+  --xp-expense: #e76f67;
+  --xp-budget: #7772c8;
+  --xp-warning: #c98a4b;
+  --xp-radius-panel: 32px;
+  --xp-radius-card: 24px;
+  --xp-radius-control: 16px;
+  --xp-radius-pill: 9999px;
+  --xp-radius-icon: 50%;
+  --xp-shadow-float: 0 18px 52px rgb(42 79 91 / 7%);
+  --xp-space-1: 4px;
+  --xp-space-2: 8px;
+  --xp-space-3: 12px;
+  --xp-space-4: 16px;
+  --xp-space-5: 20px;
+  --xp-space-6: 24px;
+  --xp-space-8: 32px;
+  --xp-space-10: 40px;
+}
+```
+
+Token 是语义约束，不要求立即引入 CSS 变量。实际落地时应优先复用现有项目样式组织方式。
+
+## 17. 禁止模式
+
+以下模式默认禁止：
+
+- Supabase 式深色开发者后台。
+- 纯白背景加清晰灰边框的通用 SaaS 模板。
+- 三张或四张等宽 KPI 卡片横排。
+- 大面积深蓝、紫蓝或彩虹渐变。
+- 每个模块都使用玻璃拟态。
+- 卡片套卡片套卡片。
+- 粗黑标题和高饱和数据颜色。
+- 彩色 3D 图标、Emoji 图标和手绘 SVG 功能图标。
+- 无业务含义的折线、圆环或增长百分比。
+- 为追求低对比而牺牲文字、焦点或错误状态可读性。
+- 把 Dribbble 展示图中的透视、设备框、景深和模糊直接实现到产品页面。
+- 使用 `console.log`、`console.warn` 或 `console.error` 记录 UI 状态。
+
+## 18. 页面设计检查清单
+
+设计或实现新页面前后检查：
+
+- [ ] 页面是否像连续分析画布，而不是通用卡片网格？
+- [ ] 第一视觉层级是否是用户最需要知道的财务信息？
+- [ ] 是否只有一个明确主操作？
+- [ ] 是否避免三张相同 KPI 卡片？
+- [ ] 字体是否以 Light、Regular、Medium 为主？
+- [ ] 颜色是否保持冷雾青白和深海军蓝主轴？
+- [ ] 支出红、预算紫和警示色是否仅用于真实语义？
+- [ ] 图表是否使用轻网格、节点、纹理和清晰图例？
+- [ ] 图标是否来自同一图标家族且线宽一致？
+- [ ] 卡片和控件圆角是否符合 `apps/web/AGENTS.md`？
+- [ ] 是否包含加载、空、错误和部分数据状态？
+- [ ] 键盘焦点、对比度和触控区域是否合格？
+- [ ] 移动端是否提供真实重排，而不是缩小桌面画面？
+- [ ] 是否区分产品 UI 和宣传展示图效果？
+- [ ] 是否没有真实密钥、账号、银行卡号或隐私数据？
+
+## 19. Agent 生成提示词
+
+后续需要生成 Xpense Web 页面或设计参考图时，可使用以下基础提示词：
+
+```text
+为 Xpense 个人记账系统设计一个冷雾青白色的模块化财务分析工作台。页面应像专业分析编辑器，而不是通用卡片式后台：共享同一连续画布，左侧为轻量层级导航，顶部为低对比工作区工具栏，主区域以超大金额和一张超宽趋势图作为视觉锚点，次级模块采用不对称布局。
+
+使用 Urbanist 风格的圆润几何无衬线字体，Light、Regular、Medium 字重；背景为 #F4FAF7、#DFF3EB、#D5E9E2 的冷雾层次，主文字和图标使用 #163144，次级文字使用 #73898D。收入使用灰青，支出使用克制的珊瑚红，预算使用低饱和紫色。
+
+图表使用浅灰蓝虚线网格、深蓝圆点、细趋势线、斜线纹理面积和半透明 Tooltip。图标采用统一的 Phosphor 风格 1.5px 圆润线性图标。主操作使用深蓝胶囊按钮，其余控件使用浅色圆形、圆角方形或胶囊筛选器。
+
+减少独立卡片和明显边框，通过留白、色差、对齐和局部重叠表达层次。禁止三张相同 KPI 卡、深色 Supabase 风格、AI 紫蓝渐变、粗黑字体、彩色 3D 图标、厚重阴影、卡片套卡片，以及把设备透视和景深模糊用于真实产品界面。
+```
+
+具体页面仍需结合业务目标、用户任务和数据状态调整，不能机械复制首页布局。
