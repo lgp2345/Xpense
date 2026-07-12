@@ -4,8 +4,8 @@ import {
   API_ROUTES,
   APP_NAME,
   HelloResponseSchema,
-  ReadinessResponseSchema,
   makeHelloMessage,
+  ReadinessResponseSchema,
 } from "./index";
 
 describe("foundation shared contract", () => {
