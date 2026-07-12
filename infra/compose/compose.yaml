@@ -1,30 +1,67 @@
 name: xpense
 
+x-server-runtime: &server-runtime
+  image: xpense-server:local
+  build:
+    context: ../..
+    dockerfile: infra/compose/Dockerfile.server
+  env_file:
+    - ../../.env
+  environment:
+    DATABASE_URL: ${COMPOSE_DATABASE_URL:?COMPOSE_DATABASE_URL is required}
+    PORT: "${PORT:-4000}"
+    WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:5173}
+
 services:
-  server:
-    build:
-      context: ../..
-      dockerfile: infra/compose/Dockerfile.server
+  postgres:
+    image: postgres:18
     environment:
-      PORT: "4000"
-      WEB_ORIGIN: http://localhost:5173
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
     ports:
-      - "4000:4000"
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - type: bind
+        source: ${POSTGRES_DATA_DIR:?POSTGRES_DATA_DIR is required}
+        target: /var/lib/postgresql
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 2s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 30
+      start_period: 5s
+
+  db-prepare:
+    <<: *server-runtime
+    command: pnpm --filter @xpense/server db:prepare
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  server:
+    <<: *server-runtime
+    ports:
+      - "${PORT:-4000}:${PORT:-4000}"
+    depends_on:
+      db-prepare:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- \"http://127.0.0.1:$${PORT}/ready\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
 
   web:
     build:
       context: ../..
       dockerfile: infra/compose/Dockerfile.web
       args:
-        VITE_API_BASE_URL: http://localhost:4000
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000}
     environment:
-      VITE_API_BASE_URL: http://localhost:4000
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000}
     ports:
       - "5173:5173"
     depends_on:

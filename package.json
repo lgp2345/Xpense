@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "turbo dev",
+    "dev": "docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.dev.yaml run --rm --build db-prepare && dotenv -e .env -- turbo dev",
+    "dev:compose": "docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.dev.yaml up --build",
+    "dev:down": "docker compose --env-file .env -f infra/compose/compose.yaml -f infra/compose/compose.dev.yaml down --remove-orphans",
     "build": "turbo build",
     "lint": "turbo lint",
     "test": "turbo test",
