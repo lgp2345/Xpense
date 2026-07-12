@@ -8,6 +8,7 @@
     "check": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:prepare": "pnpm db:migrate && pnpm db:seed:rbac",
     "db:push": "drizzle-kit push",
     "db:seed:rbac": "tsx src/db/seed-rbac.ts",
     "dev": "tsx watch src/main.ts",
