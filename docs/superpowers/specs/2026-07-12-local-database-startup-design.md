@@ -128,12 +128,13 @@ PostgreSQL 18 容器将该宿主机目录绑定到 `/var/lib/postgresql`。官�
 新增 `/ready`：
 
 - 由 `src/db` 内独立的 database readiness service 执行轻量 `SELECT 1`。
-- 数据库可用时返回稳定的成功响应。
+- 共享路由新增 `API_ROUTES.ready = "/ready"`。
+- 数据库可用时返回 `{ "ok": true, "service": "server", "database": "ready" }`，并通过共享 `ReadinessResponseSchema` 和 `ReadinessResponse` 类型约束。
 - 数据库不可用时返回 HTTP `503`。
 - 错误响应和日志不得暴露连接串、密码或底层数据库错误细节。
 - controller 不直接调用 Drizzle，由 service 层封装数据库检查。
 
-共享 API 路由与响应类型同步增加 readiness 定义。Compose 的 server 健康检查改为调用 `/ready`，使 web 只有在 server 与数据库都可用时才启动。
+Compose 的 server 健康检查改为调用 `/ready`，使 web 只有在 server 与数据库都可用时才启动。
 
 ## 失败行为
 
