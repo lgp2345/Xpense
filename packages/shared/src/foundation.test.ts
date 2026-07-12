@@ -1,12 +1,33 @@
 import { describe, expect, it } from "vitest";
 
-import { API_ROUTES, APP_NAME, HelloResponseSchema, makeHelloMessage } from "./index";
+import {
+  API_ROUTES,
+  APP_NAME,
+  HelloResponseSchema,
+  ReadinessResponseSchema,
+  makeHelloMessage,
+} from "./index";
 
 describe("foundation shared contract", () => {
   it("keeps app identity and API routes in one shared package", () => {
     expect(APP_NAME).toBe("Xpense");
     expect(API_ROUTES.health).toBe("/health");
+    expect(API_ROUTES.ready).toBe("/ready");
     expect(API_ROUTES.hello).toBe("/foundation/hello");
+  });
+
+  it("defines the database readiness response", () => {
+    const response = ReadinessResponseSchema.parse({
+      ok: true,
+      service: "server",
+      database: "ready",
+    });
+
+    expect(response).toEqual({
+      ok: true,
+      service: "server",
+      database: "ready",
+    });
   });
 
   it("builds the hello response message from the shared app name", () => {

@@ -4,6 +4,7 @@ export const APP_NAME = "Xpense";
 
 export const API_ROUTES = {
   health: "/health",
+  ready: "/ready",
   hello: "/foundation/hello",
 } as const;
 
@@ -13,6 +14,14 @@ export const HealthResponseSchema = z.object({
 });
 
 export type HealthResponse = z.infer<typeof HealthResponseSchema>;
+
+export const ReadinessResponseSchema = z.object({
+  ok: z.literal(true),
+  service: z.literal("server"),
+  database: z.literal("ready"),
+});
+
+export type ReadinessResponse = z.infer<typeof ReadinessResponseSchema>;
 
 export const HelloResponseSchema = z.object({
   appName: z.literal(APP_NAME),
