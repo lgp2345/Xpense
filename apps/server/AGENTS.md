@@ -18,6 +18,14 @@
 - migration 必须和 schema 变更一起提交
 - 业务接口不得绕过认证和用户作用域校验
 
+## 依赖注入
+
+- controller、service、repository、guard 等 Nest provider 必须优先使用构造器注入，不使用属性注入或静态属性保存依赖
+- 注入普通 class provider 时，依赖 TypeScript 构造器类型元数据解析，不额外使用 `@Dependencies()` 或 `@Inject()`
+- 作为构造器注入 token 的 class 必须使用运行时 import，不得改成 `import type`；Biome 已对 `apps/server/src/**/*.ts` 关闭 `useImportType`，普通业务类型仍应主动使用 `import type`
+- 注入 Symbol、字符串或其他自定义 token 时，必须在对应构造器参数上使用 `@Inject(TOKEN)`；TypeScript interface 或 type 不得直接作为运行时注入 token
+- 构造器注入字段默认声明为 `private readonly`；可选依赖也优先通过构造器组合 `@Optional()` 与 `@Inject(TOKEN)` 显式声明
+
 ## 安全与日志
 
 - 数据库连接字符串、JWT secret、第三方密钥不得提交到仓库
