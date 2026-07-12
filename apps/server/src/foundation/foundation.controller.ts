@@ -1,5 +1,10 @@
 import { Controller, Get } from "@nestjs/common";
-import { API_ROUTES, type HealthResponse, type HelloResponse } from "@xpense/shared";
+import {
+  API_ROUTES,
+  type HealthResponse,
+  type HelloResponse,
+  type ReadinessResponse,
+} from "@xpense/shared";
 
 import { FoundationService } from "./foundation.service.js";
 
@@ -10,6 +15,11 @@ export class FoundationController {
   @Get(API_ROUTES.health)
   getHealth(): HealthResponse {
     return this.foundationService.getHealth();
+  }
+
+  @Get(API_ROUTES.ready)
+  getReadiness(): Promise<ReadinessResponse> {
+    return this.foundationService.getReadiness();
   }
 
   @Get(API_ROUTES.hello)

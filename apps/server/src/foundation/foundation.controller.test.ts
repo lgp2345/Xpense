@@ -1,8 +1,9 @@
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppModule } from "../app.module.js";
+import { DB } from "../db/db.tokens.js";
 
 const touchedEnvKeys = ["DATABASE_URL", "JWT_ACCESS_SECRET"] as const;
 const originalTouchedEnv = Object.fromEntries(
@@ -12,6 +13,7 @@ const requiredTestEnv = {
   DATABASE_URL: "postgresql://user:pass@localhost:5432/xpense",
   JWT_ACCESS_SECRET: "a-secret-with-at-least-32-characters",
 };
+const execute = vi.fn();
 
 function restoreTouchedProcessEnv() {
   for (const key of touchedEnvKeys) {
@@ -32,10 +34,14 @@ describe("Foundation API", () => {
   beforeEach(async () => {
     restoreTouchedProcessEnv();
     Object.assign(process.env, requiredTestEnv);
+    execute.mockReset().mockResolvedValue([]);
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(DB)
+      .useValue({ execute })
+      .compile();
 
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
     await app.init();
@@ -55,6 +61,39 @@ describe("Foundation API", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ ok: true, service: "server" });
+  });
+
+  it("returns database readiness when the query succeeds", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/ready",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      service: "server",
+      database: "ready",
+    });
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it("returns 503 without leaking database details", async () => {
+    execute.mockRejectedValueOnce(new Error("connection refused for postgresql://secret"));
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/ready",
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({
+      message: "Service is not ready",
+      error: "Service Unavailable",
+      statusCode: 503,
+    });
+    expect(response.body).not.toContain("connection refused");
+    expect(response.body).not.toContain("postgresql://secret");
   });
 
   it("returns the shared hello contract", async () => {

@@ -1,13 +1,18 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import {
   APP_NAME,
   type HealthResponse,
   type HelloResponse,
   makeHelloMessage,
+  type ReadinessResponse,
 } from "@xpense/shared";
+
+import { DatabaseReadinessService } from "../db/database-readiness.service.js";
 
 @Injectable()
 export class FoundationService {
+  constructor(private readonly databaseReadinessService: DatabaseReadinessService) {}
+
   getHealth(): HealthResponse {
     return {
       ok: true,
@@ -19,6 +24,20 @@ export class FoundationService {
     return {
       appName: APP_NAME,
       message: makeHelloMessage(),
+    };
+  }
+
+  async getReadiness(): Promise<ReadinessResponse> {
+    try {
+      await this.databaseReadinessService.check();
+    } catch {
+      throw new ServiceUnavailableException("Service is not ready");
+    }
+
+    return {
+      ok: true,
+      service: "server",
+      database: "ready",
     };
   }
 }
