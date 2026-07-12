@@ -1,25 +1,11 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Dependencies,
-  Get,
-  Param,
-  Patch,
-  Post,
-  UseGuards,
-} from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
 import { RequirePermission } from "./decorators/require-permission.decorator.js";
-// biome-ignore lint/style/useImportType: Nest needs DTO classes at runtime for validation metadata.
 import { CreateMemberDto } from "./dto/create-member.dto.js";
-// biome-ignore lint/style/useImportType: Nest needs DTO classes at runtime for validation metadata.
 import { CreateRoleDto } from "./dto/create-role.dto.js";
-// biome-ignore lint/style/useImportType: Nest needs DTO classes at runtime for validation metadata.
 import { UpdateMemberDto } from "./dto/update-member.dto.js";
-// biome-ignore lint/style/useImportType: Nest needs DTO classes at runtime for validation metadata.
 import { UpdateRoleDto } from "./dto/update-role.dto.js";
 import { AuthGuard } from "./guards/auth.guard.js";
 import { RbacGuard } from "./guards/rbac.guard.js";
@@ -27,7 +13,6 @@ import { IamService } from "./iam.service.js";
 import type { IamMember, IamPermission, IamRole } from "./iam.types.js";
 
 @Controller()
-@Dependencies(IamService)
 @UseGuards(AuthGuard, RbacGuard)
 export class IamController {
   constructor(private readonly iamService: IamService) {}

@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { Dependencies, Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { jwtVerify, SignJWT } from "jose";
 import { nanoid } from "nanoid";
 
@@ -12,7 +12,6 @@ export type AccessTokenPayload = {
 };
 
 @Injectable()
-@Dependencies(ServerConfigService)
 export class TokenService {
   constructor(private readonly config: ServerConfigService) {}
 

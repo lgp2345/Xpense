@@ -1,9 +1,4 @@
-import {
-  Dependencies,
-  ForbiddenException,
-  Injectable,
-  UnauthorizedException,
-} from "@nestjs/common";
+import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import type { PermissionKey } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
@@ -12,7 +7,6 @@ import type { AccessTokenPayload } from "../auth/token.service.js";
 import { AccessRepository } from "./access.repository.js";
 
 @Injectable()
-@Dependencies(AccessRepository)
 export class AccessService {
   constructor(private readonly repository: AccessRepository) {}
 

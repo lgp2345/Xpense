@@ -1,4 +1,4 @@
-import { Dependencies, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { AuditRepository } from "./audit.repository.js";
@@ -13,6 +13,8 @@ type AuditLogger = {
   error(message: unknown): void;
 };
 
+const AUDIT_LOGGER = Symbol("AUDIT_LOGGER");
+
 const sensitiveMetadataKeys = new Set([
   "password",
   "token",
@@ -22,10 +24,11 @@ const sensitiveMetadataKeys = new Set([
 ]);
 
 @Injectable()
-@Dependencies(AuditRepository)
 export class AuditService {
   constructor(
     private readonly repository: AuditRepository,
+    @Optional()
+    @Inject(AUDIT_LOGGER)
     private readonly logger: AuditLogger = new Logger(AuditService.name),
   ) {}
 

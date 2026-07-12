@@ -1,10 +1,9 @@
-import { Controller, Dependencies, Get } from "@nestjs/common";
+import { Controller, Get } from "@nestjs/common";
 import { API_ROUTES, type HealthResponse, type HelloResponse } from "@xpense/shared";
 
 import { FoundationService } from "./foundation.service.js";
 
 @Controller()
-@Dependencies(FoundationService)
 export class FoundationController {
   constructor(private readonly foundationService: FoundationService) {}
 

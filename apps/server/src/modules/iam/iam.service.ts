@@ -1,6 +1,5 @@
 import {
   ConflictException,
-  Dependencies,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -17,7 +16,6 @@ import { IamRepository } from "./iam.repository.js";
 import type { IamMember, IamPermission, IamRole } from "./iam.types.js";
 
 @Injectable()
-@Dependencies(IamRepository, AuditService)
 export class IamService {
   constructor(
     private readonly repository: IamRepository,

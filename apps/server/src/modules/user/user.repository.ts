@@ -1,4 +1,4 @@
-import { Dependencies, Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type { ClientType, PermissionKey } from "@xpense/shared";
 import { and, eq, gt } from "drizzle-orm";
 
@@ -38,9 +38,8 @@ export type CurrentUserContextRecord = {
 };
 
 @Injectable()
-@Dependencies(DB)
 export class UserRepository {
-  constructor(private readonly db: AppDb) {}
+  constructor(@Inject(DB) private readonly db: AppDb) {}
 
   async findCurrentUserContext(authContext: AuthContext): Promise<CurrentUserContextRecord | null> {
     const [record] = await this.db

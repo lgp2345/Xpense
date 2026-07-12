@@ -1,6 +1,5 @@
 import {
   type CanActivate,
-  Dependencies,
   type ExecutionContext,
   Injectable,
   UnauthorizedException,
@@ -19,7 +18,6 @@ type RequestWithAuthContext = {
 };
 
 @Injectable()
-@Dependencies(TokenService, AccessService)
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly tokenService: TokenService,

@@ -1,4 +1,4 @@
-import { Dependencies, Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type { ClientType } from "@xpense/shared";
 import { and, desc, eq } from "drizzle-orm";
 
@@ -50,9 +50,8 @@ export type UpdateRefreshSessionTokenInput = {
 };
 
 @Injectable()
-@Dependencies(DB)
 export class AuthRepository {
-  constructor(private readonly db: AppDb) {}
+  constructor(@Inject(DB) private readonly db: AppDb) {}
 
   async findActiveUserByEmail(email: string): Promise<AuthUser | null> {
     const [user] = await this.db

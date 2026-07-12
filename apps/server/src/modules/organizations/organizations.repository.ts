@@ -1,4 +1,4 @@
-import { Dependencies, Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { and, desc, eq } from "drizzle-orm";
 
 import type { AppDb } from "../../db/db.module.js";
@@ -18,9 +18,8 @@ export type ActiveMembership = {
 };
 
 @Injectable()
-@Dependencies(DB)
 export class OrganizationsRepository {
-  constructor(private readonly db: AppDb) {}
+  constructor(@Inject(DB) private readonly db: AppDb) {}
 
   async listActiveOrganizationsForUser(userId: string): Promise<UserOrganization[]> {
     return this.db

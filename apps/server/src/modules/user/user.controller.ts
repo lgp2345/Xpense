@@ -1,4 +1,4 @@
-import { Controller, Dependencies, Get, UseGuards } from "@nestjs/common";
+import { Controller, Get, UseGuards } from "@nestjs/common";
 import type { CurrentUserResponse } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
@@ -8,7 +8,6 @@ import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import { UserService } from "./user.service.js";
 
 @Controller("user")
-@Dependencies(UserService)
 @UseGuards(AuthGuard, RbacGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}

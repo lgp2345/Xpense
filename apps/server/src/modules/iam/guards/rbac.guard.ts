@@ -1,6 +1,5 @@
 import {
   type CanActivate,
-  Dependencies,
   type ExecutionContext,
   Injectable,
   UnauthorizedException,
@@ -18,7 +17,6 @@ type RequestWithAuthContext = {
 };
 
 @Injectable()
-@Dependencies(Reflector, AccessService)
 export class RbacGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,

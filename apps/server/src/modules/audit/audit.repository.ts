@@ -1,4 +1,4 @@
-import { Dependencies, Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { and, desc, eq, gte, lte, type SQL } from "drizzle-orm";
 
 import type { AppDb } from "../../db/db.module.js";
@@ -12,9 +12,8 @@ import type {
 } from "./audit.types.js";
 
 @Injectable()
-@Dependencies(DB)
 export class AuditRepository {
-  constructor(private readonly db: AppDb) {}
+  constructor(@Inject(DB) private readonly db: AppDb) {}
 
   async append(input: AppendAuditLogInput): Promise<void> {
     await this.db.insert(auditLogs).values({

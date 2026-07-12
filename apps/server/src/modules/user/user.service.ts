@@ -1,4 +1,4 @@
-import { Dependencies, ForbiddenException, Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
 import { type CurrentUserResponse, permissionKeys } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
@@ -6,7 +6,6 @@ import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { UserRepository } from "./user.repository.js";
 
 @Injectable()
-@Dependencies(UserRepository)
 export class UserService {
   constructor(private readonly repository: UserRepository) {}
 

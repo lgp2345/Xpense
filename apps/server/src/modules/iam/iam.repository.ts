@@ -1,4 +1,4 @@
-import { Dependencies, Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type { PermissionKey } from "@xpense/shared";
 import { and, count, eq, inArray, isNull, or } from "drizzle-orm";
 
@@ -29,9 +29,8 @@ import type {
 } from "./iam.types.js";
 
 @Injectable()
-@Dependencies(DB)
 export class IamRepository {
-  constructor(private readonly db: AppDb) {}
+  constructor(@Inject(DB) private readonly db: AppDb) {}
 
   async listMembers(organizationId: string): Promise<IamMember[]> {
     return this.db

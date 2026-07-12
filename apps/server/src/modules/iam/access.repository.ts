@@ -1,4 +1,4 @@
-import { Dependencies, Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type { PermissionKey } from "@xpense/shared";
 import { and, eq, gt } from "drizzle-orm";
 
@@ -36,9 +36,8 @@ export type ActiveMembership = {
 };
 
 @Injectable()
-@Dependencies(DB)
 export class AccessRepository {
-  constructor(private readonly db: AppDb) {}
+  constructor(@Inject(DB) private readonly db: AppDb) {}
 
   async findActiveSession(payload: AccessTokenPayload): Promise<ActiveSession | null> {
     const [session] = await this.db

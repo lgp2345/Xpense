@@ -1,17 +1,14 @@
-import { Body, Controller, Dependencies, Get, HttpCode, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, Post } from "@nestjs/common";
 import type { AuthTokensResponse } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
 import type { SessionResponse } from "./auth.service.js";
 import { AuthService } from "./auth.service.js";
-// biome-ignore lint/style/useImportType: Nest needs DTO classes at runtime for validation metadata.
 import { LoginDto } from "./dto/login.dto.js";
-// biome-ignore lint/style/useImportType: Nest needs DTO classes at runtime for validation metadata.
 import { RefreshDto } from "./dto/refresh.dto.js";
 
 @Controller("auth")
-@Dependencies(AuthService)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

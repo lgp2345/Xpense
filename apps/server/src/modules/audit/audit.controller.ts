@@ -1,4 +1,4 @@
-import { Controller, Dependencies, Get, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
@@ -7,11 +7,9 @@ import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import { AuditService } from "./audit.service.js";
 import type { AuditLogRecord } from "./audit.types.js";
-// biome-ignore lint/style/useImportType: Nest needs DTO classes at runtime for validation metadata.
 import { ListAuditLogsDto } from "./dto/list-audit-logs.dto.js";
 
 @Controller("audit-logs")
-@Dependencies(AuditService)
 @UseGuards(AuthGuard, RbacGuard)
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
