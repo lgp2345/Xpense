@@ -6,7 +6,6 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import { parseServerEnv, type ServerEnv } from "../config/env.schema.js";
-import * as schema from "./schema.js";
 import {
   organizationMemberships,
   organizations,
@@ -16,7 +15,7 @@ import {
   users,
 } from "./schema.js";
 
-type SeedDb = ReturnType<typeof drizzle<typeof schema>>;
+type SeedDb = ReturnType<typeof drizzle>;
 type SeedTransaction = Parameters<Parameters<SeedDb["transaction"]>[0]>[0];
 type SeedExecutor = SeedDb | SeedTransaction;
 
@@ -115,7 +114,7 @@ export async function runSeedRbacFromProcessEnv(
 ): Promise<void> {
   const env = parseServerEnv(envInput);
   const client = postgres(env.DATABASE_URL);
-  const db = drizzle(client, { schema });
+  const db = drizzle({ client });
 
   try {
     await seedRbac(db, env);

@@ -4,9 +4,8 @@ import postgres from "postgres";
 
 import { ServerConfigService } from "../config/config.service.js";
 import { DB } from "./db.tokens.js";
-import * as schema from "./schema.js";
 
-export type AppDb = ReturnType<typeof drizzle<typeof schema>>;
+export type AppDb = ReturnType<typeof drizzle>;
 
 @Global()
 @Module({
@@ -17,7 +16,7 @@ export type AppDb = ReturnType<typeof drizzle<typeof schema>>;
       useFactory: (config: ServerConfigService) => {
         const client = postgres(config.env.DATABASE_URL);
 
-        return drizzle(client, { schema });
+        return drizzle({ client });
       },
     },
   ],

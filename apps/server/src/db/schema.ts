@@ -3,8 +3,8 @@ import {
   index,
   jsonb,
   pgEnum,
-  pgTable,
   primaryKey,
+  snakeCase,
   text,
   timestamp,
   uniqueIndex,
@@ -19,89 +19,89 @@ export const clientType = pgEnum("client_type", ["web_pc", "web_mobile", "app_io
 export const auditResult = pgEnum("audit_result", ["succeeded", "failed"]);
 
 const timestamps = {
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 };
 
-export const users = pgTable(
+export const users = snakeCase.table(
   "users",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    email: text("email").notNull(),
-    passwordHash: text("password_hash").notNull(),
-    status: userStatus("status").notNull().default("active"),
-    isSuperAdmin: boolean("is_super_admin").notNull().default(false),
+    id: uuid().primaryKey().defaultRandom(),
+    email: text().notNull(),
+    passwordHash: text().notNull(),
+    status: userStatus().notNull().default("active"),
+    isSuperAdmin: boolean().notNull().default(false),
     ...timestamps,
   },
   (table) => [uniqueIndex("users_email_unique").on(table.email)],
 );
 
-export const organizations = pgTable("organizations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  status: organizationStatus("status").notNull().default("active"),
-  createdByUserId: uuid("created_by_user_id")
+export const organizations = snakeCase.table("organizations", {
+  id: uuid().primaryKey().defaultRandom(),
+  name: text().notNull(),
+  status: organizationStatus().notNull().default("active"),
+  createdByUserId: uuid()
     .notNull()
     .references(() => users.id),
   ...timestamps,
 });
 
-export const roles = pgTable(
+export const roles = snakeCase.table(
   "roles",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id").references(() => organizations.id),
-    key: text("key").notNull(),
-    name: text("name").notNull(),
-    description: text("description").notNull().default(""),
-    isSystem: boolean("is_system").notNull().default(false),
-    isEditable: boolean("is_editable").notNull().default(true),
+    id: uuid().primaryKey().defaultRandom(),
+    organizationId: uuid().references(() => organizations.id),
+    key: text().notNull(),
+    name: text().notNull(),
+    description: text().notNull().default(""),
+    isSystem: boolean().notNull().default(false),
+    isEditable: boolean().notNull().default(true),
     ...timestamps,
   },
   (table) => [uniqueIndex("roles_organization_key_unique").on(table.organizationId, table.key)],
 );
 
-export const permissions = pgTable(
+export const permissions = snakeCase.table(
   "permissions",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    key: text("key").notNull(),
-    name: text("name").notNull(),
-    resource: text("resource").notNull(),
-    action: text("action").notNull(),
-    description: text("description").notNull().default(""),
+    id: uuid().primaryKey().defaultRandom(),
+    key: text().notNull(),
+    name: text().notNull(),
+    resource: text().notNull(),
+    action: text().notNull(),
+    description: text().notNull().default(""),
   },
   (table) => [uniqueIndex("permissions_key_unique").on(table.key)],
 );
 
-export const rolePermissions = pgTable(
+export const rolePermissions = snakeCase.table(
   "role_permissions",
   {
-    roleId: uuid("role_id")
+    roleId: uuid()
       .notNull()
       .references(() => roles.id),
-    permissionId: uuid("permission_id")
+    permissionId: uuid()
       .notNull()
       .references(() => permissions.id),
   },
   (table) => [primaryKey({ columns: [table.roleId, table.permissionId] })],
 );
 
-export const organizationMemberships = pgTable(
+export const organizationMemberships = snakeCase.table(
   "organization_memberships",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id")
+    id: uuid().primaryKey().defaultRandom(),
+    organizationId: uuid()
       .notNull()
       .references(() => organizations.id),
-    userId: uuid("user_id")
+    userId: uuid()
       .notNull()
       .references(() => users.id),
-    roleId: uuid("role_id")
+    roleId: uuid()
       .notNull()
       .references(() => roles.id),
-    status: membershipStatus("status").notNull().default("active"),
-    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    status: membershipStatus().notNull().default("active"),
+    joinedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     ...timestamps,
   },
   (table) => [
@@ -111,25 +111,25 @@ export const organizationMemberships = pgTable(
   ],
 );
 
-export const refreshSessions = pgTable(
+export const refreshSessions = snakeCase.table(
   "refresh_sessions",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
+    id: uuid().primaryKey().defaultRandom(),
+    userId: uuid()
       .notNull()
       .references(() => users.id),
-    currentOrganizationId: uuid("current_organization_id").references(() => organizations.id),
-    clientType: clientType("client_type").notNull(),
-    deviceIdHash: text("device_id_hash"),
-    deviceName: text("device_name"),
-    refreshTokenHash: text("refresh_token_hash").notNull(),
-    status: refreshSessionStatus("status").notNull().default("active"),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    rotatedAt: timestamp("rotated_at", { withTimezone: true }),
-    revokedAt: timestamp("revoked_at", { withTimezone: true }),
-    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
-    userAgent: text("user_agent"),
-    ipHash: text("ip_hash"),
+    currentOrganizationId: uuid().references(() => organizations.id),
+    clientType: clientType().notNull(),
+    deviceIdHash: text(),
+    deviceName: text(),
+    refreshTokenHash: text().notNull(),
+    status: refreshSessionStatus().notNull().default("active"),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    rotatedAt: timestamp({ withTimezone: true }),
+    revokedAt: timestamp({ withTimezone: true }),
+    lastUsedAt: timestamp({ withTimezone: true }),
+    userAgent: text(),
+    ipHash: text(),
     ...timestamps,
   },
   (table) => [
@@ -138,19 +138,19 @@ export const refreshSessions = pgTable(
   ],
 );
 
-export const auditLogs = pgTable(
+export const auditLogs = snakeCase.table(
   "audit_logs",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id").references(() => organizations.id),
-    actorUserId: uuid("actor_user_id").references(() => users.id),
-    action: text("action").notNull(),
-    targetType: text("target_type").notNull(),
-    targetId: text("target_id"),
-    result: auditResult("result").notNull(),
-    metadata: jsonb("metadata").notNull().default({}),
-    requestId: text("request_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    id: uuid().primaryKey().defaultRandom(),
+    organizationId: uuid().references(() => organizations.id),
+    actorUserId: uuid().references(() => users.id),
+    action: text().notNull(),
+    targetType: text().notNull(),
+    targetId: text(),
+    result: auditResult().notNull(),
+    metadata: jsonb().notNull().default({}),
+    requestId: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("audit_logs_organization_idx").on(table.organizationId),
