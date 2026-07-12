@@ -21,7 +21,7 @@
     "@nestjs/platform-fastify": "^11.1.9",
     "@xpense/shared": "workspace:*",
     "argon2": "^0.44.0",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "1.0.0-rc.4",
     "jose": "^6.2.3",
     "nanoid": "^5.1.16",
     "nestjs-zod": "^5.0.1",
@@ -33,7 +33,7 @@
   "devDependencies": {
     "@nestjs/testing": "^11.1.9",
     "@types/node": "catalog:",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "1.0.0-rc.3",
     "tsx": "^4.21.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
