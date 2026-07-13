@@ -1,0 +1,350 @@
+.dashboard-details {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.15fr) minmax(280px, 0.95fr) minmax(
+      270px,
+      0.9fr
+    );
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 64px;
+}
+
+.net-asset-rail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 18px;
+  border-radius: var(--radius-control);
+  background: rgb(213 233 226 / 34%);
+}
+
+.net-asset-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 62%);
+}
+
+.net-asset-rail > span:nth-child(2) {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.net-asset-rail small {
+  color: var(--color-ink-muted);
+  font-size: 12px;
+}
+
+.net-asset-rail strong {
+  font-size: 20px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.net-asset-change {
+  margin-left: auto;
+  color: var(--color-success);
+  font-size: 12px;
+}
+
+.detail-panel {
+  min-width: 0;
+  border: 1px solid rgb(255 255 255 / 52%);
+  border-radius: var(--radius-card);
+  background: rgb(248 252 250 / 62%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 58%);
+}
+
+.detail-panel-header {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 18px;
+}
+
+.detail-panel-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.panel-menu-button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+
+.text-action-button {
+  min-height: 34px;
+  padding: 0 5px;
+  color: var(--color-ink-muted);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.budget-body {
+  padding: 2px 18px 20px;
+}
+
+.budget-ring {
+  position: relative;
+  width: 188px;
+  height: 188px;
+  display: grid;
+  place-items: center;
+  margin: 2px auto 18px;
+  border-radius: 50%;
+  background: conic-gradient(var(--color-income) 0 68.7%, rgb(213 233 226 / 62%) 68.7% 100%);
+}
+
+.budget-ring::before {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  background: #f5faf8;
+}
+
+.budget-ring > div {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.budget-ring strong,
+.budget-ring span {
+  display: block;
+}
+
+.budget-ring strong {
+  font-size: 29px;
+  font-weight: 300;
+}
+
+.budget-ring span {
+  margin-top: 5px;
+  color: var(--color-ink-muted);
+  font-size: 11px;
+}
+
+.budget-category-list {
+  display: grid;
+  gap: 7px;
+}
+
+.budget-category {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: rgb(213 233 226 / 32%);
+}
+
+.budget-category strong,
+.budget-category small {
+  display: block;
+}
+
+.budget-category strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.budget-category small {
+  margin-top: 2px;
+  color: var(--color-ink-muted);
+  font-size: 10px;
+}
+
+.budget-category b {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.transaction-list,
+.bill-list {
+  padding: 0 18px 16px;
+}
+
+.transaction-row {
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.transaction-row:last-child,
+.bill-row:last-child {
+  border-bottom: 0;
+}
+
+.transaction-icon,
+.bill-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(213 233 226 / 52%);
+}
+
+.transaction-copy strong,
+.transaction-copy small,
+.bill-row strong,
+.bill-row small {
+  display: block;
+}
+
+.transaction-copy strong,
+.bill-row strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.transaction-copy small,
+.bill-row small {
+  margin-top: 3px;
+  color: var(--color-ink-muted);
+  font-size: 10px;
+}
+
+.transaction-amount,
+.bill-row b {
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.transaction-amount.is-income {
+  color: var(--color-success);
+}
+
+.accounts-chart {
+  min-height: 260px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 16px;
+  padding: 12px 18px 22px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 51px,
+    rgb(22 49 68 / 8%) 52px,
+    transparent 53px
+  );
+}
+
+.account-column {
+  min-width: 0;
+  text-align: center;
+}
+
+.account-bar-track {
+  height: 160px;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+}
+
+.account-bar-track i {
+  width: 11px;
+  min-height: 24px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, var(--color-ink-muted), var(--color-ink));
+  opacity: 0.66;
+}
+
+.account-column strong,
+.account-column span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-column strong {
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.account-column span {
+  margin-top: 3px;
+  color: var(--color-ink-muted);
+  font-size: 10px;
+}
+
+.insights-column {
+  display: grid;
+  gap: 16px;
+}
+
+.reminders-panel {
+  position: relative;
+  z-index: 1;
+  margin-left: -38px;
+  background: rgb(233 243 240 / 82%);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(18px);
+}
+
+.reminder-list {
+  display: grid;
+  gap: 8px;
+  padding: 0 14px 16px;
+}
+
+.reminder-item {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: rgb(255 255 255 / 42%);
+}
+
+.reminder-item strong,
+.reminder-item small {
+  display: block;
+}
+
+.reminder-item strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.reminder-item small {
+  margin-top: 3px;
+  color: var(--color-ink-muted);
+  font-size: 10px;
+}
+
+.bill-row {
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--color-line);
+}

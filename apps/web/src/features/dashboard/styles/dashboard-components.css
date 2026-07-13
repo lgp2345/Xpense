@@ -1,0 +1,367 @@
+.module-tray {
+  display: grid;
+  grid-template-columns: 104px repeat(3, minmax(200px, 1fr)) minmax(180px, 0.9fr);
+  align-items: end;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.module-add-button {
+  width: 104px;
+  min-width: 104px;
+  height: 112px;
+  min-height: 112px;
+  border: 1px solid rgb(255 255 255 / 58%);
+  border-radius: var(--radius-card);
+  color: var(--color-ink);
+  background: rgb(255 255 255 / 44%);
+  box-shadow: var(--shadow-float);
+}
+
+.module-add-button > span {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(213 233 226 / 72%);
+}
+
+.module-stack {
+  position: relative;
+  min-width: 0;
+  padding-top: 34px;
+}
+
+.module-preview {
+  position: absolute;
+  top: 0;
+  left: 22%;
+  right: 12%;
+  height: 86px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgb(255 255 255 / 62%);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 70%);
+  box-shadow: 0 12px 30px rgb(42 79 91 / 7%);
+  transform: rotate(-1.8deg);
+}
+
+.module-stack:nth-of-type(3) .module-preview {
+  transform: rotate(1.7deg);
+}
+
+.module-preview small,
+.module-preview strong {
+  display: block;
+  white-space: nowrap;
+}
+
+.module-preview small {
+  color: var(--color-ink-muted);
+  font-size: 9px;
+}
+
+.module-preview strong {
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.preview-bars {
+  height: 54px;
+  display: flex;
+  align-items: end;
+  gap: 3px;
+}
+
+.preview-bars i {
+  width: 4px;
+  border-radius: 9999px;
+  opacity: 0.72;
+}
+
+.preview-bars-violet i {
+  background: var(--color-budget);
+}
+
+.preview-bars-coral i {
+  background: var(--color-expense);
+}
+
+.module-card {
+  position: relative;
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 20px;
+  border: 1px solid rgb(255 255 255 / 56%);
+  border-radius: var(--radius-card);
+  background: rgb(248 252 250 / 74%);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(18px);
+}
+
+.module-card h3,
+.module-card p {
+  margin: 0;
+}
+
+.module-card h3 {
+  font-size: 17px;
+  font-weight: 400;
+}
+
+.module-card p {
+  margin-top: 7px;
+  color: var(--color-ink-muted);
+  font-size: 13px;
+}
+
+.module-menu-button,
+.panel-menu-button,
+.chart-tooltip-close {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  color: var(--color-ink);
+  background: rgb(213 233 226 / 56%);
+}
+
+.module-drop-zone {
+  min-height: 112px;
+  border: 1px dashed rgb(22 49 68 / 18%);
+  border-radius: var(--radius-card);
+  color: var(--color-ink-muted);
+  background: rgb(255 255 255 / 12%);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.analysis-canvas {
+  min-height: 400px;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.78fr) minmax(0, 2.25fr);
+  gap: 26px;
+  margin-top: 18px;
+  padding: 34px 30px 26px;
+  border: 1px solid rgb(255 255 255 / 44%);
+  border-radius: var(--radius-analysis);
+  background: rgb(248 252 250 / 38%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 52%);
+}
+
+.financial-summary {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px 4px 22px;
+}
+
+.section-label {
+  margin: 0;
+  font-size: 17px;
+}
+
+.primary-balance {
+  margin: 18px 0 0;
+  white-space: nowrap;
+  color: var(--color-ink);
+  font-size: clamp(42px, 3.9vw, 66px);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.primary-balance span {
+  margin-right: 5px;
+  font-size: 0.55em;
+}
+
+.summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 18px;
+  margin: 36px 0 0;
+}
+
+.summary-metrics dt {
+  color: var(--color-ink-muted);
+  font-size: 12px;
+}
+
+.summary-metrics dd {
+  margin: 6px 0 0;
+  font-size: 21px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-section {
+  min-width: 0;
+}
+
+.trend-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+}
+
+.trend-toolbar h2,
+.trend-toolbar p {
+  margin: 0;
+}
+
+.trend-toolbar h2 {
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.trend-toolbar p {
+  margin-top: 4px;
+  color: var(--color-ink-muted);
+  font-size: 12px;
+}
+
+.trend-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.filter-button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  color: var(--color-ink);
+  background: rgb(213 233 226 / 48%);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.filter-button:hover,
+.filter-button[data-hovered] {
+  border-color: var(--color-line-strong);
+  background: rgb(255 255 255 / 58%);
+}
+
+.trend-chart-wrap {
+  position: relative;
+  margin-top: 14px;
+}
+
+.trend-chart {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-grid-line {
+  stroke: rgb(22 49 68 / 13%);
+  stroke-dasharray: 9 12;
+  stroke-width: 1;
+}
+
+.chart-grid-vertical {
+  opacity: 0.42;
+}
+
+.chart-hatch-area {
+  fill: url("#diagonalHatch");
+  opacity: 0.7;
+}
+
+.chart-hatch-line {
+  fill: none;
+  stroke: rgb(40 94 104 / 24%);
+  stroke-width: 1.2;
+}
+
+.chart-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
+.chart-line-income {
+  stroke: var(--color-income);
+}
+
+.chart-line-expense {
+  stroke: var(--color-expense);
+  opacity: 0.68;
+}
+
+.chart-node {
+  stroke: #f8fcfa;
+  stroke-width: 2;
+}
+
+.chart-node-income {
+  fill: var(--color-ink);
+}
+
+.chart-node-expense {
+  fill: var(--color-expense);
+}
+
+.chart-axis-label {
+  fill: var(--color-ink-muted);
+  font-size: 10px;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 25%;
+  right: 18%;
+  min-width: 190px;
+  padding: 22px;
+  border: 1px solid rgb(255 255 255 / 62%);
+  border-radius: var(--radius-card);
+  background: rgb(232 242 239 / 78%);
+  box-shadow: 0 24px 58px rgb(42 79 91 / 10%);
+  backdrop-filter: blur(18px);
+}
+
+.chart-tooltip-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  background: transparent;
+}
+
+.chart-tooltip strong,
+.chart-tooltip span {
+  display: block;
+}
+
+.chart-tooltip strong {
+  font-size: 29px;
+  font-weight: 300;
+}
+
+.chart-tooltip span {
+  margin-top: 7px;
+  color: var(--color-ink-muted);
+  font-size: 13px;
+}

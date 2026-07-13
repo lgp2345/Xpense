@@ -1,8 +1,33 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
 :root {
-  color: #fafafa;
-  background: #171717;
+  color: #163144;
+  background: #f4faf7;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    Urbanist, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", ui-sans-serif, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --color-canvas: #f4faf7;
+  --color-canvas-cool: #dff3eb;
+  --color-canvas-blue: #d5e9e2;
+  --color-surface: rgb(255 255 255 / 64%);
+  --color-surface-solid: #f8fcfa;
+  --color-ink: #163144;
+  --color-ink-strong: #081018;
+  --color-ink-muted: #73898d;
+  --color-ink-soft: #a5c2bd;
+  --color-line: rgb(22 49 68 / 10%);
+  --color-line-strong: rgb(22 49 68 / 18%);
+  --color-income: #285e68;
+  --color-expense: #e76f67;
+  --color-budget: #7772c8;
+  --color-warning: #c98a4b;
+  --color-success: #3d7a68;
+  --radius-analysis: 32px;
+  --radius-card: 24px;
+  --radius-control: 16px;
+  --shadow-float: inset 0 1px 0 rgb(255 255 255 / 55%), 0 18px 52px rgb(42 79 91 / 7%);
 }
 
 * {
@@ -13,24 +38,35 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #171717;
+  color: var(--color-ink);
+  background: var(--color-canvas);
 }
 
-button {
-  min-height: 40px;
-  border: 1px solid rgba(62, 207, 142, 0.45);
-  border-radius: 6px;
-  padding: 0 16px;
-  color: #04130c;
-  background: #3ecf8e;
+button,
+input {
   font: inherit;
-  font-weight: 600;
-  cursor: pointer;
 }
 
-button:disabled {
-  cursor: wait;
-  opacity: 0.7;
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .foundation-shell {
@@ -38,6 +74,8 @@ button:disabled {
   min-height: 100vh;
   place-items: center;
   padding: 24px;
+  color: #fafafa;
+  background: #171717;
 }
 
 .foundation-panel {
@@ -60,6 +98,22 @@ button:disabled {
   font-size: clamp(36px, 9vw, 64px);
   line-height: 1.05;
   letter-spacing: 0;
+}
+
+.foundation-panel button {
+  min-height: 40px;
+  border: 1px solid rgb(62 207 142 / 45%);
+  border-radius: 6px;
+  padding: 0 16px;
+  color: #04130c;
+  background: #3ecf8e;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.foundation-panel button:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .foundation-copy {
