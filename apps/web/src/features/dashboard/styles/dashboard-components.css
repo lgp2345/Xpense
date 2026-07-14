@@ -11,11 +11,13 @@
   min-width: 104px;
   height: 112px;
   min-height: 112px;
-  border: 1px solid rgb(255 255 255 / 58%);
+  border: 0;
   border-radius: var(--radius-card);
   color: var(--color-ink);
-  background: rgb(255 255 255 / 44%);
-  box-shadow: var(--shadow-float);
+  background: var(--glass-surface-floating);
+  box-shadow: var(--glass-shadow-floating);
+  -webkit-backdrop-filter: var(--glass-filter-floating);
+  backdrop-filter: var(--glass-filter-floating);
 }
 
 .module-add-button > span {
@@ -44,10 +46,12 @@
   justify-content: space-between;
   gap: 8px;
   padding: 12px 14px;
-  border: 1px solid rgb(255 255 255 / 62%);
-  border-radius: 18px;
-  background: rgb(255 255 255 / 70%);
-  box-shadow: 0 12px 30px rgb(42 79 91 / 7%);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--glass-surface-floating);
+  box-shadow: var(--glass-shadow-floating);
+  -webkit-backdrop-filter: var(--glass-filter-floating);
+  backdrop-filter: var(--glass-filter-floating);
   transform: rotate(-1.8deg);
 }
 
@@ -101,11 +105,13 @@
   justify-content: space-between;
   gap: 18px;
   padding: 22px 20px;
-  border: 1px solid rgb(255 255 255 / 56%);
+  overflow: hidden;
+  border: 0;
   border-radius: var(--radius-card);
-  background: rgb(248 252 250 / 74%);
-  box-shadow: var(--shadow-float);
-  backdrop-filter: blur(18px);
+  background: var(--glass-surface-floating);
+  box-shadow: var(--glass-shadow-floating);
+  -webkit-backdrop-filter: var(--glass-filter-floating);
+  backdrop-filter: var(--glass-filter-floating);
 }
 
 .module-card h3,
@@ -133,7 +139,10 @@
   min-height: 36px;
   border-radius: 50%;
   color: var(--color-ink);
-  background: rgb(213 233 226 / 56%);
+  background: var(--glass-surface-control);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 62%);
+  -webkit-backdrop-filter: var(--glass-filter-control);
+  backdrop-filter: var(--glass-filter-control);
 }
 
 .module-drop-zone {
@@ -141,7 +150,9 @@
   border: 1px dashed rgb(22 49 68 / 18%);
   border-radius: var(--radius-card);
   color: var(--color-ink-muted);
-  background: rgb(255 255 255 / 12%);
+  background: var(--glass-surface-panel);
+  -webkit-backdrop-filter: var(--glass-filter-panel);
+  backdrop-filter: var(--glass-filter-panel);
   font-size: 13px;
   cursor: pointer;
 }
@@ -153,10 +164,12 @@
   gap: 26px;
   margin-top: 18px;
   padding: 34px 30px 26px;
-  border: 1px solid rgb(255 255 255 / 44%);
+  border: 0;
   border-radius: var(--radius-analysis);
-  background: rgb(248 252 250 / 38%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 52%);
+  background: var(--glass-surface-floating);
+  box-shadow: var(--glass-shadow-floating);
+  -webkit-backdrop-filter: var(--glass-filter-floating);
+  backdrop-filter: var(--glass-filter-floating);
 }
 
 .financial-summary {
@@ -249,9 +262,11 @@
   border: 1px solid transparent;
   border-radius: 9999px;
   color: var(--color-ink);
-  background: rgb(213 233 226 / 48%);
+  background: var(--glass-surface-control);
   font-size: 12px;
   font-weight: 400;
+  -webkit-backdrop-filter: var(--glass-filter-control);
+  backdrop-filter: var(--glass-filter-control);
 }
 
 .filter-button:hover,
@@ -332,11 +347,12 @@
   right: 18%;
   min-width: 190px;
   padding: 22px;
-  border: 1px solid rgb(255 255 255 / 62%);
+  border: 0;
   border-radius: var(--radius-card);
-  background: rgb(232 242 239 / 78%);
-  box-shadow: 0 24px 58px rgb(42 79 91 / 10%);
-  backdrop-filter: blur(18px);
+  background: var(--glass-surface-floating);
+  box-shadow: var(--glass-shadow-floating);
+  -webkit-backdrop-filter: var(--glass-filter-floating);
+  backdrop-filter: var(--glass-filter-floating);
 }
 
 .chart-tooltip-close {

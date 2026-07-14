@@ -20,8 +20,12 @@
   align-items: center;
   gap: 12px;
   padding: 0 18px;
+  border: 0;
   border-radius: var(--radius-control);
-  background: rgb(213 233 226 / 34%);
+  background: var(--glass-surface-control);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 64%);
+  -webkit-backdrop-filter: var(--glass-filter-control);
+  backdrop-filter: var(--glass-filter-control);
 }
 
 .net-asset-icon {
@@ -30,7 +34,8 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: rgb(255 255 255 / 62%);
+  background: var(--glass-surface-control);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 68%);
 }
 
 .net-asset-rail > span:nth-child(2) {
@@ -58,10 +63,13 @@
 
 .detail-panel {
   min-width: 0;
-  border: 1px solid rgb(255 255 255 / 52%);
+  overflow: hidden;
+  border: 0;
   border-radius: var(--radius-card);
-  background: rgb(248 252 250 / 62%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 58%);
+  background: var(--glass-surface-floating);
+  box-shadow: var(--glass-shadow-floating);
+  -webkit-backdrop-filter: var(--glass-filter-floating);
+  backdrop-filter: var(--glass-filter-floating);
 }
 
 .detail-panel-header {
@@ -152,7 +160,8 @@
   gap: 8px;
   padding: 8px 10px;
   border-radius: var(--radius-control);
-  background: rgb(213 233 226 / 32%);
+  background: var(--glass-surface-control);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 46%);
 }
 
 .budget-category strong,
@@ -202,7 +211,8 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: rgb(213 233 226 / 52%);
+  background: var(--glass-surface-control);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 58%);
 }
 
 .transaction-copy strong,
@@ -302,9 +312,11 @@
   position: relative;
   z-index: 1;
   margin-left: -38px;
-  background: rgb(233 243 240 / 82%);
-  box-shadow: var(--shadow-float);
-  backdrop-filter: blur(18px);
+  border: 0;
+  background: var(--glass-surface-floating);
+  box-shadow: var(--glass-shadow-floating);
+  -webkit-backdrop-filter: var(--glass-filter-floating);
+  backdrop-filter: var(--glass-filter-floating);
 }
 
 .reminder-list {
@@ -321,7 +333,8 @@
   gap: 8px;
   padding: 8px 10px;
   border-radius: var(--radius-control);
-  background: rgb(255 255 255 / 42%);
+  background: var(--glass-surface-control);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 50%);
 }
 
 .reminder-item strong,

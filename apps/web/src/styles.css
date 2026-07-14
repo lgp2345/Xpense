@@ -28,6 +28,16 @@
   --radius-card: 24px;
   --radius-control: 16px;
   --shadow-float: inset 0 1px 0 rgb(255 255 255 / 55%), 0 18px 52px rgb(42 79 91 / 7%);
+  --glass-surface-floating: rgb(255 255 255 / 24%);
+  --glass-surface-panel: rgb(255 255 255 / 22%);
+  --glass-surface-control: rgb(255 255 255 / 28%);
+  --glass-filter-floating: blur(26px) saturate(150%) contrast(1.04);
+  --glass-filter-panel: blur(20px) saturate(132%) contrast(1.02);
+  --glass-filter-control: blur(14px) saturate(124%);
+  --glass-shadow-floating: inset 0 -1px 0 rgb(255 255 255 / 14%), 0 22px 56px rgb(42 79 91 / 12%);
+  --glass-shadow-panel:
+    inset 0 1px 0 rgb(255 255 255 / 66%), inset 0 -1px 0 rgb(255 255 255 / 14%),
+    0 18px 48px rgb(42 79 91 / 6%);
 }
 
 * {
@@ -140,4 +150,26 @@ a {
 .foundation-error {
   color: #ffb4a8;
   background: rgba(255, 120, 96, 0.08);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-surface-floating: rgb(248 252 250 / 96%);
+    --glass-surface-panel: rgb(248 252 250 / 92%);
+    --glass-surface-control: rgb(238 247 243 / 96%);
+    --glass-filter-floating: none;
+    --glass-filter-panel: none;
+    --glass-filter-control: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-surface-floating: rgb(248 252 250 / 96%);
+    --glass-surface-panel: rgb(248 252 250 / 92%);
+    --glass-surface-control: rgb(238 247 243 / 96%);
+    --glass-filter-floating: none;
+    --glass-filter-panel: none;
+    --glass-filter-control: none;
+  }
 }
