@@ -2,6 +2,8 @@ import { Button } from "@heroui/react/button";
 import { CaretDown } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { X } from "@phosphor-icons/react/dist/csr/X";
 
+import styles from "./trend-overview.module.css";
+
 const incomePoints = [
   [52, 82],
   [172, 55],
@@ -34,17 +36,17 @@ const filters = ["账户", "分类", "时间范围", "收支类型"];
 
 function FinancialSummary() {
   return (
-    <section className="financial-summary" aria-labelledby="financial-summary-title">
+    <section className={styles.financialSummary} aria-labelledby="financial-summary-title">
       <div>
-        <p className="section-label" id="financial-summary-title">
+        <p className={styles.sectionLabel} id="financial-summary-title">
           本月财务总览
         </p>
-        <p className="primary-balance">
+        <p className={styles.primaryBalance}>
           <span>¥</span>40,439.00
         </p>
       </div>
 
-      <dl className="summary-metrics">
+      <dl className={styles.summaryMetrics}>
         <div>
           <dt>本月收入</dt>
           <dd>¥18,320</dd>
@@ -68,15 +70,15 @@ function FinancialSummary() {
 
 function TrendChart() {
   return (
-    <section className="trend-section" aria-labelledby="trend-chart-title">
-      <div className="trend-toolbar">
+    <section className={styles.trendSection} aria-labelledby="trend-chart-title">
+      <div className={styles.trendToolbar}>
         <div>
           <h2 id="trend-chart-title">收支趋势</h2>
           <p>7月17日 - 7月23日</p>
         </div>
-        <fieldset aria-label="趋势筛选" className="trend-filters">
+        <fieldset aria-label="趋势筛选" className={styles.trendFilters}>
           {filters.map((filter) => (
-            <Button className="filter-button" key={filter}>
+            <Button className={styles.filterButton} key={filter}>
               {filter}
               <CaretDown size={14} />
             </Button>
@@ -84,27 +86,27 @@ function TrendChart() {
         </fieldset>
       </div>
 
-      <div className="trend-chart-wrap">
+      <div className={styles.trendChartWrap}>
         <svg
           aria-describedby="trend-chart-description"
           aria-labelledby="trend-chart-svg-title"
-          className="trend-chart"
+          className={styles.trendChart}
           role="img"
           viewBox="0 0 900 220"
         >
           <title id="trend-chart-svg-title">7月17日至23日收支趋势图</title>
           <defs>
             <pattern height="10" id="diagonalHatch" patternUnits="userSpaceOnUse" width="10">
-              <path className="chart-hatch-line" d="M-2 2 L2 -2 M0 10 L10 0 M8 12 L12 8" />
+              <path className={styles.chartHatchLine} d="M-2 2 L2 -2 M0 10 L10 0 M8 12 L12 8" />
             </pattern>
           </defs>
 
           {[30, 75, 120, 165].map((y) => (
-            <line className="chart-grid-line" key={y} x1="42" x2="860" y1={y} y2={y} />
+            <line className={styles.chartGridLine} key={y} x1="42" x2="860" y1={y} y2={y} />
           ))}
           {[52, 172, 292, 412, 532, 652, 772, 848].map((x) => (
             <line
-              className="chart-grid-line chart-grid-vertical"
+              className={`${styles.chartGridLine} ${styles.chartGridVertical}`}
               key={x}
               x1={x}
               x2={x}
@@ -113,19 +115,19 @@ function TrendChart() {
             />
           ))}
 
-          <polygon className="chart-hatch-area" points={hatchPoints} />
+          <polygon className={styles.chartHatchArea} points={hatchPoints} />
           <polyline
-            className="chart-line chart-line-income"
+            className={`${styles.chartLine} ${styles.chartLineIncome}`}
             points={pointsToString(incomePoints)}
           />
           <polyline
-            className="chart-line chart-line-expense"
+            className={`${styles.chartLine} ${styles.chartLineExpense}`}
             points={pointsToString(expensePoints)}
           />
 
           {incomePoints.map(([x, y]) => (
             <circle
-              className="chart-node chart-node-income"
+              className={`${styles.chartNode} ${styles.chartNodeIncome}`}
               cx={x}
               cy={y}
               key={`income-${x}`}
@@ -134,7 +136,7 @@ function TrendChart() {
           ))}
           {expensePoints.map(([x, y]) => (
             <circle
-              className="chart-node chart-node-expense"
+              className={`${styles.chartNode} ${styles.chartNodeExpense}`}
               cx={x}
               cy={y}
               key={`expense-${x}`}
@@ -151,14 +153,14 @@ function TrendChart() {
             [652, "7月22日"],
             [772, "7月23日"],
           ].map(([x, label]) => (
-            <text className="chart-axis-label" key={label} textAnchor="middle" x={x} y="207">
+            <text className={styles.chartAxisLabel} key={label} textAnchor="middle" x={x} y="207">
               {label}
             </text>
           ))}
         </svg>
 
-        <div className="chart-tooltip" role="note">
-          <Button aria-label="关闭数据提示" className="chart-tooltip-close" isIconOnly>
+        <div className={styles.chartTooltip} role="note">
+          <Button aria-label="关闭数据提示" className={styles.chartTooltipClose} isIconOnly>
             <X size={14} />
           </Button>
           <strong>+24%</strong>
@@ -175,7 +177,7 @@ function TrendChart() {
 
 export function TrendOverview() {
   return (
-    <section className="analysis-canvas" aria-label="财务总览与收支趋势">
+    <section className={styles.analysisCanvas} aria-label="财务总览与收支趋势">
       <FinancialSummary />
       <TrendChart />
     </section>

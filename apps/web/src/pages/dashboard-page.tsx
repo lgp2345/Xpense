@@ -7,18 +7,15 @@ import { DashboardDetails } from "../features/dashboard/components/dashboard-det
 import { ModuleTray } from "../features/dashboard/components/module-tray";
 import { TrendOverview } from "../features/dashboard/components/trend-overview";
 import { WorkspaceShell } from "../features/dashboard/components/workspace-shell";
-import "../features/dashboard/styles/dashboard-layout.css";
-import "../features/dashboard/styles/dashboard-components.css";
-import "../features/dashboard/styles/dashboard-details.css";
-import "../features/dashboard/styles/dashboard-responsive.css";
+import styles from "./dashboard-page.module.css";
 
 export function DashboardPage() {
   return (
     <WorkspaceShell>
-      <main className="dashboard-page" id="dashboard-main">
-        <header className="dashboard-heading">
-          <div className="dashboard-title-group">
-            <Button aria-label="返回" className="back-button" isIconOnly>
+      <main className={styles.dashboardPage} id="dashboard-main">
+        <header className={styles.dashboardHeading}>
+          <div className={styles.dashboardTitleGroup}>
+            <Button aria-label="返回" className={styles.backButton} isIconOnly>
               <ArrowLeft size={20} />
             </Button>
             <div>
@@ -27,7 +24,7 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <Button className="period-button">
+          <Button className={styles.periodButton}>
             <CalendarBlank size={18} />
             2026年7月
             <CaretDown size={14} />

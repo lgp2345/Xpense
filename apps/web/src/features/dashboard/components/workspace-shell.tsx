@@ -15,22 +15,23 @@ import { Wallet } from "@phosphor-icons/react/dist/csr/Wallet";
 import type { PropsWithChildren, ReactNode } from "react";
 
 import { navigationItems } from "../dashboard-data";
+import styles from "./workspace-shell.module.css";
 
 function IconButton({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Tooltip delay={350}>
-      <Button aria-label={label} className="icon-button" isIconOnly>
+      <Button aria-label={label} className={styles.iconButton} isIconOnly>
         {children}
       </Button>
-      <Tooltip.Content className="xpense-tooltip">{label}</Tooltip.Content>
+      <Tooltip.Content className={styles.xpenseTooltip}>{label}</Tooltip.Content>
     </Tooltip>
   );
 }
 
 function BrandMark() {
   return (
-    <div aria-label="Xpense" className="brand-lockup" role="img">
-      <span className="brand-mark" aria-hidden="true">
+    <div aria-label="Xpense" className={styles.brandLockup} role="img">
+      <span className={styles.brandMark} aria-hidden="true">
         <Wallet size={22} weight="duotone" />
       </span>
       <span>Xpense</span>
@@ -40,33 +41,33 @@ function BrandMark() {
 
 function WorkspaceSidebar() {
   return (
-    <aside className="workspace-sidebar" aria-label="主要导航">
+    <aside className={styles.workspaceSidebar} aria-label="主要导航">
       <BrandMark />
 
-      <div className="sidebar-section-heading">
+      <div className={styles.sidebarSectionHeading}>
         <span>页面</span>
-        <Button aria-label="添加页面" className="sidebar-add-button" isIconOnly>
+        <Button aria-label="添加页面" className={styles.sidebarAddButton} isIconOnly>
           <Plus size={16} />
         </Button>
       </div>
 
-      <nav className="sidebar-navigation">
+      <nav className={styles.sidebarNavigation}>
         {navigationItems.map(({ badge, icon: ItemIcon, isActive, label }) => (
           <a
-            className={`sidebar-nav-item${isActive ? " is-active" : ""}`}
+            className={`${styles.sidebarNavItem}${isActive ? ` ${styles.active}` : ""}`}
             href={isActive ? "#dashboard-main" : `#${label}`}
             key={label}
           >
-            <CaretDown className="sidebar-caret" size={13} />
+            <CaretDown className={styles.sidebarCaret} size={13} />
             <ItemIcon size={19} weight="regular" />
             <span>{label}</span>
-            {badge ? <span className="sidebar-badge">{badge}</span> : null}
+            {badge ? <span className={styles.sidebarBadge}>{badge}</span> : null}
           </a>
         ))}
       </nav>
 
-      <div className="sidebar-dock">
-        <div aria-label="快捷工具" className="sidebar-utilities" role="toolbar">
+      <div className={styles.sidebarDock}>
+        <div aria-label="快捷工具" className={styles.sidebarUtilities} role="toolbar">
           <IconButton label="切换主题">
             <Sun size={18} />
           </IconButton>
@@ -81,17 +82,17 @@ function WorkspaceSidebar() {
           </IconButton>
         </div>
 
-        <Button className="quick-entry-button">
+        <Button className={styles.quickEntryButton}>
           <Plus size={18} />
           快速记一笔
         </Button>
 
-        <div className="sidebar-profile">
+        <div className={styles.sidebarProfile}>
           <IconButton label="通知">
             <Bell size={18} />
           </IconButton>
-          <Avatar className="user-avatar" size="md">
-            <Avatar.Fallback className="user-avatar-fallback">刘</Avatar.Fallback>
+          <Avatar className={styles.userAvatar} size="md">
+            <Avatar.Fallback className={styles.userAvatarFallback}>刘</Avatar.Fallback>
           </Avatar>
           <div>
             <strong>刘先生</strong>
@@ -105,8 +106,8 @@ function WorkspaceSidebar() {
 
 function WorkspaceToolbar() {
   return (
-    <header className="workspace-toolbar">
-      <nav aria-label="工作区菜单" className="workspace-menu">
+    <header className={styles.workspaceToolbar}>
+      <nav aria-label="工作区菜单" className={styles.workspaceMenu}>
         <a href="#项目">项目</a>
         <a href="#编辑">编辑</a>
         <a href="#组件">组件</a>
@@ -114,13 +115,13 @@ function WorkspaceToolbar() {
         <a href="#帮助">帮助</a>
       </nav>
 
-      <label className="toolbar-search">
+      <label className={styles.toolbarSearch}>
         <MagnifyingGlass size={18} />
         <span className="sr-only">搜索财务数据</span>
         <input placeholder="搜索交易、账户或分类" type="search" />
       </label>
 
-      <div className="toolbar-actions">
+      <div className={styles.toolbarActions}>
         <IconButton label="导出">
           <DownloadSimple size={18} />
         </IconButton>
@@ -134,9 +135,9 @@ function WorkspaceToolbar() {
 
 export function WorkspaceShell({ children }: PropsWithChildren) {
   return (
-    <div className="workspace-shell">
+    <div className={styles.workspaceShell}>
       <WorkspaceSidebar />
-      <div className="workspace-main">
+      <div className={styles.workspaceMain}>
         <WorkspaceToolbar />
         {children}
       </div>

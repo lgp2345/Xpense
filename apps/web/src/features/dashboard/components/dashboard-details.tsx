@@ -10,18 +10,19 @@ import {
   transactions,
   upcomingBills,
 } from "../dashboard-data";
+import styles from "./dashboard-details.module.css";
 
 function PanelHeader({ action, title }: { action?: string; title: string }) {
   return (
-    <header className="detail-panel-header">
+    <header className={styles.detailPanelHeader}>
       <h2>{title}</h2>
       {action ? (
-        <Button className="text-action-button">
+        <Button className={styles.textActionButton}>
           {action}
           <ArrowRight size={15} />
         </Button>
       ) : (
-        <Button aria-label={`${title}更多操作`} className="panel-menu-button" isIconOnly>
+        <Button aria-label={`${title}更多操作`} className={styles.panelMenuButton} isIconOnly>
           <DotsThree size={18} weight="bold" />
         </Button>
       )}
@@ -31,18 +32,22 @@ function PanelHeader({ action, title }: { action?: string; title: string }) {
 
 function BudgetPanel() {
   return (
-    <article className="detail-panel budget-panel">
+    <article className={styles.detailPanel}>
       <PanelHeader title="预算使用" />
-      <div className="budget-body">
-        <div className="budget-ring" role="img" aria-label="预算已使用68.7%，8240元，共12000元">
+      <div className={styles.budgetBody}>
+        <div
+          className={styles.budgetRing}
+          role="img"
+          aria-label="预算已使用68.7%，8240元，共12000元"
+        >
           <div>
             <strong>¥8,240</strong>
             <span>已使用 / ¥12,000</span>
           </div>
         </div>
-        <div className="budget-category-list">
+        <div className={styles.budgetCategoryList}>
           {budgetCategories.map(({ icon: CategoryIcon, label, remaining, value }) => (
-            <div className="budget-category" key={label}>
+            <div className={styles.budgetCategory} key={label}>
               <CategoryIcon size={18} />
               <span>
                 <strong>{label}</strong>
@@ -59,19 +64,23 @@ function BudgetPanel() {
 
 function TransactionsPanel() {
   return (
-    <article className="detail-panel transactions-panel">
+    <article className={styles.detailPanel}>
       <PanelHeader action="查看全部" title="最近交易" />
-      <div className="transaction-list">
+      <div className={styles.transactionList}>
         {transactions.map(({ amount, icon: TransactionIcon, meta, name, tone }) => (
-          <div className="transaction-row" key={`${name}-${meta}`}>
-            <span className="transaction-icon">
+          <div className={styles.transactionRow} key={`${name}-${meta}`}>
+            <span className={styles.transactionIcon}>
               <TransactionIcon size={18} />
             </span>
-            <span className="transaction-copy">
+            <span className={styles.transactionCopy}>
               <strong>{name}</strong>
               <small>{meta}</small>
             </span>
-            <b className={`transaction-amount is-${tone}`}>{amount}</b>
+            <b
+              className={`${styles.transactionAmount}${tone === "income" ? ` ${styles.income}` : ""}`}
+            >
+              {amount}
+            </b>
           </div>
         ))}
       </div>
@@ -83,12 +92,12 @@ function AccountsPanel() {
   const maxValue = Math.max(...accounts.map((account) => account.value));
 
   return (
-    <article className="detail-panel accounts-panel">
+    <article className={styles.detailPanel}>
       <PanelHeader title="账户概览" />
-      <div className="accounts-chart" aria-label="账户余额柱状图" role="img">
+      <div className={styles.accountsChart} aria-label="账户余额柱状图" role="img">
         {accounts.map((account) => (
-          <div className="account-column" key={account.name}>
-            <div className="account-bar-track">
+          <div className={styles.accountColumn} key={account.name}>
+            <div className={styles.accountBarTrack}>
               <i style={{ height: `${(account.value / maxValue) * 100}%` }} />
             </div>
             <strong>{account.name}</strong>
@@ -103,11 +112,11 @@ function AccountsPanel() {
 
 function RemindersPanel() {
   return (
-    <article className="detail-panel reminders-panel">
+    <article className={`${styles.detailPanel} ${styles.remindersPanel}`}>
       <PanelHeader title="智能提醒" />
-      <div className="reminder-list">
+      <div className={styles.reminderList}>
         {reminders.map(({ detail, icon: ReminderIcon, title }) => (
-          <div className="reminder-item" key={title}>
+          <div className={styles.reminderItem} key={title}>
             <ReminderIcon size={19} />
             <span>
               <strong>{title}</strong>
@@ -123,12 +132,12 @@ function RemindersPanel() {
 
 function BillsPanel() {
   return (
-    <article className="detail-panel bills-panel">
+    <article className={styles.detailPanel}>
       <PanelHeader action="管理账单" title="即将到期账单" />
-      <div className="bill-list">
+      <div className={styles.billList}>
         {upcomingBills.map(({ amount, date, icon: BillIcon, name }) => (
-          <div className="bill-row" key={name}>
-            <span className="bill-icon">
+          <div className={styles.billRow} key={name}>
+            <span className={styles.billIcon}>
               <BillIcon size={19} />
             </span>
             <span>
@@ -145,27 +154,27 @@ function BillsPanel() {
 
 function NetAssetRail() {
   return (
-    <aside className="net-asset-rail" aria-label="净资产摘要">
-      <span className="net-asset-icon">
+    <aside className={styles.netAssetRail} aria-label="净资产摘要">
+      <span className={styles.netAssetIcon}>
         <Wallet size={18} />
       </span>
       <span>
         <small>净资产</small>
         <strong>¥128,460.80</strong>
       </span>
-      <span className="net-asset-change">+8.4%</span>
+      <span className={styles.netAssetChange}>+8.4%</span>
     </aside>
   );
 }
 
 export function DashboardDetails() {
   return (
-    <section className="dashboard-details" aria-label="预算、交易、账户与账单">
+    <section className={styles.dashboardDetails} aria-label="预算、交易、账户与账单">
       <NetAssetRail />
       <BudgetPanel />
       <TransactionsPanel />
       <AccountsPanel />
-      <div className="insights-column">
+      <div className={styles.insightsColumn}>
         <RemindersPanel />
         <BillsPanel />
       </div>

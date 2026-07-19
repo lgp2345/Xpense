@@ -58,6 +58,18 @@ WEB 端是个人记账系统的后台管理界面。
 - 不重复封装已有稳定组件，除非能统一业务语义或减少明显重复。
 - 表格、筛选、表单、弹窗、日期范围、金额输入等高频控件应优先沉淀为可复用组件。
 
+### 样式架构
+
+- WEB 样式统一采用 Tailwind CSS 4、HeroUI、全局 CSS Variables 和局部 CSS Modules。
+- `src/styles.css` 只负责 Tailwind 与 HeroUI 导入、设计 Token、Reset、基础元素规则和全局降级策略，不新增页面或业务组件专属类名。
+- 简单、元素局部的布局、间距、尺寸、对齐和可访问性工具优先直接使用 Tailwind。
+- 复杂网格、SVG、玻璃材质、伪元素、组件状态和跨元素响应式联动使用与组件同目录的 `*.module.css`。
+- CSS Module 类名使用 camelCase，并通过默认导入 `styles` 引用；主题值继续读取 CSS Variables。
+- CSS Modules 使用现代 CSS nesting，不引入 Sass、Less 或 Stylus。
+- CSS Module 中确需使用 Tailwind 指令时先通过 `@reference` 引用全局样式入口；`@apply` 只用于语义稳定、至少重复三次且能明显提升可读性的短组合。
+- 不使用 `@apply` 包装复杂组件，不创建含义宽泛的全局业务样式或共享样式文件。
+- HeroUI 负责稳定基础控件，Tailwind 和 CSS Modules 只调整布局、主题和必要的业务视觉，不依赖组件库内部非公开 DOM 结构。
+
 ## 样式与体验
 
 - 后台页面优先保证扫描、录入、筛选和批量操作效率。

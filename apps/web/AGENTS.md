@@ -15,6 +15,10 @@ WEB 端架构、技术栈、目录边界和页面定位详见同目录 `ARCHITEC
 - 使用 TypeScript 表达 props 类型，不使用 `propTypes`
 - refs 使用 callback ref 或 `useRef`，避免隐式行为
 - 测试优先使用 Testing Library，不使用 `react-test-renderer/shallow`
+- 禁止无明确必要性地新增全局页面或业务组件样式；复杂组件样式必须使用同目录 `*.module.css`
+- 简单布局、间距、尺寸和对齐优先使用 Tailwind；复杂视觉、组合选择器和响应式联动使用 CSS Modules
+- CSS Module 中不得默认使用 `@apply`；仅当短工具类组合语义稳定、至少重复三次且能明显提升可读性时使用，并先通过 `@reference` 引入全局 Tailwind 上下文
+- 未经架构方案确认，不得引入 Sass、Less、Stylus、CSS-in-JS 或新的样式框架
 
 ## UI 与交互硬规则
 
