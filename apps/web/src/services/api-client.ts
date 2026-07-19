@@ -28,9 +28,10 @@ export function createApiClient(options: ApiClientOptions) {
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const token = options.getAccessToken();
     const response = await fetchImpl(`${baseUrl}${path}`, {
+      credentials: "include",
       method,
       headers: {
-        "Content-Type": "application/json",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -45,7 +46,7 @@ export function createApiClient(options: ApiClientOptions) {
         errorPayload?.message ?? "Request failed",
       );
 
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 401) {
         options.onAuthFailure?.(error);
       }
 

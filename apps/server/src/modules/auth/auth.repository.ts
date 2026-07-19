@@ -44,6 +44,7 @@ export type CreateRefreshSessionInput = {
 
 export type UpdateRefreshSessionTokenInput = {
   sessionId: string;
+  expectedRefreshTokenHash: string;
   refreshTokenHash: string;
   rotatedAt: Date;
   lastUsedAt: Date;
@@ -135,8 +136,8 @@ export class AuthRepository {
     return session ?? null;
   }
 
-  async updateRefreshSessionToken(input: UpdateRefreshSessionTokenInput): Promise<void> {
-    await this.db
+  async updateRefreshSessionToken(input: UpdateRefreshSessionTokenInput): Promise<boolean> {
+    const updatedSessions = await this.db
       .update(refreshSessions)
       .set({
         refreshTokenHash: input.refreshTokenHash,
@@ -144,7 +145,16 @@ export class AuthRepository {
         lastUsedAt: input.lastUsedAt,
         updatedAt: input.lastUsedAt,
       })
-      .where(eq(refreshSessions.id, input.sessionId));
+      .where(
+        and(
+          eq(refreshSessions.id, input.sessionId),
+          eq(refreshSessions.refreshTokenHash, input.expectedRefreshTokenHash),
+          eq(refreshSessions.status, "active"),
+        ),
+      )
+      .returning({ id: refreshSessions.id });
+
+    return updatedSessions.length === 1;
   }
 
   async revokeSession(sessionId: string): Promise<void> {

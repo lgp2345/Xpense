@@ -1,0 +1,227 @@
+.loginShell {
+  min-height: 100dvh;
+  padding: 24px 32px 32px;
+  color: var(--color-ink);
+  background:
+    linear-gradient(90deg, rgb(213 233 226 / 48%) 0 34%, transparent 34%), var(--color-canvas);
+}
+
+.brandBar {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.brandMark {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--color-surface-solid);
+  background: var(--color-ink);
+}
+
+.loginWorkspace {
+  width: min(100%, 1160px);
+  min-height: calc(100dvh - 112px);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(360px, 1fr);
+  align-items: center;
+  gap: 72px;
+  padding: 32px 0 64px;
+}
+
+.loginIntro {
+  align-self: center;
+  max-width: 440px;
+}
+
+.loginIntro p,
+.loginIntro h1 {
+  margin: 0;
+}
+
+.loginIntro > p:first-child {
+  margin-bottom: 16px;
+  color: var(--color-ink-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.loginIntro h1 {
+  max-width: 8ch;
+  color: var(--color-ink-strong);
+  font-size: clamp(34px, 4.2vw, 52px);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+}
+
+.loginIntro > p:last-child {
+  max-width: 32ch;
+  margin-top: 24px;
+  color: #526c72;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.formSurface {
+  width: min(100%, 520px);
+  border-radius: var(--radius-analysis);
+  padding: 40px;
+  background: rgb(248 252 250 / 92%);
+  box-shadow: var(--shadow-float);
+}
+
+.loginForm {
+  display: grid;
+  gap: 24px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.label {
+  color: var(--color-ink-strong);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.input {
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-control);
+  padding: 0 16px;
+  color: var(--color-ink-strong);
+  background: var(--color-surface-solid);
+  outline: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.input:hover {
+  border-color: rgb(22 49 68 / 32%);
+}
+
+.input:focus-visible {
+  border-color: var(--color-ink);
+  box-shadow: 0 0 0 3px rgb(40 94 104 / 20%);
+}
+
+.field[data-invalid="true"] .input {
+  border-color: #a53f3f;
+  box-shadow: 0 0 0 3px rgb(165 63 63 / 12%);
+}
+
+.fieldError,
+.submitError {
+  color: #963838;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.submitError {
+  margin: -4px 0 0;
+  border-radius: var(--radius-control);
+  padding: 12px 14px;
+  background: rgb(201 80 80 / 10%);
+}
+
+.submitButton {
+  width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9999px;
+  color: #f8fcfa;
+  background: var(--color-ink);
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    transform 140ms ease,
+    background-color 140ms ease;
+}
+
+.submitButton:hover:not([data-disabled="true"]) {
+  background: #21475b;
+}
+
+.submitButton:active:not([data-disabled="true"]) {
+  transform: scale(0.98);
+}
+
+.submitButton:focus-visible {
+  outline: 3px solid rgb(40 94 104 / 28%);
+  outline-offset: 3px;
+}
+
+.submitButton[data-disabled="true"] {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.loadingIcon {
+  animation: spin 800ms linear infinite;
+}
+
+.sessionNote {
+  margin: 24px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #526c72;
+  font-size: 13px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 820px) {
+  .loginShell {
+    padding: 16px;
+    background: var(--color-canvas);
+  }
+
+  .loginWorkspace {
+    min-height: auto;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 40px 0;
+  }
+
+  .loginIntro h1 {
+    max-width: none;
+    font-size: 38px;
+  }
+
+  .loginIntro > p:last-child {
+    margin-top: 16px;
+  }
+
+  .formSurface {
+    width: 100%;
+    padding: 32px 24px;
+    border-radius: var(--radius-card);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingIcon {
+    animation: none;
+  }
+}

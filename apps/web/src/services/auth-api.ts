@@ -35,7 +35,7 @@ export type SessionResponse = {
 export function createAuthApi(client: ApiClient) {
   return {
     login: (input: LoginRequest) => client.post<AuthTokensResponse>("/auth/login", input),
-    refresh: (input: RefreshRequest) => client.post<AuthTokensResponse>("/auth/refresh", input),
+    refresh: (input?: RefreshRequest) => client.post<AuthTokensResponse>("/auth/refresh", input),
     logout: () => client.post<void>("/auth/logout"),
     getCurrentUser: () => client.get<CurrentUserResponse>("/user"),
     listOrganizations: () => client.get<UserOrganization[]>("/user/organizations"),

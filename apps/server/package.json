@@ -17,6 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fastify/cookie": "^10.0.1",
     "@nestjs/common": "^11.1.9",
     "@nestjs/core": "^11.1.9",
     "@nestjs/platform-fastify": "^11.1.9",

@@ -3,6 +3,7 @@ import { Test } from "@nestjs/testing";
 import type { ClientType, PermissionKey } from "@xpense/shared";
 
 import { AppModule } from "../app.module.js";
+import { configureHttpApplication } from "../configure-http-application.js";
 import { DB } from "../db/db.tokens.js";
 import { AuditRepository } from "../modules/audit/audit.repository.js";
 import type { AppendAuditLogInput, AuditLogRecord } from "../modules/audit/audit.types.js";
@@ -93,6 +94,7 @@ export async function createTestApp(): Promise<TestAppHarness> {
     .compile();
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+  await configureHttpApplication(app);
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
 
@@ -283,8 +285,11 @@ function createAuthRepository(state: TestState): Partial<AuthRepository> {
     updateRefreshSessionToken: async (input) => {
       const session = state.sessions.get(input.sessionId);
 
-      if (!session) {
-        return;
+      if (
+        session?.status !== "active" ||
+        session.refreshTokenHash !== input.expectedRefreshTokenHash
+      ) {
+        return false;
       }
 
       state.sessions.set(input.sessionId, {
@@ -294,6 +299,7 @@ function createAuthRepository(state: TestState): Partial<AuthRepository> {
         lastUsedAt: input.lastUsedAt,
         updatedAt: input.lastUsedAt,
       });
+      return true;
     },
     revokeSession: async (sessionId) => {
       const session = state.sessions.get(sessionId);

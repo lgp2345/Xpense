@@ -19,7 +19,7 @@ describe("createAuthApi", () => {
     return { api: createAuthApi(client), fetchMock };
   }
 
-  it("posts login and refresh payloads", async () => {
+  it("posts login payload and refreshes the web session without a body", async () => {
     const { api, fetchMock } = createHarness();
 
     await api.login({
@@ -27,7 +27,7 @@ describe("createAuthApi", () => {
       password: "password",
       clientType: "web_pc",
     });
-    await api.refresh({ refreshToken: "refresh" });
+    await api.refresh();
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
@@ -46,7 +46,7 @@ describe("createAuthApi", () => {
       "http://localhost:4000/auth/refresh",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ refreshToken: "refresh" }),
+        body: undefined,
       }),
     );
   });

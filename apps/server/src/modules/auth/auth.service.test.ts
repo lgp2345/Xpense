@@ -87,17 +87,21 @@ describe("AuthService", () => {
       }),
       updateRefreshSessionToken: vi
         .fn()
-        .mockImplementation(async ({ sessionId, refreshTokenHash }) => {
+        .mockImplementation(async ({ sessionId, expectedRefreshTokenHash, refreshTokenHash }) => {
           const session = sessions.get(sessionId);
 
-          if (!session) {
-            throw new Error("session not found");
+          if (
+            session?.status !== "active" ||
+            session.refreshTokenHash !== expectedRefreshTokenHash
+          ) {
+            return false;
           }
 
           sessions.set(sessionId, {
             ...session,
             refreshTokenHash,
           });
+          return true;
         }),
       revokeSession: vi.fn().mockImplementation(async (sessionId: string) => {
         const session = sessions.get(sessionId);
@@ -198,11 +202,51 @@ describe("AuthService", () => {
     });
     const refreshToken = requireValue(login.refreshToken, "login refreshToken");
 
-    const refreshed = await service.refresh({ refreshToken });
+    const refreshed = await service.refresh({ refreshToken, transport: "cookie" });
 
     expect(refreshed.refreshToken).toBe("refresh-2");
     expect([...sessions.values()][0]?.refreshTokenHash).toBe("hash:refresh-2");
-    await expect(service.refresh({ refreshToken })).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.refresh({ refreshToken, transport: "cookie" })).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it.each([
+    ["web_pc", "json_body"],
+    ["web_mobile", "json_body"],
+    ["app_ios", "cookie"],
+    ["app_android", "cookie"],
+  ] as const)("rejects %s refresh over %s without rotating the persisted token", async (clientType, transport) => {
+    const { service, sessions } = createHarness();
+    const login = await service.login({
+      email: "root@example.com",
+      password: "password",
+      clientType,
+    });
+    const refreshToken = requireValue(login.refreshToken, "login refreshToken");
+
+    await expect(service.refresh({ refreshToken, transport })).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(sessions.get("session-1")?.refreshTokenHash).toBe("hash:refresh-1");
+  });
+
+  it("allows only one concurrent rotation of the same refresh token", async () => {
+    const { service } = createHarness();
+    const login = await service.login({
+      email: "root@example.com",
+      password: "password",
+      clientType: "web_pc",
+    });
+    const refreshToken = requireValue(login.refreshToken, "login refreshToken");
+
+    const results = await Promise.allSettled([
+      service.refresh({ refreshToken, transport: "cookie" }),
+      service.refresh({ refreshToken, transport: "cookie" }),
+    ]);
+
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
   });
 
   it("rejects revoked and expired sessions during refresh", async () => {
@@ -217,7 +261,9 @@ describe("AuthService", () => {
 
     const refreshToken = requireValue(login.refreshToken, "login refreshToken");
 
-    await expect(service.refresh({ refreshToken })).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.refresh({ refreshToken, transport: "cookie" })).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
 
     const secondLogin = await service.login({
       email: "root@example.com",
@@ -231,9 +277,9 @@ describe("AuthService", () => {
 
     const secondRefreshToken = requireValue(secondLogin.refreshToken, "second login refreshToken");
 
-    await expect(service.refresh({ refreshToken: secondRefreshToken })).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    await expect(
+      service.refresh({ refreshToken: secondRefreshToken, transport: "json_body" }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it("revokes only the current session on logout", async () => {
@@ -241,7 +287,7 @@ describe("AuthService", () => {
 
     await service.login({ email: "root@example.com", password: "password", clientType: "web_pc" });
     await service.login({ email: "root@example.com", password: "password", clientType: "app_ios" });
-    await service.logout(authContext);
+    await service.logout({ authContext });
 
     expect(sessions.get("session-1")?.status).toBe("revoked");
     expect(sessions.get("session-2")?.status).toBe("active");

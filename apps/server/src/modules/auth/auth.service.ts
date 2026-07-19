@@ -21,6 +21,18 @@ export type LoginInput = {
 
 export type RefreshInput = {
   refreshToken: string;
+  transport: RefreshTransport;
+};
+
+export type RefreshTransport = "cookie" | "json_body";
+
+export type RefreshResult = AuthTokensResponse & {
+  clientType: ClientType;
+};
+
+export type LogoutInput = {
+  authContext?: AuthContext;
+  refreshToken?: string;
 };
 
 export type SessionResponse = {
@@ -130,7 +142,7 @@ export class AuthService {
     };
   }
 
-  async refresh(input: RefreshInput): Promise<AuthTokensResponse> {
+  async refresh(input: RefreshInput): Promise<RefreshResult> {
     const refreshTokenHash = await this.tokenService.hashRefreshToken(input.refreshToken);
     const session = await this.repository.findActiveSessionByRefreshTokenHash(refreshTokenHash);
 
@@ -143,7 +155,6 @@ export class AuthService {
         result: "failed",
         metadata: {
           reason: "session_not_found",
-          refreshToken: input.refreshToken,
         },
       });
       throw this.unauthenticated("Invalid refresh session");
@@ -164,7 +175,6 @@ export class AuthService {
         result: "failed",
         metadata: {
           reason: "token_mismatch",
-          refreshToken: input.refreshToken,
         },
       });
       throw this.unauthenticated("Invalid refresh session");
@@ -172,6 +182,7 @@ export class AuthService {
 
     try {
       this.assertRefreshSessionUsable(session);
+      this.assertRefreshTransport(session.clientType, input.transport);
     } catch (error) {
       await this.auditService.append({
         organizationId: session.currentOrganizationId,
@@ -182,7 +193,6 @@ export class AuthService {
         result: "failed",
         metadata: {
           reason: "session_unusable",
-          refreshToken: input.refreshToken,
         },
       });
       throw error;
@@ -192,12 +202,26 @@ export class AuthService {
     const nextRefreshTokenHash = await this.tokenService.hashRefreshToken(nextRefreshToken);
     const now = this.getNow();
 
-    await this.repository.updateRefreshSessionToken({
+    const didRotate = await this.repository.updateRefreshSessionToken({
       sessionId: session.id,
+      expectedRefreshTokenHash: session.refreshTokenHash,
       refreshTokenHash: nextRefreshTokenHash,
       rotatedAt: now,
       lastUsedAt: now,
     });
+
+    if (!didRotate) {
+      await this.auditService.append({
+        organizationId: session.currentOrganizationId,
+        actorUserId: session.userId,
+        action: "auth.refresh.failed",
+        targetType: "session",
+        targetId: session.id,
+        result: "failed",
+        metadata: { reason: "rotation_conflict" },
+      });
+      throw this.unauthenticated("Invalid refresh session");
+    }
 
     const accessToken = await this.tokenService.signAccessToken({
       userId: session.userId,
@@ -217,19 +241,44 @@ export class AuthService {
     return {
       accessToken,
       refreshToken: nextRefreshToken,
+      clientType: session.clientType,
     };
   }
 
-  async logout(authContext: AuthContext): Promise<void> {
-    await this.repository.revokeSession(authContext.sessionId);
-    await this.auditService.append({
-      organizationId: authContext.organizationId,
-      actorUserId: authContext.userId,
-      action: "auth.logout.succeeded",
-      targetType: "session",
-      targetId: authContext.sessionId,
-      result: "succeeded",
-    });
+  async logout(input: LogoutInput): Promise<void> {
+    const sessionsToRevoke = new Map<string, { organizationId: string | null; userId: string }>();
+
+    if (input.refreshToken) {
+      const refreshTokenHash = await this.tokenService.hashRefreshToken(input.refreshToken);
+      const cookieSession =
+        await this.repository.findActiveSessionByRefreshTokenHash(refreshTokenHash);
+
+      if (cookieSession && this.isWebClient(cookieSession.clientType)) {
+        sessionsToRevoke.set(cookieSession.id, {
+          organizationId: cookieSession.currentOrganizationId,
+          userId: cookieSession.userId,
+        });
+      }
+    }
+
+    if (input.authContext) {
+      sessionsToRevoke.set(input.authContext.sessionId, {
+        organizationId: input.authContext.organizationId,
+        userId: input.authContext.userId,
+      });
+    }
+
+    for (const [sessionId, session] of sessionsToRevoke) {
+      await this.repository.revokeSession(sessionId);
+      await this.auditService.append({
+        organizationId: session.organizationId,
+        actorUserId: session.userId,
+        action: "auth.logout.succeeded",
+        targetType: "session",
+        targetId: sessionId,
+        result: "succeeded",
+      });
+    }
   }
 
   async listSessions(authContext: AuthContext): Promise<SessionResponse[]> {
@@ -290,6 +339,18 @@ export class AuthService {
     if (!session.currentOrganizationId) {
       throw this.unauthenticated("Invalid organization context");
     }
+  }
+
+  private assertRefreshTransport(clientType: ClientType, transport: RefreshTransport): void {
+    const expectedTransport = this.isWebClient(clientType) ? "cookie" : "json_body";
+
+    if (transport !== expectedTransport) {
+      throw this.unauthenticated("Invalid refresh transport");
+    }
+  }
+
+  private isWebClient(clientType: ClientType): boolean {
+    return clientType === "web_pc" || clientType === "web_mobile";
   }
 
   private toSessionResponse(session: AuthRefreshSession): SessionResponse {

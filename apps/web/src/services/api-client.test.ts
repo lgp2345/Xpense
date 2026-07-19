@@ -20,6 +20,7 @@ describe("createApiClient", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:4000/user",
       expect.objectContaining({
+        credentials: "include",
         method: "GET",
         headers: expect.objectContaining({ Authorization: "Bearer token" }),
       }),
@@ -50,7 +51,26 @@ describe("createApiClient", () => {
     );
   });
 
-  it("maps failed responses to ApiError and invokes auth failure hook", async () => {
+  it("omits the JSON content type when a request has no body", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ accessToken: "access" }),
+    });
+    const client = createApiClient({
+      baseUrl: "http://localhost:4000",
+      getAccessToken: () => null,
+      fetchImpl: fetchMock,
+    });
+
+    await client.post("/auth/refresh");
+
+    const requestOptions = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(requestOptions.body).toBeUndefined();
+    expect(requestOptions.headers).not.toHaveProperty("Content-Type");
+  });
+
+  it("maps 403 responses to ApiError without clearing authentication", async () => {
     const onAuthFailure = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
@@ -70,6 +90,24 @@ describe("createApiClient", () => {
       message: "Missing permission",
     });
     await expect(client.get("/roles")).rejects.toBeInstanceOf(ApiError);
+    expect(onAuthFailure).not.toHaveBeenCalled();
+  });
+
+  it("invokes the auth failure hook for 401 responses", async () => {
+    const onAuthFailure = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ code: "UNAUTHENTICATED", message: "Session expired" }),
+    });
+    const client = createApiClient({
+      baseUrl: "http://localhost:4000",
+      getAccessToken: () => "token",
+      fetchImpl: fetchMock,
+      onAuthFailure,
+    });
+
+    await expect(client.get("/user")).rejects.toMatchObject({ status: 401 });
     expect(onAuthFailure).toHaveBeenCalledWith(expect.any(ApiError));
   });
 

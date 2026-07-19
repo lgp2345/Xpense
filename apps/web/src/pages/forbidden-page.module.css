@@ -1,0 +1,64 @@
+.forbiddenShell {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--color-canvas);
+}
+
+.forbiddenPanel {
+  width: min(100%, 560px);
+  border-radius: var(--radius-analysis);
+  padding: 40px;
+  background: rgb(248 252 250 / 92%);
+  box-shadow: var(--shadow-float);
+}
+
+.icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--color-ink);
+  background: var(--color-canvas-blue);
+}
+
+.forbiddenPanel h1 {
+  margin: 24px 0 0;
+  color: var(--color-ink-strong);
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+
+.forbiddenPanel p {
+  max-width: 44ch;
+  margin: 16px 0 28px;
+  color: #526c72;
+  line-height: 1.7;
+}
+
+.backButton {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9999px;
+  padding: 0 20px;
+  color: #f8fcfa;
+  background: var(--color-ink);
+  white-space: nowrap;
+}
+
+.backButton:focus-visible {
+  outline: 3px solid rgb(40 94 104 / 28%);
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .forbiddenPanel {
+    border-radius: var(--radius-card);
+    padding: 32px 24px;
+  }
+}
