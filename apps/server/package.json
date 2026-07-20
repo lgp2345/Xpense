@@ -11,7 +11,7 @@
     "db:prepare": "pnpm db:migrate && pnpm db:seed:rbac",
     "db:push": "drizzle-kit push",
     "db:seed:rbac": "tsx src/db/seed-rbac.ts",
-    "dev": "tsx watch src/main.ts",
+    "dev": "nest start --watch --exec tsx",
     "lint": "biome check src",
     "start": "node dist/main.js",
     "test": "vitest run"
@@ -33,6 +33,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@nestjs/cli": "^11.0.24",
     "@nestjs/testing": "^11.1.9",
     "@types/node": "catalog:",
     "drizzle-kit": "1.0.0-rc.3",
