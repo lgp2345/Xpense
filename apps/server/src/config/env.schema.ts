@@ -19,7 +19,7 @@ const serverEnvSchema = z
     JWT_ACCESS_SECRET: z.string().min(32),
     ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
-    WEB_ORIGIN: z.string().url().default("http://localhost:5173"),
+    WEB_ORIGIN: z.string().url(),
     WEB_REFRESH_TOKEN_COOKIE: z.string().min(1).default("xpense_refresh_token"),
     APP_REFRESH_TOKEN_TRANSPORT: z.literal("json_body").default("json_body"),
     SYSTEM_ROLES: z

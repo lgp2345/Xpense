@@ -3,6 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError, createApiClient } from "./api-client";
 
 describe("createApiClient", () => {
+  it("reports missing API configuration when a request is attempted", async () => {
+    const client = createApiClient({
+      baseUrl: undefined as never,
+      getAccessToken: () => null,
+    });
+
+    await expect(client.get("/health")).rejects.toThrow(/VITE_API_BASE_URL/);
+  });
+
   it("adds bearer token and parses json response", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

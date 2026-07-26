@@ -4,7 +4,7 @@ type ApiErrorPayload = {
 };
 
 export type ApiClientOptions = {
-  baseUrl: string;
+  baseUrl?: string;
   getAccessToken: () => string | null;
   fetchImpl?: typeof fetch;
   onAuthFailure?: (error: ApiError) => void;
@@ -23,9 +23,13 @@ export class ApiError extends Error {
 
 export function createApiClient(options: ApiClientOptions) {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const baseUrl = options.baseUrl.replace(/\/$/, "");
+  const baseUrl = options.baseUrl?.replace(/\/$/, "");
 
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    if (!baseUrl) {
+      throw new Error("VITE_API_BASE_URL is required");
+    }
+
     const token = options.getAccessToken();
     const response = await fetchImpl(`${baseUrl}${path}`, {
       credentials: "include",

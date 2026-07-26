@@ -5,12 +5,23 @@ x-server-runtime: &server-runtime
   build:
     context: ../..
     dockerfile: infra/compose/Dockerfile.server
-  env_file:
-    - ../../.env
   environment:
-    DATABASE_URL: ${COMPOSE_DATABASE_URL:?COMPOSE_DATABASE_URL is required}
-    PORT: "${PORT:-4000}"
-    WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:5173}
+    - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
+    - ACCESS_TOKEN_TTL_SECONDS=${ACCESS_TOKEN_TTL_SECONDS:-900}
+    - REFRESH_TOKEN_TTL_DAYS=${REFRESH_TOKEN_TTL_DAYS:-30}
+    - PORT=${PORT:-4000}
+    - WEB_ORIGIN=${WEB_ORIGIN:?WEB_ORIGIN is required}
+    - WEB_REFRESH_TOKEN_COOKIE=${WEB_REFRESH_TOKEN_COOKIE:-xpense_refresh_token}
+    - APP_REFRESH_TOKEN_TRANSPORT=${APP_REFRESH_TOKEN_TRANSPORT:-json_body}
+    - SYSTEM_ROLES=${SYSTEM_ROLES:-owner,admin,member,viewer}
+    - BOOTSTRAP_SOURCE=${BOOTSTRAP_SOURCE:-environment_variables}
+    - PASSWORD_HASH=${PASSWORD_HASH:-argon2id}
+    - ACCESS_TOKEN=${ACCESS_TOKEN:-jwt}
+    - REFRESH_TOKEN=${REFRESH_TOKEN:-opaque_random_hash_at_rest}
+    - BOOTSTRAP_SUPER_ADMIN_EMAIL
+    - BOOTSTRAP_SUPER_ADMIN_PASSWORD
+    - BOOTSTRAP_ORGANIZATION_NAME
 
 services:
   postgres:
@@ -60,9 +71,7 @@ services:
       context: ../..
       dockerfile: infra/compose/Dockerfile.web
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000}
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:?VITE_API_BASE_URL is required}
     ports:
       - "5173:5173"
     depends_on:

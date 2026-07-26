@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { ServerConfigService } from "./config.service.js";
 
-const touchedEnvKeys = ["DATABASE_URL", "JWT_ACCESS_SECRET"] as const;
+const touchedEnvKeys = ["DATABASE_URL", "JWT_ACCESS_SECRET", "WEB_ORIGIN"] as const;
 const originalTouchedEnv = Object.fromEntries(
   touchedEnvKeys.map((key) => [key, process.env[key]]),
 ) as Record<(typeof touchedEnvKeys)[number], string | undefined>;
@@ -29,6 +29,7 @@ describe("ServerConfigService", () => {
     Object.assign(process.env, {
       DATABASE_URL: "postgresql://user:pass@localhost:5432/xpense",
       JWT_ACCESS_SECRET: "a-secret-with-at-least-32-characters",
+      WEB_ORIGIN: "http://localhost:5173",
     });
 
     const service = new ServerConfigService();

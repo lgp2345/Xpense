@@ -22,9 +22,8 @@ out
 .pnpm-store
 
 # env
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # IDE
 .vscode/*

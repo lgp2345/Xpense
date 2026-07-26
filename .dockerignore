@@ -4,6 +4,9 @@
 node_modules
 **/node_modules
 **/dist
+**/src/test
+**/*.test.ts
+**/*.test.tsx
 *.tsbuildinfo
 coverage
 .env

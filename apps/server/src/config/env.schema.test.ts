@@ -5,6 +5,7 @@ import { parseServerEnv } from "./env.schema.js";
 const validRequiredEnv = {
   DATABASE_URL: "postgres://user:pass@localhost:5432/xpense",
   JWT_ACCESS_SECRET: "a-secret-with-at-least-32-characters",
+  WEB_ORIGIN: "http://localhost:5173",
 };
 
 describe("parseServerEnv", () => {
@@ -13,7 +14,6 @@ describe("parseServerEnv", () => {
       ...validRequiredEnv,
       ACCESS_TOKEN_TTL_SECONDS: "900",
       REFRESH_TOKEN_TTL_DAYS: "30",
-      WEB_ORIGIN: "http://localhost:5173",
       BOOTSTRAP_SUPER_ADMIN_EMAIL: "root@example.com",
       BOOTSTRAP_SUPER_ADMIN_PASSWORD: "strong-password",
       BOOTSTRAP_ORGANIZATION_NAME: "Xpense",
@@ -34,6 +34,15 @@ describe("parseServerEnv", () => {
         JWT_ACCESS_SECRET: validRequiredEnv.JWT_ACCESS_SECRET,
       }),
     ).toThrow(/DATABASE_URL/);
+  });
+
+  it("rejects missing web origin", () => {
+    expect(() =>
+      parseServerEnv({
+        DATABASE_URL: validRequiredEnv.DATABASE_URL,
+        JWT_ACCESS_SECRET: validRequiredEnv.JWT_ACCESS_SECRET,
+      }),
+    ).toThrow(/WEB_ORIGIN/);
   });
 
   it("rejects database urls with non-postgresql protocols", () => {
@@ -74,7 +83,7 @@ describe("parseServerEnv", () => {
 
     expect(env.ACCESS_TOKEN_TTL_SECONDS).toBe(900);
     expect(env.REFRESH_TOKEN_TTL_DAYS).toBe(30);
-    expect(env.WEB_ORIGIN).toBe("http://localhost:5173");
+    expect(env.WEB_ORIGIN).toBe(validRequiredEnv.WEB_ORIGIN);
     expect(env.WEB_REFRESH_TOKEN_COOKIE).toBe("xpense_refresh_token");
     expect(env.APP_REFRESH_TOKEN_TRANSPORT).toBe("json_body");
     expect(env.SYSTEM_ROLES).toEqual(["owner", "admin", "member", "viewer"]);
