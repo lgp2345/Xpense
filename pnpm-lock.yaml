@@ -12,6 +12,9 @@ catalogs:
     '@types/node':
       specifier: ^24.10.2
       version: 24.13.2
+    dotenv-cli:
+      specifier: 11.0.0
+      version: 11.0.0
     turbo:
       specifier: ^2.9.18
       version: 2.9.18
@@ -33,7 +36,7 @@ importers:
         specifier: 'catalog:'
         version: 2.5.1
       dotenv-cli:
-        specifier: 11.0.0
+        specifier: 'catalog:'
         version: 11.0.0
       turbo:
         specifier: 'catalog:'
@@ -99,6 +102,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.2
+      dotenv-cli:
+        specifier: 'catalog:'
+        version: 11.0.0
       drizzle-kit:
         specifier: 1.0.0-rc.3
         version: 1.0.0-rc.3

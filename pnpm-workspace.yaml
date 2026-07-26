@@ -9,6 +9,7 @@ allowBuilds:
 catalog:
   '@biomejs/biome': 2.5.1
   '@types/node': ^24.10.2
+  dotenv-cli: 11.0.0
   turbo: ^2.9.18
   typescript: ^6.0.3
   vitest: ^4.0.16
