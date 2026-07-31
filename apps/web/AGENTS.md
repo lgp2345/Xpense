@@ -20,6 +20,21 @@ WEB 端架构、技术栈、目录边界和页面定位详见同目录 `ARCHITEC
 - CSS Module 中不得默认使用 `@apply`；仅当短工具类组合语义稳定、至少重复三次且能明显提升可读性时使用，并先通过 `@reference` 引入全局 Tailwind 上下文
 - 未经架构方案确认，不得引入 Sass、Less、Stylus、CSS-in-JS 或新的样式框架
 
+## React 技能规范
+
+- 编写、评审或重构 React 组件、页面、hook、状态管理和数据请求代码时，必须使用 `$vercel-react-best-practices` 进行约束检查
+- 项目 `AGENTS.md`、本文件和同目录 `ARCHITECTURE.md` 的既有架构边界优先于通用技能；当前项目是 React 19 + Vite SPA，不直接套用 Next.js、RSC、Server Actions、`next/dynamic` 或服务端缓存规则
+- 异步操作应尽早启动、尽晚等待；互不依赖的请求使用 `Promise.all` 并行，存在依赖关系时只串行必要部分，避免组件树和路由加载形成请求瀑布
+- API 请求仍统一放在 `src/services`；不得为了并行请求把鉴权、错误解析或 fetch 细节重新移入组件
+- 默认直接从具体模块导入，避免为了便利新增大范围 barrel 导出；体积较大的可选功能按交互时机懒加载，但新增依赖或拆包方案仍须先确认
+- 不使用 Effect 同步可在 render 阶段计算的派生状态；用户交互产生的逻辑优先放在事件处理器，Effect 只负责与 React 外部系统同步
+- Effect 依赖优先使用稳定的原始值，并提供完整清理；全局事件监听必须去重，滚动和触摸监听在不调用 `preventDefault` 时使用 passive 选项
+- 依赖旧状态更新时使用函数式 `setState`；高频且不影响渲染的瞬时值使用 ref，不把指针位置、滚动进度或动画帧写入 React state
+- 非紧急且可能阻塞输入的界面更新使用 `startTransition` 或 `useTransition`；加载状态必须继续遵循本文件的可理解反馈要求
+- 昂贵计算、稳定子树或已确认的重渲染热点才使用 `useMemo`、`useCallback` 或 `memo`；简单表达式和未经验证的组件不得机械添加记忆化
+- 长列表和重型可选组件应评估 `content-visibility`、虚拟化或懒加载；采用哪种方案取决于真实数据规模，不提前引入复杂度
+- 性能优化不得改变业务语义、可访问性或测试覆盖；交付时说明针对请求瀑布、包体积和重渲染所做的检查，以及未验证的性能风险
+
 ## UI 与交互硬规则
 
 - 样式设计、视觉风格、布局和组件外观调整必须参考同目录 `DESIGN.md`
