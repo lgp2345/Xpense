@@ -40,7 +40,11 @@ export function createAuthApi(client: ApiClient) {
     getCurrentUser: () => client.get<CurrentUserResponse>("/user"),
     listOrganizations: () => client.get<UserOrganization[]>("/user/organizations"),
     switchOrganization: (organizationId: string) =>
-      client.post<AuthTokensResponse>("/user/current-organization", { organizationId }),
+      client.post<AuthTokensResponse>(
+        "/user/current-organization",
+        { organizationId },
+        { authFailure: "ignore" },
+      ),
     listSessions: () => client.get<SessionResponse[]>("/auth/sessions"),
     revokeSession: (sessionId: string) =>
       client.post<void>(`/auth/sessions/${encodeURIComponent(sessionId)}/revoke`),

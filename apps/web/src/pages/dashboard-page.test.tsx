@@ -16,11 +16,12 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("heading", { level: 2, name: "即将到期账单" })).toBeInTheDocument();
   });
 
-  it("renders the confirmed user and transaction data", () => {
+  it("renders the user context entry and transaction data", () => {
     render(<DashboardPage />);
 
     const sidebar = screen.getByRole("complementary", { name: "主要导航" });
-    expect(within(sidebar).getByText("刘先生")).toBeInTheDocument();
+    expect(within(sidebar).getByLabelText("当前用户与组织")).toHaveTextContent("未登录");
+    expect(within(sidebar).queryByText("刘先生")).not.toBeInTheDocument();
     expect(screen.getByText("盒马鲜生")).toBeInTheDocument();
     expect(screen.getByText("-¥268.50")).toBeInTheDocument();
     expect(screen.getByText("信用卡还款")).toBeInTheDocument();

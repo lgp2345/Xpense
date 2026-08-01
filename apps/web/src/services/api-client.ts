@@ -7,7 +7,11 @@ export type ApiClientOptions = {
   baseUrl?: string;
   getAccessToken: () => string | null;
   fetchImpl?: typeof fetch;
-  onAuthFailure?: (error: ApiError) => void;
+  onAuthFailure?: (error: ApiError, requestAccessToken: string | null) => void;
+};
+
+export type ApiRequestOptions = {
+  authFailure?: "ignore" | "notify";
 };
 
 export class ApiError extends Error {
@@ -25,7 +29,12 @@ export function createApiClient(options: ApiClientOptions) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = options.baseUrl?.replace(/\/$/, "");
 
-  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  async function request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    requestOptions: ApiRequestOptions = {},
+  ): Promise<T> {
     if (!baseUrl) {
       throw new Error("VITE_API_BASE_URL is required");
     }
@@ -50,8 +59,8 @@ export function createApiClient(options: ApiClientOptions) {
         errorPayload?.message ?? "Request failed",
       );
 
-      if (response.status === 401) {
-        options.onAuthFailure?.(error);
+      if (response.status === 401 && requestOptions.authFailure !== "ignore") {
+        options.onAuthFailure?.(error, token);
       }
 
       throw error;
@@ -61,10 +70,14 @@ export function createApiClient(options: ApiClientOptions) {
   }
 
   return {
-    get: <T>(path: string) => request<T>("GET", path),
-    post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
-    patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
-    delete: <T>(path: string) => request<T>("DELETE", path),
+    get: <T>(path: string, requestOptions?: ApiRequestOptions) =>
+      request<T>("GET", path, undefined, requestOptions),
+    post: <T>(path: string, body?: unknown, requestOptions?: ApiRequestOptions) =>
+      request<T>("POST", path, body, requestOptions),
+    patch: <T>(path: string, body?: unknown, requestOptions?: ApiRequestOptions) =>
+      request<T>("PATCH", path, body, requestOptions),
+    delete: <T>(path: string, requestOptions?: ApiRequestOptions) =>
+      request<T>("DELETE", path, undefined, requestOptions),
   };
 }
 

@@ -117,7 +117,61 @@ describe("createApiClient", () => {
     });
 
     await expect(client.get("/user")).rejects.toMatchObject({ status: 401 });
-    expect(onAuthFailure).toHaveBeenCalledWith(expect.any(ApiError));
+    expect(onAuthFailure).toHaveBeenCalledWith(expect.any(ApiError), "token");
+  });
+
+  it("does not invoke the auth failure hook when the request opts out", async () => {
+    const onAuthFailure = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ code: "UNAUTHENTICATED", message: "Session expired" }),
+    });
+    const client = createApiClient({
+      baseUrl: "http://localhost:4000",
+      getAccessToken: () => "token",
+      fetchImpl: fetchMock,
+      onAuthFailure,
+    });
+
+    await expect(
+      client.post(
+        "/user/current-organization",
+        { organizationId: "org-2" },
+        { authFailure: "ignore" },
+      ),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(onAuthFailure).not.toHaveBeenCalled();
+  });
+
+  it("reports the access token captured when a delayed request was sent", async () => {
+    let activeToken = "old-access";
+    let resolveResponse: ((response: Response) => void) | undefined;
+    const onAuthFailure = vi.fn();
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    const client = createApiClient({
+      baseUrl: "http://localhost:4000",
+      getAccessToken: () => activeToken,
+      fetchImpl: fetchMock,
+      onAuthFailure,
+    });
+
+    const request = client.get("/user");
+    activeToken = "new-access";
+    resolveResponse?.(
+      new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(request).rejects.toMatchObject({ status: 401 });
+    expect(onAuthFailure).toHaveBeenCalledWith(expect.any(ApiError), "old-access");
   });
 
   it("returns undefined for empty success responses", async () => {

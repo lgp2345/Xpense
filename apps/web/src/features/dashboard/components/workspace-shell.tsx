@@ -1,7 +1,5 @@
-import { Avatar } from "@heroui/react/avatar";
 import { Button } from "@heroui/react/button";
 import { Tooltip } from "@heroui/react/tooltip";
-import { Bell } from "@phosphor-icons/react/dist/csr/Bell";
 import { CaretDown } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { DownloadSimple } from "@phosphor-icons/react/dist/csr/DownloadSimple";
 import { GearSix } from "@phosphor-icons/react/dist/csr/GearSix";
@@ -14,6 +12,8 @@ import { Sun } from "@phosphor-icons/react/dist/csr/Sun";
 import { Wallet } from "@phosphor-icons/react/dist/csr/Wallet";
 import type { PropsWithChildren, ReactNode } from "react";
 
+import { type WebSessionDependency, webSession } from "../../../services/web-session";
+import { UserHeader } from "../../user/user-header";
 import { navigationItems } from "../dashboard-data";
 import styles from "./workspace-shell.module.css";
 
@@ -39,7 +39,11 @@ function BrandMark() {
   );
 }
 
-function WorkspaceSidebar() {
+type WorkspaceSidebarProps = {
+  session: WebSessionDependency;
+};
+
+function WorkspaceSidebar({ session }: WorkspaceSidebarProps) {
   return (
     <aside className={styles.workspaceSidebar} aria-label="主要导航">
       <BrandMark />
@@ -87,18 +91,7 @@ function WorkspaceSidebar() {
           快速记一笔
         </Button>
 
-        <div className={styles.sidebarProfile}>
-          <IconButton label="通知">
-            <Bell size={18} />
-          </IconButton>
-          <Avatar className={styles.userAvatar} size="md">
-            <Avatar.Fallback className={styles.userAvatarFallback}>刘</Avatar.Fallback>
-          </Avatar>
-          <div>
-            <strong>刘先生</strong>
-            <span>个人账户</span>
-          </div>
-        </div>
+        <UserHeader session={session} />
       </div>
     </aside>
   );
@@ -133,10 +126,12 @@ function WorkspaceToolbar() {
   );
 }
 
-export function WorkspaceShell({ children }: PropsWithChildren) {
+type WorkspaceShellProps = PropsWithChildren<Partial<WorkspaceSidebarProps>>;
+
+export function WorkspaceShell({ session = webSession, children }: WorkspaceShellProps) {
   return (
     <div className={styles.workspaceShell}>
-      <WorkspaceSidebar />
+      <WorkspaceSidebar session={session} />
       <div className={styles.workspaceMain}>
         <WorkspaceToolbar />
         {children}

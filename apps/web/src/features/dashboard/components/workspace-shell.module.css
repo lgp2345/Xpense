@@ -311,8 +311,17 @@
     padding-inline: 4px;
   }
 
-  .sidebarSectionHeading,
+  .sidebarSectionHeading {
+    display: none;
+  }
+
   .sidebarDock {
+    display: block;
+    margin-top: 14px;
+  }
+
+  .sidebarUtilities,
+  .quickEntryButton {
     display: none;
   }
 

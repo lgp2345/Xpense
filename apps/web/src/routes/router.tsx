@@ -15,12 +15,12 @@ import { DashboardPage } from "../pages/dashboard-page";
 import { ForbiddenPage } from "../pages/forbidden-page";
 import { FoundationPage } from "../pages/foundation-page";
 import { LoginPage } from "../pages/login-page";
-import { restoreCurrentWebSession } from "../services/web-session";
-import { type AuthStoreApi, authStore } from "../stores/auth-store";
+import { type WebSessionDependency, webSession } from "../services/web-session";
+import type { AuthStoreApi } from "../stores/auth-store";
 import { getSafeRedirectPath } from "./safe-redirect";
 
 type AppRouterContext = {
-  authStore: AuthStoreApi;
+  session: WebSessionDependency;
 };
 
 type RouteGuardLocation = {
@@ -28,11 +28,11 @@ type RouteGuardLocation = {
 };
 
 type CreateAppRouterOptions = {
-  authStore?: AuthStoreApi;
   history?: RouterHistory;
+  session?: WebSessionDependency;
 };
 
-const authStoresByRouter = new WeakMap<object, AuthStoreApi>();
+const sessionsByRouter = new WeakMap<object, WebSessionDependency>();
 
 export const protectedRoutePermissions = {
   "/members": "members.read",
@@ -52,7 +52,7 @@ const loginRoute = createRoute({
     redirect: typeof search.redirect === "string" ? search.redirect : "/",
   }),
   beforeLoad: ({ context, search }) => {
-    if (context.authStore.getState().status === "authenticated") {
+    if (context.session.authStore.getState().status === "authenticated") {
       throw redirect({ href: getSafeRedirectPath(search.redirect) });
     }
   },
@@ -63,7 +63,7 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: ({ context, location }) => requireRouteAccess(context, location),
-  component: DashboardPage,
+  component: DashboardRoutePage,
 });
 
 const foundationRoute = createRoute({
@@ -129,7 +129,7 @@ function requireRouteAccess(
   location: RouteGuardLocation,
   permission?: PermissionKey,
 ): void {
-  const state = context.authStore.getState();
+  const state = context.session.authStore.getState();
 
   if (state.status !== "authenticated") {
     throw redirect({
@@ -145,14 +145,22 @@ function requireRouteAccess(
 
 function LoginRoutePage() {
   const { redirect: redirectPath } = loginRoute.useSearch();
+  const { session } = loginRoute.useRouteContext();
   const navigate = useNavigate();
 
   return (
     <LoginPage
       redirectPath={redirectPath}
+      session={session}
       onAuthenticated={(path) => navigate({ href: path, replace: true })}
     />
   );
+}
+
+function DashboardRoutePage() {
+  const { session } = indexRoute.useRouteContext();
+
+  return <DashboardPage session={session} />;
 }
 
 function ForbiddenRoutePage() {
@@ -171,16 +179,16 @@ function AdministrationPlaceholder({ title }: { title: string }) {
 }
 
 export function createAppRouter(options: CreateAppRouterOptions = {}) {
-  const routerAuthStore = options.authStore ?? authStore;
+  const routerSession = options.session ?? webSession;
   const appRouter = createRouter({
     routeTree,
     context: {
-      authStore: routerAuthStore,
+      session: routerSession,
     },
     history: options.history,
   });
 
-  authStoresByRouter.set(appRouter, routerAuthStore);
+  sessionsByRouter.set(appRouter, routerSession);
 
   return appRouter;
 }
@@ -199,24 +207,29 @@ type AppRouterProps = {
   restoreSession?: () => Promise<boolean>;
 };
 
-export function AppRouter({
-  router: activeRouter = router,
-  restoreSession = restoreCurrentWebSession,
-}: AppRouterProps = {}) {
+export function AppRouter({ router: activeRouter = router, restoreSession }: AppRouterProps = {}) {
   const [isInitialized, setIsInitialized] = useState(false);
   const restoreRef = useRef<{
+    router: AppRouterInstance;
     restoreSession: () => Promise<boolean>;
     promise: Promise<boolean>;
   } | null>(null);
+  const activeSession = sessionsByRouter.get(activeRouter) ?? webSession;
+  const activeRestoreSession = restoreSession ?? activeSession.restoreSession;
 
   useEffect(() => {
     let isActive = true;
     let restore = restoreRef.current;
 
-    if (!restore || restore.restoreSession !== restoreSession) {
+    if (
+      !restore ||
+      restore.router !== activeRouter ||
+      restore.restoreSession !== activeRestoreSession
+    ) {
       restore = {
-        restoreSession,
-        promise: restoreSession().catch(() => false),
+        router: activeRouter,
+        restoreSession: activeRestoreSession,
+        promise: activeRestoreSession().catch(() => false),
       };
       restoreRef.current = restore;
     }
@@ -230,23 +243,17 @@ export function AppRouter({
     return () => {
       isActive = false;
     };
-  }, [restoreSession]);
+  }, [activeRestoreSession, activeRouter]);
 
   useEffect(() => {
-    const routerAuthStore = authStoresByRouter.get(activeRouter);
-
-    if (!routerAuthStore) {
-      return;
-    }
-
-    return routerAuthStore.subscribe((state, previousState) => {
+    return activeSession.authStore.subscribe((state, previousState) => {
       if (!didAuthenticatedRouteBoundaryChange(state, previousState)) {
         return;
       }
 
       void activeRouter.invalidate();
     });
-  }, [activeRouter]);
+  }, [activeRouter, activeSession]);
 
   if (!isInitialized) {
     return (

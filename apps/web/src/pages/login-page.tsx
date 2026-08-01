@@ -12,18 +12,16 @@ import { type FormEvent, useState } from "react";
 import { getSafeRedirectPath } from "../routes/safe-redirect";
 import {
   loginWebSession,
-  type SessionAuthApi,
   WebLoginError,
-  webAuthApi,
+  type WebSessionDependency,
+  webSession,
 } from "../services/web-session";
-import { type AuthStoreApi, authStore } from "../stores/auth-store";
 import styles from "./login-page.module.css";
 
 type LoginPageProps = {
-  authApi?: SessionAuthApi;
-  authStore?: AuthStoreApi;
-  redirectPath?: string;
   onAuthenticated?: (path: string) => void | Promise<void>;
+  redirectPath?: string;
+  session?: WebSessionDependency;
 };
 
 type FieldErrors = {
@@ -34,11 +32,11 @@ type FieldErrors = {
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginPage({
-  authApi = webAuthApi,
-  authStore: store = authStore,
   redirectPath = "/",
+  session = webSession,
   onAuthenticated = () => undefined,
 }: LoginPageProps) {
+  const { authApi, authStore: store } = session;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});

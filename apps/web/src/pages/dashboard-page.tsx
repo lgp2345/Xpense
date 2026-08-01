@@ -7,11 +7,16 @@ import { DashboardDetails } from "../features/dashboard/components/dashboard-det
 import { ModuleTray } from "../features/dashboard/components/module-tray";
 import { TrendOverview } from "../features/dashboard/components/trend-overview";
 import { WorkspaceShell } from "../features/dashboard/components/workspace-shell";
+import { type WebSessionDependency, webSession } from "../services/web-session";
 import styles from "./dashboard-page.module.css";
 
-export function DashboardPage() {
+type DashboardPageProps = {
+  session?: WebSessionDependency;
+};
+
+export function DashboardPage({ session = webSession }: DashboardPageProps = {}) {
   return (
-    <WorkspaceShell>
+    <WorkspaceShell session={session}>
       <main className={styles.dashboardPage} id="dashboard-main">
         <header className={styles.dashboardHeading}>
           <div className={styles.dashboardTitleGroup}>

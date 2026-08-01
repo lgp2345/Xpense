@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { CurrentUserResponse } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../services/api-client";
+import { createWebSession } from "../services/web-session";
 import { createAuthStore } from "../stores/auth-store";
 import { LoginPage } from "./login-page";
 
@@ -19,29 +20,30 @@ const currentUserContext: CurrentUserResponse = {
   session: { id: "session-1", clientType: "web_pc" },
 };
 
-function createAuthApi() {
-  return {
+function createLoginSession() {
+  const store = createAuthStore();
+  const session = createWebSession({
+    authStore: store,
+    baseUrl: "http://localhost:4000",
+    fetchImpl: (() => Promise.reject(new Error("Unexpected request"))) as typeof fetch,
+  });
+  const api = {
     login: vi.fn().mockResolvedValue({ accessToken: "access-token" }),
     refresh: vi.fn(),
     getCurrentUser: vi.fn().mockResolvedValue(currentUserContext),
     logout: vi.fn().mockResolvedValue(undefined),
   };
+  Object.assign(session.authApi, api);
+
+  return { api, session, store };
 }
 
 describe("LoginPage", () => {
   it("logs in as web_pc, loads /user, and stores the authenticated context", async () => {
     const user = userEvent.setup();
-    const api = createAuthApi();
-    const store = createAuthStore();
+    const { api, session, store } = createLoginSession();
     const onAuthenticated = vi.fn();
-    render(
-      <LoginPage
-        authApi={api}
-        authStore={store}
-        redirectPath="/roles"
-        onAuthenticated={onAuthenticated}
-      />,
-    );
+    render(<LoginPage redirectPath="/roles" session={session} onAuthenticated={onAuthenticated} />);
 
     const emailInput = screen.getByRole("textbox", { name: "邮箱" });
     const passwordInput = screen.getByLabelText("密码");
@@ -68,13 +70,12 @@ describe("LoginPage", () => {
 
   it("rejects external redirect targets after login", async () => {
     const user = userEvent.setup();
-    const api = createAuthApi();
+    const { session } = createLoginSession();
     const onAuthenticated = vi.fn();
     render(
       <LoginPage
-        authApi={api}
-        authStore={createAuthStore()}
         redirectPath="https://evil.example/steal"
+        session={session}
         onAuthenticated={onAuthenticated}
       />,
     );
@@ -88,10 +89,9 @@ describe("LoginPage", () => {
 
   it("shows a safe failure message and clears a partial session", async () => {
     const user = userEvent.setup();
-    const api = createAuthApi();
+    const { api, session, store } = createLoginSession();
     api.getCurrentUser.mockRejectedValue(new Error("database shard user_42 failed"));
-    const store = createAuthStore();
-    render(<LoginPage authApi={api} authStore={store} />);
+    render(<LoginPage session={session} />);
 
     await user.type(screen.getByRole("textbox", { name: "邮箱" }), "owner@example.com");
     await user.type(screen.getByLabelText("密码"), "password");
@@ -104,11 +104,11 @@ describe("LoginPage", () => {
 
   it("shows a safe invalid-credential message distinct from temporary failures", async () => {
     const user = userEvent.setup();
-    const api = createAuthApi();
+    const { api, session } = createLoginSession();
     api.login.mockRejectedValue(
       new ApiError(401, "UNAUTHENTICATED", "internal credential lookup user_42 failed"),
     );
-    render(<LoginPage authApi={api} authStore={createAuthStore()} />);
+    render(<LoginPage session={session} />);
 
     await user.type(screen.getByRole("textbox", { name: "邮箱" }), "owner@example.com");
     await user.type(screen.getByLabelText("密码"), "password");
@@ -120,8 +120,8 @@ describe("LoginPage", () => {
 
   it("validates required fields and email format before calling the API", async () => {
     const user = userEvent.setup();
-    const api = createAuthApi();
-    render(<LoginPage authApi={api} authStore={createAuthStore()} />);
+    const { api, session } = createLoginSession();
+    render(<LoginPage session={session} />);
 
     await user.click(screen.getByRole("button", { name: "登录" }));
     expect(await screen.findByText("请输入邮箱地址")).toBeInTheDocument();
@@ -137,9 +137,9 @@ describe("LoginPage", () => {
 
   it("shows a non-wrapping loading state while submitting", async () => {
     const user = userEvent.setup();
-    const api = createAuthApi();
+    const { api, session } = createLoginSession();
     api.login.mockReturnValue(new Promise(() => undefined));
-    render(<LoginPage authApi={api} authStore={createAuthStore()} />);
+    render(<LoginPage session={session} />);
 
     await user.type(screen.getByRole("textbox", { name: "邮箱" }), "owner@example.com");
     await user.type(screen.getByLabelText("密码"), "password");

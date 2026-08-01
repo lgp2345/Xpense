@@ -2,6 +2,7 @@ import { createMemoryHistory } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
 import { describe, expect, it } from "vitest";
 
+import { createWebSession } from "../services/web-session";
 import { createAuthStore } from "../stores/auth-store";
 import { createAppRouter, protectedRoutePermissions } from "./router";
 
@@ -26,11 +27,20 @@ function createSuperAdminStore() {
   return createAuthenticatedStore([], true);
 }
 
+function createRouterSession(store: ReturnType<typeof createAuthStore>) {
+  return createWebSession({
+    authStore: store,
+    baseUrl: "http://localhost:4000",
+    fetchImpl: (() => Promise.reject(new Error("Unexpected request"))) as typeof fetch,
+  });
+}
+
 async function loadPath(path: string, permissions?: PermissionKey[]) {
   const history = createMemoryHistory({ initialEntries: [path] });
+  const store = permissions ? createAuthenticatedStore(permissions) : createAuthStore();
   const router = createAppRouter({
-    authStore: permissions ? createAuthenticatedStore(permissions) : createAuthStore(),
     history,
+    session: createRouterSession(store),
   });
   await router.load();
 
@@ -61,7 +71,10 @@ describe("router auth guards", () => {
 
   it("allows a super admin without the route permission", async () => {
     const history = createMemoryHistory({ initialEntries: ["/audit-logs"] });
-    const router = createAppRouter({ authStore: createSuperAdminStore(), history });
+    const router = createAppRouter({
+      history,
+      session: createRouterSession(createSuperAdminStore()),
+    });
 
     await router.load();
 
