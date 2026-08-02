@@ -36,6 +36,7 @@ function renderSessionsPage(
   options: {
     api?: SessionsApi;
     currentSessionId?: string;
+    onCurrentSessionRevoked?: () => void;
     sessions?: (typeof currentSession)[];
   } = {},
 ) {
@@ -43,6 +44,7 @@ function renderSessionsPage(
     <SessionsPage
       api={options.api}
       currentSessionId={options.currentSessionId ?? "session-1"}
+      onCurrentSessionRevoked={options.onCurrentSessionRevoked}
       permissions={permissions}
       sessions={options.sessions ?? [currentSession, otherSession]}
     />,
@@ -98,6 +100,69 @@ describe("SessionsPage", () => {
     await user.click(screen.getByRole("button", { name: "确认全部撤销" }));
 
     await waitFor(() => expect(api.revokeAllSessions).toHaveBeenCalledOnce());
+  });
+
+  it("ends the current local session without refreshing after its revocation succeeds", async () => {
+    const user = userEvent.setup();
+    const api = createSessionsApi();
+    const onCurrentSessionRevoked = vi.fn();
+    renderSessionsPage(["sessions.read", "sessions.revoke"], { api, onCurrentSessionRevoked });
+
+    await user.click(screen.getByRole("button", { name: "撤销 session-1" }));
+    await user.click(screen.getByRole("button", { name: "确认撤销" }));
+
+    await waitFor(() => expect(onCurrentSessionRevoked).toHaveBeenCalledOnce());
+    expect(api.revokeSession).toHaveBeenCalledWith("session-1");
+    expect(api.listSessions).not.toHaveBeenCalled();
+  });
+
+  it("does not end the local session after revoking another device", async () => {
+    const user = userEvent.setup();
+    const api = createSessionsApi();
+    const onCurrentSessionRevoked = vi.fn();
+    renderSessionsPage(["sessions.read", "sessions.revoke"], { api, onCurrentSessionRevoked });
+
+    await user.click(screen.getByRole("button", { name: "撤销 session-2" }));
+    await user.click(screen.getByRole("button", { name: "确认撤销" }));
+
+    await waitFor(() => expect(api.revokeSession).toHaveBeenCalledWith("session-2"));
+    expect(onCurrentSessionRevoked).not.toHaveBeenCalled();
+  });
+
+  it("ends the current local session without refreshing after revoking all sessions succeeds", async () => {
+    const user = userEvent.setup();
+    const api = createSessionsApi();
+    const onCurrentSessionRevoked = vi.fn();
+    renderSessionsPage(["sessions.read", "sessions.revoke"], { api, onCurrentSessionRevoked });
+
+    await user.click(screen.getByRole("button", { name: "撤销全部会话" }));
+    await user.click(screen.getByRole("button", { name: "确认全部撤销" }));
+
+    await waitFor(() => expect(onCurrentSessionRevoked).toHaveBeenCalledOnce());
+    expect(api.revokeAllSessions).toHaveBeenCalledOnce();
+    expect(api.listSessions).not.toHaveBeenCalled();
+  });
+
+  it("reports a successful revocation separately when refreshing the list fails", async () => {
+    const user = userEvent.setup();
+    const api = createSessionsApi({
+      listSessions: vi.fn().mockRejectedValueOnce(new Error("network")).mockResolvedValueOnce([]),
+    });
+    renderSessionsPage(["sessions.read", "sessions.revoke"], { api });
+
+    await user.click(screen.getByRole("button", { name: "撤销 session-2" }));
+    await user.click(screen.getByRole("button", { name: "确认撤销" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "会话已撤销，但列表刷新失败，请稍后刷新。",
+    );
+    expect(api.revokeSession).toHaveBeenCalledWith("session-2");
+    expect(screen.getByRole("button", { name: "刷新列表" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "刷新列表" }));
+
+    await waitFor(() => expect(api.revokeSession).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   });
 
   it("shows a safe error and allows retrying a failed initial load", async () => {

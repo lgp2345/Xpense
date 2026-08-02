@@ -12,13 +12,20 @@ type SessionsApi = Pick<AuthApi, "listSessions" | "revokeAllSessions" | "revokeS
 type SessionsPageProps = {
   api?: SessionsApi;
   currentSessionId?: string;
+  onCurrentSessionRevoked?: () => void;
   permissions: PermissionKey[];
   sessions?: SessionListItem[];
+};
+
+type PageError = {
+  message: string;
+  retryLabel: "刷新列表" | "重试";
 };
 
 export function SessionsPage({
   api = webAuthApi,
   currentSessionId,
+  onCurrentSessionRevoked,
   permissions,
   sessions,
 }: SessionsPageProps) {
@@ -26,7 +33,7 @@ export function SessionsPage({
   const [sessionItems, setSessionItems] = useState(() => sessions ?? []);
   const [isLoading, setIsLoading] = useState(!hasInitialSessions);
   const [isMutating, setIsMutating] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [error, setError] = useState<PageError | null>(null);
 
   async function refreshSessions() {
     const nextSessions = await api.listSessions();
@@ -49,7 +56,7 @@ export function SessionsPage({
       })
       .catch(() => {
         if (isActive) {
-          setErrorMessage("加载会话列表失败，请稍后重试。");
+          setError({ message: "加载会话列表失败，请稍后重试。", retryLabel: "重试" });
         }
       })
       .finally(() => {
@@ -63,36 +70,64 @@ export function SessionsPage({
     };
   }, [api, hasInitialSessions]);
 
-  async function runMutation(operation: () => Promise<void>, error: string) {
-    setErrorMessage(null);
+  async function runMutation(
+    operation: () => Promise<void>,
+    mutationError: string,
+    refreshError: string,
+    endsCurrentSession: boolean,
+  ) {
+    setError(null);
     setIsMutating(true);
 
     try {
-      await operation();
-      await refreshSessions();
-    } catch {
-      setErrorMessage(error);
+      try {
+        await operation();
+      } catch {
+        setError({ message: mutationError, retryLabel: "刷新列表" });
+        return;
+      }
+
+      if (endsCurrentSession) {
+        onCurrentSessionRevoked?.();
+        return;
+      }
+
+      try {
+        await refreshSessions();
+      } catch {
+        setError({ message: refreshError, retryLabel: "刷新列表" });
+      }
     } finally {
       setIsMutating(false);
     }
   }
 
   async function handleRevoke(sessionId: string) {
-    await runMutation(() => api.revokeSession(sessionId), "撤销会话失败，请稍后重试。");
+    await runMutation(
+      () => api.revokeSession(sessionId),
+      "撤销会话失败，请稍后刷新列表。",
+      "会话已撤销，但列表刷新失败，请稍后刷新。",
+      sessionId === currentSessionId,
+    );
   }
 
   async function handleRevokeAll() {
-    await runMutation(() => api.revokeAllSessions(), "撤销全部会话失败，请稍后重试。");
+    await runMutation(
+      () => api.revokeAllSessions(),
+      "撤销全部会话失败，请稍后刷新列表。",
+      "全部会话已撤销，但列表刷新失败，请稍后刷新。",
+      true,
+    );
   }
 
   async function handleRetry() {
-    setErrorMessage(null);
+    setError(null);
     setIsLoading(true);
 
     try {
       await refreshSessions();
     } catch {
-      setErrorMessage("加载会话列表失败，请稍后重试。");
+      setError({ message: "加载会话列表失败，请稍后重试。", retryLabel: "重试" });
     } finally {
       setIsLoading(false);
     }
@@ -141,11 +176,11 @@ export function SessionsPage({
           ) : null}
         </header>
 
-        {errorMessage ? (
+        {error ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3" role="alert">
-            <span>{errorMessage}</span>
+            <span>{error.message}</span>
             <Button variant="secondary" onPress={() => void handleRetry()}>
-              重试
+              {error.retryLabel}
             </Button>
           </div>
         ) : null}

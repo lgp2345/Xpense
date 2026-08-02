@@ -163,6 +163,7 @@ function RolesRoutePage() {
 
 function SessionsRoutePage() {
   const { session } = sessionsRoute.useRouteContext();
+  const navigate = sessionsRoute.useNavigate();
   const permissions = useStore(session.authStore, (state) => state.permissions);
   const isSuperAdmin = useStore(
     session.authStore,
@@ -177,6 +178,10 @@ function SessionsRoutePage() {
     <SessionsPage
       api={session.authApi}
       currentSessionId={currentSessionId}
+      onCurrentSessionRevoked={() => {
+        session.authStore.getState().clearAuth();
+        void navigate({ to: "/login", search: { redirect: "/" }, replace: true });
+      }}
       permissions={sessionPermissions}
     />
   );
