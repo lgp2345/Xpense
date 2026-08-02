@@ -112,7 +112,7 @@ describe("router auth guards", () => {
       initialEntries: ["/audit-logs?action=role.created&targetType=role"],
     });
     const store = createAuthenticatedStore(["audit_logs.read"]);
-    const fetchMock = vi.fn(() =>
+    const fetchMock = vi.fn((_input: string | URL | Request) =>
       Promise.resolve(
         new Response(JSON.stringify([]), {
           status: 200,
@@ -142,6 +142,34 @@ describe("router auth guards", () => {
         targetType: "role",
       }),
     );
+  });
+
+  it("ignores calendar-invalid audit log date filters without breaking the page", async () => {
+    const history = createMemoryHistory({
+      initialEntries: ["/audit-logs?from=2026-99-99&to=2026-02-30"],
+    });
+    const fetchMock = vi.fn((_input: string | URL | Request) =>
+      Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const router = createAppRouter({
+      history,
+      session: createRouterSession(
+        createAuthenticatedStore(["audit_logs.read"]),
+        fetchMock as typeof fetch,
+      ),
+    });
+    await router.load();
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole("heading", { name: "审计日志" })).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(String(fetchMock.mock.calls[0]?.[0])).not.toMatch(/[?&](from|to)=/);
   });
 
   it("clears authentication and navigates to login after revoking the current session", async () => {

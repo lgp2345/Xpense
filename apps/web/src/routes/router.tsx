@@ -231,7 +231,15 @@ function readSearchString(value: unknown): string | undefined {
 
 function readSearchDate(value: unknown): string | undefined {
   const date = readSearchString(value);
-  return date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined;
+
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return undefined;
+  }
+
+  const parsedDate = new Date(`${date}T00:00:00.000Z`);
+  return !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().slice(0, 10) === date
+    ? date
+    : undefined;
 }
 
 function readSearchPage(value: unknown): number | undefined {
