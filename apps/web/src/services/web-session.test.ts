@@ -77,6 +77,97 @@ function expectAnonymousState(store: ReturnType<typeof createAuthStore>) {
 }
 
 describe("web session", () => {
+  it("refreshes concurrent protected 401 responses once and replays them with the new token", async () => {
+    const store = createAuthStore({ accessToken: "expired-access" });
+    store.getState().setCurrentUserContext(currentUserContext);
+    const requestedUrls: string[] = [];
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      const authorization = (init?.headers as Record<string, string> | undefined)?.Authorization;
+      requestedUrls.push(requestUrl);
+
+      if (requestUrl.endsWith("/auth/refresh")) {
+        return new Response(JSON.stringify({ accessToken: "refreshed-access" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (authorization === "Bearer expired-access") {
+        return new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      const payload = requestUrl.endsWith("/user/organizations") ? [] : currentUserContext;
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      fetchImpl: fetchMock as typeof fetch,
+    });
+
+    await expect(
+      Promise.all([session.authApi.getCurrentUser(), session.authApi.listOrganizations()]),
+    ).resolves.toEqual([currentUserContext, []]);
+
+    expect(requestedUrls.filter((url) => url.endsWith("/auth/refresh"))).toHaveLength(1);
+    expect(store.getState()).toMatchObject({
+      accessToken: "refreshed-access",
+      status: "authenticated",
+    });
+  });
+
+  it("keeps auth while refresh is pending and clears it only after refresh fails", async () => {
+    const store = createAuthStore({ accessToken: "expired-access" });
+    store.getState().setCurrentUserContext(currentUserContext);
+    const refreshResponse = createDeferred<Response>();
+    const fetchMock = vi.fn((url: string | URL | Request) => {
+      if (String(url).endsWith("/auth/refresh")) {
+        return refreshResponse.promise;
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      fetchImpl: fetchMock as typeof fetch,
+    });
+
+    const requestOutcome = session.authApi.getCurrentUser().catch((error: unknown) => error);
+    await vi.waitFor(() =>
+      expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/auth/refresh"))).toBe(
+        true,
+      ),
+    );
+    expect(store.getState()).toMatchObject({
+      accessToken: "expired-access",
+      status: "authenticated",
+    });
+
+    refreshResponse.resolve(
+      new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(requestOutcome).resolves.toMatchObject({ status: 401 });
+    expectAnonymousState(store);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("binds the full auth API and restoration workflow to the provided store", async () => {
     const store = createAuthStore();
     const fetchMock = vi

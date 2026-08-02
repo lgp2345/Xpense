@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { PermissionKey } from "@xpense/shared";
 import { and, count, eq, inArray, isNull, or } from "drizzle-orm";
 
-import type { AppDb } from "../../db/db.module.js";
+import type { AppDb, AppDbExecutor, AppDbTransaction } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import {
   organizationMemberships,
@@ -42,8 +42,13 @@ export class IamRepository {
       .where(eq(organizationMemberships.organizationId, organizationId));
   }
 
-  async findMemberById(organizationId: string, memberId: string): Promise<IamMember | null> {
-    const [member] = await this.db
+  async findMemberById(
+    organizationId: string,
+    memberId: string,
+    executor: AppDbExecutor = this.db,
+    lockForUpdate = false,
+  ): Promise<IamMember | null> {
+    const query = executor
       .select(memberSelectFields)
       .from(organizationMemberships)
       .innerJoin(users, eq(organizationMemberships.userId, users.id))
@@ -53,8 +58,8 @@ export class IamRepository {
           eq(organizationMemberships.organizationId, organizationId),
           eq(organizationMemberships.id, memberId),
         ),
-      )
-      .limit(1);
+      );
+    const [member] = lockForUpdate ? await query.for("update").limit(1) : await query.limit(1);
 
     return member ?? null;
   }
@@ -79,8 +84,11 @@ export class IamRepository {
     return member ?? null;
   }
 
-  async createMember(input: CreateMemberInput): Promise<IamMember> {
-    const [member] = await this.db
+  async createMember(
+    input: CreateMemberInput,
+    executor: AppDbExecutor = this.db,
+  ): Promise<IamMember> {
+    const [member] = await executor
       .insert(organizationMemberships)
       .values(input)
       .returning({ id: organizationMemberships.id });
@@ -89,7 +97,7 @@ export class IamRepository {
       throw new Error("Failed to create organization member");
     }
 
-    const createdMember = await this.findMemberById(input.organizationId, member.id);
+    const createdMember = await this.findMemberById(input.organizationId, member.id, executor);
 
     if (!createdMember) {
       throw new Error("Created organization member is unavailable");
@@ -98,8 +106,11 @@ export class IamRepository {
     return createdMember;
   }
 
-  async updateMember(input: UpdateMemberInput): Promise<IamMember> {
-    await this.db
+  async updateMember(
+    input: UpdateMemberInput,
+    executor: AppDbExecutor = this.db,
+  ): Promise<IamMember> {
+    await executor
       .update(organizationMemberships)
       .set({
         roleId: input.roleId,
@@ -113,7 +124,7 @@ export class IamRepository {
         ),
       );
 
-    const updatedMember = await this.findMemberById(input.organizationId, input.memberId);
+    const updatedMember = await this.findMemberById(input.organizationId, input.memberId, executor);
 
     if (!updatedMember) {
       throw new Error("Updated organization member is unavailable");
@@ -125,10 +136,11 @@ export class IamRepository {
   async revokeActiveSessionsForUserInOrganization(
     userId: string,
     organizationId: string,
+    executor: AppDbExecutor = this.db,
   ): Promise<void> {
     const now = new Date();
 
-    await this.db
+    await executor
       .update(refreshSessions)
       .set({
         status: "revoked",
@@ -208,8 +220,23 @@ export class IamRepository {
     return role ?? null;
   }
 
-  async createRole(input: CreateRoleInput): Promise<IamRole> {
-    const [role] = await this.db
+  async listPermissionKeysForRole(
+    roleId: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<PermissionKey[]> {
+    const rows = await executor
+      .select({
+        key: permissions.key,
+      })
+      .from(rolePermissions)
+      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+      .where(eq(rolePermissions.roleId, roleId));
+
+    return rows.map((row) => row.key as PermissionKey);
+  }
+
+  async createRole(input: CreateRoleInput, executor: AppDbExecutor = this.db): Promise<IamRole> {
+    const [role] = await executor
       .insert(roles)
       .values({
         organizationId: input.organizationId,
@@ -230,8 +257,8 @@ export class IamRepository {
     return role;
   }
 
-  async updateRole(input: UpdateRoleInput): Promise<IamRole> {
-    const [role] = await this.db
+  async updateRole(input: UpdateRoleInput, executor: AppDbExecutor = this.db): Promise<IamRole> {
+    const [role] = await executor
       .update(roles)
       .set({
         name: input.name,
@@ -250,24 +277,38 @@ export class IamRepository {
     return role;
   }
 
-  async deleteRole(organizationId: string, roleId: string): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
-      await tx
+  async deleteRole(
+    organizationId: string,
+    roleId: string,
+    transaction?: AppDbTransaction,
+  ): Promise<void> {
+    const deleteWith = async (executor: AppDbExecutor): Promise<void> => {
+      await executor.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
+      await executor
         .delete(roles)
         .where(and(eq(roles.organizationId, organizationId), eq(roles.id, roleId)));
-    });
+    };
+
+    if (transaction) {
+      await deleteWith(transaction);
+      return;
+    }
+
+    await this.db.transaction(deleteWith);
   }
 
-  async replaceRolePermissions(input: ReplaceRolePermissionsInput): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, input.roleId));
+  async replaceRolePermissions(
+    input: ReplaceRolePermissionsInput,
+    transaction?: AppDbTransaction,
+  ): Promise<void> {
+    const replaceWith = async (executor: AppDbExecutor): Promise<void> => {
+      await executor.delete(rolePermissions).where(eq(rolePermissions.roleId, input.roleId));
 
       if (input.permissionKeys.length === 0) {
         return;
       }
 
-      const permissionRows = await tx
+      const permissionRows = await executor
         .select({
           id: permissions.id,
           key: permissions.key,
@@ -289,8 +330,15 @@ export class IamRepository {
         };
       });
 
-      await tx.insert(rolePermissions).values(values).onConflictDoNothing();
-    });
+      await executor.insert(rolePermissions).values(values).onConflictDoNothing();
+    };
+
+    if (transaction) {
+      await replaceWith(transaction);
+      return;
+    }
+
+    await this.db.transaction(replaceWith);
   }
 
   async countMembersUsingRole(organizationId: string, roleId: string): Promise<number> {

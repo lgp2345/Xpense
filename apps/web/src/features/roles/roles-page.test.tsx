@@ -66,7 +66,7 @@ function renderRolesPage(
   render(
     <RolesPage
       api={options.api}
-      permissions={permissions}
+      permissions={["permissions.read", ...permissions]}
       roleItems={options.roles ?? [systemRole, customRole]}
       permissionItems={options.pagePermissions ?? availablePermissions}
     />,
@@ -74,6 +74,34 @@ function renderRolesPage(
 }
 
 describe("RolesPage", () => {
+  it("loads the role list without requesting permissions when permissions.read is unavailable", async () => {
+    const api = createIamApi({
+      listPermissions: vi.fn().mockRejectedValue(new Error("forbidden")),
+    });
+
+    render(<RolesPage api={api} permissions={["roles.read"]} />);
+
+    expect(await screen.findByText("账务管理员")).toBeInTheDocument();
+    expect(api.listRoles).toHaveBeenCalledTimes(1);
+    expect(api.listPermissions).not.toHaveBeenCalled();
+  });
+
+  it("keeps permission editing unavailable without permissions.read", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <RolesPage
+        permissionItems={availablePermissions}
+        permissions={["roles.read", "roles.update", "roles.permissions.update"]}
+        roleItems={[customRole]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "编辑 账务管理员" }));
+
+    expect(screen.getByRole("checkbox", { name: "roles.read" })).toBeDisabled();
+  });
+
   it("does not offer edit or delete actions for a non-editable system role", () => {
     renderRolesPage(["roles.read", "roles.update", "roles.delete"]);
 

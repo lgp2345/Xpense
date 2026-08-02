@@ -35,7 +35,8 @@ export function RoleTable({
 
   const canUpdate = permissions.includes("roles.update");
   const canDelete = permissions.includes("roles.delete");
-  const canUpdatePermissions = permissions.includes("roles.permissions.update");
+  const canUpdatePermissions =
+    permissions.includes("permissions.read") && permissions.includes("roles.permissions.update");
 
   function getUpdateInput(input: RoleEditorInput): UpdateRoleRequest {
     const request: UpdateRoleRequest = {

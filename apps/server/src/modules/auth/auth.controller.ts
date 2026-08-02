@@ -16,6 +16,7 @@ import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { ServerConfigService } from "../../config/config.service.js";
+import { RequirePermission } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import type { SessionResponse } from "./auth.service.js";
@@ -117,6 +118,7 @@ export class AuthController {
   }
 
   @Get("sessions")
+  @RequirePermission("sessions.read")
   @UseGuards(AuthGuard, RbacGuard)
   listSessions(@CurrentAuthContext() authContext: AuthContext): Promise<SessionResponse[]> {
     return this.authService.listSessions(authContext);
@@ -124,6 +126,7 @@ export class AuthController {
 
   @Post("sessions/:id/revoke")
   @HttpCode(204)
+  @RequirePermission("sessions.revoke")
   @UseGuards(AuthGuard, RbacGuard)
   revokeSession(
     @CurrentAuthContext() authContext: AuthContext,
@@ -134,6 +137,7 @@ export class AuthController {
 
   @Post("sessions/revoke-all")
   @HttpCode(204)
+  @RequirePermission("sessions.revoke")
   @UseGuards(AuthGuard, RbacGuard)
   revokeAllSessions(@CurrentAuthContext() authContext: AuthContext): Promise<void> {
     return this.authService.revokeAllSessions(authContext);

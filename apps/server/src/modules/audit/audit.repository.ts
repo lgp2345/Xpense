@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { and, desc, eq, gte, lte, type SQL } from "drizzle-orm";
 
-import type { AppDb } from "../../db/db.module.js";
+import type { AppDb, AppDbExecutor } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import { auditLogs } from "../../db/schema.js";
 import type {
@@ -15,8 +15,8 @@ import type {
 export class AuditRepository {
   constructor(@Inject(DB) private readonly db: AppDb) {}
 
-  async append(input: AppendAuditLogInput): Promise<void> {
-    await this.db.insert(auditLogs).values({
+  async append(input: AppendAuditLogInput, executor: AppDbExecutor = this.db): Promise<void> {
+    await executor.insert(auditLogs).values({
       organizationId: input.organizationId ?? null,
       actorUserId: input.actorUserId ?? null,
       action: input.action,

@@ -3,6 +3,153 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError, createApiClient } from "./api-client";
 
 describe("createApiClient", () => {
+  it("shares one refresh across concurrent 401 responses and replays both requests", async () => {
+    let activeToken = "expired-access";
+    let releaseRefresh: () => void = () => undefined;
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    const refreshAccessToken = vi.fn(async () => {
+      await refreshGate;
+      activeToken = "refreshed-access";
+      return activeToken;
+    });
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const authorization = (init?.headers as Record<string, string> | undefined)?.Authorization;
+
+      if (authorization === "Bearer expired-access") {
+        return new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ authorization }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    const client = createApiClient({
+      baseUrl: "http://localhost:4000",
+      getAccessToken: () => activeToken,
+      fetchImpl: fetchMock as typeof fetch,
+      refreshAccessToken,
+    } as Parameters<typeof createApiClient>[0]);
+
+    const firstRequest = client.get("/members").then(
+      (value) => ({ status: "fulfilled" as const, value }),
+      (error: unknown) => ({ error, status: "rejected" as const }),
+    );
+    const secondRequest = client.get("/roles").then(
+      (value) => ({ status: "fulfilled" as const, value }),
+      (error: unknown) => ({ error, status: "rejected" as const }),
+    );
+    await vi.waitFor(() => expect(refreshAccessToken).toHaveBeenCalledTimes(1));
+    releaseRefresh();
+
+    await expect(Promise.all([firstRequest, secondRequest])).resolves.toEqual([
+      {
+        status: "fulfilled",
+        value: { authorization: "Bearer refreshed-access" },
+      },
+      {
+        status: "fulfilled",
+        value: { authorization: "Bearer refreshed-access" },
+      },
+    ]);
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("replays an unauthorized request at most once before reporting auth failure", async () => {
+    let activeToken = "expired-access";
+    const onAuthFailure = vi.fn();
+    const refreshAccessToken = vi.fn(async () => {
+      activeToken = "refreshed-access";
+      return activeToken;
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const client = createApiClient({
+      baseUrl: "http://localhost:4000",
+      getAccessToken: () => activeToken,
+      fetchImpl: fetchMock,
+      onAuthFailure,
+      refreshAccessToken,
+    } as Parameters<typeof createApiClient>[0]);
+
+    await expect(client.get("/user")).rejects.toMatchObject({ status: 401 });
+
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(onAuthFailure).toHaveBeenCalledTimes(1);
+    expect(onAuthFailure).toHaveBeenCalledWith(expect.any(ApiError), "refreshed-access");
+  });
+
+  it("does not refresh after the request token has been cleared", async () => {
+    let activeToken: string | null = "expired-access";
+    let resolveResponse: (response: Response) => void = () => undefined;
+    const responseGate = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const refreshAccessToken = vi.fn().mockResolvedValue(null);
+    const fetchMock = vi.fn().mockReturnValue(responseGate);
+    const client = createApiClient({
+      baseUrl: "http://localhost:4000",
+      getAccessToken: () => activeToken,
+      fetchImpl: fetchMock,
+      refreshAccessToken,
+    } as Parameters<typeof createApiClient>[0]);
+
+    const request = client.get("/members");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    activeToken = null;
+    resolveResponse(
+      new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(request).rejects.toMatchObject({ status: 401 });
+    expect(refreshAccessToken).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not replay a request after an unrelated access token change", async () => {
+    let activeToken = "organization-a-access";
+    let resolveResponse: (response: Response) => void = () => undefined;
+    const responseGate = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const refreshAccessToken = vi.fn();
+    const fetchMock = vi.fn().mockReturnValue(responseGate);
+    const client = createApiClient({
+      baseUrl: "http://localhost:4000",
+      getAccessToken: () => activeToken,
+      fetchImpl: fetchMock,
+      refreshAccessToken,
+    } as Parameters<typeof createApiClient>[0]);
+
+    const request = client.patch("/members/member-1", { status: "disabled" });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    activeToken = "organization-b-access";
+    resolveResponse(
+      new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(request).rejects.toMatchObject({ status: 401 });
+    expect(refreshAccessToken).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("reports missing API configuration when a request is attempted", async () => {
     const client = createApiClient({
       baseUrl: undefined as never,

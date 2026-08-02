@@ -33,7 +33,6 @@ export class IamController {
   }
 
   @Patch("members/:memberId")
-  @RequirePermission("members.update")
   updateMember(
     @CurrentAuthContext() authContext: AuthContext,
     @Param("memberId") memberId: string,

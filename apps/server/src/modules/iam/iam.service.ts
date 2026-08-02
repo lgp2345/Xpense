@@ -4,10 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import type { PermissionKey } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
+import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import { AuditService } from "../audit/audit.service.js";
+import { AccessService } from "./access.service.js";
 import type { CreateMemberDto } from "./dto/create-member.dto.js";
 import type { CreateRoleDto } from "./dto/create-role.dto.js";
 import type { UpdateMemberDto } from "./dto/update-member.dto.js";
@@ -20,6 +23,8 @@ export class IamService {
   constructor(
     private readonly repository: IamRepository,
     private readonly auditService: AuditService,
+    private readonly transactions: DatabaseTransactionService,
+    private readonly accessService: AccessService,
   ) {}
 
   listMembers(authContext: AuthContext): Promise<IamMember[]> {
@@ -37,28 +42,37 @@ export class IamService {
     }
 
     await this.ensureRoleInCurrentOrganization(authContext.organizationId, dto.roleId);
+    await this.assertRoleWithinPermissionCeiling(authContext, dto.roleId);
 
-    const member = await this.repository.createMember({
-      organizationId: authContext.organizationId,
-      userId: dto.userId,
-      roleId: dto.roleId,
-      status: "active",
+    return this.transactions.run(async (transaction) => {
+      const member = await this.repository.createMember(
+        {
+          organizationId: authContext.organizationId,
+          userId: dto.userId,
+          roleId: dto.roleId,
+          status: "active",
+        },
+        transaction,
+      );
+
+      await this.auditService.appendRequired(
+        {
+          organizationId: authContext.organizationId,
+          actorUserId: authContext.userId,
+          action: "member.created",
+          targetType: "member",
+          targetId: member.id,
+          result: "succeeded",
+          metadata: {
+            userId: dto.userId,
+            roleTo: dto.roleId,
+          },
+        },
+        transaction,
+      );
+
+      return member;
     });
-
-    await this.auditService.appendRequired({
-      organizationId: authContext.organizationId,
-      actorUserId: authContext.userId,
-      action: "member.created",
-      targetType: "member",
-      targetId: member.id,
-      result: "succeeded",
-      metadata: {
-        userId: dto.userId,
-        roleTo: dto.roleId,
-      },
-    });
-
-    return member;
   }
 
   async updateMember(
@@ -66,75 +80,108 @@ export class IamService {
     memberId: string,
     dto: UpdateMemberDto,
   ): Promise<IamMember> {
-    const member = await this.repository.findMemberById(authContext.organizationId, memberId);
+    if (dto.roleId !== undefined) {
+      this.accessService.assertPermission(authContext, "members.update");
+    }
 
-    if (!member) {
-      throw this.notFound("Organization member was not found");
+    if (dto.status === "active") {
+      this.accessService.assertPermission(authContext, "members.enable");
+    }
+
+    if (dto.status === "disabled") {
+      this.accessService.assertPermission(authContext, "members.disable");
     }
 
     if (dto.roleId) {
       await this.ensureRoleInCurrentOrganization(authContext.organizationId, dto.roleId);
+      await this.assertRoleWithinPermissionCeiling(authContext, dto.roleId);
     }
 
-    const updatedMember = await this.repository.updateMember({
-      organizationId: authContext.organizationId,
-      memberId,
-      roleId: dto.roleId,
-      status: dto.status,
-    });
-
-    if (member.status === "active" && dto.status === "disabled") {
-      await this.repository.revokeActiveSessionsForUserInOrganization(
-        member.userId,
+    return this.transactions.run(async (transaction) => {
+      const member = await this.repository.findMemberById(
         authContext.organizationId,
+        memberId,
+        transaction,
+        true,
       );
-    }
 
-    if (dto.roleId && dto.roleId !== member.roleId) {
-      await this.auditService.appendRequired({
-        organizationId: authContext.organizationId,
-        actorUserId: authContext.userId,
-        action: "member.role.changed",
-        targetType: "member",
-        targetId: memberId,
-        result: "succeeded",
-        metadata: {
-          userId: member.userId,
-          roleFrom: member.roleId,
-          roleTo: dto.roleId,
+      if (!member) {
+        throw this.notFound("Organization member was not found");
+      }
+
+      const updatedMember = await this.repository.updateMember(
+        {
+          organizationId: authContext.organizationId,
+          memberId,
+          roleId: dto.roleId,
+          status: dto.status,
         },
-      });
-    }
+        transaction,
+      );
 
-    if (member.status !== dto.status && dto.status === "disabled") {
-      await this.auditService.appendRequired({
-        organizationId: authContext.organizationId,
-        actorUserId: authContext.userId,
-        action: "member.disabled",
-        targetType: "member",
-        targetId: memberId,
-        result: "succeeded",
-        metadata: {
-          userId: member.userId,
-        },
-      });
-    }
+      if (member.status === "active" && dto.status === "disabled") {
+        await this.repository.revokeActiveSessionsForUserInOrganization(
+          member.userId,
+          authContext.organizationId,
+          transaction,
+        );
+      }
 
-    if (member.status !== dto.status && dto.status === "active") {
-      await this.auditService.appendRequired({
-        organizationId: authContext.organizationId,
-        actorUserId: authContext.userId,
-        action: "member.enabled",
-        targetType: "member",
-        targetId: memberId,
-        result: "succeeded",
-        metadata: {
-          userId: member.userId,
-        },
-      });
-    }
+      if (dto.roleId && dto.roleId !== member.roleId) {
+        await this.auditService.appendRequired(
+          {
+            organizationId: authContext.organizationId,
+            actorUserId: authContext.userId,
+            action: "member.role.changed",
+            targetType: "member",
+            targetId: memberId,
+            result: "succeeded",
+            metadata: {
+              userId: member.userId,
+              roleFrom: member.roleId,
+              roleTo: dto.roleId,
+            },
+          },
+          transaction,
+        );
+      }
 
-    return updatedMember;
+      if (member.status !== dto.status && dto.status === "disabled") {
+        await this.auditService.appendRequired(
+          {
+            organizationId: authContext.organizationId,
+            actorUserId: authContext.userId,
+            action: "member.disabled",
+            targetType: "member",
+            targetId: memberId,
+            result: "succeeded",
+            metadata: {
+              userId: member.userId,
+            },
+          },
+          transaction,
+        );
+      }
+
+      if (member.status !== dto.status && dto.status === "active") {
+        await this.auditService.appendRequired(
+          {
+            organizationId: authContext.organizationId,
+            actorUserId: authContext.userId,
+            action: "member.enabled",
+            targetType: "member",
+            targetId: memberId,
+            result: "succeeded",
+            metadata: {
+              userId: member.userId,
+            },
+          },
+          transaction,
+        );
+      }
+
+      return updatedMember;
+    });
   }
 
   listRoles(authContext: AuthContext): Promise<IamRoleWithPermissions[]> {
@@ -144,6 +191,7 @@ export class IamService {
   async createRole(authContext: AuthContext, dto: CreateRoleDto): Promise<IamRole> {
     if (dto.permissionKeys.length > 0) {
       this.assertCanUpdateRolePermissions(authContext);
+      this.assertPermissionsWithinCeiling(authContext, dto.permissionKeys);
     }
 
     const existingRole = await this.repository.findRoleByKey(authContext.organizationId, dto.key);
@@ -152,50 +200,65 @@ export class IamService {
       throw this.conflict("Role key already exists in the current organization");
     }
 
-    const role = await this.repository.createRole({
-      organizationId: authContext.organizationId,
-      key: dto.key,
-      name: dto.name,
-      description: dto.description,
-    });
+    return this.transactions.run(async (transaction) => {
+      const role = await this.repository.createRole(
+        {
+          organizationId: authContext.organizationId,
+          key: dto.key,
+          name: dto.name,
+          description: dto.description,
+        },
+        transaction,
+      );
 
-    await this.repository.replaceRolePermissions({
-      roleId: role.id,
-      permissionKeys: dto.permissionKeys,
-    });
-
-    await this.auditService.appendRequired({
-      organizationId: authContext.organizationId,
-      actorUserId: authContext.userId,
-      action: "role.created",
-      targetType: "role",
-      targetId: role.id,
-      result: "succeeded",
-      metadata: {
-        key: dto.key,
-      },
-    });
-
-    if (dto.permissionKeys.length > 0) {
-      await this.auditService.appendRequired({
-        organizationId: authContext.organizationId,
-        actorUserId: authContext.userId,
-        action: "role.permissions.changed",
-        targetType: "role",
-        targetId: role.id,
-        result: "succeeded",
-        metadata: {
+      await this.repository.replaceRolePermissions(
+        {
+          roleId: role.id,
           permissionKeys: dto.permissionKeys,
         },
-      });
-    }
+        transaction,
+      );
 
-    return role;
+      await this.auditService.appendRequired(
+        {
+          organizationId: authContext.organizationId,
+          actorUserId: authContext.userId,
+          action: "role.created",
+          targetType: "role",
+          targetId: role.id,
+          result: "succeeded",
+          metadata: {
+            key: dto.key,
+          },
+        },
+        transaction,
+      );
+
+      if (dto.permissionKeys.length > 0) {
+        await this.auditService.appendRequired(
+          {
+            organizationId: authContext.organizationId,
+            actorUserId: authContext.userId,
+            action: "role.permissions.changed",
+            targetType: "role",
+            targetId: role.id,
+            result: "succeeded",
+            metadata: {
+              permissionKeys: dto.permissionKeys,
+            },
+          },
+          transaction,
+        );
+      }
+
+      return role;
+    });
   }
 
   async updateRole(authContext: AuthContext, roleId: string, dto: UpdateRoleDto): Promise<IamRole> {
     if (dto.permissionKeys !== undefined) {
       this.assertCanUpdateRolePermissions(authContext);
+      this.assertPermissionsWithinCeiling(authContext, dto.permissionKeys);
     }
 
     const role = await this.repository.findRoleById(authContext.organizationId, roleId);
@@ -206,52 +269,66 @@ export class IamService {
 
     this.assertRoleEditable(role);
 
-    const updatedRole = await this.repository.updateRole({
-      organizationId: authContext.organizationId,
-      roleId,
-      name: dto.name,
-      description: dto.description,
+    return this.transactions.run(async (transaction) => {
+      const updatedRole = await this.repository.updateRole(
+        {
+          organizationId: authContext.organizationId,
+          roleId,
+          name: dto.name,
+          description: dto.description,
+        },
+        transaction,
+      );
+
+      if (dto.permissionKeys) {
+        await this.repository.replaceRolePermissions(
+          {
+            roleId,
+            permissionKeys: dto.permissionKeys,
+          },
+          transaction,
+        );
+      }
+
+      if (dto.name !== undefined || dto.description !== undefined) {
+        await this.auditService.appendRequired(
+          {
+            organizationId: authContext.organizationId,
+            actorUserId: authContext.userId,
+            action: "role.updated",
+            targetType: "role",
+            targetId: roleId,
+            result: "succeeded",
+            metadata: {
+              nameFrom: role.name,
+              nameTo: dto.name,
+              descriptionFrom: role.description,
+              descriptionTo: dto.description,
+            },
+          },
+          transaction,
+        );
+      }
+
+      if (dto.permissionKeys) {
+        await this.auditService.appendRequired(
+          {
+            organizationId: authContext.organizationId,
+            actorUserId: authContext.userId,
+            action: "role.permissions.changed",
+            targetType: "role",
+            targetId: roleId,
+            result: "succeeded",
+            metadata: {
+              permissionKeys: dto.permissionKeys,
+            },
+          },
+          transaction,
+        );
+      }
+
+      return updatedRole;
     });
-
-    if (dto.permissionKeys) {
-      await this.repository.replaceRolePermissions({
-        roleId,
-        permissionKeys: dto.permissionKeys,
-      });
-    }
-
-    if (dto.name !== undefined || dto.description !== undefined) {
-      await this.auditService.appendRequired({
-        organizationId: authContext.organizationId,
-        actorUserId: authContext.userId,
-        action: "role.updated",
-        targetType: "role",
-        targetId: roleId,
-        result: "succeeded",
-        metadata: {
-          nameFrom: role.name,
-          nameTo: dto.name,
-          descriptionFrom: role.description,
-          descriptionTo: dto.description,
-        },
-      });
-    }
-
-    if (dto.permissionKeys) {
-      await this.auditService.appendRequired({
-        organizationId: authContext.organizationId,
-        actorUserId: authContext.userId,
-        action: "role.permissions.changed",
-        targetType: "role",
-        targetId: roleId,
-        result: "succeeded",
-        metadata: {
-          permissionKeys: dto.permissionKeys,
-        },
-      });
-    }
-
-    return updatedRole;
   }
 
   async deleteRole(authContext: AuthContext, roleId: string): Promise<void> {
@@ -272,17 +349,22 @@ export class IamService {
       throw this.conflict("Role is assigned to organization members");
     }
 
-    await this.repository.deleteRole(authContext.organizationId, roleId);
-    await this.auditService.appendRequired({
-      organizationId: authContext.organizationId,
-      actorUserId: authContext.userId,
-      action: "role.deleted",
-      targetType: "role",
-      targetId: roleId,
-      result: "succeeded",
-      metadata: {
-        key: role.key,
-      },
+    await this.transactions.run(async (transaction) => {
+      await this.repository.deleteRole(authContext.organizationId, roleId, transaction);
+      await this.auditService.appendRequired(
+        {
+          organizationId: authContext.organizationId,
+          actorUserId: authContext.userId,
+          action: "role.deleted",
+          targetType: "role",
+          targetId: roleId,
+          result: "succeeded",
+          metadata: {
+            key: role.key,
+          },
+        },
+        transaction,
+      );
     });
   }
 
@@ -322,6 +404,35 @@ export class IamService {
         message: "Permission update access is required",
       });
     }
+  }
+
+  private async assertRoleWithinPermissionCeiling(
+    authContext: AuthContext,
+    roleId: string,
+  ): Promise<void> {
+    if (authContext.isSuperAdmin) {
+      return;
+    }
+
+    const permissionKeys = await this.repository.listPermissionKeysForRole(roleId);
+    this.assertPermissionsWithinCeiling(authContext, permissionKeys);
+  }
+
+  private assertPermissionsWithinCeiling(
+    authContext: AuthContext,
+    permissionKeys: readonly PermissionKey[],
+  ): void {
+    if (
+      authContext.isSuperAdmin ||
+      permissionKeys.every((permissionKey) => authContext.permissions.includes(permissionKey))
+    ) {
+      return;
+    }
+
+    throw new ForbiddenException({
+      code: apiErrorCodes.forbidden,
+      message: "Cannot grant permissions outside the actor's permission set",
+    });
   }
 
   private conflict(message: string): ConflictException {

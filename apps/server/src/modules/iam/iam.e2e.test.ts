@@ -49,7 +49,7 @@ describe("IAM e2e", () => {
         expect.objectContaining({
           id: testIds.managerRole,
           key: "manager",
-          permissionKeys: ["roles.read", "roles.update", "members.update"],
+          permissionKeys: expect.arrayContaining(["roles.read", "roles.update", "members.update"]),
         }),
       ]),
     );
@@ -91,7 +91,7 @@ describe("IAM e2e", () => {
 
   it("PATCH /roles/:id rejects permission changes without roles.permissions.update", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "owner@example.com");
 
     const response = await app.inject({
       method: "PATCH",
@@ -139,5 +139,221 @@ describe("IAM e2e", () => {
         }),
       ]),
     );
+  });
+
+  it("PATCH /members/:id rejects disabling without members.disable", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/members/${testIds.viewerMember}`,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        status: "disabled",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(state.members.get(testIds.viewerMember)?.status).toBe("active");
+  });
+
+  it("PATCH /members/:id rejects enabling without members.enable", async () => {
+    const { app, state } = await createHarness();
+    const viewerMember = state.members.get(testIds.viewerMember);
+
+    if (!viewerMember) {
+      throw new Error("Viewer member fixture is required");
+    }
+
+    state.members.set(testIds.viewerMember, {
+      ...viewerMember,
+      status: "disabled",
+    });
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/members/${testIds.viewerMember}`,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        status: "active",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(state.members.get(testIds.viewerMember)?.status).toBe("disabled");
+  });
+
+  it("PATCH /members/:id allows status-only updates without members.update", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "owner@example.com");
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/members/${testIds.viewerMember}`,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        status: "disabled",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(state.members.get(testIds.viewerMember)?.status).toBe("disabled");
+  });
+
+  it("PATCH /members/:id requires members.update for role assignment", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "owner@example.com");
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/members/${testIds.viewerMember}`,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: testIds.managerRole,
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(state.members.get(testIds.viewerMember)?.roleId).toBe(testIds.viewerRole);
+  });
+
+  it("PATCH /members/:id requires every permission for a combined update", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/members/${testIds.viewerMember}`,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: testIds.managerRole,
+        status: "disabled",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(state.members.get(testIds.viewerMember)).toMatchObject({
+      roleId: testIds.viewerRole,
+      status: "active",
+    });
+  });
+
+  it("POST /roles rejects permissions above a non-super-admin actor", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        key: "elevated",
+        name: "Elevated",
+        permissionKeys: ["transactions.delete"],
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect([...state.roles.values()].some((role) => role.key === "elevated")).toBe(false);
+  });
+
+  it("PATCH /roles/:id rejects permissions above a non-super-admin actor", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/roles/${testIds.managerRole}`,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        permissionKeys: ["transactions.delete"],
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(state.roles.get(testIds.managerRole)?.permissions).not.toContain("transactions.delete");
+  });
+
+  it("POST /members rejects assigning a role above a non-super-admin actor", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/members",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        userId: testIds.outsiderUser,
+        roleId: testIds.viewerRole,
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(
+      [...state.members.values()].some((member) => member.userId === testIds.outsiderUser),
+    ).toBe(false);
+  });
+
+  it("allows a super admin to grant permissions above their assigned role", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "super@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        key: "super-managed",
+        name: "Super managed",
+        permissionKeys: ["transactions.delete"],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(state.roles.get(parseJson<{ id: string }>(response).id)?.permissions).toEqual([
+      "transactions.delete",
+    ]);
+  });
+
+  it("allows a super admin to assign a role above their assigned role", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "super@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/members",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        userId: testIds.outsiderUser,
+        roleId: testIds.managerRole,
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(
+      [...state.members.values()].find((member) => member.userId === testIds.outsiderUser),
+    ).toMatchObject({ roleId: testIds.managerRole });
   });
 });

@@ -25,8 +25,11 @@ type RolesPageProps = {
   roleItems?: IamRoleWithPermissions[];
 };
 
-function loadRolesData(api: RolesApi) {
-  return Promise.all([api.listRoles(), api.listPermissions()]);
+function loadRolesData(api: RolesApi, canReadPermissions: boolean) {
+  return Promise.all([
+    api.listRoles(),
+    canReadPermissions ? api.listPermissions() : Promise.resolve([] as IamPermission[]),
+  ]);
 }
 
 export function RolesPage({
@@ -35,7 +38,9 @@ export function RolesPage({
   permissions,
   roleItems,
 }: RolesPageProps) {
-  const hasInitialData = roleItems !== undefined && permissionItems !== undefined;
+  const canReadPermissions = permissions.includes("permissions.read");
+  const hasInitialData =
+    roleItems !== undefined && (!canReadPermissions || permissionItems !== undefined);
   const [roles, setRoles] = useState(() => roleItems ?? []);
   const [availablePermissions, setAvailablePermissions] = useState(() => permissionItems ?? []);
   const [isLoading, setIsLoading] = useState(!hasInitialData);
@@ -43,7 +48,7 @@ export function RolesPage({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function refreshRoles() {
-    const [nextRoles, nextPermissions] = await loadRolesData(api);
+    const [nextRoles, nextPermissions] = await loadRolesData(api, canReadPermissions);
     setRoles(nextRoles);
     setAvailablePermissions(nextPermissions);
   }
@@ -55,7 +60,7 @@ export function RolesPage({
 
     let isActive = true;
 
-    void loadRolesData(api)
+    void loadRolesData(api, canReadPermissions)
       .then(([nextRoles, nextPermissions]) => {
         if (isActive) {
           setRoles(nextRoles);
@@ -76,7 +81,7 @@ export function RolesPage({
     return () => {
       isActive = false;
     };
-  }, [api, hasInitialData]);
+  }, [api, canReadPermissions, hasInitialData]);
 
   async function runMutation(
     operation: () => Promise<unknown>,
@@ -145,7 +150,8 @@ export function RolesPage({
   }
 
   const canCreate = permissions.includes("roles.create");
-  const canUpdatePermissions = permissions.includes("roles.permissions.update");
+  const canUpdatePermissions =
+    canReadPermissions && permissions.includes("roles.permissions.update");
 
   return (
     <main className="min-h-[100dvh] bg-[var(--color-canvas)] p-4 text-[var(--color-ink)] sm:p-8">

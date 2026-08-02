@@ -524,4 +524,56 @@ describe("Auth e2e", () => {
 
     expect(response.statusCode).toBe(401);
   });
+
+  it("GET /api/auth/sessions rejects users without sessions.read", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "viewer@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/auth/sessions",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("POST /api/auth/sessions/:id/revoke rejects users without sessions.revoke", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "viewer@example.com");
+    const session = [...state.sessions.values()].find(
+      (item) => item.userId === testIds.viewerUser && item.status === "active",
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/auth/sessions/${session?.id}/revoke`,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(state.sessions.get(session?.id ?? "")?.status).toBe("active");
+  });
+
+  it("POST /api/auth/sessions/revoke-all rejects users without sessions.revoke", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "viewer@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/sessions/revoke-all",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(
+      [...state.sessions.values()].filter((session) => session.userId === testIds.viewerUser),
+    ).toEqual(expect.arrayContaining([expect.objectContaining({ status: "active" })]));
+  });
 });

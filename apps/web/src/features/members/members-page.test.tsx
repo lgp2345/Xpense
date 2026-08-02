@@ -70,13 +70,42 @@ function renderMembersPage(
     <MembersPage
       api={options.api}
       members={options.members ?? [member]}
-      permissions={permissions}
+      permissions={["roles.read", ...permissions]}
       roles={options.pageRoles ?? roles}
     />,
   );
 }
 
 describe("MembersPage", () => {
+  it("loads the member list without requesting roles when roles.read is unavailable", async () => {
+    const api = createIamApi({
+      listRoles: vi.fn().mockRejectedValue(new Error("forbidden")),
+    });
+
+    render(<MembersPage api={api} permissions={["members.read"]} />);
+
+    expect(await screen.findByText("member@example.com")).toBeInTheDocument();
+    expect(api.listMembers).toHaveBeenCalledTimes(1);
+    expect(api.listRoles).not.toHaveBeenCalled();
+  });
+
+  it("keeps role-dependent member actions unavailable without roles.read", async () => {
+    const api = createIamApi();
+
+    render(
+      <MembersPage
+        api={api}
+        members={[member]}
+        permissions={["members.read", "members.create", "members.update"]}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "新增成员" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /变更 member@example\.com 的角色/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("hides the create action when members.create is unavailable", () => {
     renderMembersPage(["members.read"]);
 

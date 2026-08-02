@@ -16,12 +16,16 @@ type MembersPageProps = {
   roles?: IamRole[];
 };
 
-function loadMembersData(api: MembersApi) {
-  return Promise.all([api.listMembers(), api.listRoles()]);
+function loadMembersData(api: MembersApi, canReadRoles: boolean) {
+  return Promise.all([
+    api.listMembers(),
+    canReadRoles ? api.listRoles() : Promise.resolve([] as IamRole[]),
+  ]);
 }
 
 export function MembersPage({ api = webIamApi, members, permissions, roles }: MembersPageProps) {
-  const hasInitialData = members !== undefined && roles !== undefined;
+  const canReadRoles = permissions.includes("roles.read");
+  const hasInitialData = members !== undefined && (!canReadRoles || roles !== undefined);
   const [memberItems, setMemberItems] = useState(() => members ?? []);
   const [roleItems, setRoleItems] = useState(() => roles ?? []);
   const [isLoading, setIsLoading] = useState(!hasInitialData);
@@ -29,7 +33,7 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function refreshMembers() {
-    const [nextMembers, nextRoles] = await loadMembersData(api);
+    const [nextMembers, nextRoles] = await loadMembersData(api, canReadRoles);
     setMemberItems(nextMembers);
     setRoleItems(nextRoles);
   }
@@ -41,7 +45,7 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
 
     let isActive = true;
 
-    void loadMembersData(api)
+    void loadMembersData(api, canReadRoles)
       .then(([nextMembers, nextRoles]) => {
         if (isActive) {
           setMemberItems(nextMembers);
@@ -62,7 +66,7 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
     return () => {
       isActive = false;
     };
-  }, [api, hasInitialData]);
+  }, [api, canReadRoles, hasInitialData]);
 
   async function runMutation(operation: () => Promise<unknown>, error: string) {
     setErrorMessage(null);
@@ -106,7 +110,10 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
     }
   }
 
-  const canCreate = permissions.includes("members.create");
+  const canCreate = canReadRoles && permissions.includes("members.create");
+  const memberActionPermissions = canReadRoles
+    ? permissions
+    : permissions.filter((permission) => permission !== "members.update");
 
   return (
     <main className="min-h-[100dvh] bg-[var(--color-canvas)] p-4 text-[var(--color-ink)] sm:p-8">
@@ -138,7 +145,7 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
           <MemberTable
             isMutating={isMutating}
             members={memberItems}
-            permissions={permissions}
+            permissions={memberActionPermissions}
             roles={roleItems}
             onRoleChange={handleRoleChange}
             onStatusChange={handleStatusChange}

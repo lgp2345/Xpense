@@ -8,10 +8,12 @@ export type ApiClientOptions = {
   getAccessToken: () => string | null;
   fetchImpl?: typeof fetch;
   onAuthFailure?: (error: ApiError, requestAccessToken: string | null) => void;
+  refreshAccessToken?: (requestAccessToken: string) => Promise<string | null>;
 };
 
 export type ApiRequestOptions = {
   authFailure?: "ignore" | "notify";
+  authRefresh?: "ignore" | "retry";
 };
 
 export class ApiError extends Error {
@@ -28,12 +30,51 @@ export class ApiError extends Error {
 export function createApiClient(options: ApiClientOptions) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = options.baseUrl?.replace(/\/$/, "");
+  let activeRefresh:
+    | {
+        accessToken: string;
+        promise: Promise<string | null>;
+      }
+    | undefined;
+  let lastSuccessfulRefresh:
+    | {
+        accessToken: string;
+        refreshedAccessToken: string;
+      }
+    | undefined;
+
+  function refreshAccessToken(requestAccessToken: string): Promise<string | null> {
+    if (activeRefresh?.accessToken === requestAccessToken) {
+      return activeRefresh.promise;
+    }
+
+    const promise = (
+      options.refreshAccessToken?.(requestAccessToken) ?? Promise.resolve(null)
+    ).then((refreshedAccessToken) => {
+      if (refreshedAccessToken !== null) {
+        lastSuccessfulRefresh = { accessToken: requestAccessToken, refreshedAccessToken };
+      }
+
+      return refreshedAccessToken;
+    });
+    const refresh = { accessToken: requestAccessToken, promise };
+    activeRefresh = refresh;
+    const clearRefresh = () => {
+      if (activeRefresh === refresh) {
+        activeRefresh = undefined;
+      }
+    };
+    void promise.then(clearRefresh, clearRefresh);
+
+    return promise;
+  }
 
   async function request<T>(
     method: string,
     path: string,
     body?: unknown,
     requestOptions: ApiRequestOptions = {},
+    hasRetried = false,
   ): Promise<T> {
     if (!baseUrl) {
       throw new Error("VITE_API_PREFIX is required");
@@ -58,6 +99,38 @@ export function createApiClient(options: ApiClientOptions) {
         errorPayload?.code ?? "REQUEST_FAILED",
         errorPayload?.message ?? "Request failed",
       );
+
+      if (
+        response.status === 401 &&
+        !hasRetried &&
+        token !== null &&
+        options.refreshAccessToken &&
+        requestOptions.authRefresh !== "ignore"
+      ) {
+        const currentAccessToken = options.getAccessToken();
+
+        try {
+          let refreshedAccessToken: string | null = null;
+
+          if (currentAccessToken === token) {
+            refreshedAccessToken = await refreshAccessToken(token);
+          } else if (activeRefresh?.accessToken === token) {
+            refreshedAccessToken = await activeRefresh.promise;
+          } else if (
+            currentAccessToken !== null &&
+            lastSuccessfulRefresh?.accessToken === token &&
+            lastSuccessfulRefresh.refreshedAccessToken === currentAccessToken
+          ) {
+            refreshedAccessToken = currentAccessToken;
+          }
+
+          if (refreshedAccessToken !== null && options.getAccessToken() === refreshedAccessToken) {
+            return request(method, path, body, requestOptions, true);
+          }
+        } catch {
+          // The original protected request owns the final auth failure notification.
+        }
+      }
 
       if (response.status === 401 && requestOptions.authFailure !== "ignore") {
         options.onAuthFailure?.(error, token);

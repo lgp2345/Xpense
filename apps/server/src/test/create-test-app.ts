@@ -5,6 +5,7 @@ import type { ClientType, PermissionKey } from "@xpense/shared";
 import { AppModule } from "../app.module.js";
 import { ServerConfigService } from "../config/config.service.js";
 import { configureHttpApplication } from "../configure-http-application.js";
+import { DatabaseTransactionService } from "../db/database-transaction.service.js";
 import { DB } from "../db/db.tokens.js";
 import { AuditRepository } from "../modules/audit/audit.repository.js";
 import type { AppendAuditLogInput, AuditLogRecord } from "../modules/audit/audit.types.js";
@@ -78,6 +79,10 @@ export async function createTestApp(): Promise<TestAppHarness> {
   })
     .overrideProvider(DB)
     .useValue({})
+    .overrideProvider(DatabaseTransactionService)
+    .useValue({
+      run: (operation: (transaction: object) => Promise<unknown>) => operation({}),
+    })
     .overrideProvider(PasswordService)
     .useValue(createPasswordService())
     .overrideProvider(AuthRepository)
@@ -125,6 +130,7 @@ function createTestState(): TestState {
     [testIds.managerUser, createUser(testIds.managerUser, "manager@example.com", false)],
     [testIds.viewerUser, createUser(testIds.viewerUser, "viewer@example.com", false)],
     [testIds.superUser, createUser(testIds.superUser, "super@example.com", true)],
+    [testIds.outsiderUser, createUser(testIds.outsiderUser, "outsider@example.com", false)],
     [
       testIds.superNonMemberUser,
       createUser(testIds.superNonMemberUser, "super-non-member@example.com", true),
@@ -139,7 +145,9 @@ function createTestState(): TestState {
       testIds.ownerRole,
       createRole(testIds.ownerRole, "owner", "Owner", [
         "roles.read",
-        "members.update",
+        "roles.update",
+        "members.disable",
+        "members.enable",
         "audit_logs.read",
       ]),
     ],
@@ -147,8 +155,12 @@ function createTestState(): TestState {
       testIds.managerRole,
       createRole(testIds.managerRole, "manager", "Manager", [
         "roles.read",
+        "roles.create",
         "roles.update",
+        "roles.permissions.update",
+        "members.create",
         "members.update",
+        "sessions.read",
       ]),
     ],
     [testIds.viewerRole, createRole(testIds.viewerRole, "viewer", "Viewer", ["transactions.read"])],
@@ -517,6 +529,7 @@ function createIamRepository(state: TestState): Partial<IamRepository> {
           role.key === key &&
           (role.organizationId === organizationId || role.organizationId === null),
       ) ?? null,
+    listPermissionKeysForRole: async (roleId) => state.roles.get(roleId)?.permissions ?? [],
     createRole: async (input: CreateRoleInput) => {
       const role = createRole(
         `22222222-2222-4222-8222-${String(state.roles.size + 1).padStart(12, "0")}`,

@@ -246,6 +246,20 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
         options.authStore.getState().clearAuth();
       }
     },
+    refreshAccessToken: async (requestAccessToken) => {
+      const { accessToken } = await apiClient.post<AuthTokensResponse>("/auth/refresh", undefined, {
+        authFailure: "ignore",
+        authRefresh: "ignore",
+      });
+
+      if (options.authStore.getState().accessToken !== requestAccessToken) {
+        return null;
+      }
+
+      options.authStore.getState().setAccessToken(accessToken);
+
+      return accessToken;
+    },
   });
   const authApi = createAuthApi(apiClient);
   const iamApi = createIamApi(apiClient);
