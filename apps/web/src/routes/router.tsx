@@ -13,6 +13,8 @@ import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 
+import type { AuditLogSearch } from "../features/audit/audit-log-filters";
+import { AuditLogsPage } from "../features/audit/audit-logs-page";
 import { MembersPage } from "../features/members/members-page";
 import { RolesPage } from "../features/roles/roles-page";
 import { SessionsPage } from "../features/sessions/sessions-page";
@@ -106,6 +108,8 @@ const auditLogsRoute = createProtectedAdministrationRoute(
   "/audit-logs",
   protectedRoutePermissions["/audit-logs"],
   "审计日志",
+  AuditLogsRoutePage,
+  validateAuditLogSearch,
 );
 
 const routeTree = rootRoute.addChildren([
@@ -124,12 +128,14 @@ function createProtectedAdministrationRoute(
   permission: PermissionKey,
   title: string,
   component?: RouteComponent,
+  validateSearch?: (search: Record<string, unknown>) => AuditLogSearch,
 ) {
   return createRoute({
     getParentRoute: () => rootRoute,
     path,
     beforeLoad: ({ context, location }) => requireRouteAccess(context, location, permission),
     component: component ?? (() => <AdministrationPlaceholder title={title} />),
+    validateSearch,
   });
 }
 
@@ -185,6 +191,52 @@ function SessionsRoutePage() {
       permissions={sessionPermissions}
     />
   );
+}
+
+function AuditLogsRoutePage() {
+  const { session } = auditLogsRoute.useRouteContext();
+  const navigate = auditLogsRoute.useNavigate();
+  const permissions = useStore(session.authStore, (state) => state.permissions);
+  const isSuperAdmin = useStore(
+    session.authStore,
+    (state) => state.currentUser?.isSuperAdmin ?? false,
+  );
+  const search = auditLogsRoute.useSearch();
+  const auditLogPermissions: PermissionKey[] = isSuperAdmin ? ["audit_logs.read"] : permissions;
+
+  return (
+    <AuditLogsPage
+      api={session.iamApi}
+      permissions={auditLogPermissions}
+      search={search}
+      onSearchChange={(nextSearch) => void navigate({ search: nextSearch, replace: true })}
+    />
+  );
+}
+
+function validateAuditLogSearch(search: Record<string, unknown>): AuditLogSearch {
+  return {
+    action: readSearchString(search.action),
+    actorUserId: readSearchString(search.actorUserId),
+    from: readSearchDate(search.from),
+    page: readSearchPage(search.page),
+    targetType: readSearchString(search.targetType),
+    to: readSearchDate(search.to),
+  };
+}
+
+function readSearchString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function readSearchDate(value: unknown): string | undefined {
+  const date = readSearchString(value);
+  return date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined;
+}
+
+function readSearchPage(value: unknown): number | undefined {
+  const page = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(page) && page > 0 ? page : undefined;
 }
 
 function requireRouteAccess(

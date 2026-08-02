@@ -106,6 +106,44 @@ describe("router auth guards", () => {
     expect(screen.queryByText("此页面将在后续管理任务中完成。")).not.toBeInTheDocument();
   });
 
+  it("renders the audit log page and restores typed URL filters", async () => {
+    const user = userEvent.setup();
+    const history = createMemoryHistory({
+      initialEntries: ["/audit-logs?action=role.created&targetType=role"],
+    });
+    const store = createAuthenticatedStore(["audit_logs.read"]);
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const router = createAppRouter({
+      history,
+      session: createRouterSession(store, fetchMock as typeof fetch),
+    });
+    await router.load();
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole("heading", { name: "审计日志" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "操作" })).toHaveValue("role.created");
+    expect(screen.getByRole("textbox", { name: "目标类型" })).toHaveValue("role");
+    expect(screen.queryByText("此页面将在后续管理任务中完成。")).not.toBeInTheDocument();
+
+    await user.clear(screen.getByRole("textbox", { name: "操作" }));
+    await user.type(screen.getByRole("textbox", { name: "操作" }), "member.disabled");
+
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({
+        action: "member.disabled",
+        targetType: "role",
+      }),
+    );
+  });
+
   it("clears authentication and navigates to login after revoking the current session", async () => {
     const user = userEvent.setup();
     const history = createMemoryHistory({ initialEntries: ["/sessions"] });
