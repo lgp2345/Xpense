@@ -495,4 +495,33 @@ describe("Auth e2e", () => {
       },
     });
   });
+
+  it.each([
+    ["/api/auth/sessions", "session list"],
+    ["/api/user/organizations", "organization list"],
+  ])("GET %s returns the authenticated user's %s", async (url) => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it.each([
+    "/api/auth/sessions",
+    "/api/user/organizations",
+  ])("GET %s rejects requests without a bearer token", async (url) => {
+    const { app } = await createHarness();
+
+    const response = await app.inject({ method: "GET", url });
+
+    expect(response.statusCode).toBe(401);
+  });
 });
