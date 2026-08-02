@@ -10,7 +10,7 @@ import { UpdateRoleDto } from "./dto/update-role.dto.js";
 import { AuthGuard } from "./guards/auth.guard.js";
 import { RbacGuard } from "./guards/rbac.guard.js";
 import { IamService } from "./iam.service.js";
-import type { IamMember, IamPermission, IamRole } from "./iam.types.js";
+import type { IamMember, IamPermission, IamRole, IamRoleWithPermissions } from "./iam.types.js";
 
 @Controller()
 @UseGuards(AuthGuard, RbacGuard)
@@ -44,7 +44,7 @@ export class IamController {
 
   @Get("roles")
   @RequirePermission("roles.read")
-  listRoles(@CurrentAuthContext() authContext: AuthContext): Promise<IamRole[]> {
+  listRoles(@CurrentAuthContext() authContext: AuthContext): Promise<IamRoleWithPermissions[]> {
     return this.iamService.listRoles(authContext);
   }
 

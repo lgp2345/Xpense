@@ -500,9 +500,9 @@ function createIamRepository(state: TestState): Partial<IamRepository> {
       }
     },
     listRoles: async (organizationId) =>
-      [...state.roles.values()].filter(
-        (role) => role.organizationId === organizationId || role.organizationId === null,
-      ),
+      [...state.roles.values()]
+        .filter((role) => role.organizationId === organizationId || role.organizationId === null)
+        .map(({ permissions, ...role }) => ({ ...role, permissionKeys: permissions })),
     findRoleById: async (organizationId, roleId) => {
       const role = state.roles.get(roleId);
       return role?.organizationId === organizationId || role?.organizationId === null ? role : null;

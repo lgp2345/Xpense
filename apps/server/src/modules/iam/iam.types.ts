@@ -22,6 +22,10 @@ export type IamRole = {
   isEditable: boolean;
 };
 
+export type IamRoleWithPermissions = IamRole & {
+  permissionKeys: PermissionKey[];
+};
+
 export type IamPermission = {
   id: string;
   key: PermissionKey;

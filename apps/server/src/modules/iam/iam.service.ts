@@ -13,7 +13,7 @@ import type { CreateRoleDto } from "./dto/create-role.dto.js";
 import type { UpdateMemberDto } from "./dto/update-member.dto.js";
 import type { UpdateRoleDto } from "./dto/update-role.dto.js";
 import { IamRepository } from "./iam.repository.js";
-import type { IamMember, IamPermission, IamRole } from "./iam.types.js";
+import type { IamMember, IamPermission, IamRole, IamRoleWithPermissions } from "./iam.types.js";
 
 @Injectable()
 export class IamService {
@@ -137,7 +137,7 @@ export class IamService {
     return updatedMember;
   }
 
-  listRoles(authContext: AuthContext): Promise<IamRole[]> {
+  listRoles(authContext: AuthContext): Promise<IamRoleWithPermissions[]> {
     return this.repository.listRoles(authContext.organizationId);
   }
 

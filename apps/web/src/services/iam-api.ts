@@ -32,6 +32,7 @@ export type IamRole = {
   description: string;
   isSystem: boolean;
   isEditable: boolean;
+  permissionKeys: PermissionKey[];
 };
 
 export type CreateRoleRequest = {

@@ -49,6 +49,7 @@ describe("IAM e2e", () => {
         expect.objectContaining({
           id: testIds.managerRole,
           key: "manager",
+          permissionKeys: ["roles.read", "members.update"],
         }),
       ]),
     );

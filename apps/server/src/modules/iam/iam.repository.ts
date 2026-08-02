@@ -23,6 +23,7 @@ import type {
   IamMember,
   IamPermission,
   IamRole,
+  IamRoleWithPermissions,
   ReplaceRolePermissionsInput,
   UpdateMemberInput,
   UpdateRoleInput,
@@ -143,11 +144,38 @@ export class IamRepository {
       );
   }
 
-  async listRoles(organizationId: string): Promise<IamRole[]> {
-    return this.db
+  async listRoles(organizationId: string): Promise<IamRoleWithPermissions[]> {
+    const roleRows = await this.db
       .select(roleSelectFields)
       .from(roles)
       .where(or(eq(roles.organizationId, organizationId), isNull(roles.organizationId)));
+
+    if (roleRows.length === 0) {
+      return [];
+    }
+
+    const permissionRows = await this.db
+      .select({
+        roleId: rolePermissions.roleId,
+        key: permissions.key,
+      })
+      .from(rolePermissions)
+      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+      .where(
+        inArray(
+          rolePermissions.roleId,
+          roleRows.map((role) => role.id),
+        ),
+      );
+
+    const permissionKeysByRoleId = Map.groupBy(permissionRows, (permission) => permission.roleId);
+
+    return roleRows.map((role) => ({
+      ...role,
+      permissionKeys: (permissionKeysByRoleId.get(role.id) ?? []).map(
+        (permission) => permission.key as PermissionKey,
+      ),
+    }));
   }
 
   async findRoleById(organizationId: string, roleId: string): Promise<IamRole | null> {
