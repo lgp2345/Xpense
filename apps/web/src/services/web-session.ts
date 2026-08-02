@@ -4,6 +4,7 @@ import { API_BASE_URL } from "../lib/env";
 import { type AuthStoreApi, authStore } from "../stores/auth-store";
 import { ApiError, createApiClient } from "./api-client";
 import { type AuthApi, createAuthApi, type LoginRequest, type UserOrganization } from "./auth-api";
+import { createIamApi, type IamApi } from "./iam-api";
 
 export type SessionAuthApi = {
   getCurrentUser: () => Promise<CurrentUserResponse>;
@@ -22,6 +23,7 @@ export type WebOrganizationAuthApi = {
 export type WebSessionDependency = {
   authApi: AuthApi;
   authStore: AuthStoreApi;
+  iamApi: IamApi;
   restoreSession: () => Promise<boolean>;
 };
 
@@ -246,16 +248,19 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
     },
   });
   const authApi = createAuthApi(apiClient);
+  const iamApi = createIamApi(apiClient);
 
   return {
     authApi,
     authStore: options.authStore,
+    iamApi,
     restoreSession: () => restoreWebSession(authApi, options.authStore),
   };
 }
 
 export const webSession = createWebSession({ authStore, baseUrl: API_BASE_URL });
 export const webAuthApi = webSession.authApi;
+export const webIamApi = webSession.iamApi;
 
 export function restoreCurrentWebSession(): Promise<boolean> {
   return webSession.restoreSession();

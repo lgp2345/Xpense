@@ -3,6 +3,7 @@ import {
   createRoute,
   createRouter,
   Outlet,
+  type RouteComponent,
   type RouterHistory,
   RouterProvider,
   redirect,
@@ -10,7 +11,9 @@ import {
 } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useRef, useState } from "react";
+import { useStore } from "zustand";
 
+import { MembersPage } from "../features/members/members-page";
 import { DashboardPage } from "../pages/dashboard-page";
 import { ForbiddenPage } from "../pages/forbidden-page";
 import { FoundationPage } from "../pages/foundation-page";
@@ -83,6 +86,7 @@ const membersRoute = createProtectedAdministrationRoute(
   "/members",
   protectedRoutePermissions["/members"],
   "成员管理",
+  MembersRoutePage,
 );
 const rolesRoute = createProtectedAdministrationRoute(
   "/roles",
@@ -115,13 +119,28 @@ function createProtectedAdministrationRoute(
   path: keyof typeof protectedRoutePermissions,
   permission: PermissionKey,
   title: string,
+  component?: RouteComponent,
 ) {
   return createRoute({
     getParentRoute: () => rootRoute,
     path,
     beforeLoad: ({ context, location }) => requireRouteAccess(context, location, permission),
-    component: () => <AdministrationPlaceholder title={title} />,
+    component: component ?? (() => <AdministrationPlaceholder title={title} />),
   });
+}
+
+function MembersRoutePage() {
+  const { session } = membersRoute.useRouteContext();
+  const permissions = useStore(session.authStore, (state) => state.permissions);
+  const isSuperAdmin = useStore(
+    session.authStore,
+    (state) => state.currentUser?.isSuperAdmin ?? false,
+  );
+  const memberPermissions: PermissionKey[] = isSuperAdmin
+    ? ["members.create", "members.disable", "members.enable", "members.read", "members.update"]
+    : permissions;
+
+  return <MembersPage api={session.iamApi} permissions={memberPermissions} />;
 }
 
 function requireRouteAccess(
