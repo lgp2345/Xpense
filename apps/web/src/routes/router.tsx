@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 
 import { MembersPage } from "../features/members/members-page";
+import { RolesPage } from "../features/roles/roles-page";
 import { DashboardPage } from "../pages/dashboard-page";
 import { ForbiddenPage } from "../pages/forbidden-page";
 import { FoundationPage } from "../pages/foundation-page";
@@ -92,6 +93,7 @@ const rolesRoute = createProtectedAdministrationRoute(
   "/roles",
   protectedRoutePermissions["/roles"],
   "角色管理",
+  RolesRoutePage,
 );
 const sessionsRoute = createProtectedAdministrationRoute(
   "/sessions",
@@ -141,6 +143,20 @@ function MembersRoutePage() {
     : permissions;
 
   return <MembersPage api={session.iamApi} permissions={memberPermissions} />;
+}
+
+function RolesRoutePage() {
+  const { session } = rolesRoute.useRouteContext();
+  const permissions = useStore(session.authStore, (state) => state.permissions);
+  const isSuperAdmin = useStore(
+    session.authStore,
+    (state) => state.currentUser?.isSuperAdmin ?? false,
+  );
+  const rolePermissions: PermissionKey[] = isSuperAdmin
+    ? ["roles.create", "roles.delete", "roles.permissions.update", "roles.read", "roles.update"]
+    : permissions;
+
+  return <RolesPage api={session.iamApi} permissions={rolePermissions} />;
 }
 
 function requireRouteAccess(

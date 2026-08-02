@@ -1,4 +1,5 @@
-import { createMemoryHistory } from "@tanstack/react-router";
+import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
+import { render, screen } from "@testing-library/react";
 import type { PermissionKey } from "@xpense/shared";
 import { describe, expect, it } from "vitest";
 
@@ -79,6 +80,16 @@ describe("router auth guards", () => {
     await router.load();
 
     expect(router.state.location.pathname).toBe("/audit-logs");
+  });
+
+  it("renders the roles management page instead of the administration placeholder", async () => {
+    const router = await loadPath("/roles", ["roles.read"]);
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole("heading", { name: "角色管理" })).toBeInTheDocument();
+    expect(screen.getByText("组织访问控制")).toBeInTheDocument();
+    expect(screen.queryByText("此页面将在后续管理任务中完成。")).not.toBeInTheDocument();
   });
 
   it.each([
