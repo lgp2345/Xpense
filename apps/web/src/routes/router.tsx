@@ -15,6 +15,7 @@ import { useStore } from "zustand";
 
 import { MembersPage } from "../features/members/members-page";
 import { RolesPage } from "../features/roles/roles-page";
+import { SessionsPage } from "../features/sessions/sessions-page";
 import { DashboardPage } from "../pages/dashboard-page";
 import { ForbiddenPage } from "../pages/forbidden-page";
 import { FoundationPage } from "../pages/foundation-page";
@@ -99,6 +100,7 @@ const sessionsRoute = createProtectedAdministrationRoute(
   "/sessions",
   protectedRoutePermissions["/sessions"],
   "会话管理",
+  SessionsRoutePage,
 );
 const auditLogsRoute = createProtectedAdministrationRoute(
   "/audit-logs",
@@ -157,6 +159,27 @@ function RolesRoutePage() {
     : permissions;
 
   return <RolesPage api={session.iamApi} permissions={rolePermissions} />;
+}
+
+function SessionsRoutePage() {
+  const { session } = sessionsRoute.useRouteContext();
+  const permissions = useStore(session.authStore, (state) => state.permissions);
+  const isSuperAdmin = useStore(
+    session.authStore,
+    (state) => state.currentUser?.isSuperAdmin ?? false,
+  );
+  const currentSessionId = useStore(session.authStore, (state) => state.session?.id);
+  const sessionPermissions: PermissionKey[] = isSuperAdmin
+    ? ["sessions.read", "sessions.revoke"]
+    : permissions;
+
+  return (
+    <SessionsPage
+      api={session.authApi}
+      currentSessionId={currentSessionId}
+      permissions={sessionPermissions}
+    />
+  );
 }
 
 function requireRouteAccess(

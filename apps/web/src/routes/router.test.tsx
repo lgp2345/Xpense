@@ -92,6 +92,16 @@ describe("router auth guards", () => {
     expect(screen.queryByText("此页面将在后续管理任务中完成。")).not.toBeInTheDocument();
   });
 
+  it("renders the sessions management page instead of the administration placeholder", async () => {
+    const router = await loadPath("/sessions", ["sessions.read"]);
+
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole("heading", { name: "会话管理" })).toBeInTheDocument();
+    expect(screen.getByText("账号安全")).toBeInTheDocument();
+    expect(screen.queryByText("此页面将在后续管理任务中完成。")).not.toBeInTheDocument();
+  });
+
   it.each([
     ["/members", "members.read"],
     ["/roles", "roles.read"],
