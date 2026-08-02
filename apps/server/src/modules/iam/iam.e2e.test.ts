@@ -22,7 +22,7 @@ describe("IAM e2e", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/roles",
+      url: "/api/roles",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -37,7 +37,7 @@ describe("IAM e2e", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/roles",
+      url: "/api/roles",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -60,7 +60,7 @@ describe("IAM e2e", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/roles",
+      url: "/api/roles",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -79,7 +79,7 @@ describe("IAM e2e", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/roles",
+      url: "/api/roles",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -94,7 +94,7 @@ describe("IAM e2e", () => {
 
     const response = await app.inject({
       method: "PATCH",
-      url: `/members/${testIds.viewerMember}`,
+      url: `/api/members/${testIds.viewerMember}`,
       headers: {
         authorization: `Bearer ${accessToken}`,
       },

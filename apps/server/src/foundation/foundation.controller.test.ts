@@ -3,6 +3,7 @@ import { Test } from "@nestjs/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppModule } from "../app.module.js";
+import { ServerConfigService } from "../config/config.service.js";
 import { DB } from "../db/db.tokens.js";
 
 const touchedEnvKeys = ["DATABASE_URL", "JWT_ACCESS_SECRET", "WEB_ORIGIN"] as const;
@@ -45,6 +46,7 @@ describe("Foundation API", () => {
       .compile();
 
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app.setGlobalPrefix(app.get(ServerConfigService).apiPrefix);
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
   });
@@ -57,7 +59,7 @@ describe("Foundation API", () => {
   it("returns a stable health response", async () => {
     const response = await app.inject({
       method: "GET",
-      url: "/health",
+      url: "/api/health",
     });
 
     expect(response.statusCode).toBe(200);
@@ -67,7 +69,7 @@ describe("Foundation API", () => {
   it("returns database readiness when the query succeeds", async () => {
     const response = await app.inject({
       method: "GET",
-      url: "/ready",
+      url: "/api/ready",
     });
 
     expect(response.statusCode).toBe(200);
@@ -84,7 +86,7 @@ describe("Foundation API", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/ready",
+      url: "/api/ready",
     });
 
     expect(response.statusCode).toBe(503);
@@ -100,7 +102,7 @@ describe("Foundation API", () => {
   it("returns the shared hello contract", async () => {
     const response = await app.inject({
       method: "GET",
-      url: "/foundation/hello",
+      url: "/api/foundation/hello",
     });
 
     expect(response.statusCode).toBe(200);

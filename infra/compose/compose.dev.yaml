@@ -20,7 +20,8 @@ services:
     command: pnpm --filter @xpense/web dev
     environment:
       NODE_ENV: development
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:?VITE_API_BASE_URL is required}
+      VITE_API_PREFIX: ${VITE_API_PREFIX:-api}
+      API_PROXY_TARGET: ${COMPOSE_API_PROXY_TARGET:?COMPOSE_API_PROXY_TARGET is required}
     volumes:
       - ../../apps/web/src:/app/apps/web/src
       - ../../apps/web/index.html:/app/apps/web/index.html

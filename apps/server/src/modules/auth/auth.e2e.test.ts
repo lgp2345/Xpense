@@ -42,12 +42,12 @@ describe("Auth e2e", () => {
     return harness;
   }
 
-  it("POST /auth/login stores web refresh token in an HTTP-only cookie", async () => {
+  it("POST /api/auth/login stores web refresh token in an HTTP-only cookie", async () => {
     const { app } = await createHarness();
 
     const response = await app.inject({
       method: "POST",
-      url: "/auth/login",
+      url: "/api/auth/login",
       payload: {
         email: "owner@example.com",
         password: "password",
@@ -63,16 +63,55 @@ describe("Auth e2e", () => {
     expect(setCookie).toContain(`${refreshCookieName}=`);
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain("SameSite=Lax");
-    expect(setCookie).toContain("Path=/auth");
+    expect(setCookie).toContain("Path=/api/auth");
     expect(setCookie).toContain("Max-Age=2592000");
     expect(setCookie).not.toContain("Secure");
   });
 
-  it("POST /auth/refresh reads and rotates the web refresh cookie without a body", async () => {
+  it("uses a configured API prefix for auth routes and refresh-cookie path", async () => {
+    const previousApiPrefix = process.env.VITE_API_PREFIX;
+    process.env.VITE_API_PREFIX = "v2";
+
+    try {
+      const { app } = await createHarness();
+      const loginResponse = await app.inject({
+        method: "POST",
+        url: "/v2/auth/login",
+        payload: {
+          email: "owner@example.com",
+          password: "password",
+          clientType: "web_pc",
+        },
+      });
+
+      expect(loginResponse.statusCode).toBe(201);
+      expect(requireSetCookie(loginResponse)).toContain("Path=/v2/auth");
+
+      const defaultPrefixResponse = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        payload: {
+          email: "owner@example.com",
+          password: "password",
+          clientType: "web_pc",
+        },
+      });
+
+      expect(defaultPrefixResponse.statusCode).toBe(404);
+    } finally {
+      if (previousApiPrefix === undefined) {
+        delete process.env.VITE_API_PREFIX;
+      } else {
+        process.env.VITE_API_PREFIX = previousApiPrefix;
+      }
+    }
+  });
+
+  it("POST /api/auth/refresh reads and rotates the web refresh cookie without a body", async () => {
     const { app } = await createHarness();
     const loginResponse = await app.inject({
       method: "POST",
-      url: "/auth/login",
+      url: "/api/auth/login",
       payload: {
         email: "owner@example.com",
         password: "password",
@@ -83,7 +122,7 @@ describe("Auth e2e", () => {
 
     const refreshResponse = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       headers: {
         cookie: loginCookie,
       },
@@ -96,7 +135,7 @@ describe("Auth e2e", () => {
 
     const oldTokenResponse = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       headers: {
         cookie: loginCookie,
       },
@@ -109,7 +148,7 @@ describe("Auth e2e", () => {
     const { app } = await createHarness();
     const loginResponse = await app.inject({
       method: "POST",
-      url: "/auth/login",
+      url: "/api/auth/login",
       payload: {
         email: "owner@example.com",
         password: "password",
@@ -121,14 +160,14 @@ describe("Auth e2e", () => {
 
     const wrongTransportResponse = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       payload: { refreshToken },
     });
     expect(wrongTransportResponse.statusCode).toBe(401);
 
     const cookieRefreshResponse = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       headers: { cookie: loginCookie },
     });
     expect(cookieRefreshResponse.statusCode).toBe(201);
@@ -138,7 +177,7 @@ describe("Auth e2e", () => {
     const { app } = await createHarness();
     const loginResponse = await app.inject({
       method: "POST",
-      url: "/auth/login",
+      url: "/api/auth/login",
       payload: {
         email: "owner@example.com",
         password: "password",
@@ -149,14 +188,14 @@ describe("Auth e2e", () => {
 
     const wrongTransportResponse = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       headers: { cookie: `${refreshCookieName}=${tokens.refreshToken}` },
     });
     expect(wrongTransportResponse.statusCode).toBe(401);
 
     const bodyRefreshResponse = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       payload: { refreshToken: tokens.refreshToken },
     });
     expect(bodyRefreshResponse.statusCode).toBe(201);
@@ -166,7 +205,7 @@ describe("Auth e2e", () => {
     const { app } = await createHarness();
     const loginResponse = await app.inject({
       method: "POST",
-      url: "/auth/login",
+      url: "/api/auth/login",
       payload: {
         email: "owner@example.com",
         password: "password",
@@ -176,8 +215,8 @@ describe("Auth e2e", () => {
     const loginCookie = toCookieHeader(requireSetCookie(loginResponse));
 
     const responses = await Promise.all([
-      app.inject({ method: "POST", url: "/auth/refresh", headers: { cookie: loginCookie } }),
-      app.inject({ method: "POST", url: "/auth/refresh", headers: { cookie: loginCookie } }),
+      app.inject({ method: "POST", url: "/api/auth/refresh", headers: { cookie: loginCookie } }),
+      app.inject({ method: "POST", url: "/api/auth/refresh", headers: { cookie: loginCookie } }),
     ]);
 
     expect(responses.map((response) => response.statusCode).sort()).toEqual([201, 401]);
@@ -190,7 +229,7 @@ describe("Auth e2e", () => {
     const { app } = await createHarness();
     const loginResponse = await app.inject({
       method: "POST",
-      url: "/auth/login",
+      url: "/api/auth/login",
       payload: {
         email: "owner@example.com",
         password: "password",
@@ -208,7 +247,7 @@ describe("Auth e2e", () => {
 
     const refreshResponse = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       payload: { refreshToken: tokens.refreshToken },
     });
 
@@ -225,7 +264,7 @@ describe("Auth e2e", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/auth/login",
+      url: "/api/auth/login",
       payload: {
         email: "owner@example.com",
         password: "password",
@@ -246,7 +285,7 @@ describe("Auth e2e", () => {
       const { app } = await createHarness();
       const response = await app.inject({
         method: "POST",
-        url: "/auth/login",
+        url: "/api/auth/login",
         payload: {
           email: "owner@example.com",
           password: "password",
@@ -264,11 +303,11 @@ describe("Auth e2e", () => {
     }
   });
 
-  it("POST /auth/logout clears the web refresh cookie with the matching path", async () => {
+  it("POST /api/auth/logout clears the web refresh cookie with the matching path", async () => {
     const { app } = await createHarness();
     const loginResponse = await app.inject({
       method: "POST",
-      url: "/auth/login",
+      url: "/api/auth/login",
       payload: {
         email: "owner@example.com",
         password: "password",
@@ -280,7 +319,7 @@ describe("Auth e2e", () => {
 
     const logoutResponse = await app.inject({
       method: "POST",
-      url: "/auth/logout",
+      url: "/api/auth/logout",
       headers: {
         authorization: `Bearer ${accessToken}`,
         cookie,
@@ -290,7 +329,7 @@ describe("Auth e2e", () => {
     expect(logoutResponse.statusCode).toBe(204);
     const clearedCookie = requireSetCookie(logoutResponse);
     expect(clearedCookie).toContain(`${refreshCookieName}=`);
-    expect(clearedCookie).toContain("Path=/auth");
+    expect(clearedCookie).toContain("Path=/api/auth");
     expect(clearedCookie).toContain("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
   });
 
@@ -298,7 +337,7 @@ describe("Auth e2e", () => {
     const { app } = await createHarness();
     const loginResponse = await app.inject({
       method: "POST",
-      url: "/auth/login",
+      url: "/api/auth/login",
       payload: {
         email: "owner@example.com",
         password: "password",
@@ -309,7 +348,7 @@ describe("Auth e2e", () => {
 
     const logoutResponse = await app.inject({
       method: "POST",
-      url: "/auth/logout",
+      url: "/api/auth/logout",
       headers: {
         authorization: "Bearer invalid-access-token",
         cookie,
@@ -321,7 +360,7 @@ describe("Auth e2e", () => {
 
     const restoreResponse = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       headers: { cookie },
     });
     expect(restoreResponse.statusCode).toBe(401);
@@ -331,7 +370,7 @@ describe("Auth e2e", () => {
     const { app } = await createHarness();
     const loginResponse = await app.inject({
       method: "POST",
-      url: "/auth/login",
+      url: "/api/auth/login",
       payload: {
         email: "owner@example.com",
         password: "password",
@@ -342,14 +381,14 @@ describe("Auth e2e", () => {
 
     const logoutResponse = await app.inject({
       method: "POST",
-      url: "/auth/logout",
+      url: "/api/auth/logout",
       headers: { authorization: `Bearer ${tokens.accessToken}` },
     });
     expect(logoutResponse.statusCode).toBe(204);
 
     const refreshResponse = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       payload: { refreshToken: tokens.refreshToken },
     });
     expect(refreshResponse.statusCode).toBe(401);
@@ -361,7 +400,7 @@ describe("Auth e2e", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       payload: { refreshToken: invalidToken },
     });
 
@@ -379,7 +418,7 @@ describe("Auth e2e", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
     });
 
     expect(response.statusCode).toBe(401);
@@ -394,7 +433,7 @@ describe("Auth e2e", () => {
 
     const response = await app.inject({
       method: "OPTIONS",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       headers: {
         origin: "http://localhost:5173",
         "access-control-request-method": "POST",
@@ -411,7 +450,7 @@ describe("Auth e2e", () => {
 
     const response = await app.inject({
       method: "OPTIONS",
-      url: "/auth/refresh",
+      url: "/api/auth/refresh",
       headers: {
         origin: "https://evil.example",
         "access-control-request-method": "POST",
@@ -421,13 +460,13 @@ describe("Auth e2e", () => {
     expect(response.headers["access-control-allow-origin"]).not.toBe("https://evil.example");
   });
 
-  it("GET /user returns current organization and permissions", async () => {
+  it("GET /api/user returns current organization and permissions", async () => {
     const { app } = await createHarness();
     const { accessToken } = await login(app, "manager@example.com");
 
     const response = await app.inject({
       method: "GET",
-      url: "/user",
+      url: "/api/user",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },

@@ -12,7 +12,7 @@ describe("server development runtime", () => {
       await readFile(new URL("../package.json", import.meta.url), "utf8"),
     ) as ServerPackageManifest;
 
-    expect(manifest.scripts?.dev).toBe("nest start --watch --exec tsx");
+    expect(manifest.scripts?.dev).toBe("dotenv -e ../../.env -- nest start --watch --exec tsx");
     expect(manifest.devDependencies?.["@nestjs/cli"]).toMatch(/^\^11\./);
   });
 });

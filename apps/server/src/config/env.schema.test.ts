@@ -91,6 +91,25 @@ describe("parseServerEnv", () => {
     expect(env.PASSWORD_HASH).toBe("argon2id");
     expect(env.ACCESS_TOKEN).toBe("jwt");
     expect(env.REFRESH_TOKEN).toBe("opaque_random_hash_at_rest");
+    expect(env.VITE_API_PREFIX).toBe("api");
+  });
+
+  it("accepts a custom API prefix path segment", () => {
+    const env = parseServerEnv({
+      ...validRequiredEnv,
+      VITE_API_PREFIX: "v2",
+    });
+
+    expect(env.VITE_API_PREFIX).toBe("v2");
+  });
+
+  it.each(["/api", "api/", ""])("rejects invalid API prefix %j", (VITE_API_PREFIX) => {
+    expect(() =>
+      parseServerEnv({
+        ...validRequiredEnv,
+        VITE_API_PREFIX,
+      }),
+    ).toThrow(/VITE_API_PREFIX/);
   });
 
   it("rejects invalid ttl values", () => {

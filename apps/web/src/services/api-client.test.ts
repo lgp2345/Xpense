@@ -9,7 +9,7 @@ describe("createApiClient", () => {
       getAccessToken: () => null,
     });
 
-    await expect(client.get("/health")).rejects.toThrow(/VITE_API_BASE_URL/);
+    await expect(client.get("/health")).rejects.toThrow(/VITE_API_PREFIX/);
   });
 
   it("adds bearer token and parses json response", async () => {

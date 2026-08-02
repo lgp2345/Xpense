@@ -3,6 +3,7 @@ import { Test } from "@nestjs/testing";
 import type { ClientType, PermissionKey } from "@xpense/shared";
 
 import { AppModule } from "../app.module.js";
+import { ServerConfigService } from "../config/config.service.js";
 import { configureHttpApplication } from "../configure-http-application.js";
 import { DB } from "../db/db.tokens.js";
 import { AuditRepository } from "../modules/audit/audit.repository.js";
@@ -94,6 +95,8 @@ export async function createTestApp(): Promise<TestAppHarness> {
     .compile();
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+  const config = app.get(ServerConfigService);
+  app.setGlobalPrefix(config.apiPrefix);
   await configureHttpApplication(app);
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
@@ -113,6 +116,7 @@ function ensureTestEnv(): void {
   process.env.DATABASE_URL ??= "postgres://xpense:xpense@localhost:5432/xpense_test";
   process.env.JWT_ACCESS_SECRET ??= "test-secret-with-at-least-thirty-two-characters";
   process.env.WEB_ORIGIN ??= "http://localhost:5173";
+  process.env.VITE_API_PREFIX ??= "api";
 }
 
 function createTestState(): TestState {

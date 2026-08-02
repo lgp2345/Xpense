@@ -35,7 +35,7 @@ type AuthCookieReply = {
 type RefreshCookieOptions = {
   httpOnly: true;
   maxAge: number;
-  path: "/auth";
+  path: string;
   sameSite: "lax";
   secure: boolean;
 };
@@ -104,7 +104,9 @@ export class AuthController {
     @Req() request: AuthCookieRequest,
     @Res({ passthrough: true }) reply: AuthCookieReply,
   ): Promise<void> {
-    reply.clearCookie(this.config.env.WEB_REFRESH_TOKEN_COOKIE, { path: "/auth" });
+    reply.clearCookie(this.config.env.WEB_REFRESH_TOKEN_COOKIE, {
+      path: this.config.webRefreshCookiePath,
+    });
 
     return this.authService.logout({
       authContext: request.authContext,
@@ -156,7 +158,7 @@ export class AuthController {
     return {
       httpOnly: true,
       sameSite: "lax",
-      path: "/auth",
+      path: this.config.webRefreshCookiePath,
       maxAge: this.config.env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60,
       secure: new URL(this.config.env.WEB_ORIGIN).protocol === "https:",
     };

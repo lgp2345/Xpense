@@ -38,7 +38,7 @@ export function parseJson<T = Record<string, unknown>>(response: InjectResponse)
 export async function login(app: InjectableApp, email: string): Promise<AuthTokens> {
   const response = await app.inject({
     method: "POST",
-    url: "/auth/login",
+    url: "/api/auth/login",
     payload: {
       email,
       password: "password",

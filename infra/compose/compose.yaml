@@ -11,6 +11,7 @@ x-server-runtime: &server-runtime
     - ACCESS_TOKEN_TTL_SECONDS=${ACCESS_TOKEN_TTL_SECONDS:-900}
     - REFRESH_TOKEN_TTL_DAYS=${REFRESH_TOKEN_TTL_DAYS:-30}
     - PORT=${PORT:-4000}
+    - VITE_API_PREFIX=${VITE_API_PREFIX:-api}
     - WEB_ORIGIN=${WEB_ORIGIN:?WEB_ORIGIN is required}
     - WEB_REFRESH_TOKEN_COOKIE=${WEB_REFRESH_TOKEN_COOKIE:-xpense_refresh_token}
     - APP_REFRESH_TOKEN_TRANSPORT=${APP_REFRESH_TOKEN_TRANSPORT:-json_body}
@@ -60,7 +61,7 @@ services:
       db-prepare:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- \"http://127.0.0.1:$${PORT}/ready\""]
+      test: ["CMD-SHELL", "wget -qO- \"http://127.0.0.1:$${PORT}/$${VITE_API_PREFIX}/ready\""]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -71,7 +72,7 @@ services:
       context: ../..
       dockerfile: infra/compose/Dockerfile.web
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:?VITE_API_BASE_URL is required}
+        VITE_API_PREFIX: ${VITE_API_PREFIX:-api}
     ports:
       - "5173:5173"
     depends_on:

@@ -36,7 +36,7 @@ export function createApiClient(options: ApiClientOptions) {
     requestOptions: ApiRequestOptions = {},
   ): Promise<T> {
     if (!baseUrl) {
-      throw new Error("VITE_API_BASE_URL is required");
+      throw new Error("VITE_API_PREFIX is required");
     }
 
     const token = options.getAccessToken();
