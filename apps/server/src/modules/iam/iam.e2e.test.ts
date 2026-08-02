@@ -49,7 +49,7 @@ describe("IAM e2e", () => {
         expect.objectContaining({
           id: testIds.managerRole,
           key: "manager",
-          permissionKeys: ["roles.read", "members.update"],
+          permissionKeys: ["roles.read", "roles.update", "members.update"],
         }),
       ]),
     );
@@ -87,6 +87,24 @@ describe("IAM e2e", () => {
     });
 
     expect([401, 403]).toContain(response.statusCode);
+  });
+
+  it("PATCH /roles/:id rejects permission changes without roles.permissions.update", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/roles/${testIds.managerRole}`,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        permissionKeys: [],
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
   });
 
   it("PATCH /members/:id writes audit log and ignores body.organizationId", async () => {

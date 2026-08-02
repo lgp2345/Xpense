@@ -3,16 +3,20 @@ import { Button } from "@heroui/react/button";
 import { Table } from "@heroui/react/table";
 import type { PermissionKey } from "@xpense/shared";
 
-import type { IamPermission, IamRole, UpdateRoleRequest } from "../../services/iam-api";
+import type {
+  IamPermission,
+  IamRoleWithPermissions,
+  UpdateRoleRequest,
+} from "../../services/iam-api";
 import { RoleEditorDialog, type RoleEditorInput } from "./role-editor-dialog";
 
 type RoleTableProps = {
   isMutating: boolean;
   permissions: readonly PermissionKey[];
   permissionItems: IamPermission[];
-  roles: IamRole[];
-  onDelete: (roleId: string) => Promise<void>;
-  onUpdate: (roleId: string, input: UpdateRoleRequest) => Promise<void>;
+  roles: IamRoleWithPermissions[];
+  onDelete: (roleId: string) => Promise<boolean>;
+  onUpdate: (roleId: string, input: UpdateRoleRequest) => Promise<boolean>;
 };
 
 export function RoleTable({
@@ -34,11 +38,16 @@ export function RoleTable({
   const canUpdatePermissions = permissions.includes("roles.permissions.update");
 
   function getUpdateInput(input: RoleEditorInput): UpdateRoleRequest {
-    return {
+    const request: UpdateRoleRequest = {
       name: input.name,
       description: input.description,
-      permissionKeys: input.permissionKeys,
     };
+
+    if (canUpdatePermissions) {
+      request.permissionKeys = input.permissionKeys;
+    }
+
+    return request;
   }
 
   return (
@@ -65,6 +74,7 @@ export function RoleTable({
                       <RoleEditorDialog
                         canUpdatePermissions={canUpdatePermissions}
                         isSubmitting={isMutating}
+                        key={getRoleEditorKey(role)}
                         permissions={permissionItems}
                         role={role}
                         triggerLabel={`编辑 ${role.name}`}
@@ -111,4 +121,8 @@ export function RoleTable({
       </Table.ScrollContainer>
     </Table>
   );
+}
+
+function getRoleEditorKey(role: IamRoleWithPermissions): string {
+  return [role.id, role.name, role.description, role.permissionKeys.join(",")].join(":");
 }

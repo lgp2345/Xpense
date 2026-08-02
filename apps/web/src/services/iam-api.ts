@@ -32,6 +32,9 @@ export type IamRole = {
   description: string;
   isSystem: boolean;
   isEditable: boolean;
+};
+
+export type IamRoleWithPermissions = IamRole & {
   permissionKeys: PermissionKey[];
 };
 
@@ -86,7 +89,7 @@ export function createIamApi(client: ApiClient) {
     createMember: (input: CreateMemberRequest) => client.post<IamMember>("/members", input),
     updateMember: (memberId: string, input: UpdateMemberRequest) =>
       client.patch<IamMember>(`/members/${encodeURIComponent(memberId)}`, input),
-    listRoles: () => client.get<IamRole[]>("/roles"),
+    listRoles: () => client.get<IamRoleWithPermissions[]>("/roles"),
     createRole: (input: CreateRoleRequest) => client.post<IamRole>("/roles", input),
     updateRole: (roleId: string, input: UpdateRoleRequest) =>
       client.patch<IamRole>(`/roles/${encodeURIComponent(roleId)}`, input),

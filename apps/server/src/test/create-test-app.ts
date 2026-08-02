@@ -145,7 +145,11 @@ function createTestState(): TestState {
     ],
     [
       testIds.managerRole,
-      createRole(testIds.managerRole, "manager", "Manager", ["roles.read", "members.update"]),
+      createRole(testIds.managerRole, "manager", "Manager", [
+        "roles.read",
+        "roles.update",
+        "members.update",
+      ]),
     ],
     [testIds.viewerRole, createRole(testIds.viewerRole, "viewer", "Viewer", ["transactions.read"])],
   ]);

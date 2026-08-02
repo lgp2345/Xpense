@@ -142,6 +142,10 @@ export class IamService {
   }
 
   async createRole(authContext: AuthContext, dto: CreateRoleDto): Promise<IamRole> {
+    if (dto.permissionKeys.length > 0) {
+      this.assertCanUpdateRolePermissions(authContext);
+    }
+
     const existingRole = await this.repository.findRoleByKey(authContext.organizationId, dto.key);
 
     if (existingRole) {
@@ -190,6 +194,10 @@ export class IamService {
   }
 
   async updateRole(authContext: AuthContext, roleId: string, dto: UpdateRoleDto): Promise<IamRole> {
+    if (dto.permissionKeys !== undefined) {
+      this.assertCanUpdateRolePermissions(authContext);
+    }
+
     const role = await this.repository.findRoleById(authContext.organizationId, roleId);
 
     if (!role) {
@@ -300,6 +308,18 @@ export class IamService {
       throw new ForbiddenException({
         code: apiErrorCodes.forbidden,
         message: "System role is protected",
+      });
+    }
+  }
+
+  private assertCanUpdateRolePermissions(authContext: AuthContext): void {
+    if (
+      !authContext.isSuperAdmin &&
+      !authContext.permissions.includes("roles.permissions.update")
+    ) {
+      throw new ForbiddenException({
+        code: apiErrorCodes.forbidden,
+        message: "Permission update access is required",
       });
     }
   }

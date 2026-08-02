@@ -9,7 +9,7 @@ import { TextField } from "@heroui/react/textfield";
 import type { PermissionKey } from "@xpense/shared";
 import { type FormEvent, useState } from "react";
 
-import type { IamPermission, IamRole } from "../../services/iam-api";
+import type { IamPermission, IamRoleWithPermissions } from "../../services/iam-api";
 import { PermissionMatrix } from "./permission-matrix";
 
 export type RoleEditorInput = {
@@ -23,9 +23,9 @@ type RoleEditorDialogProps = {
   canUpdatePermissions: boolean;
   isSubmitting: boolean;
   permissions: IamPermission[];
-  role?: IamRole;
+  role?: IamRoleWithPermissions;
   triggerLabel: string;
-  onSubmit: (input: RoleEditorInput) => Promise<void>;
+  onSubmit: (input: RoleEditorInput) => Promise<boolean>;
 };
 
 type FieldErrors = {
@@ -49,6 +49,7 @@ export function RoleEditorDialog({
   const [description, setDescription] = useState(role?.description ?? "");
   const [permissionKeys, setPermissionKeys] = useState<PermissionKey[]>(role?.permissionKeys ?? []);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   function resetForm() {
     setKey(role?.key ?? "");
@@ -56,6 +57,7 @@ export function RoleEditorDialog({
     setDescription(role?.description ?? "");
     setPermissionKeys(role?.permissionKeys ?? []);
     setFieldErrors({});
+    setSubmissionError(null);
   }
 
   function validateFields(): FieldErrors {
@@ -81,12 +83,18 @@ export function RoleEditorDialog({
       return;
     }
 
-    await onSubmit({
+    const didSave = await onSubmit({
       key: toSlug(key),
       name: name.trim(),
       description: description.trim(),
       permissionKeys,
     });
+
+    if (!didSave) {
+      setSubmissionError(isEditing ? "更新角色失败，请稍后重试。" : "新增角色失败，请稍后重试。");
+      return;
+    }
+
     resetForm();
     dialogState.close();
   }
@@ -104,6 +112,7 @@ export function RoleEditorDialog({
             </Modal.Header>
             <Form className="grid gap-5" onSubmit={handleSubmit} validationBehavior="aria">
               <Modal.Body>
+                {submissionError ? <div role="alert">{submissionError}</div> : null}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <TextField
                     isInvalid={Boolean(fieldErrors.key)}

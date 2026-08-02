@@ -6,7 +6,7 @@ import type {
   CreateRoleRequest,
   IamApi,
   IamPermission,
-  IamRole,
+  IamRoleWithPermissions,
   UpdateRoleRequest,
 } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
@@ -22,7 +22,7 @@ type RolesPageProps = {
   api?: RolesApi;
   permissionItems?: IamPermission[];
   permissions: PermissionKey[];
-  roleItems?: IamRole[];
+  roleItems?: IamRoleWithPermissions[];
 };
 
 function loadRolesData(api: RolesApi) {
@@ -78,31 +78,57 @@ export function RolesPage({
     };
   }, [api, hasInitialData]);
 
-  async function runMutation(operation: () => Promise<unknown>, error: string) {
+  async function runMutation(
+    operation: () => Promise<unknown>,
+    error: string,
+    refreshError: string,
+  ): Promise<boolean> {
     setErrorMessage(null);
     setIsMutating(true);
 
     try {
-      await operation();
-      await refreshRoles();
-    } catch {
-      setErrorMessage(error);
+      try {
+        await operation();
+      } catch {
+        setErrorMessage(error);
+        return false;
+      }
+
+      try {
+        await refreshRoles();
+      } catch {
+        setErrorMessage(refreshError);
+      }
+
+      return true;
     } finally {
       setIsMutating(false);
     }
   }
 
-  async function handleCreate(input: RoleEditorInput) {
+  async function handleCreate(input: RoleEditorInput): Promise<boolean> {
     const request: CreateRoleRequest = input;
-    await runMutation(() => api.createRole(request), "新增角色失败，请稍后重试。");
+    return runMutation(
+      () => api.createRole(request),
+      "新增角色失败，请稍后重试。",
+      "角色已新增，但刷新列表失败，请稍后重试。",
+    );
   }
 
-  async function handleUpdate(roleId: string, input: UpdateRoleRequest) {
-    await runMutation(() => api.updateRole(roleId, input), "更新角色失败，请稍后重试。");
+  async function handleUpdate(roleId: string, input: UpdateRoleRequest): Promise<boolean> {
+    return runMutation(
+      () => api.updateRole(roleId, input),
+      "更新角色失败，请稍后重试。",
+      "角色已更新，但刷新列表失败，请稍后重试。",
+    );
   }
 
-  async function handleDelete(roleId: string) {
-    await runMutation(() => api.deleteRole(roleId), "删除角色失败，请稍后重试。");
+  async function handleDelete(roleId: string): Promise<boolean> {
+    return runMutation(
+      () => api.deleteRole(roleId),
+      "删除角色失败，请稍后重试。",
+      "角色已删除，但刷新列表失败，请稍后重试。",
+    );
   }
 
   async function handleRetry() {

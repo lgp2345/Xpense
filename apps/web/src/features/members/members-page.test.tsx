@@ -34,7 +34,6 @@ const roles: IamRole[] = [
     description: "拥有全部管理权限",
     isSystem: true,
     isEditable: false,
-    permissionKeys: ["members.read"],
   },
   {
     id: "role-member",
@@ -44,7 +43,6 @@ const roles: IamRole[] = [
     description: "可查看账本",
     isSystem: false,
     isEditable: true,
-    permissionKeys: ["members.read"],
   },
 ];
 

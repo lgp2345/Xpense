@@ -11,7 +11,7 @@ const authContext: AuthContext = {
   sessionId: "session-1",
   organizationId: "org-1",
   isSuperAdmin: false,
-  permissions: ["members.read"],
+  permissions: ["members.read", "roles.permissions.update"],
 };
 
 const editableRole = {
@@ -193,6 +193,36 @@ describe("IamService", () => {
         targetId: "role-custom",
       }),
     );
+  });
+
+  it("requires roles.permissions.update when role permissions are supplied", async () => {
+    const { repository, service } = createHarness();
+    const withoutPermissionUpdate = { ...authContext, permissions: [] };
+
+    await expect(
+      service.createRole(withoutPermissionUpdate, {
+        key: "bookkeeper",
+        name: "Bookkeeper",
+        permissionKeys: ["transactions.read"],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.updateRole(withoutPermissionUpdate, "role-custom", { permissionKeys: [] }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(repository.createRole).not.toHaveBeenCalled();
+    expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
+
+    await expect(
+      service.updateRole({ ...withoutPermissionUpdate, isSuperAdmin: true }, "role-custom", {
+        permissionKeys: [],
+      }),
+    ).resolves.toEqual(editableRole);
+
+    expect(repository.replaceRolePermissions).toHaveBeenCalledWith({
+      roleId: "role-custom",
+      permissionKeys: [],
+    });
   });
 
   it("blocks IAM mutation success when required audit write fails", async () => {

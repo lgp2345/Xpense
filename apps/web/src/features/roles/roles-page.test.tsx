@@ -3,10 +3,10 @@ import userEvent from "@testing-library/user-event";
 import type { PermissionKey } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
-import type { IamApi, IamPermission, IamRole } from "../../services/iam-api";
+import type { IamApi, IamPermission, IamRoleWithPermissions } from "../../services/iam-api";
 import { RolesPage } from "./roles-page";
 
-const systemRole: IamRole = {
+const systemRole: IamRoleWithPermissions = {
   id: "role-owner",
   organizationId: null,
   key: "owner",
@@ -17,7 +17,7 @@ const systemRole: IamRole = {
   permissionKeys: ["roles.read"],
 };
 
-const customRole: IamRole = {
+const customRole: IamRoleWithPermissions = {
   id: "role-bookkeeper",
   organizationId: "org-1",
   key: "bookkeeper",
@@ -60,7 +60,7 @@ function renderRolesPage(
   options: {
     api?: RolesApi;
     pagePermissions?: IamPermission[];
-    roles?: IamRole[];
+    roles?: IamRoleWithPermissions[];
   } = {},
 ) {
   render(
@@ -114,5 +114,79 @@ describe("RolesPage", () => {
     await user.click(screen.getByRole("button", { name: "确认删除" }));
 
     await waitFor(() => expect(api.deleteRole).toHaveBeenCalledWith("role-bookkeeper"));
+  });
+
+  it("omits permissionKeys when updating details without roles.permissions.update", async () => {
+    const user = userEvent.setup();
+    const api = createIamApi();
+    renderRolesPage(["roles.read", "roles.update"], { api });
+
+    await user.click(screen.getByRole("button", { name: "编辑 账务管理员" }));
+    await user.clear(screen.getByRole("textbox", { name: "角色名称" }));
+    await user.type(screen.getByRole("textbox", { name: "角色名称" }), "账务主管");
+    await user.click(screen.getByRole("button", { name: "保存角色" }));
+
+    await waitFor(() =>
+      expect(api.updateRole).toHaveBeenCalledWith("role-bookkeeper", {
+        name: "账务主管",
+        description: "管理账本",
+      }),
+    );
+  });
+
+  it("keeps the editor and values open when updating a role fails", async () => {
+    const user = userEvent.setup();
+    const api = createIamApi({ updateRole: vi.fn().mockRejectedValue(new Error("network")) });
+    renderRolesPage(["roles.read", "roles.update"], { api });
+
+    await user.click(screen.getByRole("button", { name: "编辑 账务管理员" }));
+    await user.clear(screen.getByRole("textbox", { name: "角色名称" }));
+    await user.type(screen.getByRole("textbox", { name: "角色名称" }), "失败后保留");
+    await user.click(screen.getByRole("button", { name: "保存角色" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("更新角色失败，请稍后重试。");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "角色名称" })).toHaveValue("失败后保留");
+  });
+
+  it("reopens an editor with the latest role data after a successful update", async () => {
+    const user = userEvent.setup();
+    const updatedRole = { ...customRole, name: "账务主管", description: "更新后的职责" };
+    const api = createIamApi({
+      listRoles: vi.fn().mockResolvedValue([systemRole, updatedRole]),
+      updateRole: vi.fn().mockResolvedValue(customRole),
+    });
+    renderRolesPage(["roles.read", "roles.update"], { api });
+
+    await user.click(screen.getByRole("button", { name: "编辑 账务管理员" }));
+    await user.clear(screen.getByRole("textbox", { name: "角色名称" }));
+    await user.type(screen.getByRole("textbox", { name: "角色名称" }), "账务主管");
+    await user.click(screen.getByRole("button", { name: "保存角色" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "编辑 账务主管" })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: "编辑 账务主管" }));
+
+    expect(screen.getByRole("textbox", { name: "角色名称" })).toHaveValue("账务主管");
+    expect(screen.getByRole("textbox", { name: "角色说明" })).toHaveValue("更新后的职责");
+  });
+
+  it("closes the editor after a successful update even when refreshing roles fails", async () => {
+    const user = userEvent.setup();
+    const api = createIamApi({
+      listRoles: vi.fn().mockRejectedValue(new Error("network")),
+      updateRole: vi.fn().mockResolvedValue(customRole),
+    });
+    renderRolesPage(["roles.read", "roles.update"], { api });
+
+    await user.click(screen.getByRole("button", { name: "编辑 账务管理员" }));
+    await user.click(screen.getByRole("button", { name: "保存角色" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "角色已更新，但刷新列表失败，请稍后重试。",
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(api.updateRole).toHaveBeenCalledTimes(1);
   });
 });
