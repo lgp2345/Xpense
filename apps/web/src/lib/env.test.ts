@@ -12,7 +12,7 @@ describe("API environment", () => {
     expect(createApiBaseUrl("v2")).toBe("/v2");
   });
 
-  it.each(["/api", "api/", ""])('rejects an invalid prefix: %s', (prefix) => {
+  it.each(["/api", "api/", ""])("rejects an invalid prefix: %s", (prefix) => {
     expect(() => createApiBaseUrl(prefix)).toThrow(
       "VITE_API_PREFIX must be a non-empty path segment",
     );
