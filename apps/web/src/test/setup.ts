@@ -37,3 +37,13 @@ Object.defineProperty(window, "localStorage", {
   } satisfies Storage,
   writable: true,
 });
+
+if (typeof Element.prototype.hasPointerCapture !== "function") {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => undefined;
+  Element.prototype.releasePointerCapture = () => undefined;
+}
+
+if (typeof Element.prototype.scrollIntoView !== "function") {
+  Element.prototype.scrollIntoView = () => undefined;
+}

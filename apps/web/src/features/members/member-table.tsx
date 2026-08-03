@@ -1,6 +1,14 @@
-import { Table } from "@heroui/react/table";
 import type { PermissionKey } from "@xpense/shared";
 
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { IamMember, IamRole } from "../../services/iam-api";
 import { MemberActions } from "./member-actions";
 
@@ -27,30 +35,30 @@ export function MemberTable({
   onStatusChange,
 }: MemberTableProps) {
   if (members.length === 0) {
-    return (
-      <p className="py-10 text-center text-sm text-[var(--color-ink-muted)]">当前没有成员。</p>
-    );
+    return <p className="py-10 text-center text-sm text-muted-foreground">当前没有成员。</p>;
   }
 
   return (
-    <Table className="overflow-hidden rounded-[var(--xp-radius-card)] bg-[var(--color-surface-solid)]">
-      <Table.ScrollContainer>
-        <Table.Content aria-label="成员列表">
-          <Table.Header>
-            <Table.Column isRowHeader>邮箱</Table.Column>
-            <Table.Column>角色</Table.Column>
-            <Table.Column>状态</Table.Column>
-            <Table.Column>加入时间</Table.Column>
-            <Table.Column>操作</Table.Column>
-          </Table.Header>
-          <Table.Body items={members}>
-            {(item) => (
-              <Table.Row id={item.id}>
-                <Table.Cell>{item.email}</Table.Cell>
-                <Table.Cell>{item.roleName}</Table.Cell>
-                <Table.Cell>{item.status === "active" ? "已启用" : "已禁用"}</Table.Cell>
-                <Table.Cell>{dateTimeFormatter.format(new Date(item.joinedAt))}</Table.Cell>
-                <Table.Cell>
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>邮箱</TableHead>
+              <TableHead>角色</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>加入时间</TableHead>
+              <TableHead className="text-right">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {members.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell className="font-medium">{item.email}</TableCell>
+                <TableCell>{item.roleName}</TableCell>
+                <TableCell>{item.status === "active" ? "已启用" : "已禁用"}</TableCell>
+                <TableCell>{dateTimeFormatter.format(new Date(item.joinedAt))}</TableCell>
+                <TableCell className="text-right">
                   <MemberActions
                     isMutating={isMutating}
                     member={item}
@@ -59,12 +67,12 @@ export function MemberTable({
                     onRoleChange={(roleId) => onRoleChange(item.id, roleId)}
                     onStatusChange={(status) => onStatusChange(item.id, status)}
                   />
-                </Table.Cell>
-              </Table.Row>
-            )}
-          </Table.Body>
-        </Table.Content>
-      </Table.ScrollContainer>
-    </Table>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }

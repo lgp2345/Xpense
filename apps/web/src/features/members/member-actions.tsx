@@ -1,10 +1,24 @@
-import { AlertDialog } from "@heroui/react/alert-dialog";
-import { Button } from "@heroui/react/button";
-import { Label } from "@heroui/react/label";
-import { ListBox } from "@heroui/react/list-box";
-import { Select } from "@heroui/react/select";
 import type { PermissionKey } from "@xpense/shared";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { IamMember, IamRole } from "../../services/iam-api";
 
 type MemberActionsProps = {
@@ -32,67 +46,57 @@ export function MemberActions({
     <div className="flex flex-wrap items-center justify-end gap-2">
       {canChangeRole ? (
         <Select
-          aria-label={`变更 ${member.email} 的角色`}
-          isDisabled={isMutating}
           value={member.roleId}
-          onChange={(roleId) => {
+          disabled={isMutating}
+          onValueChange={(roleId) => {
             if (roleId && roleId !== member.roleId) {
-              void onRoleChange(String(roleId));
+              void onRoleChange(roleId);
             }
           }}
         >
-          <Label>变更 {member.email} 的角色</Label>
-          <Select.Trigger>
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox>
-              {roles.map((role) => (
-                <ListBox.Item id={role.id} key={role.id} textValue={role.name}>
-                  {role.name}
-                </ListBox.Item>
-              ))}
-            </ListBox>
-          </Select.Popover>
+          <SelectTrigger aria-label={`变更 ${member.email} 的角色`} className="w-44">
+            <SelectValue placeholder="选择角色" />
+          </SelectTrigger>
+          <SelectContent>
+            {roles.map((role) => (
+              <SelectItem key={role.id} value={role.id}>
+                {role.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
       ) : null}
 
       {canDisable ? (
         <AlertDialog>
-          <AlertDialog.Trigger className="inline-flex min-h-10 items-center justify-center rounded-[var(--xp-radius-control)] px-3 text-sm text-[var(--color-error)] outline outline-1 outline-[var(--color-line-strong)]">
-            禁用 {member.email}
-          </AlertDialog.Trigger>
-          <AlertDialog.Backdrop>
-            <AlertDialog.Container size="sm">
-              <AlertDialog.Dialog>
-                <AlertDialog.Header>
-                  <AlertDialog.Heading>确认禁用成员</AlertDialog.Heading>
-                </AlertDialog.Header>
-                <AlertDialog.Body>禁用后，该成员将无法继续访问当前账本。</AlertDialog.Body>
-                <AlertDialog.Footer>
-                  <Button slot="close" variant="secondary">
-                    取消
-                  </Button>
-                  <Button
-                    isDisabled={isMutating}
-                    slot="close"
-                    onPress={() => void onStatusChange("disabled")}
-                  >
-                    确认禁用
-                  </Button>
-                </AlertDialog.Footer>
-              </AlertDialog.Dialog>
-            </AlertDialog.Container>
-          </AlertDialog.Backdrop>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline">禁用 {member.email}</Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>确认禁用成员</AlertDialogTitle>
+              <AlertDialogDescription>
+                禁用后，该成员将无法继续访问当前账本。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isMutating}
+                onClick={() => void onStatusChange("disabled")}
+              >
+                确认禁用
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
         </AlertDialog>
       ) : null}
 
       {canEnable ? (
         <Button
-          isDisabled={isMutating}
-          variant="secondary"
-          onPress={() => void onStatusChange("active")}
+          disabled={isMutating}
+          variant="outline"
+          onClick={() => void onStatusChange("active")}
         >
           启用 {member.email}
         </Button>

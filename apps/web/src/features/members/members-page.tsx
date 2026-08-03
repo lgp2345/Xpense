@@ -1,10 +1,14 @@
-import { Button } from "@heroui/react/button";
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { IamApi, IamMember, IamRole } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
 import { MemberFormDialog } from "./member-form-dialog";
+import type { MemberFormValues } from "./member-form-schema";
 import { MemberTable } from "./member-table";
 
 type MembersApi = Pick<IamApi, "listMembers" | "createMember" | "updateMember" | "listRoles">;
@@ -68,36 +72,54 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
     };
   }, [api, canReadRoles, hasInitialData]);
 
-  async function runMutation(operation: () => Promise<unknown>, error: string) {
+  async function runMutation(operation: () => Promise<unknown>, error: string): Promise<boolean> {
     setErrorMessage(null);
     setIsMutating(true);
 
     try {
       await operation();
       await refreshMembers();
+      return true;
     } catch {
       setErrorMessage(error);
+      return false;
     } finally {
       setIsMutating(false);
     }
   }
 
-  async function handleCreate(input: { roleId: string; userId: string }) {
-    await runMutation(() => api.createMember(input), "新增成员失败，请稍后重试。");
+  async function handleCreate(input: MemberFormValues) {
+    setErrorMessage(null);
+    await api.createMember(input);
+    toast.success("成员添加成功");
+
+    try {
+      await refreshMembers();
+    } catch {
+      setErrorMessage("加载成员列表失败，请稍后重试。");
+    }
   }
 
   async function handleRoleChange(memberId: string, roleId: string) {
-    await runMutation(
+    const succeeded = await runMutation(
       () => api.updateMember(memberId, { roleId }),
       "更新成员角色失败，请稍后重试。",
     );
+
+    if (succeeded) {
+      toast.success("成员角色已更新");
+    }
   }
 
   async function handleStatusChange(memberId: string, status: "active" | "disabled") {
-    await runMutation(
+    const succeeded = await runMutation(
       () => api.updateMember(memberId, { status }),
       "更新成员状态失败，请稍后重试。",
     );
+
+    if (succeeded) {
+      toast.success(status === "active" ? "成员已启用" : "成员已禁用");
+    }
   }
 
   async function handleRetry() {
@@ -116,42 +138,46 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
     : permissions.filter((permission) => permission !== "members.update");
 
   return (
-    <main className="min-h-[100dvh] bg-[var(--color-canvas)] p-4 text-[var(--color-ink)] sm:p-8">
-      <section className="mx-auto max-w-7xl">
-        <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-sm text-[var(--color-ink-muted)]">组织访问控制</p>
-            <h1 className="mt-1 text-3xl font-normal">成员管理</h1>
-          </div>
-          {canCreate ? (
-            <MemberFormDialog isSubmitting={isMutating} roles={roleItems} onSubmit={handleCreate} />
-          ) : null}
-        </header>
+    <main className="space-y-4 p-4 sm:p-6 lg:p-8">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-medium tracking-tight">成员管理</h1>
+          <p className="text-sm text-muted-foreground">组织访问控制</p>
+        </div>
+        {canCreate ? <MemberFormDialog roles={roleItems} onSubmit={handleCreate} /> : null}
+      </header>
 
-        {errorMessage ? (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3" role="alert">
-            <span>{errorMessage}</span>
-            <Button variant="secondary" onPress={() => void handleRetry()}>
-              重试
-            </Button>
-          </div>
-        ) : null}
+      {errorMessage ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
+        >
+          <span>{errorMessage}</span>
+          <Button size="sm" variant="outline" onClick={() => void handleRetry()}>
+            重试
+          </Button>
+        </div>
+      ) : null}
 
-        {isLoading ? (
-          <p aria-live="polite" className="py-10 text-sm text-[var(--color-ink-muted)]">
-            正在加载成员...
-          </p>
-        ) : (
-          <MemberTable
-            isMutating={isMutating}
-            members={memberItems}
-            permissions={memberActionPermissions}
-            roles={roleItems}
-            onRoleChange={handleRoleChange}
-            onStatusChange={handleStatusChange}
-          />
-        )}
-      </section>
+      {isLoading ? (
+        <Card>
+          <CardContent className="space-y-3 p-4" aria-live="polite">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <span className="sr-only">正在加载成员...</span>
+          </CardContent>
+        </Card>
+      ) : (
+        <MemberTable
+          isMutating={isMutating}
+          members={memberItems}
+          permissions={memberActionPermissions}
+          roles={roleItems}
+          onRoleChange={handleRoleChange}
+          onStatusChange={handleStatusChange}
+        />
+      )}
     </main>
   );
 }

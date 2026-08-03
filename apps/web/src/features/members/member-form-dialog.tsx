@@ -1,133 +1,186 @@
-import { useOverlayState } from "@heroui/react";
-import { Button } from "@heroui/react/button";
-import { FieldError } from "@heroui/react/field-error";
-import { Form } from "@heroui/react/form";
-import { Input } from "@heroui/react/input";
-import { Label } from "@heroui/react/label";
-import { ListBox } from "@heroui/react/list-box";
-import { Modal } from "@heroui/react/modal";
-import { Select } from "@heroui/react/select";
-import { TextField } from "@heroui/react/textfield";
-import { type FormEvent, useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { IamRole } from "../../services/iam-api";
+import { type MemberFormValues, memberFormSchema } from "./member-form-schema";
 
 type MemberFormDialogProps = {
-  isSubmitting: boolean;
   roles: IamRole[];
-  onSubmit: (input: { roleId: string; userId: string }) => Promise<void>;
+  onSubmit: (input: MemberFormValues) => Promise<void>;
 };
 
-type FieldErrors = {
-  roleId?: string;
-  userId?: string;
-};
-
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function MemberFormDialog({ isSubmitting, roles, onSubmit }: MemberFormDialogProps) {
-  const dialogState = useOverlayState();
-  const [roleId, setRoleId] = useState<string | null>(null);
-  const [userId, setUserId] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-
-  function validateFields(): FieldErrors {
-    const nextErrors: FieldErrors = {};
-    const trimmedUserId = userId.trim();
-
-    if (!trimmedUserId) {
-      nextErrors.userId = "请输入用户 ID";
-    } else if (!uuidPattern.test(trimmedUserId)) {
-      nextErrors.userId = "请输入有效的 UUID";
-    }
-
-    if (!roleId) {
-      nextErrors.roleId = "请选择角色";
-    }
-
-    return nextErrors;
+function getValidationMessage(error: unknown): string | undefined {
+  if (typeof error === "string") {
+    return error;
   }
 
-  function resetForm() {
-    setUserId("");
-    setRoleId(null);
-    setFieldErrors({});
+  if (!error || typeof error !== "object") {
+    return undefined;
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const nextErrors = validateFields();
-    setFieldErrors(nextErrors);
+  if ("message" in error && typeof error.message === "string") {
+    return error.message;
+  }
 
-    if (Object.keys(nextErrors).length > 0 || !roleId) {
-      return;
+  if ("issues" in error && Array.isArray(error.issues)) {
+    const firstIssue = error.issues[0];
+
+    if (
+      firstIssue &&
+      typeof firstIssue === "object" &&
+      "message" in firstIssue &&
+      typeof firstIssue.message === "string"
+    ) {
+      return firstIssue.message;
     }
-
-    await onSubmit({ roleId, userId: userId.trim() });
-    resetForm();
-    dialogState.close();
   }
+
+  return undefined;
+}
+
+export function MemberFormDialog({ roles, onSubmit }: MemberFormDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const form = useForm({
+    defaultValues: {
+      userId: "",
+      roleId: "",
+    },
+    validators: {
+      onChange: memberFormSchema,
+      onSubmit: memberFormSchema,
+    },
+    onSubmit: async ({ value }) => {
+      setSubmitError(null);
+
+      try {
+        await onSubmit(value);
+        setOpen(false);
+        form.reset();
+      } catch {
+        setSubmitError("添加成员失败，请稍后重试。");
+      }
+    },
+  });
 
   return (
-    <Modal state={dialogState}>
-      <Modal.Trigger className="inline-flex min-h-10 items-center justify-center rounded-[var(--xp-radius-pill)] bg-[var(--color-ink)] px-5 text-sm font-medium text-white">
-        新增成员
-      </Modal.Trigger>
-      <Modal.Backdrop>
-        <Modal.Container size="sm">
-          <Modal.Dialog>
-            <Modal.Header>
-              <Modal.Heading>新增成员</Modal.Heading>
-            </Modal.Header>
-            <Form className="grid gap-5" onSubmit={handleSubmit} validationBehavior="aria">
-              <Modal.Body>
-                <TextField
-                  isInvalid={Boolean(fieldErrors.userId)}
-                  name="userId"
-                  value={userId}
-                  onChange={setUserId}
-                >
-                  <Label>用户 ID</Label>
-                  <Input autoComplete="off" placeholder="输入用户 UUID" />
-                  {fieldErrors.userId ? <FieldError>{fieldErrors.userId}</FieldError> : null}
-                </TextField>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>新增成员</Button>
+      </DialogTrigger>
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>新增成员</DialogTitle>
+          <DialogDescription>输入用户 ID 并选择一个角色。</DialogDescription>
+        </DialogHeader>
 
-                <Select
-                  aria-label="角色"
-                  isInvalid={Boolean(fieldErrors.roleId)}
-                  placeholder="选择角色"
-                  value={roleId}
-                  onChange={(value) => setRoleId(value === null ? null : String(value))}
-                >
+        <form
+          className="grid gap-4"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit();
+          }}
+        >
+          <form.Field name="userId">
+            {(field) => {
+              const fieldError = field.state.meta.isTouched
+                ? getValidationMessage(field.state.meta.errors[0])
+                : undefined;
+
+              return (
+                <div className="grid gap-2">
+                  <Label htmlFor={field.name}>用户 ID</Label>
+                  <Input
+                    autoComplete="off"
+                    id={field.name}
+                    placeholder="输入用户 UUID"
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    aria-invalid={Boolean(fieldError)}
+                  />
+                  {fieldError ? (
+                    <p className="text-sm text-destructive" role="alert">
+                      {fieldError}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            }}
+          </form.Field>
+
+          <form.Field name="roleId">
+            {(field) => {
+              const fieldError = field.state.meta.isTouched
+                ? getValidationMessage(field.state.meta.errors[0])
+                : undefined;
+
+              return (
+                <div className="grid gap-2">
                   <Label>角色</Label>
-                  <Select.Trigger>
-                    <Select.Value />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover>
-                    <ListBox>
+                  <Select value={field.state.value || undefined} onValueChange={field.handleChange}>
+                    <SelectTrigger aria-label="角色" className="w-full">
+                      <SelectValue placeholder="选择角色" />
+                    </SelectTrigger>
+                    <SelectContent>
                       {roles.map((role) => (
-                        <ListBox.Item id={role.id} key={role.id} textValue={role.name}>
+                        <SelectItem key={role.id} value={role.id}>
                           {role.name}
-                        </ListBox.Item>
+                        </SelectItem>
                       ))}
-                    </ListBox>
-                  </Select.Popover>
-                  {fieldErrors.roleId ? <FieldError>{fieldErrors.roleId}</FieldError> : null}
-                </Select>
-              </Modal.Body>
-              <Modal.Footer>
-                <Button slot="close" variant="secondary">
-                  取消
-                </Button>
-                <Button isDisabled={isSubmitting} type="submit">
+                    </SelectContent>
+                  </Select>
+                  {fieldError ? (
+                    <p className="text-sm text-destructive" role="alert">
+                      {fieldError}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            }}
+          </form.Field>
+
+          {submitError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {submitError}
+            </p>
+          ) : null}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              取消
+            </Button>
+            <form.Subscribe selector={(state) => ({ isSubmitting: state.isSubmitting })}>
+              {({ isSubmitting }) => (
+                <Button disabled={isSubmitting} type="submit">
                   {isSubmitting ? "正在添加..." : "添加成员"}
                 </Button>
-              </Modal.Footer>
-            </Form>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
-    </Modal>
+              )}
+            </form.Subscribe>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

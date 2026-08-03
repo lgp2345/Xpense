@@ -81,11 +81,11 @@ describe("AppRouter startup", () => {
     );
 
     expect(screen.getByText("正在恢复会话...")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "财务洞察" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "仪表盘" })).not.toBeInTheDocument();
 
     await act(async () => finishRestore?.());
 
-    expect(await screen.findByRole("heading", { name: "财务洞察" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "仪表盘" })).toBeInTheDocument();
   });
 
   it("restores the cookie session only once in React StrictMode", () => {
