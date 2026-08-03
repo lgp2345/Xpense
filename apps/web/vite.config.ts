@@ -1,13 +1,20 @@
-import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vitest/config'
+import { fileURLToPath, URL } from "node:url";
 
-const apiPrefix = process.env.VITE_API_PREFIX ?? 'api'
-const apiBasePath = `/${apiPrefix}`
-const apiProxyTarget = process.env.API_PROXY_TARGET ?? 'http://localhost:4000'
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
+
+const apiPrefix = process.env.VITE_API_PREFIX ?? "api";
+const apiBasePath = `/${apiPrefix}`;
+const apiProxyTarget = process.env.API_PROXY_TARGET ?? "http://localhost:4000";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   server: {
     proxy: {
       [apiBasePath]: {
@@ -18,8 +25,8 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'jsdom',
+    environment: "jsdom",
     globals: true,
-    setupFiles: ['./src/test/setup.ts'],
+    setupFiles: ["./src/test/setup.ts"],
   },
-})
+});

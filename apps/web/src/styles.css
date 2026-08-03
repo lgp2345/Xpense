@@ -1,5 +1,9 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @import "@heroui/styles";
+@import "./styles/theme.css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
   color: #163144;
@@ -48,8 +52,6 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  color: var(--color-ink);
-  background: var(--color-canvas);
 }
 
 button,
@@ -168,5 +170,34 @@ a {
   *::after {
     scroll-behavior: auto;
     transition-duration: 0.01ms;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    scrollbar-color: var(--border) transparent;
+    scrollbar-width: thin;
+  }
+
+  html {
+    overflow-x: hidden;
+  }
+
+  body {
+    @apply min-h-svh w-full bg-background text-foreground;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  @media screen and (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
   }
 }
