@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PermissionKey } from "@xpense/shared";
+import { format } from "date-fns";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -171,6 +172,116 @@ describe("AuditLogsPage", () => {
       expect.objectContaining({
         action: undefined,
         targetType: "role",
+        page: undefined,
+      }),
+    );
+  });
+
+  it("filters by a typed date and keeps the ISO value in search", async () => {
+    const user = userEvent.setup();
+    const onSearchChange = vi.fn();
+    function SearchHarness() {
+      const [search, setSearch] = useState<AuditLogSearch>({
+        action: "role.created",
+      });
+
+      return (
+        <AuditLogsPage
+          logs={[]}
+          permissions={["audit_logs.read"]}
+          search={search}
+          onSearchChange={(nextSearch) => {
+            onSearchChange(nextSearch);
+            setSearch(nextSearch);
+          }}
+        />
+      );
+    }
+
+    render(<SearchHarness />);
+
+    await user.type(screen.getByRole("textbox", { name: "开始日期" }), "2026/08/01");
+
+    expect(onSearchChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: "role.created",
+        from: "2026-08-01",
+        page: undefined,
+      }),
+    );
+  });
+
+  it("clears a date filter when its input is emptied", async () => {
+    const user = userEvent.setup();
+    const onSearchChange = vi.fn();
+    function SearchHarness() {
+      const [search, setSearch] = useState<AuditLogSearch>({
+        from: "2026-07-04",
+      });
+
+      return (
+        <AuditLogsPage
+          logs={[]}
+          permissions={["audit_logs.read"]}
+          search={search}
+          onSearchChange={(nextSearch) => {
+            onSearchChange(nextSearch);
+            setSearch(nextSearch);
+          }}
+        />
+      );
+    }
+
+    render(<SearchHarness />);
+
+    const fromInput = screen.getByRole("textbox", { name: "开始日期" });
+    expect(fromInput).toHaveValue("2026/07/04");
+
+    await user.clear(fromInput);
+
+    expect(onSearchChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        from: undefined,
+        page: undefined,
+      }),
+    );
+  });
+
+  it("selects a date from the calendar popover", async () => {
+    const user = userEvent.setup();
+    const onSearchChange = vi.fn();
+    function SearchHarness() {
+      const [search, setSearch] = useState<AuditLogSearch>({});
+
+      return (
+        <AuditLogsPage
+          logs={[]}
+          permissions={["audit_logs.read"]}
+          search={search}
+          onSearchChange={(nextSearch) => {
+            onSearchChange(nextSearch);
+            setSearch(nextSearch);
+          }}
+        />
+      );
+    }
+
+    render(<SearchHarness />);
+
+    await user.click(screen.getByRole("button", { name: "选择开始日期" }));
+
+    const now = new Date();
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const dayButton = screen
+      .getAllByRole("button")
+      .find((button) => button.getAttribute("data-day") === firstOfMonth.toLocaleDateString());
+    expect(dayButton).toBeDefined();
+
+    await user.click(dayButton as HTMLButtonElement);
+
+    expect(onSearchChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        from: format(firstOfMonth, "yyyy-MM-dd"),
         page: undefined,
       }),
     );

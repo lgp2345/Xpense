@@ -1,3 +1,4 @@
+import { DatePickerInput } from "@/components/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -17,13 +18,17 @@ type AuditLogFiltersProps = {
 
 type FilterField = Exclude<keyof AuditLogSearch, "page">;
 
-const fields: Array<{ key: FilterField; label: string; type?: "date" }> = [
-  { key: "action", label: "操作" },
-  { key: "actorUserId", label: "操作人 ID" },
-  { key: "targetType", label: "目标类型" },
+const fields = [
+  { key: "action", label: "操作", type: "text" },
+  { key: "actorUserId", label: "操作人 ID", type: "text" },
+  { key: "targetType", label: "目标类型", type: "text" },
   { key: "from", label: "开始日期", type: "date" },
   { key: "to", label: "结束日期", type: "date" },
-];
+] as const satisfies ReadonlyArray<{
+  key: FilterField;
+  label: string;
+  type: "text" | "date";
+}>;
 
 export function AuditLogFilters({ onChange, search }: AuditLogFiltersProps) {
   function updateFilter(field: FilterField, value: string) {
@@ -34,15 +39,23 @@ export function AuditLogFilters({ onChange, search }: AuditLogFiltersProps) {
   return (
     <fieldset className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       <legend className="sr-only">筛选审计日志</legend>
-      {fields.map(({ key, label, type = "text" }) => (
-        <div className="grid gap-2" key={key}>
-          <Label htmlFor={`audit-${key}`}>{label}</Label>
-          <Input
-            id={`audit-${key}`}
-            type={type}
-            value={search[key] ?? ""}
-            onChange={(event) => updateFilter(key, event.currentTarget.value)}
-          />
+      {fields.map((field) => (
+        <div className="grid gap-2" key={field.key}>
+          <Label htmlFor={`audit-${field.key}`}>{field.label}</Label>
+          {field.type === "date" ? (
+            <DatePickerInput
+              id={`audit-${field.key}`}
+              value={search[field.key]}
+              onChange={(value) => updateFilter(field.key, value ?? "")}
+              buttonLabel={`选择${field.label}`}
+            />
+          ) : (
+            <Input
+              id={`audit-${field.key}`}
+              value={search[field.key] ?? ""}
+              onChange={(event) => updateFilter(field.key, event.currentTarget.value)}
+            />
+          )}
         </div>
       ))}
     </fieldset>
