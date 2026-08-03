@@ -1,7 +1,9 @@
-import { Button } from "@heroui/react/button";
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type {
   CreateRoleRequest,
   IamApi,
@@ -83,57 +85,63 @@ export function RolesPage({
     };
   }, [api, canReadPermissions, hasInitialData]);
 
-  async function runMutation(
-    operation: () => Promise<unknown>,
-    error: string,
-    refreshError: string,
-  ): Promise<boolean> {
+  async function handleCreate(input: RoleEditorInput): Promise<boolean> {
+    const request: CreateRoleRequest = input;
+    setErrorMessage(null);
+
+    try {
+      await api.createRole(request);
+    } catch {
+      return false;
+    }
+
+    try {
+      await refreshRoles();
+    } catch {
+      setErrorMessage("角色已新增，但刷新列表失败，请稍后重试。");
+    }
+
+    return true;
+  }
+
+  async function handleUpdate(roleId: string, input: UpdateRoleRequest): Promise<boolean> {
+    setErrorMessage(null);
+
+    try {
+      await api.updateRole(roleId, input);
+    } catch {
+      return false;
+    }
+
+    try {
+      await refreshRoles();
+    } catch {
+      setErrorMessage("角色已更新，但刷新列表失败，请稍后重试。");
+    }
+
+    return true;
+  }
+
+  async function handleDelete(roleId: string): Promise<boolean> {
     setErrorMessage(null);
     setIsMutating(true);
 
     try {
-      try {
-        await operation();
-      } catch {
-        setErrorMessage(error);
-        return false;
-      }
-
-      try {
-        await refreshRoles();
-      } catch {
-        setErrorMessage(refreshError);
-      }
-
-      return true;
+      await api.deleteRole(roleId);
+    } catch {
+      setErrorMessage("删除角色失败，请稍后重试。");
+      return false;
     } finally {
       setIsMutating(false);
     }
-  }
 
-  async function handleCreate(input: RoleEditorInput): Promise<boolean> {
-    const request: CreateRoleRequest = input;
-    return runMutation(
-      () => api.createRole(request),
-      "新增角色失败，请稍后重试。",
-      "角色已新增，但刷新列表失败，请稍后重试。",
-    );
-  }
+    try {
+      await refreshRoles();
+    } catch {
+      setErrorMessage("角色已删除，但刷新列表失败，请稍后重试。");
+    }
 
-  async function handleUpdate(roleId: string, input: UpdateRoleRequest): Promise<boolean> {
-    return runMutation(
-      () => api.updateRole(roleId, input),
-      "更新角色失败，请稍后重试。",
-      "角色已更新，但刷新列表失败，请稍后重试。",
-    );
-  }
-
-  async function handleDelete(roleId: string): Promise<boolean> {
-    return runMutation(
-      () => api.deleteRole(roleId),
-      "删除角色失败，请稍后重试。",
-      "角色已删除，但刷新列表失败，请稍后重试。",
-    );
+    return true;
   }
 
   async function handleRetry() {
@@ -154,48 +162,53 @@ export function RolesPage({
     canReadPermissions && permissions.includes("roles.permissions.update");
 
   return (
-    <main className="min-h-[100dvh] bg-[var(--color-canvas)] p-4 text-[var(--color-ink)] sm:p-8">
-      <section className="mx-auto max-w-7xl">
-        <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-sm text-[var(--color-ink-muted)]">组织访问控制</p>
-            <h1 className="mt-1 text-3xl font-normal">角色管理</h1>
-          </div>
-          {canCreate ? (
-            <RoleEditorDialog
-              canUpdatePermissions={canUpdatePermissions}
-              isSubmitting={isMutating}
-              permissions={availablePermissions}
-              triggerLabel="新增角色"
-              onSubmit={handleCreate}
-            />
-          ) : null}
-        </header>
-
-        {errorMessage ? (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3" role="alert">
-            <span>{errorMessage}</span>
-            <Button variant="secondary" onPress={() => void handleRetry()}>
-              重试
-            </Button>
-          </div>
-        ) : null}
-
-        {isLoading ? (
-          <p aria-live="polite" className="py-10 text-sm text-[var(--color-ink-muted)]">
-            正在加载角色和权限...
-          </p>
-        ) : (
-          <RoleTable
-            isMutating={isMutating}
-            permissionItems={availablePermissions}
-            permissions={permissions}
-            roles={roles}
-            onDelete={handleDelete}
-            onUpdate={handleUpdate}
+    <main className="space-y-4 p-4 sm:p-6 lg:p-8">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-medium tracking-tight">角色管理</h1>
+          <p className="text-sm text-muted-foreground">组织访问控制</p>
+        </div>
+        {canCreate ? (
+          <RoleEditorDialog
+            canUpdatePermissions={canUpdatePermissions}
+            permissions={availablePermissions}
+            triggerLabel="新增角色"
+            onSubmit={handleCreate}
           />
-        )}
-      </section>
+        ) : null}
+      </header>
+
+      {errorMessage ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
+        >
+          <span>{errorMessage}</span>
+          <Button size="sm" variant="outline" onClick={() => void handleRetry()}>
+            重试
+          </Button>
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <Card>
+          <CardContent className="space-y-3 p-4" aria-live="polite">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <span className="sr-only">正在加载角色和权限...</span>
+          </CardContent>
+        </Card>
+      ) : (
+        <RoleTable
+          isMutating={isMutating}
+          permissionItems={availablePermissions}
+          permissions={permissions}
+          roles={roles}
+          onDelete={handleDelete}
+          onUpdate={handleUpdate}
+        />
+      )}
     </main>
   );
 }

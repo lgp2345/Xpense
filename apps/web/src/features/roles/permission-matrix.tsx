@@ -1,18 +1,12 @@
-import { Checkbox } from "@heroui/react/checkbox";
 import type { PermissionKey } from "@xpense/shared";
 
-type MatrixPermission = {
-  action: string;
-  description?: string;
-  key: PermissionKey;
-  name: string;
-  resource: string;
-};
+import { Checkbox } from "@/components/ui/checkbox";
+import type { IamPermission } from "../../services/iam-api";
 
 type PermissionMatrixProps = {
   canUpdatePermissions: boolean;
   isEditable?: boolean;
-  permissions: readonly MatrixPermission[];
+  permissions: readonly IamPermission[];
   selected: readonly PermissionKey[];
   onChange: (permissionKeys: PermissionKey[]) => void;
 };
@@ -37,42 +31,34 @@ export function PermissionMatrix({
   }
 
   return (
-    <fieldset aria-label="权限矩阵" className="grid gap-5">
+    <div className="grid gap-6">
       {Array.from(permissionsByResource, ([resource, resourcePermissions]) => (
-        <section key={resource}>
-          <h3 className="text-base font-medium text-[var(--color-ink)]">{resource}</h3>
-          <div className="mt-2 divide-y divide-[var(--color-line)]">
+        <fieldset key={resource} className="grid gap-3">
+          <legend className="text-base font-medium">{resource}</legend>
+          <div className="divide-y rounded-lg border">
             {resourcePermissions.map((permission) => (
               <div
-                className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                className="flex items-center justify-between gap-4 px-4 py-3"
                 key={permission.key}
               >
-                <div>
-                  <p className="text-sm text-[var(--color-ink)]">{permission.name}</p>
-                  <p className="text-xs text-[var(--color-ink-muted)]">{permission.key}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{permission.name}</p>
+                  <p className="text-xs text-muted-foreground">{permission.key}</p>
                   {permission.description ? (
-                    <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
-                      {permission.description}
-                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">{permission.description}</p>
                   ) : null}
                 </div>
                 <Checkbox
-                  isDisabled={isDisabled}
-                  isSelected={selectedKeys.has(permission.key)}
-                  onChange={(isSelected) => handleChange(permission.key, isSelected)}
-                >
-                  <Checkbox.Content>
-                    <Checkbox.Control>
-                      <Checkbox.Indicator />
-                    </Checkbox.Control>
-                    <span className="sr-only">{permission.key}</span>
-                  </Checkbox.Content>
-                </Checkbox>
+                  aria-label={permission.name}
+                  checked={selectedKeys.has(permission.key)}
+                  disabled={isDisabled}
+                  onCheckedChange={(checked) => handleChange(permission.key, checked === true)}
+                />
               </div>
             ))}
           </div>
-        </section>
+        </fieldset>
       ))}
-    </fieldset>
+    </div>
   );
 }

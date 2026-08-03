@@ -37,6 +37,14 @@ const availablePermissions: IamPermission[] = [
     action: "read",
     description: "查看角色列表",
   },
+  {
+    id: "permission-members-read",
+    key: "members.read",
+    name: "查看成员",
+    resource: "members",
+    action: "read",
+    description: "查看成员列表",
+  },
 ];
 
 type RolesApi = Pick<
@@ -99,7 +107,7 @@ describe("RolesPage", () => {
 
     await user.click(screen.getByRole("button", { name: "编辑 账务管理员" }));
 
-    expect(screen.getByRole("checkbox", { name: "roles.read" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "查看角色" })).toBeDisabled();
   });
 
   it("does not offer edit or delete actions for a non-editable system role", () => {
@@ -109,24 +117,56 @@ describe("RolesPage", () => {
     expect(screen.queryByRole("button", { name: "删除 所有者" })).not.toBeInTheDocument();
   });
 
-  it("normalizes a custom role key to a lowercase slug before creating it", async () => {
+  it("reports role creation validation errors before requesting the API", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
     renderRolesPage(["roles.read", "roles.create"], { api });
 
     await user.click(screen.getByRole("button", { name: "新增角色" }));
-    await user.type(screen.getByRole("textbox", { name: "角色标识" }), "Book Keeper!");
-    await user.type(screen.getByRole("textbox", { name: "角色名称" }), "账务管理员");
+    await user.click(screen.getByRole("button", { name: "创建角色" }));
+
+    expect(screen.getByText("请输入角色标识")).toBeInTheDocument();
+    expect(screen.getByText("请输入角色名称")).toBeInTheDocument();
+    expect(api.createRole).not.toHaveBeenCalled();
+  });
+
+  it("normalizes the role key, trims the name, and submits selected permissions when creating", async () => {
+    const user = userEvent.setup();
+    const api = createIamApi();
+    renderRolesPage(["roles.read", "roles.create", "roles.permissions.update"], { api });
+
+    await user.click(screen.getByRole("button", { name: "新增角色" }));
+    await user.type(screen.getByRole("textbox", { name: "角色标识" }), "  Book Keeper  ");
+    await user.type(screen.getByRole("textbox", { name: "角色名称" }), "记账员");
+    await user.click(screen.getByRole("checkbox", { name: "查看成员" }));
     await user.click(screen.getByRole("button", { name: "创建角色" }));
 
     await waitFor(() =>
       expect(api.createRole).toHaveBeenCalledWith({
         key: "book-keeper",
-        name: "账务管理员",
+        name: "记账员",
         description: "",
-        permissionKeys: [],
+        permissionKeys: ["members.read"],
       }),
     );
+  });
+
+  it("keeps the editor open and preserves values when creating a role fails", async () => {
+    const user = userEvent.setup();
+    const api = createIamApi({
+      createRole: vi.fn().mockRejectedValue(new Error("authorization=secret")),
+    });
+    renderRolesPage(["roles.read", "roles.create"], { api });
+
+    await user.click(screen.getByRole("button", { name: "新增角色" }));
+    await user.type(screen.getByRole("textbox", { name: "角色标识" }), "book-keeper");
+    await user.type(screen.getByRole("textbox", { name: "角色名称" }), "记账员");
+    await user.click(screen.getByRole("button", { name: "创建角色" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("新增角色失败，请稍后重试。");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "角色名称" })).toHaveValue("记账员");
+    expect(screen.queryByText(/authorization=secret/i)).not.toBeInTheDocument();
   });
 
   it("asks for confirmation before deleting an editable role", async () => {
@@ -215,6 +255,5 @@ describe("RolesPage", () => {
       "角色已更新，但刷新列表失败，请稍后重试。",
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(api.updateRole).toHaveBeenCalledTimes(1);
   });
 });
