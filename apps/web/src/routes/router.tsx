@@ -306,9 +306,9 @@ function ForbiddenRoutePage() {
 
 function AdministrationPlaceholder({ title }: { title: string }) {
   return (
-    <main className="min-h-[100dvh] bg-[var(--color-canvas)] p-8 text-[var(--color-ink)]">
+    <main className="min-h-[100dvh] bg-background p-8 text-foreground">
       <h1 className="text-3xl font-normal">{title}</h1>
-      <p className="mt-4 text-[var(--color-ink-muted)]">此页面将在后续管理任务中完成。</p>
+      <p className="mt-4 text-muted-foreground">此页面将在后续管理任务中完成。</p>
     </main>
   );
 }
@@ -393,7 +393,7 @@ export function AppRouter({ router: activeRouter = router, restoreSession }: App
   if (!isInitialized) {
     return (
       <main
-        className="grid min-h-[100dvh] place-items-center bg-[var(--color-canvas)] text-sm text-[var(--color-ink-muted)]"
+        className="grid min-h-[100dvh] place-items-center bg-background text-sm text-muted-foreground"
         aria-live="polite"
       >
         正在恢复会话...

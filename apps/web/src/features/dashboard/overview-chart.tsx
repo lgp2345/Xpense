@@ -21,7 +21,7 @@ export function OverviewChart() {
           />
           <Bar
             dataKey="total"
-            fill="var(--color-income)"
+            fill="var(--chart-2)"
             isAnimationActive={!prefersReducedMotion}
             radius={[8, 8, 0, 0]}
           />

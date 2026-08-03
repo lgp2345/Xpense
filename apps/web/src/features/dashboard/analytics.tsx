@@ -1,6 +1,7 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@heroui/react/card";
 import { Activity, ChartNoAxesCombined, MousePointerClick, UsersRound } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 
 import { analyticsData } from "./dashboard-data";
 
@@ -19,9 +20,9 @@ const trafficLabel = analyticsData.traffic
 export function Analytics() {
   return (
     <div className="space-y-4">
-      <Card className="rounded-[var(--radius-analysis)] border-0 bg-[var(--color-surface-solid)] shadow-[var(--shadow-float)]">
+      <Card>
         <CardHeader>
-          <CardTitle>访问趋势</CardTitle>
+          <h2 className="leading-none font-semibold">访问趋势</h2>
           <CardDescription>本周访问量与独立访客</CardDescription>
         </CardHeader>
         <CardContent>
@@ -32,18 +33,18 @@ export function Analytics() {
                 <YAxis axisLine={false} fontSize={12} tickLine={false} width={40} />
                 <Area
                   dataKey="visits"
-                  fill="var(--color-income)"
+                  fill="var(--chart-2)"
                   fillOpacity={0.15}
                   isAnimationActive={!prefersReducedMotion}
-                  stroke="var(--color-income)"
+                  stroke="var(--chart-2)"
                   type="monotone"
                 />
                 <Area
                   dataKey="uniqueVisitors"
-                  fill="var(--color-budget)"
+                  fill="var(--chart-4)"
                   fillOpacity={0.1}
                   isAnimationActive={!prefersReducedMotion}
-                  stroke="var(--color-budget)"
+                  stroke="var(--chart-4)"
                   type="monotone"
                 />
               </AreaChart>
@@ -61,12 +62,9 @@ export function Analytics() {
           }
 
           return (
-            <Card
-              className="rounded-[var(--radius-card)] border-0 bg-[var(--color-surface-solid)] shadow-[var(--shadow-float)]"
-              key={metric.label}
-            >
-              <CardHeader className="flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">{metric.label}</CardTitle>
+            <Card key={metric.label}>
+              <CardHeader className="flex-row items-center justify-between pb-0">
+                <h3 className="text-sm font-semibold leading-none">{metric.label}</h3>
                 <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -106,9 +104,9 @@ function AnalyticsList({ description, items, percentage = false, title }: Analyt
   const maxValue = Math.max(...items.map((item) => item.value), 1);
 
   return (
-    <Card className="col-span-1 rounded-[var(--radius-card)] border-0 bg-[var(--color-surface-solid)] shadow-[var(--shadow-float)] lg:col-span-3 first:lg:col-span-4">
+    <Card className="col-span-1 lg:col-span-3 first:lg:col-span-4">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <h2 className="leading-none font-semibold">{title}</h2>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
@@ -121,7 +119,7 @@ function AnalyticsList({ description, items, percentage = false, title }: Analyt
                 <div className="min-w-0 flex-1">
                   <p className="mb-1 text-xs text-muted-foreground">{item.label}</p>
                   <div className="h-2.5 w-full bg-muted">
-                    <div className="h-2.5 bg-[var(--color-income)]" style={{ width }} />
+                    <div className="h-2.5 bg-chart-2" style={{ width }} />
                   </div>
                 </div>
                 <span className="text-xs font-medium tabular-nums">

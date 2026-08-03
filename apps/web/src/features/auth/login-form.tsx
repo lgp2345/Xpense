@@ -1,12 +1,10 @@
-import { CircleNotch } from "@phosphor-icons/react/dist/csr/CircleNotch";
-import { ShieldCheck } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 import { useForm } from "@tanstack/react-form";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
-import styles from "../../pages/login-page.module.css";
 import { getSafeRedirectPath } from "../../routes/safe-redirect";
 import {
   loginWebSession,
@@ -81,9 +79,9 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
   });
 
   return (
-    <div className={styles.formSurface}>
+    <div className="mt-8">
       <form
-        className={styles.loginForm}
+        className="space-y-5"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
@@ -97,15 +95,12 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
               : undefined;
 
             return (
-              <div className={styles.field}>
-                <Label className={styles.label} htmlFor="login-email">
-                  邮箱
-                </Label>
+              <div className="grid gap-2">
+                <Label htmlFor="login-email">邮箱</Label>
                 <Input
                   aria-describedby={error ? "login-email-error" : undefined}
                   aria-invalid={Boolean(error)}
                   autoComplete="email"
-                  className={styles.input}
                   id="login-email"
                   inputMode="email"
                   name={field.name}
@@ -115,7 +110,7 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
                   value={field.state.value}
                 />
                 {error ? (
-                  <p className={styles.fieldError} id="login-email-error" role="alert">
+                  <p className="text-sm text-destructive" id="login-email-error" role="alert">
                     {error}
                   </p>
                 ) : null}
@@ -131,15 +126,12 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
               : undefined;
 
             return (
-              <div className={styles.field}>
-                <Label className={styles.label} htmlFor="login-password">
-                  密码
-                </Label>
+              <div className="grid gap-2">
+                <Label htmlFor="login-password">密码</Label>
                 <Input
                   aria-describedby={error ? "login-password-error" : undefined}
                   aria-invalid={Boolean(error)}
                   autoComplete="current-password"
-                  className={styles.input}
                   id="login-password"
                   name={field.name}
                   onBlur={field.handleBlur}
@@ -148,7 +140,7 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
                   value={field.state.value}
                 />
                 {error ? (
-                  <p className={styles.fieldError} id="login-password-error" role="alert">
+                  <p className="text-sm text-destructive" id="login-password-error" role="alert">
                     {error}
                   </p>
                 ) : null}
@@ -158,17 +150,20 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
         </form.Field>
 
         {submitError ? (
-          <p className={styles.submitError} role="alert">
+          <p
+            className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            role="alert"
+          >
             {submitError}
           </p>
         ) : null}
 
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (
-            <Button className={styles.submitButton} disabled={isSubmitting} type="submit">
+            <Button className="w-full" disabled={isSubmitting} type="submit">
               {isSubmitting ? (
                 <>
-                  <CircleNotch className={styles.loadingIcon} size={18} />
+                  <Loader2 className="size-4 animate-spin" />
                   登录中...
                 </>
               ) : (
@@ -179,8 +174,8 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
         </form.Subscribe>
       </form>
 
-      <p className={styles.sessionNote}>
-        <ShieldCheck aria-hidden="true" size={18} />
+      <p className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <ShieldCheck aria-hidden="true" className="size-4" />
         刷新凭证仅保存在安全 Cookie 中
       </p>
     </div>

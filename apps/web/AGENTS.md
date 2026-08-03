@@ -15,9 +15,11 @@ WEB 端架构、技术栈、目录边界和页面定位详见同目录 `ARCHITEC
 - 使用 TypeScript 表达 props 类型，不使用 `propTypes`
 - refs 使用 callback ref 或 `useRef`，避免隐式行为
 - 测试优先使用 Testing Library，不使用 `react-test-renderer/shallow`
-- 禁止无明确必要性地新增全局页面或业务组件样式；复杂组件样式必须使用同目录 `*.module.css`
-- 简单布局、间距、尺寸和对齐优先使用 Tailwind；复杂视觉、组合选择器和响应式联动使用 CSS Modules
-- CSS Module 中不得默认使用 `@apply`；仅当短工具类组合语义稳定、至少重复三次且能明显提升可读性时使用，并先通过 `@reference` 引入全局 Tailwind 上下文
+- 简单布局、间距、尺寸和对齐优先使用 Tailwind；样式值读取 `theme.css` 设计 Token
+- 复杂视觉、组合选择器和响应式联动确有必要时使用同目录 `*.module.css`
+  （当前业务代码无 CSS Module，新增样式优先 Tailwind + shadcn Token）
+- CSS Module 中不得默认使用 `@apply`；仅当短工具类组合语义稳定、至少重复三次且能明显提升可读性时使用，
+  并先通过 `@reference` 引入全局 Tailwind 上下文
 - 未经架构方案确认，不得引入 Sass、Less、Stylus、CSS-in-JS 或新的样式框架
 
 ## React 技能规范
@@ -38,8 +40,9 @@ WEB 端架构、技术栈、目录边界和页面定位详见同目录 `ARCHITEC
 ## UI 与交互硬规则
 
 - 样式设计、视觉风格、布局和组件外观调整必须参考同目录 `DESIGN.md`
+- UI 组件统一使用 shadcn/ui（New York 风格）与 Radix 原语，图标使用 lucide-react
+- 遵循 `DESIGN.md` 与 `theme.css` 的统一 Token：基础圆角 `0.625rem`、语义色、chart Token 与 sidebar Token
 - 不做营销式 hero、大面积装饰背景或低信息密度卡片堆叠
-- 遵循 `DESIGN.md` 的统一超大圆角 Token：主分析面板 `32px`，普通卡片 `24px`，输入框与次级控件 `16px`，胶囊控件 `9999px`，圆形图标按钮使用 `50%`；表格行、分隔区域等非容器元素不额外添加圆角
 - 页面文本不得遮挡、溢出或依赖视口宽度缩放
 - 移动端至少保证主要查询和录入流程可用
 - 删除、批量操作和不可逆操作必须有确认反馈

@@ -1,168 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@heroui/styles";
 @import "./styles/theme.css";
 
 @custom-variant dark (&:is(.dark *));
-
-:root {
-  color: #163144;
-  background: #f4faf7;
-  font-family:
-    Urbanist, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", ui-sans-serif, sans-serif;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  --color-canvas: #f4faf7;
-  --color-canvas-cool: #dff3eb;
-  --color-canvas-blue: #d5e9e2;
-  --color-surface: rgb(255 255 255 / 64%);
-  --color-surface-solid: #f8fcfa;
-  --color-ink: #163144;
-  --color-ink-strong: #081018;
-  --color-ink-muted: #73898d;
-  --color-ink-soft: #a5c2bd;
-  --color-line: rgb(22 49 68 / 10%);
-  --color-line-strong: rgb(22 49 68 / 18%);
-  --color-income: #285e68;
-  --color-expense: #e76f67;
-  --color-budget: #7772c8;
-  --color-warning: #c98a4b;
-  --color-success: #3d7a68;
-  --radius-analysis: 32px;
-  --radius-card: 24px;
-  --radius-control: 16px;
-  --shadow-float: inset 0 1px 0 rgb(255 255 255 / 55%), 0 18px 52px rgb(42 79 91 / 7%);
-  --glass-surface-floating: rgb(255 255 255 / 24%);
-  --glass-surface-panel: rgb(255 255 255 / 22%);
-  --glass-surface-control: rgb(255 255 255 / 28%);
-  --glass-filter-floating: blur(26px) saturate(150%) contrast(1.04);
-  --glass-filter-panel: blur(20px) saturate(132%) contrast(1.02);
-  --glass-filter-control: blur(14px) saturate(124%);
-  --glass-shadow-floating: inset 0 -1px 0 rgb(255 255 255 / 14%), 0 22px 56px rgb(42 79 91 / 12%);
-  --glass-shadow-panel:
-    inset 0 1px 0 rgb(255 255 255 / 66%), inset 0 -1px 0 rgb(255 255 255 / 14%),
-    0 18px 48px rgb(42 79 91 / 6%);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-button,
-input {
-  font: inherit;
-}
-
-button,
-a {
-  -webkit-tap-highlight-color: transparent;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.foundation-shell {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 24px;
-  color: #fafafa;
-  background: #171717;
-}
-
-.foundation-panel {
-  width: min(100%, 680px);
-  border: 1px solid #2e2e2e;
-  border-radius: 8px;
-  padding: 28px;
-  background: #0f0f0f;
-}
-
-.foundation-kicker {
-  margin: 0 0 12px;
-  color: #3ecf8e;
-  font-size: 13px;
-}
-
-.foundation-panel h1 {
-  margin: 0;
-  color: #fafafa;
-  font-size: clamp(36px, 9vw, 64px);
-  line-height: 1.05;
-  letter-spacing: 0;
-}
-
-.foundation-panel button {
-  min-height: 40px;
-  border: 1px solid rgb(62 207 142 / 45%);
-  border-radius: 6px;
-  padding: 0 16px;
-  color: #04130c;
-  background: #3ecf8e;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.foundation-panel button:disabled {
-  cursor: wait;
-  opacity: 0.7;
-}
-
-.foundation-copy {
-  max-width: 52ch;
-  margin: 16px 0 24px;
-  color: #b4b4b4;
-  line-height: 1.7;
-}
-
-.foundation-result,
-.foundation-error {
-  display: block;
-  margin-top: 18px;
-  border: 1px solid #2e2e2e;
-  border-radius: 6px;
-  padding: 12px;
-}
-
-.foundation-result {
-  color: #fafafa;
-  background: rgba(62, 207, 142, 0.08);
-}
-
-.foundation-error {
-  color: #ffb4a8;
-  background: rgba(255, 120, 96, 0.08);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root {
-    --glass-surface-floating: rgb(248 252 250 / 96%);
-    --glass-surface-panel: rgb(248 252 250 / 92%);
-    --glass-surface-control: rgb(238 247 243 / 96%);
-    --glass-filter-floating: none;
-    --glass-filter-panel: none;
-    --glass-filter-control: none;
-  }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  :root {
-    --glass-surface-floating: rgb(248 252 250 / 96%);
-    --glass-surface-panel: rgb(248 252 250 / 92%);
-    --glass-surface-control: rgb(238 247 243 / 96%);
-    --glass-filter-floating: none;
-    --glass-filter-panel: none;
-    --glass-filter-control: none;
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -185,7 +25,14 @@ a {
   }
 
   body {
-    @apply min-h-svh w-full bg-background text-foreground;
+    @apply min-h-svh w-full bg-background font-sans text-foreground;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
 
   button:not(:disabled),

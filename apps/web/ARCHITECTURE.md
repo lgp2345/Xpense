@@ -13,10 +13,13 @@ WEB 端是个人记账系统的后台管理界面。
 - TypeScript
 - Vite 8
 - TanStack Router
+- TanStack Form + Zod（表单与校验）
 - Zustand
-- TailwindCSS
-- HeroUI
-- shadcn/ui
+- Tailwind CSS 4
+- shadcn/ui（New York 风格，Slate 基底）与 Radix 原语
+- lucide-react（图标）
+- recharts（数据可视化）
+- date-fns / react-day-picker（日期处理与日期选择器）
 
 ## 目录结构
 
@@ -51,31 +54,34 @@ WEB 端是个人记账系统的后台管理界面。
 
 ## UI 组件策略
 
-- HeroUI 作为主要业务 UI 组件库。
-- HeroUI 存在对应组件时必须优先使用 HeroUI。
-- shadcn/ui 作为补充，只在 HeroUI 没有对应组件或无法满足必要组合需求时使用。
-- TailwindCSS 用于布局、间距和少量定制样式。
+- shadcn/ui 是主要 UI 组件库，遵循 New York 风格与 `DESIGN.md` 规范。
+- 组件基于 Radix 原语与 Tailwind CSS 4 Token，样式值统一读取 `src/styles/theme.css`。
+- 表单统一使用 TanStack Form + Zod schema 校验。
+- 图标统一使用 lucide-react，不引入其他图标库。
+- TailwindCSS 用于布局、间距和定制样式；复杂组件局部样式确有必要时使用同目录 `*.module.css`。
 - 不重复封装已有稳定组件，除非能统一业务语义或减少明显重复。
 - 表格、筛选、表单、弹窗、日期范围、金额输入等高频控件应优先沉淀为可复用组件。
 
 ### 样式架构
 
-- WEB 样式统一采用 Tailwind CSS 4、HeroUI、全局 CSS Variables 和局部 CSS Modules。
-- `src/styles.css` 只负责 Tailwind 与 HeroUI 导入、设计 Token、Reset、基础元素规则和全局降级策略，不新增页面或业务组件专属类名。
+- WEB 样式统一采用 Tailwind CSS 4 + 全局 CSS Variables（shadcn Token）。
+- `src/styles.css` 只负责 Tailwind 与主题导入、Reset、基础元素规则和全局降级策略，
+  不新增页面或业务组件专属类名。
 - 简单、元素局部的布局、间距、尺寸、对齐和可访问性工具优先直接使用 Tailwind。
-- 复杂网格、SVG、玻璃材质、伪元素、组件状态和跨元素响应式联动使用与组件同目录的 `*.module.css`。
-- CSS Module 类名使用 camelCase，并通过默认导入 `styles` 引用；主题值继续读取 CSS Variables。
+- 复杂网格、SVG、伪元素、组件状态和跨元素响应式联动确有必要时，
+  可使用与组件同目录的 `*.module.css`；当前项目已无业务 CSS Module，新样式优先用 Tailwind 表达。
+- CSS Module 类名使用 camelCase，并通过默认导入 `styles` 引用；主题值读取 CSS Variables。
 - CSS Modules 使用现代 CSS nesting，不引入 Sass、Less 或 Stylus。
-- CSS Module 中确需使用 Tailwind 指令时先通过 `@reference` 引用全局样式入口；`@apply` 只用于语义稳定、至少重复三次且能明显提升可读性的短组合。
+- CSS Module 中确需使用 Tailwind 指令时先通过 `@reference` 引用全局样式入口；
+  `@apply` 只用于语义稳定、至少重复三次且能明显提升可读性的短组合。
 - 不使用 `@apply` 包装复杂组件，不创建含义宽泛的全局业务样式或共享样式文件。
-- HeroUI 负责稳定基础控件，Tailwind 和 CSS Modules 只调整布局、主题和必要的业务视觉，不依赖组件库内部非公开 DOM 结构。
 
 ## 样式与体验
 
 - 后台页面优先保证扫描、录入、筛选和批量操作效率。
 - 不做营销式 hero、大面积装饰背景或低信息密度卡片堆叠。
 - 页面文本不得遮挡、溢出或依赖视口宽度缩放。
-- 颜色使用应服务状态表达，如收入、支出、警告、成功、错误。
+- 颜色使用应服务状态表达：收入/成功、支出、警告、错误使用语义色，图表使用 chart Token。
 - 移动端至少保证主要查询和录入流程可用。
 
 ## API 与数据展示

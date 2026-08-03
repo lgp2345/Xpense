@@ -9,7 +9,7 @@ export function Header() {
   const { setOpen } = useSearch();
   const { setTheme, theme } = useTheme();
   return (
-    <header className="flex h-16 items-center gap-3 border-b border-[var(--color-line)] px-4">
+    <header className="flex h-16 items-center gap-3 border-b border-border px-4">
       <SidebarTrigger />
       <Separator orientation="vertical" className="h-6" />
       <div className="flex-1" />

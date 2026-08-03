@@ -7,7 +7,7 @@ export function RecentSales() {
     <ul aria-label="近期销售明细" className="space-y-6">
       {recentSales.map((sale) => (
         <li className="flex items-center gap-4" key={sale.email}>
-          <Avatar className="size-9 bg-[var(--color-canvas-blue)] text-[var(--color-ink)]">
+          <Avatar className="size-9 bg-muted text-foreground">
             <AvatarFallback>{sale.initials}</AvatarFallback>
           </Avatar>
           <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1">

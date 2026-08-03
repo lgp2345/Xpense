@@ -1,6 +1,7 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@heroui/react/card";
-import { Tab, TabList, TabPanel, Tabs } from "@heroui/react/tabs";
 import { Activity, CreditCard, DollarSign, Users } from "lucide-react";
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { Analytics } from "./analytics";
 import { dashboardMetrics } from "./dashboard-data";
@@ -14,26 +15,13 @@ export function Dashboard() {
     <main className="space-y-4 p-4 sm:p-6 lg:p-8" id="dashboard-main">
       <h1 className="text-2xl font-medium tracking-tight">仪表盘</h1>
 
-      <Tabs className="space-y-4" defaultSelectedKey="overview">
-        <TabList
-          aria-label="仪表盘视图"
-          className="inline-flex rounded-[var(--radius-control)] bg-muted p-1"
-        >
-          <Tab
-            className="rounded-[var(--radius-control)] px-3 py-1.5 text-sm font-medium"
-            id="overview"
-          >
-            总览
-          </Tab>
-          <Tab
-            className="rounded-[var(--radius-control)] px-3 py-1.5 text-sm font-medium"
-            id="analytics"
-          >
-            分析
-          </Tab>
-        </TabList>
+      <Tabs className="space-y-4" defaultValue="overview">
+        <TabsList aria-label="仪表盘视图">
+          <TabsTrigger value="overview">总览</TabsTrigger>
+          <TabsTrigger value="analytics">分析</TabsTrigger>
+        </TabsList>
 
-        <TabPanel className="space-y-4 outline-none" id="overview">
+        <TabsContent className="space-y-4 outline-none" value="overview">
           <section aria-label="核心指标" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {dashboardMetrics.map((metric, index) => {
               const Icon = metricIcons[index];
@@ -43,11 +31,8 @@ export function Dashboard() {
               }
 
               return (
-                <Card
-                  className="rounded-[var(--radius-card)] border-0 bg-[var(--color-surface-solid)] shadow-[var(--shadow-float)]"
-                  key={metric.label}
-                >
-                  <CardHeader className="flex-row items-center justify-between pb-2">
+                <Card key={metric.label}>
+                  <CardHeader className="flex-row items-center justify-between pb-0">
                     <CardTitle className="text-sm font-medium">{metric.label}</CardTitle>
                     <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
                   </CardHeader>
@@ -61,7 +46,7 @@ export function Dashboard() {
           </section>
 
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-7">
-            <Card className="col-span-1 rounded-[var(--radius-analysis)] border-0 bg-[var(--color-surface-solid)] shadow-[var(--shadow-float)] lg:col-span-4">
+            <Card className="col-span-1 lg:col-span-4">
               <CardHeader>
                 <CardTitle>概览</CardTitle>
               </CardHeader>
@@ -69,7 +54,7 @@ export function Dashboard() {
                 <OverviewChart />
               </CardContent>
             </Card>
-            <Card className="col-span-1 rounded-[var(--radius-card)] border-0 bg-[var(--color-surface-solid)] shadow-[var(--shadow-float)] lg:col-span-3">
+            <Card className="col-span-1 lg:col-span-3">
               <CardHeader>
                 <CardTitle>近期销售</CardTitle>
                 <CardDescription>本月已完成 265 笔销售。</CardDescription>
@@ -79,11 +64,11 @@ export function Dashboard() {
               </CardContent>
             </Card>
           </section>
-        </TabPanel>
+        </TabsContent>
 
-        <TabPanel className="outline-none" id="analytics">
+        <TabsContent className="outline-none" value="analytics">
           <Analytics />
-        </TabPanel>
+        </TabsContent>
       </Tabs>
     </main>
   );
