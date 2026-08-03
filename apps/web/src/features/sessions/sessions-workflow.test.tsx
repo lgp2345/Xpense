@@ -4,7 +4,7 @@ import type { PermissionKey } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AuthApi, SessionResponse } from "../../services/auth-api";
-import { SessionsPage } from "./sessions-page.js";
+import { SessionsPage } from "./sessions-page";
 
 const currentSession = {
   id: "session-1",
@@ -62,6 +62,12 @@ describe("SessionsPage", () => {
     );
 
     expect(screen.getByText("当前设备")).toBeInTheDocument();
+  });
+
+  it("shows the empty state when there are no sessions", () => {
+    renderSessionsPage(["sessions.read"], { sessions: [] });
+
+    expect(screen.getByText("当前没有可管理的会话。")).toBeInTheDocument();
   });
 
   it("hides revoke actions without sessions.revoke", () => {
@@ -141,6 +147,21 @@ describe("SessionsPage", () => {
     await waitFor(() => expect(onCurrentSessionRevoked).toHaveBeenCalledOnce());
     expect(api.revokeAllSessions).toHaveBeenCalledOnce();
     expect(api.listSessions).not.toHaveBeenCalled();
+  });
+
+  it("keeps the row visible and shows a safe error when revoking a session fails", async () => {
+    const user = userEvent.setup();
+    const api = createSessionsApi({
+      revokeSession: vi.fn().mockRejectedValue(new Error("authorization=secret")),
+    });
+    renderSessionsPage(["sessions.read", "sessions.revoke"], { api });
+
+    await user.click(screen.getByRole("button", { name: "撤销 session-2" }));
+    await user.click(screen.getByRole("button", { name: "确认撤销" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("撤销会话失败，请稍后刷新列表。");
+    expect(screen.getByRole("button", { name: "撤销 session-2" })).toBeInTheDocument();
+    expect(screen.queryByText(/authorization=secret/i)).not.toBeInTheDocument();
   });
 
   it("reports a successful revocation separately when refreshing the list fails", async () => {

@@ -1,8 +1,20 @@
-import { AlertDialog } from "@heroui/react/alert-dialog";
-import { Button } from "@heroui/react/button";
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { AuthApi } from "../../services/auth-api";
 import { webAuthApi } from "../../services/web-session";
 import { type SessionListItem, SessionTable } from "./session-table";
@@ -136,69 +148,65 @@ export function SessionsPage({
   const canRevoke = permissions.includes("sessions.revoke");
 
   return (
-    <main className="min-h-[100dvh] bg-[var(--color-canvas)] p-4 text-[var(--color-ink)] sm:p-8">
-      <section className="mx-auto max-w-7xl">
-        <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-sm text-[var(--color-ink-muted)]">账号安全</p>
-            <h1 className="mt-1 text-3xl font-normal">会话管理</h1>
-          </div>
-          {canRevoke ? (
-            <AlertDialog>
-              <AlertDialog.Trigger className="inline-flex min-h-10 items-center justify-center rounded-[var(--xp-radius-pill)] bg-[var(--color-ink)] px-4 text-sm text-[var(--color-surface-solid)]">
-                撤销全部会话
-              </AlertDialog.Trigger>
-              <AlertDialog.Backdrop>
-                <AlertDialog.Container size="sm">
-                  <AlertDialog.Dialog>
-                    <AlertDialog.Header>
-                      <AlertDialog.Heading>确认撤销全部会话</AlertDialog.Heading>
-                    </AlertDialog.Header>
-                    <AlertDialog.Body>
-                      撤销后，所有设备都需要重新登录才能继续访问。
-                    </AlertDialog.Body>
-                    <AlertDialog.Footer>
-                      <Button slot="close" variant="secondary">
-                        取消
-                      </Button>
-                      <Button
-                        isDisabled={isMutating}
-                        slot="close"
-                        onPress={() => void handleRevokeAll()}
-                      >
-                        确认全部撤销
-                      </Button>
-                    </AlertDialog.Footer>
-                  </AlertDialog.Dialog>
-                </AlertDialog.Container>
-              </AlertDialog.Backdrop>
-            </AlertDialog>
-          ) : null}
-        </header>
-
-        {error ? (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3" role="alert">
-            <span>{error.message}</span>
-            <Button variant="secondary" onPress={() => void handleRetry()}>
-              {error.retryLabel}
-            </Button>
-          </div>
+    <main className="space-y-4 p-4 sm:p-6 lg:p-8">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-medium tracking-tight">会话管理</h1>
+          <p className="text-sm text-muted-foreground">账号安全</p>
+        </div>
+        {canRevoke ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button>撤销全部会话</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>确认撤销全部会话</AlertDialogTitle>
+                <AlertDialogDescription>
+                  撤销后，所有设备都需要重新登录才能继续访问。
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction disabled={isMutating} onClick={() => void handleRevokeAll()}>
+                  确认全部撤销
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         ) : null}
+      </header>
 
-        {isLoading ? (
-          <p aria-live="polite" className="py-10 text-sm text-[var(--color-ink-muted)]">
-            正在加载会话...
-          </p>
-        ) : (
-          <SessionTable
-            canRevoke={canRevoke}
-            currentSessionId={currentSessionId}
-            isMutating={isMutating}
-            sessions={sessionItems}
-            onRevoke={handleRevoke}
-          />
-        )}
-      </section>
+      {error ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
+        >
+          <span>{error.message}</span>
+          <Button size="sm" variant="outline" onClick={() => void handleRetry()}>
+            {error.retryLabel}
+          </Button>
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <Card>
+          <CardContent className="space-y-3 p-4" aria-live="polite">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <span className="sr-only">正在加载会话...</span>
+          </CardContent>
+        </Card>
+      ) : (
+        <SessionTable
+          canRevoke={canRevoke}
+          currentSessionId={currentSessionId}
+          isMutating={isMutating}
+          sessions={sessionItems}
+          onRevoke={handleRevoke}
+        />
+      )}
     </main>
   );
 }

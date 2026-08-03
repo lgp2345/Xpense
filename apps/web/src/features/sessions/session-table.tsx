@@ -1,8 +1,27 @@
-import { AlertDialog } from "@heroui/react/alert-dialog";
-import { Button } from "@heroui/react/button";
-import { Table } from "@heroui/react/table";
 import type { ClientType } from "@xpense/shared";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { SessionResponse } from "../../services/auth-api";
 
 export type SessionListItem = Pick<
@@ -13,9 +32,9 @@ export type SessionListItem = Pick<
 };
 
 type SessionTableProps = {
+  canRevoke: boolean;
   currentSessionId?: string;
   isMutating: boolean;
-  canRevoke: boolean;
   sessions: SessionListItem[];
   onRevoke: (sessionId: string) => Promise<void>;
 };
@@ -34,76 +53,75 @@ export function SessionTable({
 }: SessionTableProps) {
   if (sessions.length === 0) {
     return (
-      <p className="py-10 text-center text-sm text-[var(--color-ink-muted)]">
-        当前没有可管理的会话。
-      </p>
+      <p className="py-10 text-center text-sm text-muted-foreground">当前没有可管理的会话。</p>
     );
   }
 
   return (
-    <Table className="overflow-hidden rounded-[var(--xp-radius-card)] bg-[var(--color-surface-solid)]">
-      <Table.ScrollContainer>
-        <Table.Content aria-label="会话列表">
-          <Table.Header>
-            <Table.Column isRowHeader>设备类型</Table.Column>
-            <Table.Column>设备名称</Table.Column>
-            <Table.Column>最近使用</Table.Column>
-            <Table.Column>状态</Table.Column>
-            <Table.Column>设备标记</Table.Column>
-            <Table.Column>操作</Table.Column>
-          </Table.Header>
-          <Table.Body items={sessions}>
-            {(session) => {
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>设备类型</TableHead>
+              <TableHead>设备名称</TableHead>
+              <TableHead>最近使用</TableHead>
+              <TableHead>状态</TableHead>
+              <TableHead>设备标记</TableHead>
+              <TableHead className="text-right">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sessions.map((session) => {
               const isCurrent = session.id === currentSessionId;
               const canRevokeSession = canRevoke && session.status === "active";
 
               return (
-                <Table.Row id={session.id}>
-                  <Table.Cell>{getClientTypeLabel(session.clientType)}</Table.Cell>
-                  <Table.Cell>{session.deviceName ?? "未命名设备"}</Table.Cell>
-                  <Table.Cell>{formatLastUsedAt(session.lastUsedAt)}</Table.Cell>
-                  <Table.Cell>{session.status === "active" ? "有效" : "已撤销"}</Table.Cell>
-                  <Table.Cell>{isCurrent ? "当前设备" : ""}</Table.Cell>
-                  <Table.Cell>
+                <TableRow key={session.id}>
+                  <TableCell className="font-medium">
+                    {getClientTypeLabel(session.clientType)}
+                  </TableCell>
+                  <TableCell>{session.deviceName ?? "未命名设备"}</TableCell>
+                  <TableCell>{formatLastUsedAt(session.lastUsedAt)}</TableCell>
+                  <TableCell>
+                    <Badge variant={session.status === "active" ? "default" : "secondary"}>
+                      {session.status === "active" ? "有效" : "已撤销"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{isCurrent ? "当前设备" : ""}</TableCell>
+                  <TableCell className="text-right">
                     {canRevokeSession ? (
                       <AlertDialog>
-                        <AlertDialog.Trigger className="inline-flex min-h-10 items-center justify-center rounded-[var(--xp-radius-control)] px-3 text-sm text-[var(--color-error)] outline outline-1 outline-[var(--color-line-strong)]">
-                          撤销 {session.id}
-                        </AlertDialog.Trigger>
-                        <AlertDialog.Backdrop>
-                          <AlertDialog.Container size="sm">
-                            <AlertDialog.Dialog>
-                              <AlertDialog.Header>
-                                <AlertDialog.Heading>确认撤销会话</AlertDialog.Heading>
-                              </AlertDialog.Header>
-                              <AlertDialog.Body>
-                                撤销后，该设备需要重新登录才能继续访问。
-                              </AlertDialog.Body>
-                              <AlertDialog.Footer>
-                                <Button slot="close" variant="secondary">
-                                  取消
-                                </Button>
-                                <Button
-                                  isDisabled={isMutating}
-                                  slot="close"
-                                  onPress={() => void onRevoke(session.id)}
-                                >
-                                  确认撤销
-                                </Button>
-                              </AlertDialog.Footer>
-                            </AlertDialog.Dialog>
-                          </AlertDialog.Container>
-                        </AlertDialog.Backdrop>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline">撤销 {session.id}</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>确认撤销会话</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              撤销后，该设备需要重新登录才能继续访问。
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>取消</AlertDialogCancel>
+                            <AlertDialogAction
+                              disabled={isMutating}
+                              onClick={() => void onRevoke(session.id)}
+                            >
+                              确认撤销
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
                       </AlertDialog>
                     ) : null}
-                  </Table.Cell>
-                </Table.Row>
+                  </TableCell>
+                </TableRow>
               );
-            }}
-          </Table.Body>
-        </Table.Content>
-      </Table.ScrollContainer>
-    </Table>
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -1,3 +1,6 @@
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 export type AuditLogSearch = {
   action?: string;
   actorUserId?: string;
@@ -8,8 +11,8 @@ export type AuditLogSearch = {
 };
 
 type AuditLogFiltersProps = {
-  search: AuditLogSearch;
   onChange: (search: AuditLogSearch) => void;
+  search: AuditLogSearch;
 };
 
 type FilterField = Exclude<keyof AuditLogSearch, "page">;
@@ -22,26 +25,25 @@ const fields: Array<{ key: FilterField; label: string; type?: "date" }> = [
   { key: "to", label: "结束日期", type: "date" },
 ];
 
-export function AuditLogFilters({ search, onChange }: AuditLogFiltersProps) {
+export function AuditLogFilters({ onChange, search }: AuditLogFiltersProps) {
   function updateFilter(field: FilterField, value: string) {
     const nextSearch = { ...search, page: undefined, [field]: value || undefined };
     onChange(removeEmptySearchValues(nextSearch));
   }
 
   return (
-    <fieldset className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <fieldset className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       <legend className="sr-only">筛选审计日志</legend>
       {fields.map(({ key, label, type = "text" }) => (
-        <label className="grid gap-1 text-sm text-[var(--color-ink-muted)]" key={key}>
-          {label}
-          <input
-            aria-label={label}
-            className="min-h-10 rounded-[var(--xp-radius-control)] border border-[var(--color-line)] bg-[var(--color-surface-solid)] px-3 text-[var(--color-ink)] outline-none transition focus:border-[var(--color-line-strong)]"
+        <div className="grid gap-2" key={key}>
+          <Label htmlFor={`audit-${key}`}>{label}</Label>
+          <Input
+            id={`audit-${key}`}
             type={type}
             value={search[key] ?? ""}
             onChange={(event) => updateFilter(key, event.currentTarget.value)}
           />
-        </label>
+        </div>
       ))}
     </fieldset>
   );
@@ -49,6 +51,6 @@ export function AuditLogFilters({ search, onChange }: AuditLogFiltersProps) {
 
 function removeEmptySearchValues(search: AuditLogSearch): AuditLogSearch {
   return Object.fromEntries(
-    Object.entries(search).filter(([, value]) => value !== undefined && value !== ""),
+    Object.entries(search).filter(([, value]) => value !== ""),
   ) as AuditLogSearch;
 }

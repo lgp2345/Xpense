@@ -1,7 +1,9 @@
-import { Button } from "@heroui/react/button";
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { AuditLogRecord, IamApi, ListAuditLogsQuery } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
 import { AuditLogFilters, type AuditLogSearch } from "./audit-log-filters";
@@ -17,12 +19,14 @@ type AuditLogsPageProps = {
   search?: AuditLogSearch;
 };
 
+const EMPTY_SEARCH: AuditLogSearch = {};
+
 export function AuditLogsPage({
   api = webIamApi,
   logs,
   onSearchChange,
   permissions,
-  search = {},
+  search = EMPTY_SEARCH,
 }: AuditLogsPageProps) {
   const canRead = permissions.includes("audit_logs.read");
   const hasInitialLogs = logs !== undefined;
@@ -68,70 +72,77 @@ export function AuditLogsPage({
 
   if (!canRead) {
     return (
-      <main className="min-h-[100dvh] bg-[var(--color-canvas)] p-4 text-[var(--color-ink)] sm:p-8">
-        <section className="mx-auto max-w-7xl">
-          <h1 className="text-3xl font-normal">审计日志</h1>
-          <p className="mt-4 text-sm text-[var(--color-ink-muted)]">你没有查看审计日志的权限。</p>
-        </section>
+      <main className="space-y-4 p-4 sm:p-6 lg:p-8">
+        <h1 className="text-2xl font-medium tracking-tight">审计日志</h1>
+        <p className="text-sm text-muted-foreground">你没有查看审计日志的权限。</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-[100dvh] bg-[var(--color-canvas)] p-4 text-[var(--color-ink)] sm:p-8">
-      <section className="mx-auto max-w-7xl">
-        <header className="mb-8">
-          <p className="text-sm text-[var(--color-ink-muted)]">组织访问控制</p>
-          <h1 className="mt-1 text-3xl font-normal">审计日志</h1>
-        </header>
+    <main className="space-y-4 p-4 sm:p-6 lg:p-8">
+      <header>
+        <h1 className="text-2xl font-medium tracking-tight">审计日志</h1>
+        <p className="text-sm text-muted-foreground">组织访问控制</p>
+      </header>
 
-        <AuditLogFilters search={search} onChange={onSearchChange ?? (() => undefined)} />
+      <AuditLogFilters search={search} onChange={onSearchChange ?? (() => undefined)} />
 
-        {errorMessage ? (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3" role="alert">
-            <span>{errorMessage}</span>
+      {errorMessage ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
+        >
+          <span>{errorMessage}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setErrorMessage(null);
+              void refreshLogs().catch(() => setErrorMessage("加载审计日志失败，请稍后重试。"));
+            }}
+          >
+            重试
+          </Button>
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <Card>
+          <CardContent className="space-y-3 p-4" aria-live="polite">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <span className="sr-only">正在加载审计日志...</span>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <AuditLogTable logs={logItems} />
+          <nav
+            aria-label="审计日志分页"
+            className="flex items-center justify-end gap-3 text-sm text-muted-foreground"
+          >
             <Button
-              variant="secondary"
-              onPress={() => {
-                setErrorMessage(null);
-                void refreshLogs().catch(() => setErrorMessage("加载审计日志失败，请稍后重试。"));
-              }}
+              disabled={(search.page ?? 1) <= 1}
+              size="sm"
+              variant="outline"
+              onClick={() => onSearchChange?.({ ...search, page: (search.page ?? 1) - 1 })}
             >
-              重试
+              上一页
             </Button>
-          </div>
-        ) : null}
-
-        {isLoading ? (
-          <p aria-live="polite" className="py-10 text-sm text-[var(--color-ink-muted)]">
-            正在加载审计日志...
-          </p>
-        ) : (
-          <>
-            <AuditLogTable logs={logItems} />
-            <nav
-              aria-label="审计日志分页"
-              className="mt-4 flex items-center justify-end gap-3 text-sm text-[var(--color-ink-muted)]"
+            <span>第 {search.page ?? 1} 页</span>
+            <Button
+              disabled={logItems.length === 0}
+              size="sm"
+              variant="outline"
+              onClick={() => onSearchChange?.({ ...search, page: (search.page ?? 1) + 1 })}
             >
-              <Button
-                isDisabled={(search.page ?? 1) <= 1}
-                variant="secondary"
-                onPress={() => onSearchChange?.({ ...search, page: (search.page ?? 1) - 1 })}
-              >
-                上一页
-              </Button>
-              <span>第 {search.page ?? 1} 页</span>
-              <Button
-                isDisabled={logItems.length === 0}
-                variant="secondary"
-                onPress={() => onSearchChange?.({ ...search, page: (search.page ?? 1) + 1 })}
-              >
-                下一页
-              </Button>
-            </nav>
-          </>
-        )}
-      </section>
+              下一页
+            </Button>
+          </nav>
+        </>
+      )}
     </main>
   );
 }
