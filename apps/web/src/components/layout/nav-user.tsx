@@ -1,5 +1,6 @@
 import { ChevronsUpDown, LogOut } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useStore } from "zustand";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -28,62 +29,53 @@ export function NavUser({ session }: { session: WebSessionDependency }) {
   const isMobile = useSidebar().isMobile;
   const user = useStore(authStore, (state) => state.currentUser);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const email = user?.email ?? "未登录";
   async function handleLogout() {
     if (isLoggingOut) return;
-    setErrorMessage(null);
     setIsLoggingOut(true);
     try {
       await logoutWebSession(authApi, authStore);
     } catch {
-      setErrorMessage("退出登录失败，请稍后重试。");
+      toast.error("退出登录失败，请稍后重试。");
     } finally {
       setIsLoggingOut(false);
     }
   }
   return (
-    <>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <SidebarMenuButton size="lg">
-                <Avatar>
-                  <AvatarFallback>{initials(email)}</AvatarFallback>
-                </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{email}</span>
-                  <span className="truncate text-xs">当前账号</span>
-                </div>
-                <ChevronsUpDown className="ml-auto size-4" />
-              </SidebarMenuButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              side={isMobile ? "bottom" : "right"}
-              align="end"
-              sideOffset={4}
-              className="min-w-56"
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton size="lg">
+              <Avatar>
+                <AvatarFallback>{initials(email)}</AvatarFallback>
+              </Avatar>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{email}</span>
+                <span className="truncate text-xs">当前账号</span>
+              </div>
+              <ChevronsUpDown className="ml-auto size-4" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side={isMobile ? "bottom" : "right"}
+            align="end"
+            sideOffset={4}
+            className="min-w-56"
+          >
+            <DropdownMenuLabel>{email}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={isLoggingOut}
+              variant="destructive"
+              onSelect={() => void handleLogout()}
             >
-              <DropdownMenuLabel>{email}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                disabled={isLoggingOut}
-                variant="destructive"
-                onSelect={() => void handleLogout()}
-              >
-                <LogOut />
-                {isLoggingOut ? "正在退出..." : "退出登录"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarMenuItem>
-      </SidebarMenu>
-      {errorMessage ? (
-        <p role="alert" className="px-2 text-sm text-destructive">
-          {errorMessage}
-        </p>
-      ) : null}
-    </>
+              <LogOut />
+              {isLoggingOut ? "正在退出..." : "退出登录"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }

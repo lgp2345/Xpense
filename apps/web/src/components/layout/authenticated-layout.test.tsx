@@ -5,12 +5,14 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { CurrentUserResponse } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
+import { useStore } from "zustand";
 
 import { AppProviders } from "@/components/app-providers";
-import { createWebSession } from "@/services/web-session";
+import { createWebSession, type WebSessionDependency } from "@/services/web-session";
 import { createAuthStore } from "@/stores/auth-store";
 
 import { AuthenticatedLayout } from "./authenticated-layout";
@@ -22,6 +24,12 @@ const userContext: CurrentUserResponse = {
   permissions: ["members.read"],
   session: { id: "session-1", clientType: "web_pc" },
 };
+
+function ConditionalAuthenticatedLayout({ session }: { session: WebSessionDependency }) {
+  const isAuthenticated = useStore(session.authStore, (state) => state.status === "authenticated");
+
+  return isAuthenticated ? <AuthenticatedLayout session={session} /> : <p>已退出</p>;
+}
 
 describe("AuthenticatedLayout", () => {
   it("呈现当前会话的组织、邮箱与获授权导航控制项", async () => {
@@ -58,5 +66,52 @@ describe("AuthenticatedLayout", () => {
     expect(document.querySelector('[data-sidebar="trigger"]')).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "切换主题" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "搜索命令" })).toBeInTheDocument();
+  });
+
+  it("在退出请求失败且壳层卸载后仍显示全局错误反馈", async () => {
+    const user = userEvent.setup();
+    const store = createAuthStore({ accessToken: "access-token" });
+    store.getState().setCurrentUserContext(userContext);
+    let rejectLogout: (reason?: unknown) => void = () => undefined;
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      fetchImpl: vi.fn((input: string | URL | Request) => {
+        if (String(input).endsWith("/auth/logout")) {
+          return new Promise<Response>((_resolve, reject) => {
+            rejectLogout = reject;
+          });
+        }
+
+        return Promise.resolve(new Response(JSON.stringify([])));
+      }) as typeof fetch,
+    });
+    const rootRoute = createRootRoute({
+      component: () => <ConditionalAuthenticatedLayout session={session} />,
+    });
+    const indexRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/",
+      component: () => <main>受保护内容</main>,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([indexRoute]),
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+    });
+
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: /owner@example.com/ }));
+    await user.click(screen.getByRole("menuitem", { name: "退出登录" }));
+
+    expect(await screen.findByText("已退出")).toBeInTheDocument();
+
+    await act(async () => rejectLogout(new Error("logout failed")));
+
+    expect(await screen.findByText("退出登录失败，请稍后重试。")).toBeInTheDocument();
   });
 });
