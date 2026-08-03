@@ -12,7 +12,7 @@ import {
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
-
+import { AuthenticatedLayout } from "../components/layout/authenticated-layout";
 import type { AuditLogSearch } from "../features/audit/audit-log-filters";
 import { AuditLogsPage } from "../features/audit/audit-logs-page";
 import { MembersPage } from "../features/members/members-page";
@@ -66,10 +66,16 @@ const loginRoute = createRoute({
   component: LoginRoutePage,
 });
 
-const indexRoute = createRoute({
+const authenticatedRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/",
+  id: "_authenticated",
   beforeLoad: ({ context, location }) => requireRouteAccess(context, location),
+  component: AuthenticatedRoutePage,
+});
+
+const indexRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: "/",
   component: DashboardRoutePage,
 });
 
@@ -113,14 +119,16 @@ const auditLogsRoute = createProtectedAdministrationRoute(
 );
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
   loginRoute,
   forbiddenRoute,
   foundationRoute,
-  membersRoute,
-  rolesRoute,
-  sessionsRoute,
-  auditLogsRoute,
+  authenticatedRoute.addChildren([
+    indexRoute,
+    membersRoute,
+    rolesRoute,
+    sessionsRoute,
+    auditLogsRoute,
+  ]),
 ]);
 
 function createProtectedAdministrationRoute(
@@ -131,12 +139,18 @@ function createProtectedAdministrationRoute(
   validateSearch?: (search: Record<string, unknown>) => AuditLogSearch,
 ) {
   return createRoute({
-    getParentRoute: () => rootRoute,
+    getParentRoute: () => authenticatedRoute,
     path,
     beforeLoad: ({ context, location }) => requireRouteAccess(context, location, permission),
     component: component ?? (() => <AdministrationPlaceholder title={title} />),
     validateSearch,
   });
+}
+
+function AuthenticatedRoutePage() {
+  const { session } = authenticatedRoute.useRouteContext();
+
+  return <AuthenticatedLayout session={session} />;
 }
 
 function MembersRoutePage() {

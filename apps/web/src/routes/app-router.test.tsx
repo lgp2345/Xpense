@@ -5,6 +5,7 @@ import type { CurrentUserResponse } from "@xpense/shared";
 import { StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { AppProviders } from "../components/app-providers";
 import { createWebSession } from "../services/web-session";
 import { authStore, createAuthStore } from "../stores/auth-store";
 import { AppRouter, createAppRouter } from "./router";
@@ -39,7 +40,7 @@ function createTestSession(store: ReturnType<typeof createAuthStore>) {
   return createWebSession({
     authStore: store,
     baseUrl: "http://localhost:4000",
-    fetchImpl: vi.fn().mockResolvedValue(jsonResponse([])) as typeof fetch,
+    fetchImpl: vi.fn(() => Promise.resolve(jsonResponse([]))) as typeof fetch,
   });
 }
 
@@ -73,7 +74,11 @@ describe("AppRouter startup", () => {
         }),
     );
 
-    render(<AppRouter restoreSession={restoreSession} router={router} />);
+    render(
+      <AppProviders>
+        <AppRouter restoreSession={restoreSession} router={router} />
+      </AppProviders>,
+    );
 
     expect(screen.getByText("正在恢复会话...")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "财务洞察" })).not.toBeInTheDocument();
@@ -91,9 +96,11 @@ describe("AppRouter startup", () => {
     });
 
     render(
-      <StrictMode>
-        <AppRouter restoreSession={restoreSession} router={router} />
-      </StrictMode>,
+      <AppProviders>
+        <StrictMode>
+          <AppRouter restoreSession={restoreSession} router={router} />
+        </StrictMode>
+      </AppProviders>,
     );
 
     expect(restoreSession).toHaveBeenCalledTimes(1);
@@ -119,7 +126,11 @@ describe("AppRouter startup", () => {
       session: createTestSession(store),
     });
 
-    render(<AppRouter restoreSession={vi.fn().mockResolvedValue(true)} router={router} />);
+    render(
+      <AppProviders>
+        <AppRouter restoreSession={vi.fn().mockResolvedValue(true)} router={router} />
+      </AppProviders>,
+    );
     expect(await screen.findByRole("heading", { name: "成员管理" })).toBeInTheDocument();
 
     act(() => store.getState().clearAuth());
@@ -161,9 +172,13 @@ describe("AppRouter startup", () => {
     });
 
     try {
-      render(<AppRouter restoreSession={vi.fn().mockResolvedValue(true)} router={router} />);
+      render(
+        <AppProviders>
+          <AppRouter restoreSession={vi.fn().mockResolvedValue(true)} router={router} />
+        </AppProviders>,
+      );
 
-      expect(await screen.findByText("injected@example.com")).toBeInTheDocument();
+      expect((await screen.findAllByText("injected@example.com")).length).toBeGreaterThan(0);
       expect(screen.queryByText("global@example.com")).not.toBeInTheDocument();
       await vi.waitFor(() =>
         expect(fetchMock).toHaveBeenCalledWith(
@@ -172,7 +187,8 @@ describe("AppRouter startup", () => {
         ),
       );
 
-      await user.click(screen.getByRole("button", { name: "退出登录" }));
+      await user.click(screen.getByRole("button", { name: /injected@example.com/ }));
+      await user.click(screen.getByRole("menuitem", { name: "退出登录" }));
 
       expect(await screen.findByRole("heading", { name: "登录到你的账本" })).toBeInTheDocument();
       expect(store.getState()).toMatchObject({ accessToken: null, status: "anonymous" });
@@ -211,9 +227,13 @@ describe("AppRouter startup", () => {
       history: createMemoryHistory({ initialEntries: ["/"] }),
     });
 
-    render(<AppRouter router={router} />);
+    render(
+      <AppProviders>
+        <AppRouter router={router} />
+      </AppProviders>,
+    );
 
-    expect(await screen.findByText("injected@example.com")).toBeInTheDocument();
+    expect((await screen.findAllByText("injected@example.com")).length).toBeGreaterThan(0);
     expect(store.getState()).toMatchObject({
       accessToken: "restored-injected-access",
       currentUser: injectedUserContext.user,

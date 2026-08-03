@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-
+import { SearchProvider } from "@/context/search-provider";
 import { ThemeProvider } from "@/context/theme-provider";
 
 import { Toaster } from "./ui/sonner";
@@ -12,10 +12,12 @@ type AppProvidersProps = {
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <ThemeProvider>
-      <TooltipProvider>
-        {children}
-        <Toaster />
-      </TooltipProvider>
+      <SearchProvider>
+        <TooltipProvider>
+          {children}
+          <Toaster />
+        </TooltipProvider>
+      </SearchProvider>
     </ThemeProvider>
   );
 }

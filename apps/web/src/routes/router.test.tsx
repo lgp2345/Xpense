@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { PermissionKey } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
+import { AppProviders } from "../components/app-providers";
 import { createWebSession } from "../services/web-session";
 import { createAuthStore } from "../stores/auth-store";
 import { createAppRouter, protectedRoutePermissions } from "./router";
@@ -89,7 +90,11 @@ describe("router auth guards", () => {
   it("renders the roles management page instead of the administration placeholder", async () => {
     const router = await loadPath("/roles", ["roles.read"]);
 
-    render(<RouterProvider router={router} />);
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
 
     expect(await screen.findByRole("heading", { name: "角色管理" })).toBeInTheDocument();
     expect(screen.getByText("组织访问控制")).toBeInTheDocument();
@@ -99,7 +104,11 @@ describe("router auth guards", () => {
   it("renders the sessions management page instead of the administration placeholder", async () => {
     const router = await loadPath("/sessions", ["sessions.read"]);
 
-    render(<RouterProvider router={router} />);
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
 
     expect(await screen.findByRole("heading", { name: "会话管理" })).toBeInTheDocument();
     expect(screen.getByText("账号安全")).toBeInTheDocument();
@@ -126,7 +135,11 @@ describe("router auth guards", () => {
     });
     await router.load();
 
-    render(<RouterProvider router={router} />);
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
 
     expect(await screen.findByRole("heading", { name: "审计日志" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "操作" })).toHaveValue("role.created");
@@ -165,11 +178,22 @@ describe("router auth guards", () => {
     });
     await router.load();
 
-    render(<RouterProvider router={router} />);
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
 
     expect(await screen.findByRole("heading", { name: "审计日志" })).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    expect(String(fetchMock.mock.calls[0]?.[0])).not.toMatch(/[?&](from|to)=/);
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.find(([input]) => String(input).includes("/audit-logs")),
+      ).toBeDefined(),
+    );
+    const auditLogRequest = fetchMock.mock.calls.find(([input]) =>
+      String(input).includes("/audit-logs"),
+    );
+    expect(String(auditLogRequest?.[0])).not.toMatch(/[?&](from|to)=/);
   });
 
   it("clears authentication and navigates to login after revoking the current session", async () => {
@@ -205,7 +229,11 @@ describe("router auth guards", () => {
     });
     await router.load();
 
-    render(<RouterProvider router={router} />);
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
 
     await user.click(await screen.findByRole("button", { name: "撤销 session-1" }));
     await user.click(screen.getByRole("button", { name: "确认撤销" }));
