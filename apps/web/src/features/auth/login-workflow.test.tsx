@@ -52,6 +52,19 @@ describe("LoginPage", () => {
     expect(session.authApi.login).not.toHaveBeenCalled();
   });
 
+  it("shows the Zod email-format error without calling the API", async () => {
+    const user = userEvent.setup();
+    const session = createLoginTestSession();
+    render(<LoginPage session={session} />);
+
+    await user.type(screen.getByRole("textbox", { name: "邮箱" }), "not-an-email");
+    await user.type(screen.getByLabelText("密码"), "password");
+    await user.click(screen.getByRole("button", { name: "登录" }));
+
+    expect(await screen.findByText("请输入有效的邮箱地址")).toBeVisible();
+    expect(session.authApi.login).not.toHaveBeenCalled();
+  });
+
   it("shows a safe invalid-credential message", async () => {
     const user = userEvent.setup();
     const session = createLoginTestSession();

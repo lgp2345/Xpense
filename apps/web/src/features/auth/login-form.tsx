@@ -84,6 +84,7 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
     <div className={styles.formSurface}>
       <form
         className={styles.loginForm}
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
           void form.handleSubmit();
