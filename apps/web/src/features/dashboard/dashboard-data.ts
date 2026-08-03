@@ -1,130 +1,64 @@
-import type { Icon } from "@phosphor-icons/react";
-import { Bank } from "@phosphor-icons/react/dist/csr/Bank";
-import { Bell } from "@phosphor-icons/react/dist/csr/Bell";
-import { ChartLineUp } from "@phosphor-icons/react/dist/csr/ChartLineUp";
-import { ChartPieSlice } from "@phosphor-icons/react/dist/csr/ChartPieSlice";
-import { ClockCountdown } from "@phosphor-icons/react/dist/csr/ClockCountdown";
-import { CreditCard } from "@phosphor-icons/react/dist/csr/CreditCard";
-import { ForkKnife } from "@phosphor-icons/react/dist/csr/ForkKnife";
-import { House } from "@phosphor-icons/react/dist/csr/House";
-import { Receipt } from "@phosphor-icons/react/dist/csr/Receipt";
-import { ShoppingBag } from "@phosphor-icons/react/dist/csr/ShoppingBag";
-import { Sparkle } from "@phosphor-icons/react/dist/csr/Sparkle";
-import { TrendUp } from "@phosphor-icons/react/dist/csr/TrendUp";
-import { Wallet } from "@phosphor-icons/react/dist/csr/Wallet";
-
-export type NavigationItem = {
-  label: string;
-  icon: Icon;
-  badge?: string;
-  isActive?: boolean;
-};
-
-export type Transaction = {
-  name: string;
-  meta: string;
-  amount: string;
-  tone: "income" | "expense";
-  icon: Icon;
-};
-
-export type Account = {
-  name: string;
-  type: string;
-  balance: string;
-  value: number;
-};
-
-export const navigationItems: NavigationItem[] = [
-  { label: "财务洞察", icon: ChartLineUp, isActive: true },
-  { label: "交易记录", icon: Receipt, badge: "2" },
-  { label: "账户", icon: Wallet },
-  { label: "预算管理", icon: ChartPieSlice },
-  { label: "统计分析", icon: TrendUp, badge: "15+" },
-  { label: "周期账单", icon: ClockCountdown, badge: "3" },
-];
-
-export const moduleCards = [
-  {
-    title: "财务总览",
-    subtitle: "本月概览",
-    previewLabel: "结余",
-    previewValue: "¥28,560.00",
-    tone: "violet",
-  },
-  {
-    title: "预算使用",
-    subtitle: "本月预算",
-    previewLabel: "预算趋势",
-    previewValue: "68.7%",
-    tone: "violet",
-  },
-  {
-    title: "即将到期账单",
-    subtitle: "未来 7 天",
-    previewLabel: "待处理账单",
-    previewValue: "2 项",
-    tone: "coral",
-  },
+export const dashboardMetrics = [
+  { label: "总收入", value: "¥45,231.89", change: "较上月 +20.1%" },
+  { label: "订阅数", value: "+2,350", change: "较上月 +180.1%" },
+  { label: "销售额", value: "¥12,234", change: "较上月 +19.0%" },
+  { label: "当前活跃", value: "+573", change: "过去一小时 +201" },
 ] as const;
 
-export const transactions: Transaction[] = [
-  {
-    name: "盒马鲜生",
-    meta: "餐饮 / 今天 11:23",
-    amount: "-¥268.50",
-    tone: "expense",
-    icon: ForkKnife,
-  },
-  {
-    name: "工资入账",
-    meta: "收入 / 7月22日 09:00",
-    amount: "+¥12,800",
-    tone: "income",
-    icon: Bank,
-  },
-  {
-    name: "滴滴出行",
-    meta: "交通 / 7月21日 18:45",
-    amount: "-¥46.00",
-    tone: "expense",
-    icon: CreditCard,
-  },
-  {
-    name: "Netflix",
-    meta: "订阅 / 7月20日 23:59",
-    amount: "-¥68.00",
-    tone: "expense",
-    icon: Receipt,
-  },
-];
+export const overviewData = Object.freeze(
+  [2400, 1398, 9800, 3908, 4800, 3800, 4300, 5200, 4100, 6100, 5400, 7200].map((total, index) =>
+    Object.freeze({ month: `${index + 1}月`, total }),
+  ),
+);
 
-export const accounts: Account[] = [
-  { name: "招商银行", type: "储蓄卡", balance: "¥18,560", value: 18_560 },
-  { name: "支付宝", type: "电子钱包", balance: "¥6,280", value: 6_280 },
-  { name: "投资账户", type: "基金与股票", balance: "¥12,340", value: 12_340 },
-];
+export const recentSales = Object.freeze([
+  Object.freeze({
+    name: "张雨晴",
+    email: "yuqing.zhang@example.com",
+    amount: "+¥1,999.68",
+    initials: "张",
+  }),
+  Object.freeze({ name: "陈墨", email: "mo.chen@example.com", amount: "+¥39.26", initials: "陈" }),
+  Object.freeze({
+    name: "王小川",
+    email: "xiaochuan.wang@example.com",
+    amount: "+¥299.84",
+    initials: "王",
+  }),
+  Object.freeze({ name: "林嘉", email: "jia.lin@example.com", amount: "+¥99.73", initials: "林" }),
+  Object.freeze({
+    name: "赵思远",
+    email: "siyuan.zhao@example.com",
+    amount: "+¥154.61",
+    initials: "赵",
+  }),
+]);
 
-export const reminders = [
-  {
-    title: "餐饮预算已使用 82%",
-    detail: "本月剩余 ¥360",
-    icon: Sparkle,
-  },
-  {
-    title: "订阅支出较上月增加 ¥96",
-    detail: "建议检查续费项目",
-    icon: Bell,
-  },
-] as const;
-
-export const upcomingBills = [
-  { name: "房租", date: "7月15日", amount: "¥4,500", icon: House },
-  { name: "信用卡还款", date: "7月18日", amount: "¥3,286.40", icon: CreditCard },
-] as const;
-
-export const budgetCategories = [
-  { label: "餐饮", value: "82%", remaining: "剩余 ¥360", icon: ForkKnife },
-  { label: "购物", value: "71%", remaining: "剩余 ¥580", icon: ShoppingBag },
-  { label: "住房", value: "54%", remaining: "剩余 ¥2,300", icon: House },
-] as const;
+export const analyticsData = Object.freeze({
+  traffic: Object.freeze([
+    Object.freeze({ day: "周一", visits: 420, uniqueVisitors: 260 }),
+    Object.freeze({ day: "周二", visits: 568, uniqueVisitors: 342 }),
+    Object.freeze({ day: "周三", visits: 486, uniqueVisitors: 301 }),
+    Object.freeze({ day: "周四", visits: 721, uniqueVisitors: 448 }),
+    Object.freeze({ day: "周五", visits: 664, uniqueVisitors: 409 }),
+    Object.freeze({ day: "周六", visits: 382, uniqueVisitors: 231 }),
+    Object.freeze({ day: "周日", visits: 438, uniqueVisitors: 276 }),
+  ]),
+  metrics: Object.freeze([
+    Object.freeze({ label: "总访问量", value: "1,248", change: "较上周 +12.4%" }),
+    Object.freeze({ label: "独立访客", value: "832", change: "较上周 +5.8%" }),
+    Object.freeze({ label: "跳出率", value: "42%", change: "较上周 -3.2%" }),
+    Object.freeze({ label: "平均会话", value: "3分24秒", change: "较上周 +18秒" }),
+  ]),
+  referrers: Object.freeze([
+    Object.freeze({ label: "直接访问", value: 512 }),
+    Object.freeze({ label: "产品社区", value: 238 }),
+    Object.freeze({ label: "社交媒体", value: 174 }),
+    Object.freeze({ label: "内容博客", value: 104 }),
+  ]),
+  devices: Object.freeze([
+    Object.freeze({ label: "桌面端", value: 74 }),
+    Object.freeze({ label: "移动端", value: 22 }),
+    Object.freeze({ label: "平板端", value: 4 }),
+  ]),
+});

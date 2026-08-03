@@ -295,9 +295,7 @@ function LoginRoutePage() {
 }
 
 function DashboardRoutePage() {
-  const { session } = indexRoute.useRouteContext();
-
-  return <DashboardPage session={session} />;
+  return <DashboardPage />;
 }
 
 function ForbiddenRoutePage() {
