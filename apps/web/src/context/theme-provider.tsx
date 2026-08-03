@@ -18,9 +18,13 @@ const DEFAULT_STORAGE_KEY = "xpense-ui-theme";
 const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined);
 
 function getStoredTheme(storageKey: string): Theme | null {
-  const theme = window.localStorage.getItem(storageKey);
+  try {
+    const theme = window.localStorage.getItem(storageKey);
 
-  return theme === "dark" || theme === "light" || theme === "system" ? theme : null;
+    return theme === "dark" || theme === "light" || theme === "system" ? theme : null;
+  } catch {
+    return null;
+  }
 }
 
 export function ThemeProvider({
@@ -54,7 +58,11 @@ export function ThemeProvider({
   }, [theme]);
 
   const setTheme = (nextTheme: Theme) => {
-    window.localStorage.setItem(storageKey, nextTheme);
+    try {
+      window.localStorage.setItem(storageKey, nextTheme);
+    } catch {
+      // Theme state still updates when browser storage is unavailable.
+    }
     setStoredTheme(nextTheme);
   };
 

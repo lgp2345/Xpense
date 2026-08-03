@@ -55,11 +55,27 @@ function mockMatchMedia(initialMatches: boolean): MatchMediaController {
   };
 }
 
+function createStorage({
+  getItem = () => null,
+  setItem = () => undefined,
+}: Partial<Pick<Storage, "getItem" | "setItem">>): Storage {
+  return {
+    clear: () => undefined,
+    getItem,
+    get length() {
+      return 0;
+    },
+    key: () => null,
+    removeItem: () => undefined,
+    setItem,
+  };
+}
+
 afterEach(() => {
   cleanup();
   document.documentElement.classList.remove("dark", "light");
-  window.localStorage.clear();
   vi.unstubAllGlobals();
+  window.localStorage.clear();
 });
 
 describe("ThemeProvider", () => {
@@ -98,5 +114,49 @@ describe("ThemeProvider", () => {
     mediaQuery.change(true);
 
     expect(document.documentElement).not.toHaveClass("dark");
+  });
+
+  it("falls back to the default theme when stored theme access fails", () => {
+    vi.stubGlobal(
+      "localStorage",
+      createStorage({
+        getItem: () => {
+          throw new Error("Storage is disabled");
+        },
+      }),
+    );
+    mockMatchMedia(false);
+
+    render(
+      <ThemeProvider defaultTheme="dark" storageKey="xpense-ui-theme">
+        <span>主题</span>
+      </ThemeProvider>,
+    );
+
+    expect(document.documentElement).toHaveClass("dark");
+  });
+
+  it("updates the selected theme when persistence fails", async () => {
+    vi.stubGlobal(
+      "localStorage",
+      createStorage({
+        getItem: () => null,
+        setItem: () => {
+          throw new Error("Storage quota exceeded");
+        },
+      }),
+    );
+    mockMatchMedia(false);
+    const user = userEvent.setup();
+
+    render(
+      <ThemeProvider defaultTheme="system" storageKey="xpense-ui-theme">
+        <ThemeProbe />
+      </ThemeProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "使用深色主题" }));
+
+    expect(document.documentElement).toHaveClass("dark");
   });
 });
