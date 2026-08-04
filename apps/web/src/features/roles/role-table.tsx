@@ -1,17 +1,27 @@
-import type { PermissionKey } from "@xpense/shared";
-
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button, buttonVariants } from "@/components/ui/button";
+  type ColumnFiltersState,
+  type ColumnVisibilityState,
+  columnFacetingFeature,
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  createFacetedRowModel,
+  createFacetedUniqueValues,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  flexRender,
+  globalFilteringFeature,
+  type PaginationState,
+  rowPaginationFeature,
+  rowSortingFeature,
+  type SortingState,
+  tableFeatures,
+  useTable,
+} from "@tanstack/react-table";
+import type { PermissionKey } from "@xpense/shared";
+import { useState } from "react";
+
+import { DataTablePagination, DataTableToolbar } from "@/components/data-table";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -26,7 +36,21 @@ import type {
   IamRoleWithPermissions,
   UpdateRoleRequest,
 } from "../../services/iam-api";
-import { RoleEditorDialog, type RoleEditorInput } from "./role-editor-dialog";
+import { createRoleColumns } from "./role-columns";
+
+const roleTableFeatures = tableFeatures({
+  columnFacetingFeature,
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSortingFeature,
+  filteredRowModel: createFilteredRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  facetedRowModel: createFacetedRowModel(),
+  facetedUniqueValues: createFacetedUniqueValues(),
+});
 
 type RoleTableProps = {
   isMutating: boolean;
@@ -45,96 +69,97 @@ export function RoleTable({
   onDelete,
   onUpdate,
 }: RoleTableProps) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibilityState>({});
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  const columns = createRoleColumns({
+    isMutating,
+    permissions,
+    permissionItems,
+    onDelete,
+    onUpdate,
+  });
+
+  const table = useTable({
+    features: roleTableFeatures,
+    data: roles,
+    columns,
+    state: {
+      sorting,
+      pagination,
+      columnFilters,
+      columnVisibility,
+    },
+    onSortingChange: setSorting,
+    onPaginationChange: setPagination,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+  });
+
   if (roles.length === 0) {
     return <p className="py-10 text-center text-sm text-muted-foreground">当前没有角色。</p>;
   }
 
-  const canUpdate = permissions.includes("roles.update");
-  const canDelete = permissions.includes("roles.delete");
-  const canUpdatePermissions =
-    permissions.includes("permissions.read") && permissions.includes("roles.permissions.update");
-
-  function getUpdateInput(input: RoleEditorInput): UpdateRoleRequest {
-    const request: UpdateRoleRequest = {
-      name: input.name,
-      description: input.description,
-    };
-
-    if (canUpdatePermissions) {
-      request.permissionKeys = input.permissionKeys;
-    }
-
-    return request;
-  }
-
   return (
-    <Card>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>角色</TableHead>
-              <TableHead>标识</TableHead>
-              <TableHead>说明</TableHead>
-              <TableHead>类型</TableHead>
-              <TableHead className="text-right">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {roles.map((role) => (
-              <TableRow key={role.id}>
-                <TableCell className="font-medium">{role.name}</TableCell>
-                <TableCell>{role.key}</TableCell>
-                <TableCell>{role.description || "暂无说明"}</TableCell>
-                <TableCell>{role.isSystem ? "系统角色" : "自定义角色"}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    {role.isEditable && canUpdate ? (
-                      <RoleEditorDialog
-                        canUpdatePermissions={canUpdatePermissions}
-                        key={getRoleEditorKey(role)}
-                        permissions={permissionItems}
-                        role={role}
-                        triggerLabel={`编辑 ${role.name}`}
-                        onSubmit={(input) => onUpdate(role.id, getUpdateInput(input))}
-                      />
-                    ) : null}
-                    {role.isEditable && canDelete ? (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive">删除 {role.name}</Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>确认删除角色</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              删除后无法恢复。请确认该角色未分配给任何成员。
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>取消</AlertDialogCancel>
-                            <AlertDialogAction
-                              className={buttonVariants({ variant: "destructive" })}
-                              disabled={isMutating}
-                              onClick={() => void onDelete(role.id)}
-                            >
-                              确认删除
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    ) : null}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <DataTableToolbar
+        table={table}
+        searchPlaceholder="搜索角色..."
+        filters={[
+          {
+            columnId: "isSystem",
+            title: "类型",
+            options: [
+              { label: "系统角色", value: "true" },
+              { label: "自定义角色", value: "false" },
+            ],
+          },
+        ]}
+      />
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} colSpan={header.colSpan}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    没有匹配的角色。
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      <DataTablePagination table={table} />
+    </div>
   );
-}
-
-function getRoleEditorKey(role: IamRoleWithPermissions): string {
-  return [role.id, role.name, role.description, role.permissionKeys.join(",")].join(":");
 }

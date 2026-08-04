@@ -1,18 +1,26 @@
-import type { ClientType } from "@xpense/shared";
-
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+  type ColumnFiltersState,
+  type ColumnVisibilityState,
+  columnFacetingFeature,
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  createFacetedRowModel,
+  createFacetedUniqueValues,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  flexRender,
+  globalFilteringFeature,
+  type PaginationState,
+  rowPaginationFeature,
+  rowSortingFeature,
+  type SortingState,
+  tableFeatures,
+  useTable,
+} from "@tanstack/react-table";
+import { useState } from "react";
+
+import { DataTablePagination, DataTableToolbar } from "@/components/data-table";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -23,6 +31,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { SessionResponse } from "../../services/auth-api";
+import { createSessionColumns } from "./session-columns";
+
+const sessionTableFeatures = tableFeatures({
+  columnFacetingFeature,
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSortingFeature,
+  filteredRowModel: createFilteredRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  facetedRowModel: createFacetedRowModel(),
+  facetedUniqueValues: createFacetedUniqueValues(),
+});
 
 export type SessionListItem = Pick<
   SessionResponse,
@@ -39,11 +62,6 @@ type SessionTableProps = {
   onRevoke: (sessionId: string) => Promise<void>;
 };
 
-const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
 export function SessionTable({
   canRevoke,
   currentSessionId,
@@ -51,6 +69,37 @@ export function SessionTable({
   sessions,
   onRevoke,
 }: SessionTableProps) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibilityState>({});
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  const columns = createSessionColumns({
+    canRevoke,
+    currentSessionId,
+    isMutating,
+    onRevoke,
+  });
+
+  const table = useTable({
+    features: sessionTableFeatures,
+    data: sessions,
+    columns,
+    state: {
+      sorting,
+      pagination,
+      columnFilters,
+      columnVisibility,
+    },
+    onSortingChange: setSorting,
+    onPaginationChange: setPagination,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+  });
+
   if (sessions.length === 0) {
     return (
       <p className="py-10 text-center text-sm text-muted-foreground">当前没有可管理的会话。</p>
@@ -58,84 +107,60 @@ export function SessionTable({
   }
 
   return (
-    <Card>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>设备类型</TableHead>
-              <TableHead>设备名称</TableHead>
-              <TableHead>最近使用</TableHead>
-              <TableHead>状态</TableHead>
-              <TableHead>设备标记</TableHead>
-              <TableHead className="text-right">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sessions.map((session) => {
-              const isCurrent = session.id === currentSessionId;
-              const canRevokeSession = canRevoke && session.status === "active";
-
-              return (
-                <TableRow key={session.id}>
-                  <TableCell className="font-medium">
-                    {getClientTypeLabel(session.clientType)}
-                  </TableCell>
-                  <TableCell>{session.deviceName ?? "未命名设备"}</TableCell>
-                  <TableCell>{formatLastUsedAt(session.lastUsedAt)}</TableCell>
-                  <TableCell>
-                    <Badge variant={session.status === "active" ? "default" : "secondary"}>
-                      {session.status === "active" ? "有效" : "已撤销"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{isCurrent ? "当前设备" : ""}</TableCell>
-                  <TableCell className="text-right">
-                    {canRevokeSession ? (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="outline">撤销 {session.id}</Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>确认撤销会话</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              撤销后，该设备需要重新登录才能继续访问。
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>取消</AlertDialogCancel>
-                            <AlertDialogAction
-                              disabled={isMutating}
-                              onClick={() => void onRevoke(session.id)}
-                            >
-                              确认撤销
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    ) : null}
+    <div className="space-y-4">
+      <DataTableToolbar
+        table={table}
+        searchPlaceholder="搜索..."
+        filters={[
+          {
+            columnId: "status",
+            title: "状态",
+            options: [
+              { label: "有效", value: "active" },
+              { label: "已撤销", value: "revoked" },
+            ],
+          },
+        ]}
+      />
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} colSpan={header.colSpan}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    没有匹配的会话。
                   </TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      <DataTablePagination table={table} />
+    </div>
   );
-}
-
-function formatLastUsedAt(lastUsedAt: string | null): string {
-  return lastUsedAt ? dateTimeFormatter.format(new Date(lastUsedAt)) : "暂无记录";
-}
-
-function getClientTypeLabel(clientType: ClientType): string {
-  const labels: Record<ClientType, string> = {
-    app_android: "Android 应用",
-    app_ios: "iOS 应用",
-    web_mobile: "移动浏览器",
-    web_pc: "桌面浏览器",
-  };
-
-  return labels[clientType];
 }
