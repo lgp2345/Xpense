@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
+import { requestContext } from "../../common/request-context/request-context.js";
 import { AuditService } from "./audit.service.js";
 
 const authContext: AuthContext = {
@@ -63,6 +64,25 @@ describe("AuditService", () => {
       expect.objectContaining({
         metadata: { roleFrom: "viewer", roleTo: "admin" },
       }),
+    );
+  });
+
+  it("fills requestId from the request context when not provided", async () => {
+    const { repository, service } = createHarness();
+
+    await requestContext.run("req-ctx-123", () =>
+      service.appendRequired({
+        organizationId: "org-1",
+        actorUserId: "actor-1",
+        action: "member.role.changed",
+        targetType: "member",
+        targetId: "member-1",
+        result: "succeeded",
+      }),
+    );
+
+    expect(repository.append).toHaveBeenCalledWith(
+      expect.objectContaining({ requestId: "req-ctx-123" }),
     );
   });
 

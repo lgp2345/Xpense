@@ -131,6 +131,14 @@ function combineSignals(signals: Array<AbortSignal | undefined>): AbortSignal | 
   return controller.signal;
 }
 
+function generateRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function codeForHttpStatus(status: number): string {
   switch (status) {
     case 400:
@@ -266,6 +274,7 @@ export function createApiClient(options: ApiClientOptions) {
     let attempt = 0;
     const headers: Record<string, string> = {};
 
+    headers["X-Request-Id"] = generateRequestId();
     if (body !== undefined) {
       headers["Content-Type"] = "application/json";
     }

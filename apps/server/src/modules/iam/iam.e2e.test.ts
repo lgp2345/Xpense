@@ -44,6 +44,7 @@ describe("IAM e2e", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(response.headers["x-request-id"]).toEqual(expect.any(String));
     expect(parseJson<{ data: unknown }>(response).data).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -116,6 +117,7 @@ describe("IAM e2e", () => {
       url: `/api/members/${testIds.viewerMember}`,
       headers: {
         authorization: `Bearer ${accessToken}`,
+        "x-request-id": "e2e-request-123",
       },
       payload: {
         organizationId: testIds.otherOrganization,
@@ -124,6 +126,7 @@ describe("IAM e2e", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(response.headers["x-request-id"]).toBe("e2e-request-123");
     expect(parseJson<{ data: unknown }>(response).data).toMatchObject({
       id: testIds.viewerMember,
       organizationId: testIds.organization,
@@ -136,6 +139,7 @@ describe("IAM e2e", () => {
           organizationId: testIds.organization,
           action: "member.role.changed",
           targetId: testIds.viewerMember,
+          requestId: "e2e-request-123",
         }),
       ]),
     );

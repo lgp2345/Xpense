@@ -185,6 +185,47 @@ describe("createApiClient", () => {
 
     await expect(client.get("/user")).resolves.toEqual({ ok: true });
     expect(authorizationOf(mock.history.get[0])).toBe("Bearer token");
+    expect(headerOf(mock.history.get[0], "X-Request-Id")).toBeDefined();
+  });
+
+  it("keeps the same request id across automatic retries", async () => {
+    const { client, mock } = createHarness();
+    mock.onGet(/\/flaky$/).reply(500, errorEnvelope("INTERNAL_ERROR", "服务器内部错误"));
+
+    await expect(
+      client.get("/flaky", { retry: { attempts: 1, baseDelayMs: 10 } }),
+    ).rejects.toMatchObject({ status: 500 });
+
+    const requestIds = mock.history.get.map((config) => headerOf(config, "X-Request-Id"));
+    expect(requestIds).toHaveLength(2);
+    expect(new Set(requestIds).size).toBe(1);
+  });
+
+  it("generates a distinct request id after an auth replay", async () => {
+    let activeToken = "expired-access";
+    const refreshAccessToken = vi.fn(async () => {
+      activeToken = "refreshed-access";
+      return activeToken;
+    });
+    const { client, mock } = createHarness({
+      getAccessToken: () => activeToken,
+      refreshAccessToken,
+    });
+    mock.onGet(/\/user$/).reply((config) => {
+      if (authorizationOf(config) === "Bearer expired-access") {
+        return [401, errorEnvelope("UNAUTHENTICATED", "未登录或登录已过期")];
+      }
+
+      return [200, okEnvelope({ ok: true })];
+    });
+
+    await client.get("/user");
+
+    const requestIds = mock.history.get.map((config) => headerOf(config, "X-Request-Id"));
+    expect(requestIds).toHaveLength(2);
+    expect(requestIds[0]).toBeDefined();
+    expect(requestIds[1]).toBeDefined();
+    expect(requestIds[0]).not.toBe(requestIds[1]);
   });
 
   it("serializes request bodies as json", async () => {

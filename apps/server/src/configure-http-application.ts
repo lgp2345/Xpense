@@ -1,11 +1,13 @@
 import fastifyCookie from "@fastify/cookie";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 
+import { requestIdMiddleware } from "./common/middleware/request-id.middleware.js";
 import { ServerConfigService } from "./config/config.service.js";
 
 export async function configureHttpApplication(app: NestFastifyApplication): Promise<void> {
   const config = app.get(ServerConfigService);
 
+  app.use(requestIdMiddleware);
   await app.register(fastifyCookie);
   app.enableCors({
     credentials: true,

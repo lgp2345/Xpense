@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
+import { requestContext } from "../../common/request-context/request-context.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { AuditRepository } from "./audit.repository.js";
 import type {
@@ -47,8 +48,10 @@ export class AuditService {
   }
 
   appendRequired(input: AppendAuditLogInput, executor?: AppDbExecutor): Promise<void> {
+    const requestId = input.requestId ?? requestContext.getRequestId() ?? null;
     const sanitizedInput = {
       ...input,
+      requestId,
       metadata: this.sanitizeMetadata(input.metadata),
     };
 
