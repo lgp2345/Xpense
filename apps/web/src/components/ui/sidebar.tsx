@@ -59,6 +59,7 @@ function SidebarProvider({
       const nextOpen = typeof value === "function" ? value(open) : value;
       if (setOpenProp) setOpenProp(nextOpen);
       else setUncontrolledOpen(nextOpen);
+      // biome-ignore lint/suspicious/noDocumentCookie: 侧边栏状态持久化依赖 document.cookie，Cookie Store API 浏览器兼容性不足
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${nextOpen}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
     [open, setOpenProp],

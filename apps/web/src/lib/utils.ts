@@ -13,10 +13,7 @@ export function cn(...inputs: ClassValue[]): string {
  *   In middle:       [1, '...', 4, 5, 6, '...', 10]
  *   Near end:        [1, '...', 7, 8, 9, 10]
  */
-export function getPageNumbers(
-  currentPage: number,
-  totalPages: number,
-): (number | "...")[] {
+export function getPageNumbers(currentPage: number, totalPages: number): (number | "...")[] {
   const maxVisible = 5;
 
   if (totalPages <= maxVisible) {
