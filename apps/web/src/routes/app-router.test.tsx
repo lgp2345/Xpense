@@ -2,6 +2,8 @@ import { createMemoryHistory } from "@tanstack/react-router";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CurrentUserResponse } from "@xpense/shared";
+import axios from "axios";
+import MockAdapter from "axios-mock-adapter";
 import { StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -29,18 +31,15 @@ const globalUserContext: CurrentUserResponse = {
   organization: { id: "org-global", name: "全局账本" },
 };
 
-function jsonResponse(value: unknown, status = 200) {
-  return new Response(status === 204 ? null : JSON.stringify(value), {
-    status,
-    headers: status === 204 ? undefined : { "Content-Type": "application/json" },
-  });
-}
-
 function createTestSession(store: ReturnType<typeof createAuthStore>) {
+  const instance = axios.create();
+  const mock = new MockAdapter(instance);
+  mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
+
   return createWebSession({
     authStore: store,
     baseUrl: "http://localhost:4000",
-    fetchImpl: vi.fn(() => Promise.resolve(jsonResponse([]))) as typeof fetch,
+    instance,
   });
 }
 
@@ -145,26 +144,22 @@ describe("AppRouter startup", () => {
     store.getState().setCurrentUserContext(injectedUserContext);
     authStore.getState().setAccessToken("global-access");
     authStore.getState().setCurrentUserContext(globalUserContext);
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
-
-      if (url.endsWith("/user/organizations")) {
-        return jsonResponse([
-          { id: "org-injected", name: "注入账本", status: "active" },
-          { id: "org-family", name: "家庭账本", status: "active" },
-        ]);
-      }
-
-      if (url.endsWith("/auth/logout")) {
-        return jsonResponse(undefined, 204);
-      }
-
-      throw new Error(`Unexpected request: ${url}`);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onGet(/\/user\/organizations$/).reply(200, {
+      code: "OK",
+      message: "ok",
+      data: [
+        { id: "org-injected", name: "注入账本", status: "active" },
+        { id: "org-family", name: "家庭账本", status: "active" },
+      ],
     });
+    mock.onPost(/\/auth\/logout$/).reply(200, { code: "OK", message: "ok", data: null });
+    mock.onAny().reply(500, { code: "INTERNAL_ERROR", message: "unexpected request", data: null });
     const session = createWebSession({
       authStore: store,
       baseUrl: "http://localhost:4000",
-      fetchImpl: fetchMock as typeof fetch,
+      instance,
     });
     const router = createAppRouter({
       session,
@@ -181,9 +176,8 @@ describe("AppRouter startup", () => {
       expect((await screen.findAllByText("injected@example.com")).length).toBeGreaterThan(0);
       expect(screen.queryByText("global@example.com")).not.toBeInTheDocument();
       await vi.waitFor(() =>
-        expect(fetchMock).toHaveBeenCalledWith(
-          "http://localhost:4000/user/organizations",
-          expect.objectContaining({ method: "GET" }),
+        expect(mock.history.get.some((config) => config.url?.endsWith("/user/organizations"))).toBe(
+          true,
         ),
       );
 
@@ -197,12 +191,20 @@ describe("AppRouter startup", () => {
         currentUser: globalUserContext.user,
         status: "authenticated",
       });
-      expect(fetchMock).toHaveBeenCalledWith(
-        "http://localhost:4000/auth/logout",
-        expect.objectContaining({
-          headers: expect.objectContaining({ Authorization: "Bearer injected-access" }),
-        }),
-      );
+      expect(
+        mock.history.post.map((config) => ({
+          url: config.url,
+          authorization:
+            typeof config.headers?.get === "function"
+              ? config.headers.get("Authorization")
+              : (config.headers as Record<string, unknown> | undefined)?.Authorization,
+        })),
+      ).toEqual([
+        {
+          url: "http://localhost:4000/auth/logout",
+          authorization: "Bearer injected-access",
+        },
+      ]);
     } finally {
       authStore.getState().clearAuth();
     }
@@ -210,17 +212,23 @@ describe("AppRouter startup", () => {
 
   it("uses the active router session for default restoration", async () => {
     const store = createAuthStore();
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse({ accessToken: "restored-injected-access" }))
-      .mockResolvedValueOnce(jsonResponse(injectedUserContext))
-      .mockResolvedValueOnce(
-        jsonResponse([{ id: "org-injected", name: "注入账本", status: "active" }]),
-      );
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onPost(/\/auth\/refresh$/).reply(200, {
+      code: "OK",
+      message: "ok",
+      data: { accessToken: "restored-injected-access" },
+    });
+    mock.onGet(/\/user$/).reply(200, { code: "OK", message: "ok", data: injectedUserContext });
+    mock.onGet(/\/user\/organizations$/).reply(200, {
+      code: "OK",
+      message: "ok",
+      data: [{ id: "org-injected", name: "注入账本", status: "active" }],
+    });
     const session = createWebSession({
       authStore: store,
       baseUrl: "http://localhost:4000",
-      fetchImpl: fetchMock as typeof fetch,
+      instance,
     });
     const router = createAppRouter({
       session,
@@ -239,10 +247,6 @@ describe("AppRouter startup", () => {
       currentUser: injectedUserContext.user,
       status: "authenticated",
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      "http://localhost:4000/auth/refresh",
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(mock.history.post.some((config) => config.url?.endsWith("/auth/refresh"))).toBe(true);
   });
 });

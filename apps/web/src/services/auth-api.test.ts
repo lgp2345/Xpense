@@ -1,8 +1,10 @@
 import type { CurrentUserResponse } from "@xpense/shared";
+import axios from "axios";
+import MockAdapter from "axios-mock-adapter";
 import { describe, expect, it, vi } from "vitest";
 
 import { createAuthStore } from "../stores/auth-store";
-import { createApiClient } from "./api-client";
+import { type ApiClient, createApiClient } from "./api-client";
 import { createAuthApi } from "./auth-api";
 
 const currentUserContext: CurrentUserResponse = {
@@ -13,24 +15,22 @@ const currentUserContext: CurrentUserResponse = {
   session: { id: "session-1", clientType: "web_pc" },
 };
 
+const errorEnvelope = (code: string, message: string) => ({ code, message, data: null });
+
 describe("createAuthApi", () => {
   function createHarness() {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ ok: true }),
-    });
-    const client = createApiClient({
-      baseUrl: "http://localhost:4000",
-      getAccessToken: () => "access",
-      fetchImpl: fetchMock,
-    });
+    const client = {
+      get: vi.fn().mockResolvedValue({}),
+      post: vi.fn().mockResolvedValue({}),
+      patch: vi.fn().mockResolvedValue({}),
+      delete: vi.fn().mockResolvedValue({}),
+    };
 
-    return { api: createAuthApi(client), fetchMock };
+    return { api: createAuthApi(client as unknown as ApiClient), client };
   }
 
   it("posts login payload and refreshes the web session without a body", async () => {
-    const { api, fetchMock } = createHarness();
+    const { api, client } = createHarness();
 
     await api.login({
       email: "owner@example.com",
@@ -39,30 +39,19 @@ describe("createAuthApi", () => {
     });
     await api.refresh();
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      "http://localhost:4000/auth/login",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          email: "owner@example.com",
-          password: "password",
-          clientType: "web_pc",
-        }),
-      }),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      "http://localhost:4000/auth/refresh",
-      expect.objectContaining({
-        method: "POST",
-        body: undefined,
-      }),
-    );
+    expect(client.post).toHaveBeenNthCalledWith(1, "/auth/login", {
+      email: "owner@example.com",
+      password: "password",
+      clientType: "web_pc",
+    });
+    expect(client.post).toHaveBeenNthCalledWith(2, "/auth/refresh", undefined, {
+      authFailure: "ignore",
+      authRefresh: "ignore",
+    });
   });
 
   it("wraps current user, organization, and session endpoints", async () => {
-    const { api, fetchMock } = createHarness();
+    const { api, client } = createHarness();
 
     await api.getCurrentUser();
     await api.listOrganizations();
@@ -72,54 +61,31 @@ describe("createAuthApi", () => {
     await api.revokeAllSessions();
     await api.logout();
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
+    expect(client.get).toHaveBeenNthCalledWith(1, "/user");
+    expect(client.get).toHaveBeenNthCalledWith(2, "/user/organizations");
+    expect(client.post).toHaveBeenNthCalledWith(
       1,
-      "http://localhost:4000/user",
-      expect.objectContaining({ method: "GET" }),
+      "/user/current-organization",
+      { organizationId: "org-1" },
+      { authFailure: "ignore" },
     );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      "http://localhost:4000/user/organizations",
-      expect.objectContaining({ method: "GET" }),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
-      "http://localhost:4000/user/current-organization",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ organizationId: "org-1" }),
-      }),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      5,
-      "http://localhost:4000/auth/sessions/session-1/revoke",
-      expect.objectContaining({ method: "POST" }),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      6,
-      "http://localhost:4000/auth/sessions/revoke-all",
-      expect.objectContaining({ method: "POST" }),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      7,
-      "http://localhost:4000/auth/logout",
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(client.post).toHaveBeenNthCalledWith(2, "/auth/sessions/session-1/revoke");
+    expect(client.post).toHaveBeenNthCalledWith(3, "/auth/sessions/revoke-all");
+    expect(client.post).toHaveBeenNthCalledWith(4, "/auth/logout");
   });
 
   it("keeps the complete current state when the switch endpoint returns 401", async () => {
     const store = createAuthStore({ accessToken: "old-access" });
     store.getState().setCurrentUserContext(currentUserContext);
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock
+      .onPost(/\/user\/current-organization$/)
+      .reply(401, errorEnvelope("UNAUTHENTICATED", "未登录或登录已过期"));
     const client = createApiClient({
       baseUrl: "http://localhost:4000",
       getAccessToken: () => store.getState().accessToken,
-      fetchImpl: fetchMock,
+      instance,
       onAuthFailure: (_error, requestAccessToken) => {
         if (store.getState().accessToken === requestAccessToken) {
           store.getState().clearAuth();
@@ -144,15 +110,13 @@ describe("createAuthApi", () => {
   it("clears authentication for an ordinary protected 401 using the current token", async () => {
     const store = createAuthStore({ accessToken: "current-access" });
     store.getState().setCurrentUserContext(currentUserContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onGet(/\/user$/).reply(401, errorEnvelope("UNAUTHENTICATED", "未登录或登录已过期"));
     const client = createApiClient({
       baseUrl: "http://localhost:4000",
       getAccessToken: () => store.getState().accessToken,
-      fetchImpl: vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
+      instance,
       onAuthFailure: (_error, requestAccessToken) => {
         if (store.getState().accessToken === requestAccessToken) {
           store.getState().clearAuth();
@@ -167,16 +131,21 @@ describe("createAuthApi", () => {
   it("does not clear a newer authenticated state for a delayed old-token 401", async () => {
     const store = createAuthStore({ accessToken: "old-access" });
     store.getState().setCurrentUserContext(currentUserContext);
-    let resolveResponse: ((response: Response) => void) | undefined;
+    let resolveResponse: (() => void) | undefined;
+    const responseGate = new Promise<void>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock
+      .onGet(/\/user$/)
+      .reply(() =>
+        responseGate.then(() => [401, errorEnvelope("UNAUTHENTICATED", "未登录或登录已过期")]),
+      );
     const client = createApiClient({
       baseUrl: "http://localhost:4000",
       getAccessToken: () => store.getState().accessToken,
-      fetchImpl: vi.fn(
-        () =>
-          new Promise<Response>((resolve) => {
-            resolveResponse = resolve;
-          }),
-      ),
+      instance,
       onAuthFailure: (_error, requestAccessToken) => {
         if (store.getState().accessToken === requestAccessToken) {
           store.getState().clearAuth();
@@ -191,12 +160,7 @@ describe("createAuthApi", () => {
 
     store.getState().setAccessToken("new-access");
     store.getState().setCurrentUserContext(newerContext);
-    resolveResponse?.(
-      new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
+    resolveResponse?.();
 
     await expect(request).rejects.toMatchObject({ status: 401 });
     expect(store.getState()).toMatchObject({

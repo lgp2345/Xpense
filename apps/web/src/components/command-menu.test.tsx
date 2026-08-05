@@ -7,6 +7,8 @@ import {
 } from "@tanstack/react-router";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { CurrentUserResponse } from "@xpense/shared";
+import axios from "axios";
+import MockAdapter from "axios-mock-adapter";
 import { describe, expect, it, vi } from "vitest";
 
 import { AppProviders } from "@/components/app-providers";
@@ -40,10 +42,13 @@ describe("CommandMenu", () => {
   it("通过快捷键打开，并且不展示未授权路由", async () => {
     const store = createAuthStore({ accessToken: "access-token" });
     store.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
     const session = createWebSession({
       authStore: store,
       baseUrl: "http://localhost:4000",
-      fetchImpl: vi.fn().mockResolvedValue(new Response(JSON.stringify([]))) as typeof fetch,
+      instance,
     });
     const rootRoute = createRootRoute({
       component: () => <AuthenticatedLayout session={session} />,

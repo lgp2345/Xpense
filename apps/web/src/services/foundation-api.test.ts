@@ -3,32 +3,37 @@ import { describe, expect, it, vi } from "vitest";
 import { fetchHello } from "./foundation-api";
 
 describe("fetchHello", () => {
-  it("requests the shared hello route from the configured API base URL", async () => {
-    const fetcher = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
+  it("requests the shared hello route and parses the enveloped data", async () => {
+    const client = {
+      get: vi.fn().mockResolvedValue({
         appName: "Xpense",
         message: "Hello from Xpense API",
       }),
-    });
+    };
 
-    await expect(fetchHello({ apiBaseUrl: "http://localhost:4000", fetcher })).resolves.toEqual({
+    await expect(fetchHello({ apiBaseUrl: "http://localhost:4000", client })).resolves.toEqual({
       appName: "Xpense",
       message: "Hello from Xpense API",
     });
 
-    expect(fetcher).toHaveBeenCalledWith("http://localhost:4000/foundation/hello");
+    expect(client.get).toHaveBeenCalledWith("/foundation/hello");
   });
 
-  it("turns failed responses into a user-facing error", async () => {
-    const fetcher = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 503,
-      json: async () => ({}),
-    });
+  it("rejects when the data does not match the shared contract", async () => {
+    const client = {
+      get: vi.fn().mockResolvedValue({ appName: "Not Xpense", message: "wrong" }),
+    };
 
-    await expect(fetchHello({ apiBaseUrl: "http://localhost:4000", fetcher })).rejects.toThrow(
-      "API request failed with status 503",
+    await expect(fetchHello({ apiBaseUrl: "http://localhost:4000", client })).rejects.toThrow();
+  });
+
+  it("propagates client errors", async () => {
+    const client = {
+      get: vi.fn().mockRejectedValue(new Error("网络异常，请检查网络连接")),
+    };
+
+    await expect(fetchHello({ apiBaseUrl: "http://localhost:4000", client })).rejects.toThrow(
+      "网络异常，请检查网络连接",
     );
   });
 });

@@ -8,7 +8,9 @@ import {
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CurrentUserResponse } from "@xpense/shared";
-import { describe, expect, it, vi } from "vitest";
+import axios from "axios";
+import MockAdapter from "axios-mock-adapter";
+import { describe, expect, it } from "vitest";
 import { useStore } from "zustand";
 
 import { AppProviders } from "@/components/app-providers";
@@ -35,10 +37,13 @@ describe("AuthenticatedLayout", () => {
   it("呈现当前会话的组织、邮箱与获授权导航控制项", async () => {
     const store = createAuthStore({ accessToken: "access-token" });
     store.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
     const session = createWebSession({
       authStore: store,
       baseUrl: "http://localhost:4000",
-      fetchImpl: vi.fn().mockResolvedValue(new Response(JSON.stringify([]))) as typeof fetch,
+      instance,
     });
     const rootRoute = createRootRoute({
       component: () => <AuthenticatedLayout session={session} />,
@@ -73,18 +78,19 @@ describe("AuthenticatedLayout", () => {
     const store = createAuthStore({ accessToken: "access-token" });
     store.getState().setCurrentUserContext(userContext);
     let rejectLogout: (reason?: unknown) => void = () => undefined;
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onPost(/\/auth\/logout$/).reply(
+      () =>
+        new Promise<[number, unknown]>((_resolve, reject) => {
+          rejectLogout = reject;
+        }),
+    );
+    mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
     const session = createWebSession({
       authStore: store,
       baseUrl: "http://localhost:4000",
-      fetchImpl: vi.fn((input: string | URL | Request) => {
-        if (String(input).endsWith("/auth/logout")) {
-          return new Promise<Response>((_resolve, reject) => {
-            rejectLogout = reject;
-          });
-        }
-
-        return Promise.resolve(new Response(JSON.stringify([])));
-      }) as typeof fetch,
+      instance,
     });
     const rootRoute = createRootRoute({
       component: () => <ConditionalAuthenticatedLayout session={session} />,

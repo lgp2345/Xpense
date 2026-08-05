@@ -2,7 +2,9 @@ import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PermissionKey } from "@xpense/shared";
-import { describe, expect, it, vi } from "vitest";
+import axios, { type AxiosInstance } from "axios";
+import MockAdapter from "axios-mock-adapter";
+import { describe, expect, it } from "vitest";
 
 import { AppProviders } from "../components/app-providers";
 import { createWebSession } from "../services/web-session";
@@ -32,13 +34,23 @@ function createSuperAdminStore() {
 
 function createRouterSession(
   store: ReturnType<typeof createAuthStore>,
-  fetchImpl: typeof fetch = (() => Promise.reject(new Error("Unexpected request"))) as typeof fetch,
+  instance: AxiosInstance = createRejectingInstance(),
 ) {
   return createWebSession({
     authStore: store,
     baseUrl: "http://localhost:4000",
-    fetchImpl,
+    instance,
   });
+}
+
+function createRejectingInstance(): AxiosInstance {
+  const instance = axios.create();
+  const mock = new MockAdapter(instance);
+  mock.onAny().reply(() => {
+    throw new Error("Unexpected request");
+  });
+
+  return instance;
 }
 
 async function loadPath(path: string, permissions?: PermissionKey[]) {
@@ -121,17 +133,12 @@ describe("router auth guards", () => {
       initialEntries: ["/audit-logs?action=role.created&targetType=role"],
     });
     const store = createAuthenticatedStore(["audit_logs.read"]);
-    const fetchMock = vi.fn((_input: string | URL | Request) =>
-      Promise.resolve(
-        new Response(JSON.stringify([]), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    );
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
     const router = createAppRouter({
       history,
-      session: createRouterSession(store, fetchMock as typeof fetch),
+      session: createRouterSession(store, instance),
     });
     await router.load();
 
@@ -161,20 +168,12 @@ describe("router auth guards", () => {
     const history = createMemoryHistory({
       initialEntries: ["/audit-logs?from=2026-99-99&to=2026-02-30"],
     });
-    const fetchMock = vi.fn((_input: string | URL | Request) =>
-      Promise.resolve(
-        new Response(JSON.stringify([]), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    );
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
     const router = createAppRouter({
       history,
-      session: createRouterSession(
-        createAuthenticatedStore(["audit_logs.read"]),
-        fetchMock as typeof fetch,
-      ),
+      session: createRouterSession(createAuthenticatedStore(["audit_logs.read"]), instance),
     });
     await router.load();
 
@@ -186,46 +185,33 @@ describe("router auth guards", () => {
 
     expect(await screen.findByRole("heading", { name: "审计日志" })).toBeInTheDocument();
     await waitFor(() =>
-      expect(
-        fetchMock.mock.calls.find(([input]) => String(input).includes("/audit-logs")),
-      ).toBeDefined(),
+      expect(mock.history.get.some((config) => config.url?.includes("/audit-logs"))).toBe(true),
     );
-    const auditLogRequest = fetchMock.mock.calls.find(([input]) =>
-      String(input).includes("/audit-logs"),
-    );
-    expect(String(auditLogRequest?.[0])).not.toMatch(/[?&](from|to)=/);
+    const auditLogRequest = mock.history.get.find((config) => config.url?.includes("/audit-logs"));
+    expect(auditLogRequest?.url).not.toMatch(/[?&](from|to)=/);
   });
 
   it("clears authentication and navigates to login after revoking the current session", async () => {
     const user = userEvent.setup();
     const history = createMemoryHistory({ initialEntries: ["/sessions"] });
     const store = createAuthenticatedStore(["sessions.read", "sessions.revoke"]);
-    const fetchMock = vi.fn((input: string | URL | Request, init?: RequestInit) => {
-      const url = input.toString();
-
-      if (url === "http://localhost:4000/auth/sessions" && init?.method === "GET") {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify([
-              { id: "session-1", clientType: "web_pc", status: "active", lastUsedAt: null },
-            ]),
-            { status: 200 },
-          ),
-        );
-      }
-
-      if (
-        url === "http://localhost:4000/auth/sessions/session-1/revoke" &&
-        init?.method === "POST"
-      ) {
-        return Promise.resolve(new Response(null, { status: 204 }));
-      }
-
-      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onGet(/\/auth\/sessions$/).reply(200, {
+      code: "OK",
+      message: "ok",
+      data: [{ id: "session-1", clientType: "web_pc", status: "active", lastUsedAt: null }],
     });
+    mock.onPost(/\/auth\/sessions\/session-1\/revoke$/).reply(200, {
+      code: "OK",
+      message: "ok",
+      data: null,
+    });
+    mock.onPost(/\/auth\/logout$/).reply(200, { code: "OK", message: "ok", data: null });
+    mock.onAny().reply(500, { code: "INTERNAL_ERROR", message: "unexpected request", data: null });
     const router = createAppRouter({
       history,
-      session: createRouterSession(store, fetchMock as typeof fetch),
+      session: createRouterSession(store, instance),
     });
     await router.load();
 

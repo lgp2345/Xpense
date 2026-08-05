@@ -1,19 +1,18 @@
-import { API_ROUTES, type HelloResponse, HelloResponseSchema } from "@xpense/shared";
+import { type HelloResponse, HelloResponseSchema } from "@xpense/shared";
+
+import { type ApiClient, createApiClient } from "./api-client";
 
 type FetchHelloOptions = {
   apiBaseUrl: string;
-  fetcher?: typeof fetch;
+  client?: Pick<ApiClient, "get">;
 };
 
 export async function fetchHello({
   apiBaseUrl,
-  fetcher = fetch,
+  client,
 }: FetchHelloOptions): Promise<HelloResponse> {
-  const response = await fetcher(`${apiBaseUrl}${API_ROUTES.hello}`);
+  const apiClient = client ?? createApiClient({ baseUrl: apiBaseUrl, getAccessToken: () => null });
+  const data = await apiClient.get<unknown>("/foundation/hello");
 
-  if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`);
-  }
-
-  return HelloResponseSchema.parse(await response.json());
+  return HelloResponseSchema.parse(data);
 }

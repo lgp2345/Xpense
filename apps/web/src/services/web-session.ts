@@ -1,4 +1,5 @@
 import type { AuthTokensResponse, CurrentUserResponse } from "@xpense/shared";
+import type { AxiosInstance } from "axios";
 
 import { API_BASE_URL } from "../lib/env";
 import { type AuthStoreApi, authStore } from "../stores/auth-store";
@@ -30,7 +31,7 @@ export type WebSessionDependency = {
 type CreateWebSessionOptions = {
   authStore: AuthStoreApi;
   baseUrl?: string;
-  fetchImpl?: typeof fetch;
+  instance?: AxiosInstance;
 };
 
 export type WebLoginFailureKind = "invalid_credentials" | "service_unavailable";
@@ -240,7 +241,7 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
   const apiClient = createApiClient({
     baseUrl: options.baseUrl,
     getAccessToken: () => options.authStore.getState().accessToken,
-    fetchImpl: options.fetchImpl,
+    instance: options.instance,
     onAuthFailure: (_error, requestAccessToken) => {
       if (options.authStore.getState().accessToken === requestAccessToken) {
         options.authStore.getState().clearAuth();

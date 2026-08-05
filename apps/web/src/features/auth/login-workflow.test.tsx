@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CurrentUserResponse } from "@xpense/shared";
+import axios from "axios";
+import MockAdapter from "axios-mock-adapter";
 import { describe, expect, it, vi } from "vitest";
 
 import { LoginPage } from "../../pages/login-page";
@@ -22,10 +24,15 @@ const currentUserContext: CurrentUserResponse = {
 };
 
 function createLoginTestSession() {
+  const instance = axios.create();
+  const mock = new MockAdapter(instance);
+  mock.onAny().reply(() => {
+    throw new Error("Unexpected request");
+  });
   const session = createWebSession({
     authStore: createAuthStore(),
     baseUrl: "http://localhost:4000",
-    fetchImpl: (() => Promise.reject(new Error("Unexpected request"))) as typeof fetch,
+    instance,
   });
 
   Object.assign(session.authApi, {

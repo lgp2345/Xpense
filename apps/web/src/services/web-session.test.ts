@@ -1,4 +1,6 @@
 import type { AuthTokensResponse, CurrentUserResponse } from "@xpense/shared";
+import axios, { type AxiosHeaders } from "axios";
+import MockAdapter from "axios-mock-adapter";
 import { describe, expect, it, vi } from "vitest";
 
 import { createAuthStore } from "../stores/auth-store";
@@ -80,43 +82,38 @@ describe("web session", () => {
   it("refreshes concurrent protected 401 responses once and replays them with the new token", async () => {
     const store = createAuthStore({ accessToken: "expired-access" });
     store.getState().setCurrentUserContext(currentUserContext);
-    const requestedUrls: string[] = [];
-    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      const requestUrl = String(url);
-      const authorization = (init?.headers as Record<string, string> | undefined)?.Authorization;
-      requestedUrls.push(requestUrl);
-
-      if (requestUrl.endsWith("/auth/refresh")) {
-        return new Response(JSON.stringify({ accessToken: "refreshed-access" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock
+      .onPost(/\/auth\/refresh$/)
+      .reply(200, { code: "OK", message: "ok", data: { accessToken: "refreshed-access" } });
+    mock.onGet(/\/user\/organizations$/).reply(200, { code: "OK", message: "ok", data: [] });
+    mock.onGet(/\/user$/).reply((config) => {
+      const headers = config.headers as AxiosHeaders | Record<string, unknown> | undefined;
+      const authorization =
+        typeof headers?.get === "function"
+          ? headers.get("Authorization")
+          : (headers as Record<string, unknown> | undefined)?.Authorization;
 
       if (authorization === "Bearer expired-access") {
-        return new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        });
+        return [401, { code: "UNAUTHENTICATED", message: "未登录或登录已过期", data: null }];
       }
 
-      const payload = requestUrl.endsWith("/user/organizations") ? [] : currentUserContext;
-      return new Response(JSON.stringify(payload), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return [200, { code: "OK", message: "ok", data: currentUserContext }];
     });
     const session = createWebSession({
       authStore: store,
       baseUrl: "http://localhost:4000",
-      fetchImpl: fetchMock as typeof fetch,
+      instance,
     });
 
     await expect(
       Promise.all([session.authApi.getCurrentUser(), session.authApi.listOrganizations()]),
     ).resolves.toEqual([currentUserContext, []]);
 
-    expect(requestedUrls.filter((url) => url.endsWith("/auth/refresh"))).toHaveLength(1);
+    expect(
+      mock.history.post.filter((config) => config.url?.endsWith("/auth/refresh")),
+    ).toHaveLength(1);
     expect(store.getState()).toMatchObject({
       accessToken: "refreshed-access",
       status: "authenticated",
@@ -126,69 +123,52 @@ describe("web session", () => {
   it("keeps auth while refresh is pending and clears it only after refresh fails", async () => {
     const store = createAuthStore({ accessToken: "expired-access" });
     store.getState().setCurrentUserContext(currentUserContext);
-    const refreshResponse = createDeferred<Response>();
-    const fetchMock = vi.fn((url: string | URL | Request) => {
-      if (String(url).endsWith("/auth/refresh")) {
-        return refreshResponse.promise;
-      }
-
-      return Promise.resolve(
-        new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
-    });
+    const refreshResponse = createDeferred<[number, unknown]>();
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onPost(/\/auth\/refresh$/).reply(() => refreshResponse.promise);
+    mock
+      .onGet(/\/user$/)
+      .reply(401, { code: "UNAUTHENTICATED", message: "未登录或登录已过期", data: null });
     const session = createWebSession({
       authStore: store,
       baseUrl: "http://localhost:4000",
-      fetchImpl: fetchMock as typeof fetch,
+      instance,
     });
 
     const requestOutcome = session.authApi.getCurrentUser().catch((error: unknown) => error);
     await vi.waitFor(() =>
-      expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/auth/refresh"))).toBe(
-        true,
-      ),
+      expect(mock.history.post.some((config) => config.url?.endsWith("/auth/refresh"))).toBe(true),
     );
     expect(store.getState()).toMatchObject({
       accessToken: "expired-access",
       status: "authenticated",
     });
 
-    refreshResponse.resolve(
-      new Response(JSON.stringify({ code: "UNAUTHENTICATED" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
+    refreshResponse.resolve([
+      401,
+      { code: "UNAUTHENTICATED", message: "刷新会话无效", data: null },
+    ]);
 
     await expect(requestOutcome).resolves.toMatchObject({ status: 401 });
     expectAnonymousState(store);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(mock.history.get).toHaveLength(1);
+    expect(mock.history.post).toHaveLength(1);
   });
 
   it("binds the full auth API and restoration workflow to the provided store", async () => {
     const store = createAuthStore();
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ accessToken: "restored-access" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(currentUserContext), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock
+      .onPost(/\/auth\/refresh$/)
+      .reply(200, { code: "OK", message: "ok", data: { accessToken: "restored-access" } });
+    mock.onGet(/\/user$/).reply(200, { code: "OK", message: "ok", data: currentUserContext });
 
     const session = createWebSession({
       authStore: store,
       baseUrl: "http://localhost:4000",
-      fetchImpl: fetchMock,
+      instance,
     });
 
     expect(session.authStore).toBe(store);
