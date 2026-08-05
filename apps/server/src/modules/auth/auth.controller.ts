@@ -79,7 +79,7 @@ export class AuthController {
     if (!refreshToken) {
       throw new UnauthorizedException({
         code: apiErrorCodes.unauthenticated,
-        message: "Refresh session is required",
+        message: "缺少刷新会话",
       });
     }
 
@@ -101,7 +101,7 @@ export class AuthController {
   }
 
   @Post("logout")
-  @HttpCode(204)
+  @HttpCode(200)
   @UseGuards(OptionalAuthGuard)
   logout(
     @Req() request: AuthCookieRequest,

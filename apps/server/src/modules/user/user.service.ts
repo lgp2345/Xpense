@@ -15,7 +15,7 @@ export class UserService {
     if (!currentContext) {
       throw new ForbiddenException({
         code: apiErrorCodes.forbidden,
-        message: "Current user context is unavailable",
+        message: "当前用户上下文不可用",
       });
     }
 

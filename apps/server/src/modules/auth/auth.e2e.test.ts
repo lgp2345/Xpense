@@ -57,7 +57,9 @@ describe("Auth e2e", () => {
 
     expect(response.statusCode).toBe(201);
     expect(parseJson(response)).toEqual({
-      accessToken: expect.any(String),
+      code: "OK",
+      message: "ok",
+      data: { accessToken: expect.any(String) },
     });
     const setCookie = requireSetCookie(response);
     expect(setCookie).toContain(`${refreshCookieName}=`);
@@ -129,7 +131,11 @@ describe("Auth e2e", () => {
     });
 
     expect(refreshResponse.statusCode).toBe(201);
-    expect(parseJson(refreshResponse)).toEqual({ accessToken: expect.any(String) });
+    expect(parseJson(refreshResponse)).toEqual({
+      code: "OK",
+      message: "ok",
+      data: { accessToken: expect.any(String) },
+    });
     const rotatedCookie = toCookieHeader(requireSetCookie(refreshResponse));
     expect(rotatedCookie).not.toBe(loginCookie);
 
@@ -184,7 +190,9 @@ describe("Auth e2e", () => {
         clientType: "app_ios",
       },
     });
-    const tokens = parseJson<{ accessToken: string; refreshToken: string }>(loginResponse);
+    const tokens = parseJson<{ data: { accessToken: string; refreshToken: string } }>(
+      loginResponse,
+    ).data;
 
     const wrongTransportResponse = await app.inject({
       method: "POST",
@@ -239,7 +247,9 @@ describe("Auth e2e", () => {
 
     expect(loginResponse.statusCode).toBe(201);
     expect(loginResponse.headers["set-cookie"]).toBeUndefined();
-    const tokens = parseJson<{ accessToken: string; refreshToken: string }>(loginResponse);
+    const tokens = parseJson<{ data: { accessToken: string; refreshToken: string } }>(
+      loginResponse,
+    ).data;
     expect(tokens).toEqual({
       accessToken: expect.any(String),
       refreshToken: expect.any(String),
@@ -254,8 +264,12 @@ describe("Auth e2e", () => {
     expect(refreshResponse.statusCode).toBe(201);
     expect(refreshResponse.headers["set-cookie"]).toBeUndefined();
     expect(parseJson(refreshResponse)).toEqual({
-      accessToken: expect.any(String),
-      refreshToken: expect.not.stringContaining(tokens.refreshToken),
+      code: "OK",
+      message: "ok",
+      data: {
+        accessToken: expect.any(String),
+        refreshToken: expect.not.stringContaining(tokens.refreshToken),
+      },
     });
   });
 
@@ -273,7 +287,11 @@ describe("Auth e2e", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(parseJson(response)).toEqual({ accessToken: expect.any(String) });
+    expect(parseJson(response)).toEqual({
+      code: "OK",
+      message: "ok",
+      data: { accessToken: expect.any(String) },
+    });
     expect(requireSetCookie(response)).toContain(`${refreshCookieName}=`);
   });
 
@@ -326,7 +344,12 @@ describe("Auth e2e", () => {
       },
     });
 
-    expect(logoutResponse.statusCode).toBe(204);
+    expect(logoutResponse.statusCode).toBe(200);
+    expect(parseJson(logoutResponse)).toEqual({
+      code: "OK",
+      message: "ok",
+      data: null,
+    });
     const clearedCookie = requireSetCookie(logoutResponse);
     expect(clearedCookie).toContain(`${refreshCookieName}=`);
     expect(clearedCookie).toContain("Path=/api/auth");
@@ -355,7 +378,7 @@ describe("Auth e2e", () => {
       },
     });
 
-    expect(logoutResponse.statusCode).toBe(204);
+    expect(logoutResponse.statusCode).toBe(200);
     expect(requireSetCookie(logoutResponse)).toContain("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
 
     const restoreResponse = await app.inject({
@@ -384,7 +407,7 @@ describe("Auth e2e", () => {
       url: "/api/auth/logout",
       headers: { authorization: `Bearer ${tokens.accessToken}` },
     });
-    expect(logoutResponse.statusCode).toBe(204);
+    expect(logoutResponse.statusCode).toBe(200);
 
     const refreshResponse = await app.inject({
       method: "POST",
@@ -408,6 +431,7 @@ describe("Auth e2e", () => {
     expect(parseJson(response)).toMatchObject({
       code: "UNAUTHENTICATED",
       message: expect.any(String),
+      data: null,
     });
     expect(response.payload).not.toContain(invalidToken);
     expect(JSON.stringify(state.auditLogs)).not.toContain(invalidToken);
@@ -424,7 +448,8 @@ describe("Auth e2e", () => {
     expect(response.statusCode).toBe(401);
     expect(parseJson(response)).toMatchObject({
       code: "UNAUTHENTICATED",
-      message: "Refresh session is required",
+      message: "缺少刷新会话",
+      data: null,
     });
   });
 
@@ -473,7 +498,7 @@ describe("Auth e2e", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(parseJson(response)).toMatchObject({
+    expect(parseJson<{ data: unknown }>(response).data).toMatchObject({
       user: {
         id: testIds.managerUser,
         email: "manager@example.com",

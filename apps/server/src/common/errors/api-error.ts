@@ -1,8 +1,5 @@
-export const apiErrorCodes = {
-  unauthenticated: "UNAUTHENTICATED",
-  forbidden: "FORBIDDEN",
-  conflict: "CONFLICT",
-  validationFailed: "VALIDATION_FAILED",
-} as const;
+import { API_CODES, type ApiCode } from "@xpense/shared";
 
-export type ApiErrorCode = (typeof apiErrorCodes)[keyof typeof apiErrorCodes];
+export const apiErrorCodes = API_CODES;
+
+export type ApiErrorCode = ApiCode;

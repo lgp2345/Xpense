@@ -7,7 +7,7 @@ export const updateMemberSchema = z
     status: z.enum(["active", "disabled"]).optional(),
   })
   .refine((value) => value.roleId !== undefined || value.status !== undefined, {
-    message: "At least one member field is required",
+    message: "至少需要提供一项成员信息",
   });
 
 export class UpdateMemberDto extends createZodDto(updateMemberSchema) {}

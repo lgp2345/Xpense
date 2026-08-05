@@ -31,7 +31,7 @@ export class OrganizationsService {
     if (!membership) {
       throw new ForbiddenException({
         code: apiErrorCodes.forbidden,
-        message: "User is not an active member of the organization",
+        message: "用户不是该组织的有效成员",
       });
     }
 

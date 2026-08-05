@@ -44,7 +44,7 @@ describe("IAM e2e", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(parseJson(response)).toEqual(
+    expect(parseJson<{ data: unknown }>(response).data).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: testIds.managerRole,
@@ -124,7 +124,7 @@ describe("IAM e2e", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(parseJson(response)).toMatchObject({
+    expect(parseJson<{ data: unknown }>(response).data).toMatchObject({
       id: testIds.viewerMember,
       organizationId: testIds.organization,
       roleId: testIds.managerRole,
@@ -330,9 +330,9 @@ describe("IAM e2e", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(state.roles.get(parseJson<{ id: string }>(response).id)?.permissions).toEqual([
-      "transactions.delete",
-    ]);
+    expect(
+      state.roles.get(parseJson<{ data: { id: string } }>(response).data.id)?.permissions,
+    ).toEqual(["transactions.delete"]);
   });
 
   it("allows a super admin to assign a role above their assigned role", async () => {

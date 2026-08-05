@@ -75,7 +75,7 @@ export class AuthService {
           ip: input.ip,
         },
       });
-      throw this.unauthenticated("Invalid credentials");
+      throw this.unauthenticated("账号或密码错误");
     }
 
     const passwordMatches = await this.passwordService.verify(user.passwordHash, input.password);
@@ -95,7 +95,7 @@ export class AuthService {
           ip: input.ip,
         },
       });
-      throw this.unauthenticated("Invalid credentials");
+      throw this.unauthenticated("账号或密码错误");
     }
 
     const refreshToken = this.tokenService.createRefreshToken();
@@ -157,7 +157,7 @@ export class AuthService {
           reason: "session_not_found",
         },
       });
-      throw this.unauthenticated("Invalid refresh session");
+      throw this.unauthenticated("刷新会话无效");
     }
 
     const tokenMatches = await this.tokenService.verifyRefreshTokenHash(
@@ -177,7 +177,7 @@ export class AuthService {
           reason: "token_mismatch",
         },
       });
-      throw this.unauthenticated("Invalid refresh session");
+      throw this.unauthenticated("刷新会话无效");
     }
 
     try {
@@ -220,7 +220,7 @@ export class AuthService {
         result: "failed",
         metadata: { reason: "rotation_conflict" },
       });
-      throw this.unauthenticated("Invalid refresh session");
+      throw this.unauthenticated("刷新会话无效");
     }
 
     const accessToken = await this.tokenService.signAccessToken({
@@ -291,7 +291,7 @@ export class AuthService {
     const session = await this.repository.findActiveSessionById(sessionId);
 
     if (!session || session.userId !== authContext.userId) {
-      throw this.unauthenticated("Invalid refresh session");
+      throw this.unauthenticated("刷新会话无效");
     }
 
     await this.repository.revokeSession(sessionId);
@@ -333,11 +333,11 @@ export class AuthService {
     currentOrganizationId: string;
   } {
     if (session.status !== "active" || session.expiresAt.getTime() <= this.getNow().getTime()) {
-      throw this.unauthenticated("Invalid refresh session");
+      throw this.unauthenticated("刷新会话无效");
     }
 
     if (!session.currentOrganizationId) {
-      throw this.unauthenticated("Invalid organization context");
+      throw this.unauthenticated("组织上下文无效");
     }
   }
 
@@ -345,7 +345,7 @@ export class AuthService {
     const expectedTransport = this.isWebClient(clientType) ? "cookie" : "json_body";
 
     if (transport !== expectedTransport) {
-      throw this.unauthenticated("Invalid refresh transport");
+      throw this.unauthenticated("刷新令牌传输方式无效");
     }
   }
 

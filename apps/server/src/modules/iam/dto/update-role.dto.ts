@@ -14,7 +14,7 @@ export const updateRoleSchema = z
       value.description !== undefined ||
       value.permissionKeys !== undefined,
     {
-      message: "At least one role field is required",
+      message: "至少需要提供一项角色信息",
     },
   );
 

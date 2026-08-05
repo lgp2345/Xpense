@@ -38,7 +38,7 @@ export class IamService {
     );
 
     if (existingMember) {
-      throw this.conflict("User is already a member of the current organization");
+      throw this.conflict("用户已属于当前组织");
     }
 
     await this.ensureRoleInCurrentOrganization(authContext.organizationId, dto.roleId);
@@ -106,7 +106,7 @@ export class IamService {
       );
 
       if (!member) {
-        throw this.notFound("Organization member was not found");
+        throw this.notFound("组织成员不存在");
       }
 
       const updatedMember = await this.repository.updateMember(
@@ -197,7 +197,7 @@ export class IamService {
     const existingRole = await this.repository.findRoleByKey(authContext.organizationId, dto.key);
 
     if (existingRole) {
-      throw this.conflict("Role key already exists in the current organization");
+      throw this.conflict("角色标识在当前组织已存在");
     }
 
     return this.transactions.run(async (transaction) => {
@@ -264,7 +264,7 @@ export class IamService {
     const role = await this.repository.findRoleById(authContext.organizationId, roleId);
 
     if (!role) {
-      throw this.notFound("Role was not found");
+      throw this.notFound("角色不存在");
     }
 
     this.assertRoleEditable(role);
@@ -335,7 +335,7 @@ export class IamService {
     const role = await this.repository.findRoleById(authContext.organizationId, roleId);
 
     if (!role) {
-      throw this.notFound("Role was not found");
+      throw this.notFound("角色不存在");
     }
 
     this.assertRoleEditable(role);
@@ -346,7 +346,7 @@ export class IamService {
     );
 
     if (assignedMemberCount > 0) {
-      throw this.conflict("Role is assigned to organization members");
+      throw this.conflict("角色已被组织成员使用");
     }
 
     await this.transactions.run(async (transaction) => {
@@ -379,7 +379,7 @@ export class IamService {
     const role = await this.repository.findRoleById(organizationId, roleId);
 
     if (!role) {
-      throw this.notFound("Role was not found");
+      throw this.notFound("角色不存在");
     }
 
     return role;
@@ -389,7 +389,7 @@ export class IamService {
     if (role.isSystem && !role.isEditable) {
       throw new ForbiddenException({
         code: apiErrorCodes.forbidden,
-        message: "System role is protected",
+        message: "系统角色受保护",
       });
     }
   }
@@ -401,7 +401,7 @@ export class IamService {
     ) {
       throw new ForbiddenException({
         code: apiErrorCodes.forbidden,
-        message: "Permission update access is required",
+        message: "无权更新角色权限",
       });
     }
   }
@@ -431,7 +431,7 @@ export class IamService {
 
     throw new ForbiddenException({
       code: apiErrorCodes.forbidden,
-      message: "Cannot grant permissions outside the actor's permission set",
+      message: "不能授予超出自身权限范围的权限",
     });
   }
 
@@ -444,7 +444,7 @@ export class IamService {
 
   private notFound(message: string): NotFoundException {
     return new NotFoundException({
-      code: "NOT_FOUND",
+      code: apiErrorCodes.notFound,
       message,
     });
   }

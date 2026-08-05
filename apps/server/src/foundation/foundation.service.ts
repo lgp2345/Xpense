@@ -31,7 +31,7 @@ export class FoundationService {
     try {
       await this.databaseReadinessService.check();
     } catch {
-      throw new ServiceUnavailableException("Service is not ready");
+      throw new ServiceUnavailableException("服务未就绪");
     }
 
     return {

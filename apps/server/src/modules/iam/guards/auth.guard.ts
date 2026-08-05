@@ -29,7 +29,7 @@ export class AuthGuard implements CanActivate {
     const accessToken = this.extractBearerToken(request.headers.authorization);
 
     if (!accessToken) {
-      throw this.unauthenticated("Missing access token");
+      throw this.unauthenticated("缺少访问令牌");
     }
 
     try {
@@ -38,7 +38,7 @@ export class AuthGuard implements CanActivate {
 
       return true;
     } catch {
-      throw this.unauthenticated("Invalid access token");
+      throw this.unauthenticated("访问令牌无效");
     }
   }
 

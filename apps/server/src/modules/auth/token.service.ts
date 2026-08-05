@@ -34,7 +34,7 @@ export class TokenService {
       typeof payload.sessionId !== "string" ||
       typeof payload.organizationId !== "string"
     ) {
-      throw new UnauthorizedException("Invalid access token payload");
+      throw new UnauthorizedException("访问令牌载荷无效");
     }
 
     return {

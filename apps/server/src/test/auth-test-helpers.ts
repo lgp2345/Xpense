@@ -51,7 +51,7 @@ export async function login(app: InjectableApp, email: string): Promise<AuthToke
     throw new Error(`Login failed: ${response.statusCode} ${response.payload}`);
   }
 
-  return parseJson<AuthTokens>(response);
+  return parseJson<{ data: AuthTokens }>(response).data;
 }
 
 export type TestAuth = {

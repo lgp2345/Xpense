@@ -30,7 +30,7 @@ export class RbacGuard implements CanActivate {
     if (!authContext) {
       throw new UnauthorizedException({
         code: apiErrorCodes.unauthenticated,
-        message: "Auth context is missing",
+        message: "缺少认证上下文",
       });
     }
 

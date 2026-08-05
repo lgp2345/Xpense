@@ -63,7 +63,11 @@ describe("Foundation API", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ ok: true, service: "server" });
+    expect(response.json()).toEqual({
+      code: "OK",
+      message: "ok",
+      data: { ok: true, service: "server" },
+    });
   });
 
   it("returns database readiness when the query succeeds", async () => {
@@ -74,9 +78,13 @@ describe("Foundation API", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      ok: true,
-      service: "server",
-      database: "ready",
+      code: "OK",
+      message: "ok",
+      data: {
+        ok: true,
+        service: "server",
+        database: "ready",
+      },
     });
     expect(execute).toHaveBeenCalledOnce();
   });
@@ -91,9 +99,9 @@ describe("Foundation API", () => {
 
     expect(response.statusCode).toBe(503);
     expect(response.json()).toEqual({
-      message: "Service is not ready",
-      error: "Service Unavailable",
-      statusCode: 503,
+      code: "SERVICE_UNAVAILABLE",
+      message: "服务未就绪",
+      data: null,
     });
     expect(response.body).not.toContain("connection refused");
     expect(response.body).not.toContain("postgresql://secret");
@@ -107,8 +115,12 @@ describe("Foundation API", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      appName: "Xpense",
-      message: "Hello from Xpense API",
+      code: "OK",
+      message: "ok",
+      data: {
+        appName: "Xpense",
+        message: "Hello from Xpense API",
+      },
     });
   });
 });
