@@ -1,6 +1,7 @@
-import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
+import { createRequestLogger } from "../../common/logging/request-logger.js";
 import { requestContext } from "../../common/request-context/request-context.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { AuditRepository } from "./audit.repository.js";
@@ -31,7 +32,7 @@ export class AuditService {
     private readonly repository: AuditRepository,
     @Optional()
     @Inject(AUDIT_LOGGER)
-    private readonly logger: AuditLogger = new Logger(AuditService.name),
+    private readonly logger: AuditLogger = createRequestLogger(AuditService.name),
   ) {}
 
   async append(input: AppendAuditLogInput): Promise<void> {

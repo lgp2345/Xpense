@@ -4,11 +4,11 @@ import {
   type ExceptionFilter,
   HttpException,
   HttpStatus,
-  Logger,
 } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
 
 import { apiErrorCodes } from "../errors/api-error.js";
+import { createRequestLogger } from "../logging/request-logger.js";
 
 function codeForHttpStatus(status: number): string {
   switch (status) {
@@ -33,7 +33,7 @@ function codeForHttpStatus(status: number): string {
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-  private readonly logger = new Logger(AllExceptionsFilter.name);
+  private readonly logger = createRequestLogger(AllExceptionsFilter.name);
 
   constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
 
