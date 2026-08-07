@@ -42,7 +42,7 @@ export type RbacSeedPlan = {
 
 export function buildRbacSeedPlan(): RbacSeedPlan {
   const permissions = permissionKeys.map((key) => {
-    const [resource, ...actionParts] = key.split(".");
+    const [resource, ...actionParts] = key.split(":");
 
     return {
       key,
@@ -68,21 +68,21 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
         name: "Admin",
         isSystem: true,
         isEditable: false,
-        permissions: permissionKeys.filter((key) => key !== "roles.delete"),
+        permissions: permissionKeys.filter((key) => key !== "roles:delete"),
       },
       {
         key: "member",
         name: "Member",
         isSystem: true,
         isEditable: false,
-        permissions: ["transactions.read", "transactions.create", "transactions.update"],
+        permissions: ["transactions:read", "transactions:create", "transactions:update"],
       },
       {
         key: "viewer",
         name: "Viewer",
         isSystem: true,
         isEditable: false,
-        permissions: ["transactions.read"],
+        permissions: ["transactions:read"],
       },
     ],
   };

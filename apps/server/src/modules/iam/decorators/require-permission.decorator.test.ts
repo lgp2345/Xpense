@@ -6,7 +6,7 @@ import { REQUIRE_PERMISSION_KEY, RequirePermission } from "./require-permission.
 describe("RequirePermission", () => {
   it("stores required permission metadata", () => {
     class TestController {
-      @RequirePermission("roles.update")
+      @RequirePermission("roles:update")
       updateRole() {
         return "ok";
       }
@@ -15,6 +15,6 @@ describe("RequirePermission", () => {
     const reflector = new Reflector();
     const permission = reflector.get(REQUIRE_PERMISSION_KEY, TestController.prototype.updateRole);
 
-    expect(permission).toBe("roles.update");
+    expect(permission).toBe("roles:update");
   });
 });

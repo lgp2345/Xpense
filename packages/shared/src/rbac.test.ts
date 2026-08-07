@@ -5,7 +5,7 @@ import { permissionKeys, systemRoleKeys } from "./rbac.js";
 describe("RBAC shared constants", () => {
   it("uses stable resource.action permission keys", () => {
     for (const key of permissionKeys) {
-      expect(key).toMatch(/^[a-z_]+(\.[a-z_]+)+$/);
+      expect(key).toMatch(/^[a-z_]+(:[a-z_]+)+$/);
     }
   });
 

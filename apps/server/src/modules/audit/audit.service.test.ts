@@ -9,7 +9,7 @@ const authContext: AuthContext = {
   sessionId: "session-1",
   organizationId: "org-1",
   isSuperAdmin: false,
-  permissions: ["audit_logs.read"],
+  permissions: ["audit_logs:read"],
 };
 
 describe("AuditService", () => {

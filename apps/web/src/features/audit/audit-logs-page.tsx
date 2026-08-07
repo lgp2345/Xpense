@@ -28,7 +28,7 @@ export function AuditLogsPage({
   permissions,
   search = EMPTY_SEARCH,
 }: AuditLogsPageProps) {
-  const canRead = permissions.includes("audit_logs.read");
+  const canRead = permissions.includes("audit_logs:read");
   const hasInitialLogs = logs !== undefined;
   const [logItems, setLogItems] = useState(() => logs ?? []);
   const [isLoading, setIsLoading] = useState(canRead && !hasInitialLogs);

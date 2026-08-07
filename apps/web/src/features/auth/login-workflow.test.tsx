@@ -19,7 +19,7 @@ const currentUserContext: CurrentUserResponse = {
   },
   organization: { id: "org-1", name: "个人账本" },
   role: { id: "role-1", key: "owner", name: "所有者" },
-  permissions: ["members.read", "roles.read"],
+  permissions: ["members:read", "roles:read"],
   session: { id: "session-1", clientType: "web_pc" },
 };
 

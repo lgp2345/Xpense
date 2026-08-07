@@ -12,13 +12,13 @@ const authContext: AuthContext = {
   organizationId: "org-1",
   isSuperAdmin: false,
   permissions: [
-    "members.read",
-    "members.update",
-    "members.enable",
-    "members.disable",
-    "roles.permissions.update",
-    "transactions.read",
-    "transactions.create",
+    "members:read",
+    "members:update",
+    "members:enable",
+    "members:disable",
+    "roles:permissions:update",
+    "transactions:read",
+    "transactions:create",
   ],
 };
 
@@ -75,11 +75,11 @@ describe("IamService", () => {
       listPermissions: vi.fn().mockResolvedValue([
         {
           id: "permission-1",
-          key: "transactions.read" as PermissionKey,
-          name: "transactions.read",
+          key: "transactions:read" as PermissionKey,
+          name: "transactions:read",
           resource: "transactions",
           action: "read",
-          description: "transactions.read",
+          description: "transactions:read",
         },
       ]),
     };
@@ -288,7 +288,7 @@ describe("IamService", () => {
     const { repository, service } = createHarness();
     const withoutMemberUpdate = {
       ...authContext,
-      permissions: ["members.disable"] as PermissionKey[],
+      permissions: ["members:disable"] as PermissionKey[],
     };
 
     await expect(
@@ -299,13 +299,13 @@ describe("IamService", () => {
   });
 
   it.each([
-    ["active", "members.enable"],
-    ["disabled", "members.disable"],
+    ["active", "members:enable"],
+    ["disabled", "members:disable"],
   ] as const)("requires %s status changes to have %s", async (status, requiredPermission) => {
     const { accessService, repository, service } = createHarness();
     const withoutStatusPermission = {
       ...authContext,
-      permissions: ["members.update"] as PermissionKey[],
+      permissions: ["members:update"] as PermissionKey[],
     };
 
     await expect(
@@ -323,7 +323,7 @@ describe("IamService", () => {
     const { service } = createHarness();
     const statusOnlyContext = {
       ...authContext,
-      permissions: ["members.disable"] as PermissionKey[],
+      permissions: ["members:disable"] as PermissionKey[],
     };
 
     await expect(
@@ -335,7 +335,7 @@ describe("IamService", () => {
     const { repository, service } = createHarness();
     const roleOnlyContext = {
       ...authContext,
-      permissions: ["members.update"] as PermissionKey[],
+      permissions: ["members:update"] as PermissionKey[],
     };
 
     await expect(
@@ -356,7 +356,7 @@ describe("IamService", () => {
         key: "bookkeeper",
         name: "Bookkeeper",
         description: "Handles books",
-        permissionKeys: ["transactions.read", "transactions.create"],
+        permissionKeys: ["transactions:read", "transactions:create"],
       }),
     ).resolves.toEqual(editableRole);
 
@@ -372,7 +372,7 @@ describe("IamService", () => {
     expect(repository.replaceRolePermissions).toHaveBeenCalledWith(
       {
         roleId: "role-custom",
-        permissionKeys: ["transactions.read", "transactions.create"],
+        permissionKeys: ["transactions:read", "transactions:create"],
       },
       transaction,
     );
@@ -406,7 +406,7 @@ describe("IamService", () => {
       service.createRole(withoutPermissionUpdate, {
         key: "bookkeeper",
         name: "Bookkeeper",
-        permissionKeys: ["transactions.read"],
+        permissionKeys: ["transactions:read"],
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     await expect(
@@ -435,14 +435,14 @@ describe("IamService", () => {
     const { repository, service } = createHarness();
     const limitedContext = {
       ...authContext,
-      permissions: ["roles.permissions.update"] as PermissionKey[],
+      permissions: ["roles:permissions:update"] as PermissionKey[],
     };
 
     await expect(
       service.createRole(limitedContext, {
         key: "administrator",
         name: "Administrator",
-        permissionKeys: ["transactions.delete"],
+        permissionKeys: ["transactions:delete"],
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
@@ -453,12 +453,12 @@ describe("IamService", () => {
     const { repository, service } = createHarness();
     const limitedContext = {
       ...authContext,
-      permissions: ["roles.permissions.update"] as PermissionKey[],
+      permissions: ["roles:permissions:update"] as PermissionKey[],
     };
 
     await expect(
       service.updateRole(limitedContext, "role-custom", {
-        permissionKeys: ["transactions.delete"],
+        permissionKeys: ["transactions:delete"],
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
@@ -467,10 +467,10 @@ describe("IamService", () => {
 
   it("rejects creating a member with a role above the actor's permission ceiling", async () => {
     const { repository, service } = createHarness();
-    repository.listPermissionKeysForRole.mockResolvedValue(["transactions.delete"]);
+    repository.listPermissionKeysForRole.mockResolvedValue(["transactions:delete"]);
     const limitedContext = {
       ...authContext,
-      permissions: ["members.create"] as PermissionKey[],
+      permissions: ["members:create"] as PermissionKey[],
     };
 
     await expect(
@@ -482,10 +482,10 @@ describe("IamService", () => {
 
   it("rejects assigning a member role above the actor's permission ceiling", async () => {
     const { repository, service } = createHarness();
-    repository.listPermissionKeysForRole.mockResolvedValue(["transactions.delete"]);
+    repository.listPermissionKeysForRole.mockResolvedValue(["transactions:delete"]);
     const limitedContext = {
       ...authContext,
-      permissions: ["members.update"] as PermissionKey[],
+      permissions: ["members:update"] as PermissionKey[],
     };
 
     await expect(
@@ -497,7 +497,7 @@ describe("IamService", () => {
 
   it("allows super admins to grant and assign permissions above their role", async () => {
     const { repository, service } = createHarness();
-    repository.listPermissionKeysForRole.mockResolvedValue(["transactions.delete"]);
+    repository.listPermissionKeysForRole.mockResolvedValue(["transactions:delete"]);
     const superAdminContext = {
       ...authContext,
       isSuperAdmin: true,
@@ -508,7 +508,7 @@ describe("IamService", () => {
       service.createRole(superAdminContext, {
         key: "administrator",
         name: "Administrator",
-        permissionKeys: ["transactions.delete"],
+        permissionKeys: ["transactions:delete"],
       }),
     ).resolves.toEqual(editableRole);
     await expect(
@@ -612,7 +612,7 @@ describe("IamService", () => {
 
     await service.updateRole(authContext, "role-custom", {
       name: "Ledger Owner",
-      permissionKeys: ["transactions.read"],
+      permissionKeys: ["transactions:read"],
     });
 
     expect(repository.updateRole).toHaveBeenCalledWith(
@@ -627,7 +627,7 @@ describe("IamService", () => {
     expect(repository.replaceRolePermissions).toHaveBeenCalledWith(
       {
         roleId: "role-custom",
-        permissionKeys: ["transactions.read"],
+        permissionKeys: ["transactions:read"],
       },
       transaction,
     );

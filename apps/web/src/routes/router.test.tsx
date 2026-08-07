@@ -82,7 +82,7 @@ describe("router auth guards", () => {
   });
 
   it("redirects authenticated users without the required permission to forbidden", async () => {
-    const router = await loadPath("/roles", ["members.read"]);
+    const router = await loadPath("/roles", ["members:read"]);
 
     expect(router.state.location.pathname).toBe("/forbidden");
   });
@@ -100,7 +100,7 @@ describe("router auth guards", () => {
   });
 
   it("renders the roles management page instead of the administration placeholder", async () => {
-    const router = await loadPath("/roles", ["roles.read"]);
+    const router = await loadPath("/roles", ["roles:read"]);
 
     render(
       <AppProviders>
@@ -114,7 +114,7 @@ describe("router auth guards", () => {
   });
 
   it("renders the sessions management page instead of the administration placeholder", async () => {
-    const router = await loadPath("/sessions", ["sessions.read"]);
+    const router = await loadPath("/sessions", ["sessions:read"]);
 
     render(
       <AppProviders>
@@ -132,7 +132,7 @@ describe("router auth guards", () => {
     const history = createMemoryHistory({
       initialEntries: ["/audit-logs?action=role.created&targetType=role"],
     });
-    const store = createAuthenticatedStore(["audit_logs.read"]);
+    const store = createAuthenticatedStore(["audit_logs:read"]);
     const instance = axios.create();
     const mock = new MockAdapter(instance);
     mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
@@ -173,7 +173,7 @@ describe("router auth guards", () => {
     mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
     const router = createAppRouter({
       history,
-      session: createRouterSession(createAuthenticatedStore(["audit_logs.read"]), instance),
+      session: createRouterSession(createAuthenticatedStore(["audit_logs:read"]), instance),
     });
     await router.load();
 
@@ -194,7 +194,7 @@ describe("router auth guards", () => {
   it("clears authentication and navigates to login after revoking the current session", async () => {
     const user = userEvent.setup();
     const history = createMemoryHistory({ initialEntries: ["/sessions"] });
-    const store = createAuthenticatedStore(["sessions.read", "sessions.revoke"]);
+    const store = createAuthenticatedStore(["sessions:read", "sessions:revoke"]);
     const instance = axios.create();
     const mock = new MockAdapter(instance);
     mock.onGet(/\/auth\/sessions$/).reply(200, {
@@ -229,10 +229,10 @@ describe("router auth guards", () => {
   });
 
   it.each([
-    ["/members", "members.read"],
-    ["/roles", "roles.read"],
-    ["/sessions", "sessions.read"],
-    ["/audit-logs", "audit_logs.read"],
+    ["/members", "members:read"],
+    ["/roles", "roles:read"],
+    ["/sessions", "sessions:read"],
+    ["/audit-logs", "audit_logs:read"],
   ] as const)("allows %s only with %s", async (path, permission) => {
     const router = await loadPath(path, [permission]);
 
@@ -241,10 +241,10 @@ describe("router auth guards", () => {
 
   it("keeps the exact permission mapping for future administration pages", () => {
     expect(protectedRoutePermissions).toEqual({
-      "/members": "members.read",
-      "/roles": "roles.read",
-      "/sessions": "sessions.read",
-      "/audit-logs": "audit_logs.read",
+      "/members": "members:read",
+      "/roles": "roles:read",
+      "/sessions": "sessions:read",
+      "/audit-logs": "audit_logs:read",
     });
   });
 });

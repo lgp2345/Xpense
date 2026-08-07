@@ -50,7 +50,7 @@ describe("IAM e2e", () => {
         expect.objectContaining({
           id: testIds.managerRole,
           key: "manager",
-          permissionKeys: expect.arrayContaining(["roles.read", "roles.update", "members.update"]),
+          permissionKeys: expect.arrayContaining(["roles:read", "roles:update", "members:update"]),
         }),
       ]),
     );
@@ -267,7 +267,7 @@ describe("IAM e2e", () => {
       payload: {
         key: "elevated",
         name: "Elevated",
-        permissionKeys: ["transactions.delete"],
+        permissionKeys: ["transactions:delete"],
       },
     });
 
@@ -286,12 +286,12 @@ describe("IAM e2e", () => {
         authorization: `Bearer ${accessToken}`,
       },
       payload: {
-        permissionKeys: ["transactions.delete"],
+        permissionKeys: ["transactions:delete"],
       },
     });
 
     expect(response.statusCode).toBe(403);
-    expect(state.roles.get(testIds.managerRole)?.permissions).not.toContain("transactions.delete");
+    expect(state.roles.get(testIds.managerRole)?.permissions).not.toContain("transactions:delete");
   });
 
   it("POST /members rejects assigning a role above a non-super-admin actor", async () => {
@@ -329,14 +329,14 @@ describe("IAM e2e", () => {
       payload: {
         key: "super-managed",
         name: "Super managed",
-        permissionKeys: ["transactions.delete"],
+        permissionKeys: ["transactions:delete"],
       },
     });
 
     expect(response.statusCode).toBe(201);
     expect(
       state.roles.get(parseJson<{ data: { id: string } }>(response).data.id)?.permissions,
-    ).toEqual(["transactions.delete"]);
+    ).toEqual(["transactions:delete"]);
   });
 
   it("allows a super admin to assign a role above their assigned role", async () => {

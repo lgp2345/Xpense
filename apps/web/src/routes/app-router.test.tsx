@@ -116,7 +116,7 @@ describe("AppRouter startup", () => {
       },
       currentOrganization: { id: "org-1", name: "个人账本" },
       role: { id: "role-1", key: "owner", name: "所有者" },
-      permissions: ["members.read"],
+      permissions: ["members:read"],
       session: { id: "session-1", clientType: "web_pc" },
       status: "authenticated",
     });

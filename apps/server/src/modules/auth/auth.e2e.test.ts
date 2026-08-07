@@ -514,7 +514,7 @@ describe("Auth e2e", () => {
         key: "manager",
         name: "Manager",
       },
-      permissions: expect.arrayContaining(["roles.read", "members.update"]),
+      permissions: expect.arrayContaining(["roles:read", "members:update"]),
       session: {
         clientType: "web_pc",
       },

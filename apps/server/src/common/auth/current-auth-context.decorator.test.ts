@@ -18,7 +18,7 @@ const testAuthContext = {
   sessionId: "session-1",
   organizationId: "org-1",
   isSuperAdmin: false,
-  permissions: ["roles.update"],
+  permissions: ["roles:update"],
 } satisfies AuthContext;
 
 type RequestWithAuthContext = {

@@ -15,7 +15,7 @@ const authContext: AuthContext = {
   sessionId: "session-1",
   organizationId: "org-1",
   isSuperAdmin: false,
-  permissions: ["roles.update"],
+  permissions: ["roles:update"],
 };
 
 type RequestLike = {
@@ -90,7 +90,7 @@ describe("AuthGuard", () => {
 
 describe("RbacGuard", () => {
   class TestController {
-    @RequirePermission("roles.update")
+    @RequirePermission("roles:update")
     updateRole() {
       return "ok";
     }
@@ -131,7 +131,7 @@ describe("RbacGuard", () => {
     const { accessService, guard, context } = createHarness(TestController.prototype.updateRole);
 
     expect(guard.canActivate(context)).toBe(true);
-    expect(accessService.assertPermission).toHaveBeenCalledWith(authContext, "roles.update");
+    expect(accessService.assertPermission).toHaveBeenCalledWith(authContext, "roles:update");
   });
 
   it("propagates forbidden permission decisions", () => {
@@ -147,7 +147,7 @@ describe("RbacGuard", () => {
     const reflector = new Reflector();
 
     expect(reflector.get(REQUIRE_PERMISSION_KEY, TestController.prototype.updateRole)).toBe(
-      "roles.update",
+      "roles:update",
     );
   });
 });

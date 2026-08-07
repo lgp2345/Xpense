@@ -28,7 +28,7 @@ function loadMembersData(api: MembersApi, canReadRoles: boolean) {
 }
 
 export function MembersPage({ api = webIamApi, members, permissions, roles }: MembersPageProps) {
-  const canReadRoles = permissions.includes("roles.read");
+  const canReadRoles = permissions.includes("roles:read");
   const hasInitialData = members !== undefined && (!canReadRoles || roles !== undefined);
   const [memberItems, setMemberItems] = useState(() => members ?? []);
   const [roleItems, setRoleItems] = useState(() => roles ?? []);
@@ -132,10 +132,10 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
     }
   }
 
-  const canCreate = canReadRoles && permissions.includes("members.create");
+  const canCreate = canReadRoles && permissions.includes("members:create");
   const memberActionPermissions = canReadRoles
     ? permissions
-    : permissions.filter((permission) => permission !== "members.update");
+    : permissions.filter((permission) => permission !== "members:update");
 
   return (
     <main className="space-y-4 p-4 sm:p-6 lg:p-8">

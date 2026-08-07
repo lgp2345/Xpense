@@ -15,7 +15,7 @@ export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
   @Get()
-  @RequirePermission("audit_logs.read")
+  @RequirePermission("audit_logs:read")
   listCurrentOrganizationLogs(
     @CurrentAuthContext() authContext: AuthContext,
     @Query() query: ListAuditLogsDto,

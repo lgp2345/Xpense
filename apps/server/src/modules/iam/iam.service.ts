@@ -81,15 +81,15 @@ export class IamService {
     dto: UpdateMemberDto,
   ): Promise<IamMember> {
     if (dto.roleId !== undefined) {
-      this.accessService.assertPermission(authContext, "members.update");
+      this.accessService.assertPermission(authContext, "members:update");
     }
 
     if (dto.status === "active") {
-      this.accessService.assertPermission(authContext, "members.enable");
+      this.accessService.assertPermission(authContext, "members:enable");
     }
 
     if (dto.status === "disabled") {
-      this.accessService.assertPermission(authContext, "members.disable");
+      this.accessService.assertPermission(authContext, "members:disable");
     }
 
     if (dto.roleId) {
@@ -397,7 +397,7 @@ export class IamService {
   private assertCanUpdateRolePermissions(authContext: AuthContext): void {
     if (
       !authContext.isSuperAdmin &&
-      !authContext.permissions.includes("roles.permissions.update")
+      !authContext.permissions.includes("roles:permissions:update")
     ) {
       throw new ForbiddenException({
         code: apiErrorCodes.forbidden,

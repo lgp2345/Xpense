@@ -23,7 +23,7 @@ describe("createIamApi", () => {
     await api.updateMember("member-1", { status: "disabled" });
     await api.listRoles();
     await api.createRole({ key: "bookkeeper", name: "Bookkeeper", permissionKeys: [] });
-    await api.updateRole("role-1", { permissionKeys: ["roles.read"] });
+    await api.updateRole("role-1", { permissionKeys: ["roles:read"] });
     await api.deleteRole("role-1");
     await api.listPermissions();
 
@@ -40,7 +40,7 @@ describe("createIamApi", () => {
       permissionKeys: [],
     });
     expect(client.patch).toHaveBeenNthCalledWith(2, "/roles/role-1", {
-      permissionKeys: ["roles.read"],
+      permissionKeys: ["roles:read"],
     });
     expect(client.delete).toHaveBeenNthCalledWith(1, "/roles/role-1");
     expect(client.get).toHaveBeenNthCalledWith(3, "/permissions");

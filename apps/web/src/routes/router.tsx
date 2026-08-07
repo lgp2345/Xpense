@@ -42,10 +42,10 @@ type CreateAppRouterOptions = {
 const sessionsByRouter = new WeakMap<object, WebSessionDependency>();
 
 export const protectedRoutePermissions = {
-  "/members": "members.read",
-  "/roles": "roles.read",
-  "/sessions": "sessions.read",
-  "/audit-logs": "audit_logs.read",
+  "/members": "members:read",
+  "/roles": "roles:read",
+  "/sessions": "sessions:read",
+  "/audit-logs": "audit_logs:read",
 } as const satisfies Record<string, PermissionKey>;
 
 const rootRoute = createRootRouteWithContext<AppRouterContext>()({
@@ -161,7 +161,7 @@ function MembersRoutePage() {
     (state) => state.currentUser?.isSuperAdmin ?? false,
   );
   const memberPermissions: PermissionKey[] = isSuperAdmin
-    ? ["members.create", "members.disable", "members.enable", "members.read", "members.update"]
+    ? ["members:create", "members:disable", "members:enable", "members:read", "members:update"]
     : permissions;
 
   return <MembersPage api={session.iamApi} permissions={memberPermissions} />;
@@ -175,7 +175,7 @@ function RolesRoutePage() {
     (state) => state.currentUser?.isSuperAdmin ?? false,
   );
   const rolePermissions: PermissionKey[] = isSuperAdmin
-    ? ["roles.create", "roles.delete", "roles.permissions.update", "roles.read", "roles.update"]
+    ? ["roles:create", "roles:delete", "roles:permissions:update", "roles:read", "roles:update"]
     : permissions;
 
   return <RolesPage api={session.iamApi} permissions={rolePermissions} />;
@@ -191,7 +191,7 @@ function SessionsRoutePage() {
   );
   const currentSessionId = useStore(session.authStore, (state) => state.session?.id);
   const sessionPermissions: PermissionKey[] = isSuperAdmin
-    ? ["sessions.read", "sessions.revoke"]
+    ? ["sessions:read", "sessions:revoke"]
     : permissions;
 
   return (
@@ -216,7 +216,7 @@ function AuditLogsRoutePage() {
     (state) => state.currentUser?.isSuperAdmin ?? false,
   );
   const search = auditLogsRoute.useSearch();
-  const auditLogPermissions: PermissionKey[] = isSuperAdmin ? ["audit_logs.read"] : permissions;
+  const auditLogPermissions: PermissionKey[] = isSuperAdmin ? ["audit_logs:read"] : permissions;
 
   return (
     <AuditLogsPage

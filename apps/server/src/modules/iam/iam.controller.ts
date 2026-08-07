@@ -18,13 +18,13 @@ export class IamController {
   constructor(private readonly iamService: IamService) {}
 
   @Get("members")
-  @RequirePermission("members.read")
+  @RequirePermission("members:read")
   listMembers(@CurrentAuthContext() authContext: AuthContext): Promise<IamMember[]> {
     return this.iamService.listMembers(authContext);
   }
 
   @Post("members")
-  @RequirePermission("members.create")
+  @RequirePermission("members:create")
   createMember(
     @CurrentAuthContext() authContext: AuthContext,
     @Body() dto: CreateMemberDto,
@@ -42,13 +42,13 @@ export class IamController {
   }
 
   @Get("roles")
-  @RequirePermission("roles.read")
+  @RequirePermission("roles:read")
   listRoles(@CurrentAuthContext() authContext: AuthContext): Promise<IamRoleWithPermissions[]> {
     return this.iamService.listRoles(authContext);
   }
 
   @Post("roles")
-  @RequirePermission("roles.create")
+  @RequirePermission("roles:create")
   createRole(
     @CurrentAuthContext() authContext: AuthContext,
     @Body() dto: CreateRoleDto,
@@ -57,7 +57,7 @@ export class IamController {
   }
 
   @Patch("roles/:roleId")
-  @RequirePermission("roles.update")
+  @RequirePermission("roles:update")
   updateRole(
     @CurrentAuthContext() authContext: AuthContext,
     @Param("roleId") roleId: string,
@@ -67,7 +67,7 @@ export class IamController {
   }
 
   @Delete("roles/:roleId")
-  @RequirePermission("roles.delete")
+  @RequirePermission("roles:delete")
   deleteRole(
     @CurrentAuthContext() authContext: AuthContext,
     @Param("roleId") roleId: string,
@@ -76,7 +76,7 @@ export class IamController {
   }
 
   @Get("permissions")
-  @RequirePermission("permissions.read")
+  @RequirePermission("permissions:read")
   listPermissions(@CurrentAuthContext() authContext: AuthContext): Promise<IamPermission[]> {
     return this.iamService.listPermissions(authContext);
   }

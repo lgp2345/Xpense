@@ -29,7 +29,7 @@ describe("AccessService", () => {
         organizationId: "org-1",
         roleId: "role-1",
       }),
-      listPermissionKeysForRole: vi.fn().mockResolvedValue(["roles.update"]),
+      listPermissionKeysForRole: vi.fn().mockResolvedValue(["roles:update"]),
     };
     const service = new AccessService(repository as never);
 
@@ -44,7 +44,7 @@ describe("AccessService", () => {
       sessionId: "session-1",
       organizationId: "org-1",
       isSuperAdmin: false,
-      permissions: ["roles.update"],
+      permissions: ["roles:update"],
     });
   });
 
@@ -52,14 +52,14 @@ describe("AccessService", () => {
     const { service } = createHarness();
     const authContext = await service.resolveAuthContext(payload);
 
-    expect(() => service.assertPermission(authContext, "roles.update")).not.toThrow();
+    expect(() => service.assertPermission(authContext, "roles:update")).not.toThrow();
   });
 
   it("rejects normal member without required permission", async () => {
     const { service } = createHarness();
     const authContext = await service.resolveAuthContext(payload);
 
-    expect(() => service.assertPermission(authContext, "roles.delete")).toThrow(ForbiddenException);
+    expect(() => service.assertPermission(authContext, "roles:delete")).toThrow(ForbiddenException);
   });
 
   it("allows super_admin active member without required permission", async () => {
@@ -72,7 +72,7 @@ describe("AccessService", () => {
 
     const authContext = await service.resolveAuthContext(payload);
 
-    expect(() => service.assertPermission(authContext, "roles.delete")).not.toThrow();
+    expect(() => service.assertPermission(authContext, "roles:delete")).not.toThrow();
   });
 
   it("rejects super_admin when not an active organization member", async () => {

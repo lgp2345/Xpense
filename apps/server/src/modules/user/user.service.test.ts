@@ -10,7 +10,7 @@ const authContext: AuthContext = {
   sessionId: "session-1",
   organizationId: "org-1",
   isSuperAdmin: false,
-  permissions: ["roles.read"],
+  permissions: ["roles:read"],
 };
 
 describe("UserService", () => {
@@ -37,7 +37,7 @@ describe("UserService", () => {
           clientType: "web_pc",
         },
       }),
-      listPermissionKeysForRole: vi.fn().mockResolvedValue(["roles.read"]),
+      listPermissionKeysForRole: vi.fn().mockResolvedValue(["roles:read"]),
     };
     const service = new UserService(repository as never);
 
@@ -63,7 +63,7 @@ describe("UserService", () => {
         key: "admin",
         name: "Admin",
       },
-      permissions: ["roles.read"],
+      permissions: ["roles:read"],
       session: {
         id: "session-1",
         clientType: "web_pc",

@@ -118,7 +118,7 @@ export class AuthController {
   }
 
   @Get("sessions")
-  @RequirePermission("sessions.read")
+  @RequirePermission("sessions:read")
   @UseGuards(AuthGuard, RbacGuard)
   listSessions(@CurrentAuthContext() authContext: AuthContext): Promise<SessionResponse[]> {
     return this.authService.listSessions(authContext);
@@ -126,7 +126,7 @@ export class AuthController {
 
   @Post("sessions/:id/revoke")
   @HttpCode(204)
-  @RequirePermission("sessions.revoke")
+  @RequirePermission("sessions:revoke")
   @UseGuards(AuthGuard, RbacGuard)
   revokeSession(
     @CurrentAuthContext() authContext: AuthContext,
@@ -137,7 +137,7 @@ export class AuthController {
 
   @Post("sessions/revoke-all")
   @HttpCode(204)
-  @RequirePermission("sessions.revoke")
+  @RequirePermission("sessions:revoke")
   @UseGuards(AuthGuard, RbacGuard)
   revokeAllSessions(@CurrentAuthContext() authContext: AuthContext): Promise<void> {
     return this.authService.revokeAllSessions(authContext);

@@ -14,7 +14,7 @@ const systemRole: IamRoleWithPermissions = {
   description: "拥有全部管理权限",
   isSystem: true,
   isEditable: false,
-  permissionKeys: ["roles.read"],
+  permissionKeys: ["roles:read"],
 };
 
 const customRole: IamRoleWithPermissions = {
@@ -25,13 +25,13 @@ const customRole: IamRoleWithPermissions = {
   description: "管理账本",
   isSystem: false,
   isEditable: true,
-  permissionKeys: ["roles.read"],
+  permissionKeys: ["roles:read"],
 };
 
 const availablePermissions: IamPermission[] = [
   {
     id: "permission-roles-read",
-    key: "roles.read",
+    key: "roles:read",
     name: "查看角色",
     resource: "roles",
     action: "read",
@@ -39,7 +39,7 @@ const availablePermissions: IamPermission[] = [
   },
   {
     id: "permission-members-read",
-    key: "members.read",
+    key: "members:read",
     name: "查看成员",
     resource: "members",
     action: "read",
@@ -74,7 +74,7 @@ function renderRolesPage(
   render(
     <RolesPage
       api={options.api}
-      permissions={["permissions.read", ...permissions]}
+      permissions={["permissions:read", ...permissions]}
       roleItems={options.roles ?? [systemRole, customRole]}
       permissionItems={options.pagePermissions ?? availablePermissions}
     />,
@@ -87,7 +87,7 @@ describe("RolesPage", () => {
       listPermissions: vi.fn().mockRejectedValue(new Error("forbidden")),
     });
 
-    render(<RolesPage api={api} permissions={["roles.read"]} />);
+    render(<RolesPage api={api} permissions={["roles:read"]} />);
 
     expect(await screen.findByText("账务管理员")).toBeInTheDocument();
     expect(api.listRoles).toHaveBeenCalledTimes(1);
@@ -100,7 +100,7 @@ describe("RolesPage", () => {
     render(
       <RolesPage
         permissionItems={availablePermissions}
-        permissions={["roles.read", "roles.update", "roles.permissions.update"]}
+        permissions={["roles:read", "roles:update", "roles:permissions:update"]}
         roleItems={[customRole]}
       />,
     );
@@ -111,7 +111,7 @@ describe("RolesPage", () => {
   });
 
   it("does not offer edit or delete actions for a non-editable system role", () => {
-    renderRolesPage(["roles.read", "roles.update", "roles.delete"]);
+    renderRolesPage(["roles:read", "roles:update", "roles:delete"]);
 
     expect(screen.queryByRole("button", { name: "编辑 所有者" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "删除 所有者" })).not.toBeInTheDocument();
@@ -120,7 +120,7 @@ describe("RolesPage", () => {
   it("reports role creation validation errors before requesting the API", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
-    renderRolesPage(["roles.read", "roles.create"], { api });
+    renderRolesPage(["roles:read", "roles:create"], { api });
 
     await user.click(screen.getByRole("button", { name: "新增角色" }));
     await user.click(screen.getByRole("button", { name: "创建角色" }));
@@ -133,7 +133,7 @@ describe("RolesPage", () => {
   it("normalizes the role key, trims the name, and submits selected permissions when creating", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
-    renderRolesPage(["roles.read", "roles.create", "roles.permissions.update"], { api });
+    renderRolesPage(["roles:read", "roles:create", "roles:permissions:update"], { api });
 
     await user.click(screen.getByRole("button", { name: "新增角色" }));
     await user.type(screen.getByRole("textbox", { name: "角色标识" }), "  Book Keeper  ");
@@ -146,7 +146,7 @@ describe("RolesPage", () => {
         key: "book-keeper",
         name: "记账员",
         description: "",
-        permissionKeys: ["members.read"],
+        permissionKeys: ["members:read"],
       }),
     );
   });
@@ -156,7 +156,7 @@ describe("RolesPage", () => {
     const api = createIamApi({
       createRole: vi.fn().mockRejectedValue(new Error("authorization=secret")),
     });
-    renderRolesPage(["roles.read", "roles.create"], { api });
+    renderRolesPage(["roles:read", "roles:create"], { api });
 
     await user.click(screen.getByRole("button", { name: "新增角色" }));
     await user.type(screen.getByRole("textbox", { name: "角色标识" }), "book-keeper");
@@ -172,7 +172,7 @@ describe("RolesPage", () => {
   it("asks for confirmation before deleting an editable role", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
-    renderRolesPage(["roles.read", "roles.delete"], { api });
+    renderRolesPage(["roles:read", "roles:delete"], { api });
 
     await user.click(screen.getByRole("button", { name: "删除 账务管理员" }));
 
@@ -187,7 +187,7 @@ describe("RolesPage", () => {
   it("omits permissionKeys when updating details without roles.permissions.update", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
-    renderRolesPage(["roles.read", "roles.update"], { api });
+    renderRolesPage(["roles:read", "roles:update"], { api });
 
     await user.click(screen.getByRole("button", { name: "编辑 账务管理员" }));
     await user.clear(screen.getByRole("textbox", { name: "角色名称" }));
@@ -205,7 +205,7 @@ describe("RolesPage", () => {
   it("keeps the editor and values open when updating a role fails", async () => {
     const user = userEvent.setup();
     const api = createIamApi({ updateRole: vi.fn().mockRejectedValue(new Error("network")) });
-    renderRolesPage(["roles.read", "roles.update"], { api });
+    renderRolesPage(["roles:read", "roles:update"], { api });
 
     await user.click(screen.getByRole("button", { name: "编辑 账务管理员" }));
     await user.clear(screen.getByRole("textbox", { name: "角色名称" }));
@@ -224,7 +224,7 @@ describe("RolesPage", () => {
       listRoles: vi.fn().mockResolvedValue([systemRole, updatedRole]),
       updateRole: vi.fn().mockResolvedValue(customRole),
     });
-    renderRolesPage(["roles.read", "roles.update"], { api });
+    renderRolesPage(["roles:read", "roles:update"], { api });
 
     await user.click(screen.getByRole("button", { name: "编辑 账务管理员" }));
     await user.clear(screen.getByRole("textbox", { name: "角色名称" }));
@@ -246,7 +246,7 @@ describe("RolesPage", () => {
       listRoles: vi.fn().mockRejectedValue(new Error("network")),
       updateRole: vi.fn().mockResolvedValue(customRole),
     });
-    renderRolesPage(["roles.read", "roles.update"], { api });
+    renderRolesPage(["roles:read", "roles:update"], { api });
 
     await user.click(screen.getByRole("button", { name: "编辑 账务管理员" }));
     await user.click(screen.getByRole("button", { name: "保存角色" }));

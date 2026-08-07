@@ -28,7 +28,7 @@ const currentUserContext: CurrentUserResponse = {
     key: "owner",
     name: "所有者",
   },
-  permissions: ["members.read", "roles.read"],
+  permissions: ["members:read", "roles:read"],
   session: {
     id: "session-1",
     clientType: "web_pc",
@@ -238,7 +238,7 @@ describe("web session", () => {
       ...currentUserContext,
       organization: { id: "org-2", name: "家庭账本" },
       role: { id: "role-2", key: "member", name: "成员" },
-      permissions: ["transactions.read"],
+      permissions: ["transactions:read"],
       session: { id: "session-1", clientType: "web_mobile" },
     };
     const api = createAuthApi({
@@ -258,7 +258,7 @@ describe("web session", () => {
       accessToken: "org-2-access",
       currentOrganization: switchedContext.organization,
       role: switchedContext.role,
-      permissions: ["transactions.read"],
+      permissions: ["transactions:read"],
       session: switchedContext.session,
     });
   });

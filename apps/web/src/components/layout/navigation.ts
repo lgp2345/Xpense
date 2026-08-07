@@ -25,15 +25,15 @@ const navigationGroups: NavigationGroup[] = [
   {
     title: "访问控制",
     items: [
-      { title: "成员", to: "/members", icon: Users, permission: "members.read" },
-      { title: "角色", to: "/roles", icon: ShieldCheck, permission: "roles.read" },
+      { title: "成员", to: "/members", icon: Users, permission: "members:read" },
+      { title: "角色", to: "/roles", icon: ShieldCheck, permission: "roles:read" },
     ],
   },
   {
     title: "安全",
     items: [
-      { title: "会话", to: "/sessions", icon: MonitorSmartphone, permission: "sessions.read" },
-      { title: "审计日志", to: "/audit-logs", icon: ScrollText, permission: "audit_logs.read" },
+      { title: "会话", to: "/sessions", icon: MonitorSmartphone, permission: "sessions:read" },
+      { title: "审计日志", to: "/audit-logs", icon: ScrollText, permission: "audit_logs:read" },
     ],
   },
 ];

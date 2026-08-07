@@ -40,7 +40,7 @@ export function RolesPage({
   permissions,
   roleItems,
 }: RolesPageProps) {
-  const canReadPermissions = permissions.includes("permissions.read");
+  const canReadPermissions = permissions.includes("permissions:read");
   const hasInitialData =
     roleItems !== undefined && (!canReadPermissions || permissionItems !== undefined);
   const [roles, setRoles] = useState(() => roleItems ?? []);
@@ -157,9 +157,9 @@ export function RolesPage({
     }
   }
 
-  const canCreate = permissions.includes("roles.create");
+  const canCreate = permissions.includes("roles:create");
   const canUpdatePermissions =
-    canReadPermissions && permissions.includes("roles.permissions.update");
+    canReadPermissions && permissions.includes("roles:permissions:update");
 
   return (
     <main className="space-y-4 p-4 sm:p-6 lg:p-8">

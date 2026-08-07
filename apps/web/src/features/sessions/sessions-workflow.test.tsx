@@ -55,7 +55,7 @@ describe("SessionsPage", () => {
   it("marks the current session", () => {
     render(
       <SessionsPage
-        permissions={["sessions.read"]}
+        permissions={["sessions:read"]}
         currentSessionId="session-1"
         sessions={[{ id: "session-1", clientType: "web_pc", status: "active", lastUsedAt: null }]}
       />,
@@ -65,13 +65,13 @@ describe("SessionsPage", () => {
   });
 
   it("shows the empty state when there are no sessions", () => {
-    renderSessionsPage(["sessions.read"], { sessions: [] });
+    renderSessionsPage(["sessions:read"], { sessions: [] });
 
     expect(screen.getByText("当前没有可管理的会话。")).toBeInTheDocument();
   });
 
   it("hides revoke actions without sessions.revoke", () => {
-    renderSessionsPage(["sessions.read"]);
+    renderSessionsPage(["sessions:read"]);
 
     expect(screen.queryByRole("button", { name: "撤销 session-1" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "撤销 session-2" })).not.toBeInTheDocument();
@@ -81,7 +81,7 @@ describe("SessionsPage", () => {
   it("requires confirmation before revoking one session", async () => {
     const user = userEvent.setup();
     const api = createSessionsApi();
-    renderSessionsPage(["sessions.read", "sessions.revoke"], { api });
+    renderSessionsPage(["sessions:read", "sessions:revoke"], { api });
 
     await user.click(screen.getByRole("button", { name: "撤销 session-2" }));
 
@@ -96,7 +96,7 @@ describe("SessionsPage", () => {
   it("requires confirmation before revoking all sessions", async () => {
     const user = userEvent.setup();
     const api = createSessionsApi();
-    renderSessionsPage(["sessions.read", "sessions.revoke"], { api });
+    renderSessionsPage(["sessions:read", "sessions:revoke"], { api });
 
     await user.click(screen.getByRole("button", { name: "撤销全部会话" }));
 
@@ -112,7 +112,7 @@ describe("SessionsPage", () => {
     const user = userEvent.setup();
     const api = createSessionsApi();
     const onCurrentSessionRevoked = vi.fn();
-    renderSessionsPage(["sessions.read", "sessions.revoke"], { api, onCurrentSessionRevoked });
+    renderSessionsPage(["sessions:read", "sessions:revoke"], { api, onCurrentSessionRevoked });
 
     await user.click(screen.getByRole("button", { name: "撤销 session-1" }));
     await user.click(screen.getByRole("button", { name: "确认撤销" }));
@@ -126,7 +126,7 @@ describe("SessionsPage", () => {
     const user = userEvent.setup();
     const api = createSessionsApi();
     const onCurrentSessionRevoked = vi.fn();
-    renderSessionsPage(["sessions.read", "sessions.revoke"], { api, onCurrentSessionRevoked });
+    renderSessionsPage(["sessions:read", "sessions:revoke"], { api, onCurrentSessionRevoked });
 
     await user.click(screen.getByRole("button", { name: "撤销 session-2" }));
     await user.click(screen.getByRole("button", { name: "确认撤销" }));
@@ -139,7 +139,7 @@ describe("SessionsPage", () => {
     const user = userEvent.setup();
     const api = createSessionsApi();
     const onCurrentSessionRevoked = vi.fn();
-    renderSessionsPage(["sessions.read", "sessions.revoke"], { api, onCurrentSessionRevoked });
+    renderSessionsPage(["sessions:read", "sessions:revoke"], { api, onCurrentSessionRevoked });
 
     await user.click(screen.getByRole("button", { name: "撤销全部会话" }));
     await user.click(screen.getByRole("button", { name: "确认全部撤销" }));
@@ -154,7 +154,7 @@ describe("SessionsPage", () => {
     const api = createSessionsApi({
       revokeSession: vi.fn().mockRejectedValue(new Error("authorization=secret")),
     });
-    renderSessionsPage(["sessions.read", "sessions.revoke"], { api });
+    renderSessionsPage(["sessions:read", "sessions:revoke"], { api });
 
     await user.click(screen.getByRole("button", { name: "撤销 session-2" }));
     await user.click(screen.getByRole("button", { name: "确认撤销" }));
@@ -169,7 +169,7 @@ describe("SessionsPage", () => {
     const api = createSessionsApi({
       listSessions: vi.fn().mockRejectedValueOnce(new Error("network")).mockResolvedValueOnce([]),
     });
-    renderSessionsPage(["sessions.read", "sessions.revoke"], { api });
+    renderSessionsPage(["sessions:read", "sessions:revoke"], { api });
 
     await user.click(screen.getByRole("button", { name: "撤销 session-2" }));
     await user.click(screen.getByRole("button", { name: "确认撤销" }));
@@ -195,7 +195,7 @@ describe("SessionsPage", () => {
         .mockResolvedValueOnce([currentSession]),
     });
 
-    render(<SessionsPage api={api} currentSessionId="session-1" permissions={["sessions.read"]} />);
+    render(<SessionsPage api={api} currentSessionId="session-1" permissions={["sessions:read"]} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("加载会话列表失败，请稍后重试。");
     expect(screen.queryByText(/authorization=secret/i)).not.toBeInTheDocument();

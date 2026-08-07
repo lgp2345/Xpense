@@ -19,7 +19,7 @@ const auditLog: AuditLogRecord = {
   result: "succeeded",
   createdAt: "2026-07-04T00:00:00.000Z",
   metadata: {
-    added: ["roles.update"],
+    added: ["roles:update"],
     refreshToken: "must-not-render",
     nested: { access_token: "also-must-not-render" },
   },
@@ -57,7 +57,7 @@ function renderAuditLogsPage(
 
 describe("AuditLogsPage", () => {
   it("renders audit actions and target fields without sensitive metadata", () => {
-    renderAuditLogsPage(["audit_logs.read"], { logs: [auditLog] });
+    renderAuditLogsPage(["audit_logs:read"], { logs: [auditLog] });
 
     expect(screen.getByText("role.permissions.changed")).toBeInTheDocument();
     expect(screen.getByText("role-1")).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("AuditLogsPage", () => {
   });
 
   it("shows the empty state when no logs match", () => {
-    renderAuditLogsPage(["audit_logs.read"], { logs: [] });
+    renderAuditLogsPage(["audit_logs:read"], { logs: [] });
 
     expect(screen.getByText("没有匹配的审计日志。")).toBeInTheDocument();
   });
@@ -92,7 +92,7 @@ describe("AuditLogsPage", () => {
         .mockResolvedValueOnce([auditLog]),
     });
 
-    render(<AuditLogsPage api={api} permissions={["audit_logs.read"]} />);
+    render(<AuditLogsPage api={api} permissions={["audit_logs:read"]} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("加载审计日志失败，请稍后重试。");
     expect(screen.queryByText(/authorization=secret/i)).not.toBeInTheDocument();
@@ -115,7 +115,7 @@ describe("AuditLogsPage", () => {
       return (
         <AuditLogsPage
           logs={[]}
-          permissions={["audit_logs.read"]}
+          permissions={["audit_logs:read"]}
           search={search}
           onSearchChange={(nextSearch) => {
             onSearchChange(nextSearch);
@@ -154,7 +154,7 @@ describe("AuditLogsPage", () => {
       return (
         <AuditLogsPage
           logs={[]}
-          permissions={["audit_logs.read"]}
+          permissions={["audit_logs:read"]}
           search={search}
           onSearchChange={(nextSearch) => {
             onSearchChange(nextSearch);
@@ -188,7 +188,7 @@ describe("AuditLogsPage", () => {
       return (
         <AuditLogsPage
           logs={[]}
-          permissions={["audit_logs.read"]}
+          permissions={["audit_logs:read"]}
           search={search}
           onSearchChange={(nextSearch) => {
             onSearchChange(nextSearch);
@@ -222,7 +222,7 @@ describe("AuditLogsPage", () => {
       return (
         <AuditLogsPage
           logs={[]}
-          permissions={["audit_logs.read"]}
+          permissions={["audit_logs:read"]}
           search={search}
           onSearchChange={(nextSearch) => {
             onSearchChange(nextSearch);
@@ -256,7 +256,7 @@ describe("AuditLogsPage", () => {
       return (
         <AuditLogsPage
           logs={[]}
-          permissions={["audit_logs.read"]}
+          permissions={["audit_logs:read"]}
           search={search}
           onSearchChange={(nextSearch) => {
             onSearchChange(nextSearch);
@@ -296,7 +296,7 @@ describe("AuditLogsPage", () => {
       return (
         <AuditLogsPage
           logs={[auditLog]}
-          permissions={["audit_logs.read"]}
+          permissions={["audit_logs:read"]}
           search={search}
           onSearchChange={(nextSearch) => {
             onSearchChange(nextSearch);

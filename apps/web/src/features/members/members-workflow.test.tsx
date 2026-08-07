@@ -72,7 +72,7 @@ function renderMembersPage(
     <MembersPage
       api={options.api}
       members={options.members ?? [member]}
-      permissions={["roles.read", ...permissions]}
+      permissions={["roles:read", ...permissions]}
       roles={options.pageRoles ?? roles}
     />,
   );
@@ -84,7 +84,7 @@ describe("MembersPage", () => {
       listRoles: vi.fn().mockRejectedValue(new Error("forbidden")),
     });
 
-    render(<MembersPage api={api} permissions={["members.read"]} />);
+    render(<MembersPage api={api} permissions={["members:read"]} />);
 
     expect(await screen.findByText("member@example.com")).toBeInTheDocument();
     expect(api.listMembers).toHaveBeenCalledTimes(1);
@@ -98,7 +98,7 @@ describe("MembersPage", () => {
       <MembersPage
         api={api}
         members={[member]}
-        permissions={["members.read", "members.create", "members.update"]}
+        permissions={["members:read", "members:create", "members:update"]}
       />,
     );
 
@@ -110,25 +110,25 @@ describe("MembersPage", () => {
   });
 
   it("shows the empty state when there are no members", async () => {
-    renderMembersPage(["members.read"], { members: [] });
+    renderMembersPage(["members:read"], { members: [] });
 
     expect(await screen.findByText("当前没有成员。")).toBeInTheDocument();
   });
 
   it("hides the create action when members.create is unavailable", () => {
-    renderMembersPage(["members.read"]);
+    renderMembersPage(["members:read"]);
 
     expect(screen.queryByRole("button", { name: "新增成员" })).not.toBeInTheDocument();
   });
 
   it("shows the create action when members.create is available", () => {
-    renderMembersPage(["members.read", "members.create"]);
+    renderMembersPage(["members:read", "members:create"]);
 
     expect(screen.getByRole("button", { name: "新增成员" })).toBeInTheDocument();
   });
 
   it("shows only the permitted member actions for each member status", async () => {
-    renderMembersPage(["members.read", "members.update", "members.disable", "members.enable"], {
+    renderMembersPage(["members:read", "members:update", "members:disable", "members:enable"], {
       members: [member, disabledMember],
     });
 
@@ -147,7 +147,7 @@ describe("MembersPage", () => {
   });
 
   it("hides role change controls without members.update permission", async () => {
-    renderMembersPage(["members.read", "members.disable", "members.enable"], {
+    renderMembersPage(["members:read", "members:disable", "members:enable"], {
       members: [member, disabledMember],
     });
 
@@ -160,7 +160,7 @@ describe("MembersPage", () => {
   });
 
   it("hides disable controls without members.disable permission", async () => {
-    renderMembersPage(["members.read", "members.update", "members.enable"], {
+    renderMembersPage(["members:read", "members:update", "members:enable"], {
       members: [member, disabledMember],
     });
 
@@ -172,7 +172,7 @@ describe("MembersPage", () => {
   });
 
   it("hides enable controls without members.enable permission", async () => {
-    renderMembersPage(["members.read", "members.update", "members.disable"], {
+    renderMembersPage(["members:read", "members:update", "members:disable"], {
       members: [member, disabledMember],
     });
 
@@ -186,7 +186,7 @@ describe("MembersPage", () => {
   it("asks for confirmation before disabling a member", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
-    renderMembersPage(["members.read", "members.disable"], { api });
+    renderMembersPage(["members:read", "members:disable"], { api });
 
     await user.click(screen.getByRole("button", { name: "禁用 member@example.com" }));
 
@@ -203,7 +203,7 @@ describe("MembersPage", () => {
   it("enables a disabled member directly", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
-    renderMembersPage(["members.read", "members.enable"], {
+    renderMembersPage(["members:read", "members:enable"], {
       api,
       members: [disabledMember],
     });
@@ -218,7 +218,7 @@ describe("MembersPage", () => {
   it("reports member creation field validation errors before requesting the API", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
-    renderMembersPage(["members.read", "members.create"], { api });
+    renderMembersPage(["members:read", "members:create"], { api });
 
     await user.click(screen.getByRole("button", { name: "新增成员" }));
     await user.click(screen.getByRole("button", { name: "添加成员" }));
@@ -246,7 +246,7 @@ describe("MembersPage", () => {
       createMember: vi.fn().mockResolvedValue(newMember),
       listMembers: vi.fn().mockResolvedValue([member, newMember]),
     });
-    renderMembersPage(["members.read", "members.create"], { api });
+    renderMembersPage(["members:read", "members:create"], { api });
 
     await user.click(screen.getByRole("button", { name: "新增成员" }));
     await user.type(screen.getByRole("textbox", { name: "用户 ID" }), validUserId);
@@ -267,7 +267,7 @@ describe("MembersPage", () => {
     const api = createIamApi({
       createMember: vi.fn().mockRejectedValue(new Error("authorization=secret")),
     });
-    renderMembersPage(["members.read", "members.create"], { api });
+    renderMembersPage(["members:read", "members:create"], { api });
 
     await user.click(screen.getByRole("button", { name: "新增成员" }));
     await user.type(screen.getByRole("textbox", { name: "用户 ID" }), validUserId);
@@ -284,7 +284,7 @@ describe("MembersPage", () => {
   it("updates the member role from the row select", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
-    renderMembersPage(["members.read", "members.update"], { api });
+    renderMembersPage(["members:read", "members:update"], { api });
 
     await user.click(screen.getByRole("combobox", { name: /变更 member@example\.com 的角色/ }));
     await user.click(screen.getByRole("option", { name: "所有者" }));
@@ -299,7 +299,7 @@ describe("MembersPage", () => {
     const api = createIamApi({
       updateMember: vi.fn().mockRejectedValue(new Error("authorization=secret")),
     });
-    renderMembersPage(["members.read", "members.enable"], { api, members: [disabledMember] });
+    renderMembersPage(["members:read", "members:enable"], { api, members: [disabledMember] });
 
     await user.click(screen.getByRole("button", { name: "启用 disabled@example.com" }));
 
@@ -317,7 +317,7 @@ describe("MembersPage", () => {
       listRoles: vi.fn().mockRejectedValueOnce(new Error("network")).mockResolvedValueOnce(roles),
     });
 
-    render(<MembersPage api={api} permissions={["members.read"]} />);
+    render(<MembersPage api={api} permissions={["members:read"]} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("加载成员列表失败，请稍后重试。");
 

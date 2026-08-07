@@ -19,7 +19,7 @@ const currentUserContext: CurrentUserResponse = {
     key: "owner",
     name: "Owner",
   },
-  permissions: ["roles.read", "members.update"],
+  permissions: ["roles:read", "members:update"],
   session: {
     id: "session-1",
     clientType: "web_pc",

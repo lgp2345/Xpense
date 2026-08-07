@@ -145,7 +145,7 @@ export function SessionsPage({
     }
   }
 
-  const canRevoke = permissions.includes("sessions.revoke");
+  const canRevoke = permissions.includes("sessions:revoke");
 
   return (
     <main className="space-y-4 p-4 sm:p-6 lg:p-8">

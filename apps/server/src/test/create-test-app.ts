@@ -144,26 +144,26 @@ function createTestState(): TestState {
     [
       testIds.ownerRole,
       createRole(testIds.ownerRole, "owner", "Owner", [
-        "roles.read",
-        "roles.update",
-        "members.disable",
-        "members.enable",
-        "audit_logs.read",
+        "roles:read",
+        "roles:update",
+        "members:disable",
+        "members:enable",
+        "audit_logs:read",
       ]),
     ],
     [
       testIds.managerRole,
       createRole(testIds.managerRole, "manager", "Manager", [
-        "roles.read",
-        "roles.create",
-        "roles.update",
-        "roles.permissions.update",
-        "members.create",
-        "members.update",
-        "sessions.read",
+        "roles:read",
+        "roles:create",
+        "roles:update",
+        "roles:permissions:update",
+        "members:create",
+        "members:update",
+        "sessions:read",
       ]),
     ],
-    [testIds.viewerRole, createRole(testIds.viewerRole, "viewer", "Viewer", ["transactions.read"])],
+    [testIds.viewerRole, createRole(testIds.viewerRole, "viewer", "Viewer", ["transactions:read"])],
   ]);
   const members = new Map<string, TestMember>([
     [testIds.ownerMember, createMember(testIds.ownerMember, testIds.ownerUser, testIds.ownerRole)],
@@ -570,9 +570,9 @@ function createIamRepository(state: TestState): Partial<IamRepository> {
         (member) => member.organizationId === organizationId && member.roleId === roleId,
       ).length,
     listPermissions: async () => [
-      toPermission("roles.read"),
-      toPermission("members.update"),
-      toPermission("audit_logs.read"),
+      toPermission("roles:read"),
+      toPermission("members:update"),
+      toPermission("audit_logs:read"),
     ],
   };
 }

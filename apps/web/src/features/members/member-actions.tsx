@@ -38,9 +38,9 @@ export function MemberActions({
   onRoleChange,
   onStatusChange,
 }: MemberActionsProps) {
-  const canChangeRole = permissions.includes("members.update");
-  const canDisable = permissions.includes("members.disable") && member.status === "active";
-  const canEnable = permissions.includes("members.enable") && member.status === "disabled";
+  const canChangeRole = permissions.includes("members:update");
+  const canDisable = permissions.includes("members:disable") && member.status === "active";
+  const canEnable = permissions.includes("members:enable") && member.status === "disabled";
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">

@@ -38,10 +38,10 @@ export function createRoleColumns({
   onDelete,
   onUpdate,
 }: RoleColumnsOptions): RoleColumnDef[] {
-  const canUpdate = permissions.includes("roles.update");
-  const canDelete = permissions.includes("roles.delete");
+  const canUpdate = permissions.includes("roles:update");
+  const canDelete = permissions.includes("roles:delete");
   const canUpdatePermissions =
-    permissions.includes("permissions.read") && permissions.includes("roles.permissions.update");
+    permissions.includes("permissions:read") && permissions.includes("roles:permissions:update");
 
   function getUpdateInput(input: RoleEditorInput): UpdateRoleRequest {
     const request: UpdateRoleRequest = {
