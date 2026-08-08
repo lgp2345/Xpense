@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
 
+import type { MenuItem } from "@xpense/shared";
+
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
 import { RequirePermission } from "./decorators/require-permission.decorator.js";
@@ -73,6 +75,11 @@ export class IamController {
     @Param("roleId") roleId: string,
   ): Promise<void> {
     return this.iamService.deleteRole(authContext, roleId);
+  }
+
+  @Get("menus")
+  getVisibleMenus(@CurrentAuthContext() authContext: AuthContext): Promise<MenuItem[]> {
+    return this.iamService.getVisibleMenus(authContext);
   }
 
   @Get("permissions")

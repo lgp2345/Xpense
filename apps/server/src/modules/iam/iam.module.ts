@@ -10,11 +10,22 @@ import { RbacGuard } from "./guards/rbac.guard.js";
 import { IamController } from "./iam.controller.js";
 import { IamRepository } from "./iam.repository.js";
 import { IamService } from "./iam.service.js";
+import { MenuRepository } from "./menu.repository.js";
+import { PermissionSyncService } from "./permission-sync.service.js";
 
 @Module({
   imports: [AuditModule, AuthModule, DbModule],
   controllers: [IamController],
-  providers: [AccessRepository, AccessService, AuthGuard, RbacGuard, IamRepository, IamService],
+  providers: [
+    AccessRepository,
+    AccessService,
+    AuthGuard,
+    IamRepository,
+    IamService,
+    MenuRepository,
+    PermissionSyncService,
+    RbacGuard,
+  ],
   exports: [AccessService, AuthGuard, RbacGuard],
 })
 export class IamModule {}

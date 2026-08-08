@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { PermissionKey } from "@xpense/shared";
+import type { MenuItem, PermissionKey } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
@@ -17,6 +17,7 @@ import type { UpdateMemberDto } from "./dto/update-member.dto.js";
 import type { UpdateRoleDto } from "./dto/update-role.dto.js";
 import { IamRepository } from "./iam.repository.js";
 import type { IamMember, IamPermission, IamRole, IamRoleWithPermissions } from "./iam.types.js";
+import { MenuRepository, type MenuRow } from "./menu.repository.js";
 
 @Injectable()
 export class IamService {
@@ -25,6 +26,7 @@ export class IamService {
     private readonly auditService: AuditService,
     private readonly transactions: DatabaseTransactionService,
     private readonly accessService: AccessService,
+    private readonly menuRepository: MenuRepository,
   ) {}
 
   listMembers(authContext: AuthContext): Promise<IamMember[]> {
@@ -368,8 +370,47 @@ export class IamService {
     });
   }
 
+  async getVisibleMenus(authContext: AuthContext): Promise<MenuItem[]> {
+    const allMenus = await this.menuRepository.listAllMenus();
+    return this.filterMenuTree(allMenus, null, authContext);
+  }
+
   listPermissions(_authContext: AuthContext): Promise<IamPermission[]> {
     return this.repository.listPermissions();
+  }
+
+  private filterMenuTree(
+    rows: MenuRow[],
+    parentId: string | null,
+    authContext: AuthContext,
+  ): MenuItem[] {
+    const children = rows.filter((row) => row.parentId === parentId);
+
+    return children
+      .filter((item) => {
+        // 超管看全部；无权限码=所有人可见
+        if (authContext.isSuperAdmin || !item.permissionCode) return true;
+        return authContext.permissions.includes(item.permissionCode as PermissionKey);
+      })
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        path: item.path,
+        parentId: item.parentId,
+        componentKey: item.componentKey,
+        icon: item.icon,
+        permissionCode: item.permissionCode,
+        sortOrder: item.sortOrder,
+        children: this.filterMenuTree(rows, item.id, authContext),
+      }))
+      .filter(
+        (item) =>
+          // 保留：有权限直接可见 或 子节点非空（作为目录容器）
+          !item.permissionCode ||
+          authContext.isSuperAdmin ||
+          authContext.permissions.includes(item.permissionCode as PermissionKey) ||
+          item.children.length > 0,
+      );
   }
 
   private async ensureRoleInCurrentOrganization(

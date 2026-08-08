@@ -31,3 +31,15 @@ export type AuthTokensResponse = {
   accessToken: string;
   refreshToken?: string;
 };
+
+export type MenuItem = {
+  id: string;
+  name: string;
+  path: string;
+  parentId: string | null;
+  componentKey: string | null;
+  icon: string | null;
+  permissionCode: string | null;
+  sortOrder: number;
+  children: MenuItem[];
+};
