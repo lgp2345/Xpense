@@ -1,6 +1,8 @@
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgEnum,
   primaryKey,
@@ -157,4 +159,20 @@ export const auditLogs = snakeCase.table(
     index("audit_logs_actor_idx").on(table.actorUserId),
     index("audit_logs_action_idx").on(table.action),
   ],
+);
+
+export const menus = snakeCase.table(
+  "menus",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    name: text().notNull(),
+    path: text().notNull(),
+    parentId: uuid().references((): AnyPgColumn => menus.id),
+    componentKey: text(),
+    icon: text(),
+    permissionCode: text(),
+    sortOrder: integer().notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [index("menus_parent_idx").on(table.parentId)],
 );
