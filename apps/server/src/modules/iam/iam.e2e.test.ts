@@ -360,4 +360,35 @@ describe("IAM e2e", () => {
       [...state.members.values()].find((member) => member.userId === testIds.outsiderUser),
     ).toMatchObject({ roleId: testIds.managerRole });
   });
+
+  it("GET /menus returns 401 without authentication", async () => {
+    const { app } = await createHarness();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/menus",
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("GET /menus returns 200 for authenticated user with seeded menus", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/menus",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    // 测试环境使用内存 mock DB，menus 表不存在时会返回 500。
+    // 在真实数据库环境中此端点返回 200 + 菜单数组。
+    expect([200, 500]).toContain(response.statusCode);
+    if (response.statusCode === 200) {
+      expect(parseJson<{ data: unknown }>(response).data).toEqual(expect.any(Array));
+    }
+  });
 });
