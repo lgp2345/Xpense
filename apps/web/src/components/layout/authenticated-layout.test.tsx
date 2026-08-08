@@ -39,6 +39,46 @@ describe("AuthenticatedLayout", () => {
     store.getState().setCurrentUserContext(userContext);
     const instance = axios.create();
     const mock = new MockAdapter(instance);
+    mock.onGet("http://localhost:4000/menus").reply(200, {
+      code: "OK",
+      message: "ok",
+      data: [
+        {
+          id: "1",
+          name: "仪表盘",
+          path: "/",
+          parentId: null,
+          componentKey: "DashboardPage",
+          icon: "LayoutDashboard",
+          permissionCode: null,
+          sortOrder: 0,
+          children: [],
+        },
+        {
+          id: "2",
+          name: "访问控制",
+          path: "",
+          parentId: null,
+          componentKey: null,
+          icon: "ShieldCheck",
+          permissionCode: null,
+          sortOrder: 10,
+          children: [
+            {
+              id: "3",
+              name: "成员",
+              path: "/members",
+              parentId: "2",
+              componentKey: "MembersPage",
+              icon: "Users",
+              permissionCode: "members:read",
+              sortOrder: 0,
+              children: [],
+            },
+          ],
+        },
+      ],
+    });
     mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
     const session = createWebSession({
       authStore: store,

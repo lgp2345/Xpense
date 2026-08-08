@@ -1,4 +1,4 @@
-import type { PermissionKey } from "@xpense/shared";
+import type { MenuItem, PermissionKey } from "@xpense/shared";
 
 import type { ApiClient } from "./api-client";
 
@@ -94,6 +94,7 @@ export function createIamApi(client: ApiClient) {
     updateRole: (roleId: string, input: UpdateRoleRequest) =>
       client.patch<IamRole>(`/roles/${encodeURIComponent(roleId)}`, input),
     deleteRole: (roleId: string) => client.delete<void>(`/roles/${encodeURIComponent(roleId)}`),
+    getMenus: () => client.get<MenuItem[]>("/menus"),
     listPermissions: () => client.get<IamPermission[]>("/permissions"),
     listAuditLogs: (query: ListAuditLogsQuery = {}) =>
       client.get<AuditLogRecord[]>(`/audit-logs${toQueryString(query)}`),
