@@ -156,43 +156,22 @@ function AuthenticatedRoutePage() {
 function MembersRoutePage() {
   const { session } = membersRoute.useRouteContext();
   const permissions = useStore(session.authStore, (state) => state.permissions);
-  const isSuperAdmin = useStore(
-    session.authStore,
-    (state) => state.currentUser?.isSuperAdmin ?? false,
-  );
-  const memberPermissions: PermissionKey[] = isSuperAdmin
-    ? ["members:create", "members:disable", "members:enable", "members:read", "members:update"]
-    : permissions;
 
-  return <MembersPage api={session.iamApi} permissions={memberPermissions} />;
+  return <MembersPage api={session.iamApi} permissions={permissions} />;
 }
 
 function RolesRoutePage() {
   const { session } = rolesRoute.useRouteContext();
   const permissions = useStore(session.authStore, (state) => state.permissions);
-  const isSuperAdmin = useStore(
-    session.authStore,
-    (state) => state.currentUser?.isSuperAdmin ?? false,
-  );
-  const rolePermissions: PermissionKey[] = isSuperAdmin
-    ? ["roles:create", "roles:delete", "roles:permissions:update", "roles:read", "roles:update"]
-    : permissions;
 
-  return <RolesPage api={session.iamApi} permissions={rolePermissions} />;
+  return <RolesPage api={session.iamApi} permissions={permissions} />;
 }
 
 function SessionsRoutePage() {
   const { session } = sessionsRoute.useRouteContext();
   const navigate = sessionsRoute.useNavigate();
   const permissions = useStore(session.authStore, (state) => state.permissions);
-  const isSuperAdmin = useStore(
-    session.authStore,
-    (state) => state.currentUser?.isSuperAdmin ?? false,
-  );
   const currentSessionId = useStore(session.authStore, (state) => state.session?.id);
-  const sessionPermissions: PermissionKey[] = isSuperAdmin
-    ? ["sessions:read", "sessions:revoke"]
-    : permissions;
 
   return (
     <SessionsPage
@@ -202,7 +181,7 @@ function SessionsRoutePage() {
         session.authStore.getState().clearAuth();
         void navigate({ to: "/login", search: { redirect: "/" }, replace: true });
       }}
-      permissions={sessionPermissions}
+      permissions={permissions}
     />
   );
 }
@@ -211,17 +190,12 @@ function AuditLogsRoutePage() {
   const { session } = auditLogsRoute.useRouteContext();
   const navigate = auditLogsRoute.useNavigate();
   const permissions = useStore(session.authStore, (state) => state.permissions);
-  const isSuperAdmin = useStore(
-    session.authStore,
-    (state) => state.currentUser?.isSuperAdmin ?? false,
-  );
   const search = auditLogsRoute.useSearch();
-  const auditLogPermissions: PermissionKey[] = isSuperAdmin ? ["audit_logs:read"] : permissions;
 
   return (
     <AuditLogsPage
       api={session.iamApi}
-      permissions={auditLogPermissions}
+      permissions={permissions}
       search={search}
       onSearchChange={(nextSearch) => void navigate({ search: nextSearch, replace: true })}
     />
