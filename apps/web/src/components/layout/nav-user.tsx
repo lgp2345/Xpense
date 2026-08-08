@@ -1,4 +1,4 @@
-import { ChevronsUpDown, LogOut } from "lucide-react";
+import { ChevronsUpDown, LogOut, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useStore } from "zustand";
@@ -29,7 +29,23 @@ export function NavUser({ session }: { session: WebSessionDependency }) {
   const isMobile = useSidebar().isMobile;
   const user = useStore(authStore, (state) => state.currentUser);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const email = user?.email ?? "未登录";
+
+  async function handleRefreshPermissions() {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const currentUser = await authApi.getCurrentUser();
+      authStore.getState().setCurrentUserContext(currentUser);
+      toast.success("权限已刷新");
+    } catch {
+      toast.error("刷新权限失败，请稍后重试。");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
   async function handleLogout() {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
@@ -64,6 +80,14 @@ export function NavUser({ session }: { session: WebSessionDependency }) {
             className="min-w-56"
           >
             <DropdownMenuLabel>{email}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={isRefreshing}
+              onSelect={() => void handleRefreshPermissions()}
+            >
+              <RefreshCw className={isRefreshing ? "animate-spin" : ""} />
+              {isRefreshing ? "正在刷新..." : "刷新权限"}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               disabled={isLoggingOut}
