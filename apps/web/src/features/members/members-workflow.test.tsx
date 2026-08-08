@@ -133,14 +133,12 @@ describe("MembersPage", () => {
     });
 
     expect(await screen.findByText("member@example.com")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "禁用 member@example.com" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "启用 member@example.com" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "启用 disabled@example.com" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "禁用 disabled@example.com" }),
-    ).not.toBeInTheDocument();
+    // 活跃成员：禁用按钮可点击，启用按钮 disabled + tooltip
+    expect(screen.getByRole("button", { name: "禁用 member@example.com" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "启用 member@example.com" })).toBeDisabled();
+    // 禁用成员：启用按钮可点击，禁用按钮 disabled + tooltip
+    expect(screen.getByRole("button", { name: "启用 disabled@example.com" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "禁用 disabled@example.com" })).toBeDisabled();
     expect(
       screen.getByRole("combobox", { name: /变更 member@example\.com 的角色/ }),
     ).toBeInTheDocument();

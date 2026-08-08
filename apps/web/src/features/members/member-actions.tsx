@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { IamMember, IamRole } from "../../services/iam-api";
 
 type MemberActionsProps = {
@@ -38,13 +39,14 @@ export function MemberActions({
   onRoleChange,
   onStatusChange,
 }: MemberActionsProps) {
-  const canChangeRole = permissions.includes("members:update");
-  const canDisable = permissions.includes("members:disable") && member.status === "active";
-  const canEnable = permissions.includes("members:enable") && member.status === "disabled";
+  const canUpdateRole = permissions.includes("members:update");
+  const canDisable = permissions.includes("members:disable");
+  const canEnable = permissions.includes("members:enable");
+  const isActive = member.status === "active";
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {canChangeRole ? (
+      {canUpdateRole ? (
         <Select
           value={member.roleId}
           disabled={isMutating}
@@ -68,38 +70,64 @@ export function MemberActions({
       ) : null}
 
       {canDisable ? (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="outline">禁用 {member.email}</Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>确认禁用成员</AlertDialogTitle>
-              <AlertDialogDescription>
-                禁用后，该成员将无法继续访问当前账本。
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction
-                disabled={isMutating}
-                onClick={() => void onStatusChange("disabled")}
-              >
-                确认禁用
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        isActive ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline">禁用 {member.email}</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>确认禁用成员</AlertDialogTitle>
+                <AlertDialogDescription>
+                  禁用后，该成员将无法继续访问当前账本。
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={isMutating}
+                  onClick={() => void onStatusChange("disabled")}
+                >
+                  确认禁用
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button variant="outline" disabled>
+                  禁用 {member.email}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>该成员已被禁用</TooltipContent>
+          </Tooltip>
+        )
       ) : null}
 
       {canEnable ? (
-        <Button
-          disabled={isMutating}
-          variant="outline"
-          onClick={() => void onStatusChange("active")}
-        >
-          启用 {member.email}
-        </Button>
+        isActive ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button variant="outline" disabled>
+                  启用 {member.email}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>该成员已是活跃状态</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button
+            disabled={isMutating}
+            variant="outline"
+            onClick={() => void onStatusChange("active")}
+          >
+            启用 {member.email}
+          </Button>
+        )
       ) : null}
     </div>
   );
