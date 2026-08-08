@@ -1,22 +1,43 @@
-export const permissionKeys = [
+// ── 成员管理 ──────────────────────────────────────
+const memberPermissions = [
   "members:read",
   "members:create",
   "members:update",
   "members:disable",
   "members:enable",
+] as const;
+
+// ── 角色管理 ──────────────────────────────────────
+const rolePermissions = [
   "roles:read",
   "roles:create",
   "roles:update",
   "roles:delete",
   "roles:permissions:update",
   "permissions:read",
-  "sessions:read",
-  "sessions:revoke",
-  "audit_logs:read",
+] as const;
+
+// ── 会话管理 ──────────────────────────────────────
+const sessionPermissions = ["sessions:read", "sessions:revoke"] as const;
+
+// ── 审计日志 ──────────────────────────────────────
+const auditPermissions = ["audit_logs:read"] as const;
+
+// ── 记账 ──────────────────────────────────────────
+const transactionPermissions = [
   "transactions:read",
   "transactions:create",
   "transactions:update",
   "transactions:delete",
+] as const;
+
+// ── 汇总（不修改此行逻辑）─────────────────────────
+export const permissionKeys = [
+  ...memberPermissions,
+  ...rolePermissions,
+  ...sessionPermissions,
+  ...auditPermissions,
+  ...transactionPermissions,
 ] as const;
 
 export type PermissionKey = (typeof permissionKeys)[number];
