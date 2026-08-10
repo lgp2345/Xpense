@@ -10,6 +10,41 @@ type AuthorizedMenusExcludeButtons = Assert<
 
 const authorizedMenusExcludeButtons: AuthorizedMenusExcludeButtons = true;
 
+const authorizedInternalMenu: AuthorizedMenuNode = {
+  id: 2,
+  parentId: 1,
+  type: "menu",
+  name: "菜单管理",
+  icon: "ShieldCheck",
+  isVisible: true,
+  routeKey: "Menus",
+  path: "/menus",
+  url: null,
+  permissionCode: "menus:read",
+  isExternal: false,
+  keepAlive: false,
+  sortOrder: 0,
+  children: [],
+};
+
+// @ts-expect-error Authorized internal menu paths must be derived from their routeKey.
+const mismatchedAuthorizedInternalMenu: AuthorizedMenuNode = {
+  id: 3,
+  parentId: 1,
+  type: "menu",
+  name: "错误路由",
+  icon: "ShieldCheck",
+  isVisible: true,
+  routeKey: "Dashboard",
+  path: "/menus",
+  url: null,
+  permissionCode: "menus:read",
+  isExternal: false,
+  keepAlive: false,
+  sortOrder: 1,
+  children: [],
+};
+
 const configurationContract = [
   {
     id: 1,
@@ -91,5 +126,7 @@ describe("organization menu shared contract", () => {
 
     expect(firstNode).toMatchObject({ id: 1, parentId: null });
     expect(authorizedMenusExcludeButtons).toBe(true);
+    expect(authorizedInternalMenu.path).toBe("/menus");
+    expect(mismatchedAuthorizedInternalMenu.path).toBe("/menus");
   });
 });

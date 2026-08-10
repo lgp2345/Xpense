@@ -46,19 +46,21 @@ type MenuDirectoryNode = MenuNodeBase & {
   children: MenuConfigurationNode[];
 };
 
+type InternalMenuNodeFor<Key extends RouteKey> = MenuNodeBase & {
+  type: "menu";
+  icon: MenuIconKey | null;
+  isVisible: boolean;
+  routeKey: Key;
+  path: (typeof ROUTE_DEFINITIONS)[Key]["path"];
+  url: null;
+  permissionCode: PermissionKey;
+  isExternal: false;
+  keepAlive: boolean;
+  children: MenuConfigurationNode[];
+};
+
 type InternalMenuNode = {
-  [Key in RouteKey]: MenuNodeBase & {
-    type: "menu";
-    icon: MenuIconKey | null;
-    isVisible: boolean;
-    routeKey: Key;
-    path: (typeof ROUTE_DEFINITIONS)[Key]["path"];
-    url: null;
-    permissionCode: PermissionKey;
-    isExternal: false;
-    keepAlive: boolean;
-    children: MenuConfigurationNode[];
-  };
+  [Key in RouteKey]: InternalMenuNodeFor<Key>;
 }[RouteKey];
 
 type ExternalMenuNode = MenuNodeBase & {
@@ -93,10 +95,22 @@ export type MenuConfigurationNode =
   | ExternalMenuNode
   | MenuButtonNode;
 
+interface AuthorizedMenuChildren {
+  children: AuthorizedMenuNode[];
+}
+
+type AuthorizedMenuDirectoryNode = Omit<MenuDirectoryNode, "children"> & AuthorizedMenuChildren;
+
+type AuthorizedInternalMenuNode = {
+  [Key in RouteKey]: Omit<InternalMenuNodeFor<Key>, "children"> & AuthorizedMenuChildren;
+}[RouteKey];
+
+type AuthorizedExternalMenuNode = Omit<ExternalMenuNode, "children"> & AuthorizedMenuChildren;
+
 export type AuthorizedMenuNode =
-  | (Omit<MenuDirectoryNode, "children"> & { children: AuthorizedMenuNode[] })
-  | (Omit<InternalMenuNode, "children"> & { children: AuthorizedMenuNode[] })
-  | (Omit<ExternalMenuNode, "children"> & { children: AuthorizedMenuNode[] });
+  | AuthorizedMenuDirectoryNode
+  | AuthorizedInternalMenuNode
+  | AuthorizedExternalMenuNode;
 
 export type PermissionTreeNode =
   | {
