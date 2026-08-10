@@ -239,6 +239,7 @@ function createSession(input: {
   currentOrganizationId: string;
   refreshTokenHash: string;
   clientType?: ClientType;
+  expiresAt?: Date;
 }): AuthRefreshSession {
   const now = new Date("2026-07-09T00:00:00.000Z");
 
@@ -249,7 +250,7 @@ function createSession(input: {
     clientType: input.clientType ?? "web_pc",
     refreshTokenHash: input.refreshTokenHash,
     status: "active",
-    expiresAt: new Date("2026-08-09T00:00:00.000Z"),
+    expiresAt: input.expiresAt ?? new Date("2036-08-09T00:00:00.000Z"),
     rotatedAt: null,
     revokedAt: null,
     lastUsedAt: null,
@@ -290,6 +291,7 @@ function createAuthRepository(state: TestState): Partial<AuthRepository> {
         currentOrganizationId: input.currentOrganizationId,
         refreshTokenHash: input.refreshTokenHash,
         clientType: input.clientType,
+        expiresAt: input.expiresAt,
       });
       state.sessions.set(session.id, session);
       return session;
