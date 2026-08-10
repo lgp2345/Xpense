@@ -1,4 +1,4 @@
-import { getTableConfig } from "drizzle-orm/pg-core";
+import { getTableConfig, PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -41,7 +41,6 @@ describe("organization menu database schema", () => {
       type: expect.anything(),
       routeKey: expect.anything(),
       path: expect.anything(),
-      url: expect.anything(),
       permissionCode: expect.anything(),
       isExternal: expect.anything(),
       isVisible: expect.anything(),
@@ -51,10 +50,18 @@ describe("organization menu database schema", () => {
       sortOrder: expect.anything(),
     });
     expect(menus).not.toHaveProperty("componentKey");
+    expect(menus).not.toHaveProperty("url");
   });
 
   it("enforces menu type combinations and organization-local parentage", () => {
     const config = getTableConfig(menus);
+    const dialect = new PgDialect();
+    const checks = Object.fromEntries(
+      config.checks.map((constraint) => [
+        constraint.name,
+        dialect.sqlToQuery(constraint.value).sql,
+      ]),
+    );
 
     expect(config.checks.map((constraint) => constraint.name)).toEqual([
       "menus_directory_fields_check",
@@ -62,17 +69,53 @@ describe("organization menu database schema", () => {
       "menus_external_menu_fields_check",
       "menus_button_fields_check",
     ]);
-    expect(config.indexes.map((index) => index.config.name)).toEqual(
-      expect.arrayContaining([
-        "menus_organization_route_key_unique",
-        "menus_organization_path_unique",
-      ]),
+    expect(checks.menus_directory_fields_check).toContain('"menus"."path" IS NULL');
+    expect(checks.menus_directory_fields_check).not.toContain('"menus"."url"');
+    expect(checks.menus_internal_menu_fields_check).toContain('"menus"."route_key" IS NOT NULL');
+    expect(checks.menus_internal_menu_fields_check).toContain('"menus"."path" IS NULL');
+    expect(checks.menus_internal_menu_fields_check).not.toContain('"menus"."url"');
+    expect(checks.menus_external_menu_fields_check).toContain('"menus"."path" IS NOT NULL');
+    expect(checks.menus_external_menu_fields_check).not.toContain(
+      '"menus"."route_key" IS NOT NULL',
     );
+    expect(checks.menus_external_menu_fields_check).not.toContain('"menus"."url"');
+    expect(checks.menus_button_fields_check).toContain('"menus"."path" IS NULL');
+    expect(checks.menus_button_fields_check).not.toContain('"menus"."url"');
+
+    const routeKeyIndex = config.indexes.find(
+      (index) => index.config.name === "menus_organization_route_key_unique",
+    );
+    const pathIndex = config.indexes.find(
+      (index) => index.config.name === "menus_organization_path_unique",
+    );
+    const routeKeyPredicate = routeKeyIndex?.config.where;
+    const pathPredicate = pathIndex?.config.where;
+    if (!routeKeyIndex || !pathIndex || !routeKeyPredicate || !pathPredicate) {
+      throw new Error("menu partial unique indexes must be configured");
+    }
+    expect(
+      routeKeyIndex.config.columns.map((column) => ("name" in column ? column.name : undefined)),
+    ).toEqual(["organization_id", "route_key"]);
+    expect(dialect.sqlToQuery(routeKeyPredicate).sql).toBe('"menus"."route_key" IS NOT NULL');
+    expect(
+      pathIndex.config.columns.map((column) => ("name" in column ? column.name : undefined)),
+    ).toEqual(["organization_id", "path"]);
+    expect(dialect.sqlToQuery(pathPredicate).sql).toBe('"menus"."path" IS NOT NULL');
+
     expect(config.uniqueConstraints.map((constraint) => constraint.getName())).toContain(
       "menus_organization_id_unique",
     );
-    expect(config.foreignKeys.map((constraint) => constraint.getName())).toContain(
-      "menus_organization_parent_fk",
+    const parentForeignKey = config.foreignKeys.find(
+      (constraint) => constraint.getName() === "menus_organization_parent_fk",
     );
+    const parentReference = parentForeignKey?.reference();
+    expect(parentReference?.columns.map((column) => column.name)).toEqual([
+      "organization_id",
+      "parent_id",
+    ]);
+    expect(parentReference?.foreignColumns.map((column) => column.name)).toEqual([
+      "organization_id",
+      "id",
+    ]);
   });
 });

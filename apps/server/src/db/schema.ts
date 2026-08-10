@@ -177,7 +177,6 @@ export const menus = snakeCase.table(
     parentId: integer(),
     routeKey: text(),
     path: text(),
-    url: text(),
     icon: text(),
     permissionCode: text().references(() => permissions.key),
     isExternal: boolean(),
@@ -192,7 +191,6 @@ export const menus = snakeCase.table(
       sql`${table.type} <> 'directory' OR (
         ${table.routeKey} IS NULL
         AND ${table.path} IS NULL
-        AND ${table.url} IS NULL
         AND ${table.permissionCode} IS NULL
         AND ${table.isExternal} IS NULL
         AND ${table.keepAlive} IS NULL
@@ -205,7 +203,6 @@ export const menus = snakeCase.table(
         ${table.isExternal} IS FALSE
         AND ${table.routeKey} IS NOT NULL
         AND ${table.path} IS NULL
-        AND ${table.url} IS NULL
         AND ${table.permissionCode} IS NOT NULL
         AND ${table.isVisible} IS NOT NULL
         AND ${table.keepAlive} IS NOT NULL
@@ -217,8 +214,6 @@ export const menus = snakeCase.table(
         ${table.isExternal} IS TRUE
         AND ${table.routeKey} IS NULL
         AND ${table.path} IS NOT NULL
-        AND ${table.url} IS NOT NULL
-        AND ${table.path} = ${table.url}
         AND ${table.permissionCode} IS NOT NULL
         AND ${table.isVisible} IS NOT NULL
         AND ${table.keepAlive} IS NULL
@@ -230,7 +225,6 @@ export const menus = snakeCase.table(
         ${table.parentId} IS NOT NULL
         AND ${table.routeKey} IS NULL
         AND ${table.path} IS NULL
-        AND ${table.url} IS NULL
         AND ${table.icon} IS NULL
         AND ${table.permissionCode} IS NOT NULL
         AND ${table.isExternal} IS NULL
