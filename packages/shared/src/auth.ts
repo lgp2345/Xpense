@@ -1,5 +1,14 @@
 import type { ClientType, PermissionKey } from "./rbac.js";
 
+export type {
+  AuthorizedMenuNode,
+  MenuConfigurationNode,
+  MenuIconKey,
+  MenuType,
+  PermissionTreeNode,
+  RouteKey,
+} from "./menu.js";
+
 export type UserStatus = "active" | "disabled";
 export type OrganizationStatus = "active" | "disabled";
 export type MembershipStatus = "active" | "disabled";
@@ -32,6 +41,7 @@ export type AuthTokensResponse = {
   refreshToken?: string;
 };
 
+/** @deprecated Use AuthorizedMenuNode after menu API consumers migrate. */
 export type MenuItem = {
   id: string;
   name: string;

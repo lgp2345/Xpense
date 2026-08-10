@@ -36,4 +36,5 @@ export function makeHelloMessage(): string {
 
 export * from "./api-response.js";
 export * from "./auth.js";
+export * from "./menu.js";
 export * from "./rbac.js";

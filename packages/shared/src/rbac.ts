@@ -1,3 +1,9 @@
+// ── 仪表盘 ──────────────────────────────────────
+const dashboardPermissions = ["dashboard:read"] as const;
+
+// ── 菜单管理 ──────────────────────────────────────
+const menuPermissions = ["menus:read", "menus:create", "menus:update", "menus:delete"] as const;
+
 // ── 成员管理 ──────────────────────────────────────
 const memberPermissions = [
   "members:read",
@@ -33,6 +39,8 @@ const transactionPermissions = [
 
 // ── 汇总（不修改此行逻辑）─────────────────────────
 export const permissionKeys = [
+  ...dashboardPermissions,
+  ...menuPermissions,
   ...memberPermissions,
   ...rolePermissions,
   ...sessionPermissions,
