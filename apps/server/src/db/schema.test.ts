@@ -69,18 +69,108 @@ describe("organization menu database schema", () => {
       "menus_external_menu_fields_check",
       "menus_button_fields_check",
     ]);
-    expect(checks.menus_directory_fields_check).toContain('"menus"."path" IS NULL');
-    expect(checks.menus_directory_fields_check).not.toContain('"menus"."url"');
-    expect(checks.menus_internal_menu_fields_check).toContain('"menus"."route_key" IS NOT NULL');
-    expect(checks.menus_internal_menu_fields_check).toContain('"menus"."path" IS NULL');
-    expect(checks.menus_internal_menu_fields_check).not.toContain('"menus"."url"');
-    expect(checks.menus_external_menu_fields_check).toContain('"menus"."path" IS NOT NULL');
-    expect(checks.menus_external_menu_fields_check).not.toContain(
-      '"menus"."route_key" IS NOT NULL',
+    const expectCheck = (name: string, included: string[], excluded: string[]) => {
+      const expression = checks[name];
+
+      expect(expression).toEqual(expect.any(String));
+      for (const fragment of included) {
+        expect(expression).toContain(fragment);
+      }
+      for (const fragment of excluded) {
+        expect(expression).not.toContain(fragment);
+      }
+    };
+
+    expectCheck(
+      "menus_directory_fields_check",
+      [
+        '"menus"."type" <> \'directory\' OR (',
+        '"menus"."route_key" IS NULL',
+        '"menus"."path" IS NULL',
+        '"menus"."permission_code" IS NULL',
+        '"menus"."is_external" IS NULL',
+        '"menus"."keep_alive" IS NULL',
+        '"menus"."is_visible" IS NOT NULL',
+      ],
+      [
+        '"menus"."route_key" IS NOT NULL',
+        '"menus"."path" IS NOT NULL',
+        '"menus"."permission_code" IS NOT NULL',
+        '"menus"."is_external" IS TRUE',
+        '"menus"."is_external" IS FALSE',
+        '"menus"."keep_alive" IS NOT NULL',
+        '"menus"."is_visible" IS NULL',
+        '"menus"."url"',
+      ],
     );
-    expect(checks.menus_external_menu_fields_check).not.toContain('"menus"."url"');
-    expect(checks.menus_button_fields_check).toContain('"menus"."path" IS NULL');
-    expect(checks.menus_button_fields_check).not.toContain('"menus"."url"');
+    expectCheck(
+      "menus_internal_menu_fields_check",
+      [
+        '"menus"."type" <> \'menu\' OR "menus"."is_external" IS TRUE OR (',
+        '"menus"."is_external" IS FALSE',
+        '"menus"."route_key" IS NOT NULL',
+        '"menus"."path" IS NULL',
+        '"menus"."permission_code" IS NOT NULL',
+        '"menus"."is_visible" IS NOT NULL',
+        '"menus"."keep_alive" IS NOT NULL',
+      ],
+      [
+        '"menus"."route_key" IS NULL',
+        '"menus"."path" IS NOT NULL',
+        '"menus"."permission_code" IS NULL',
+        '"menus"."is_visible" IS NULL',
+        '"menus"."keep_alive" IS NULL',
+        '"menus"."is_external" IS NULL',
+        '"menus"."url"',
+      ],
+    );
+    expectCheck(
+      "menus_external_menu_fields_check",
+      [
+        '"menus"."type" <> \'menu\' OR "menus"."is_external" IS FALSE OR (',
+        '"menus"."is_external" IS TRUE',
+        '"menus"."route_key" IS NULL',
+        '"menus"."path" IS NOT NULL',
+        '"menus"."permission_code" IS NOT NULL',
+        '"menus"."is_visible" IS NOT NULL',
+        '"menus"."keep_alive" IS NULL',
+      ],
+      [
+        '"menus"."route_key" IS NOT NULL',
+        '"menus"."path" IS NULL',
+        '"menus"."permission_code" IS NULL',
+        '"menus"."is_visible" IS NULL',
+        '"menus"."keep_alive" IS NOT NULL',
+        '"menus"."is_external" IS NULL',
+        '"menus"."url"',
+      ],
+    );
+    expectCheck(
+      "menus_button_fields_check",
+      [
+        '"menus"."type" <> \'button\' OR (',
+        '"menus"."parent_id" IS NOT NULL',
+        '"menus"."route_key" IS NULL',
+        '"menus"."path" IS NULL',
+        '"menus"."icon" IS NULL',
+        '"menus"."permission_code" IS NOT NULL',
+        '"menus"."is_external" IS NULL',
+        '"menus"."is_visible" IS NULL',
+        '"menus"."keep_alive" IS NULL',
+      ],
+      [
+        '"menus"."parent_id" IS NULL',
+        '"menus"."route_key" IS NOT NULL',
+        '"menus"."path" IS NOT NULL',
+        '"menus"."icon" IS NOT NULL',
+        '"menus"."permission_code" IS NULL',
+        '"menus"."is_external" IS TRUE',
+        '"menus"."is_external" IS FALSE',
+        '"menus"."is_visible" IS NOT NULL',
+        '"menus"."keep_alive" IS NOT NULL',
+        '"menus"."url"',
+      ],
+    );
 
     const routeKeyIndex = config.indexes.find(
       (index) => index.config.name === "menus_organization_route_key_unique",
