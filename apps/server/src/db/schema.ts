@@ -1,6 +1,8 @@
-import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -9,6 +11,7 @@ import {
   snakeCase,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -19,6 +22,7 @@ export const membershipStatus = pgEnum("membership_status", ["active", "disabled
 export const refreshSessionStatus = pgEnum("refresh_session_status", ["active", "revoked"]);
 export const clientType = pgEnum("client_type", ["web_pc", "web_mobile", "app_ios", "app_android"]);
 export const auditResult = pgEnum("audit_result", ["succeeded", "failed"]);
+export const menuType = pgEnum("menu_type", ["directory", "menu", "button"]);
 
 const timestamps = {
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -164,15 +168,94 @@ export const auditLogs = snakeCase.table(
 export const menus = snakeCase.table(
   "menus",
   {
-    id: uuid().primaryKey().defaultRandom(),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    organizationId: uuid()
+      .notNull()
+      .references(() => organizations.id),
+    type: menuType().notNull(),
     name: text().notNull(),
-    path: text().notNull(),
-    parentId: uuid().references((): AnyPgColumn => menus.id),
-    componentKey: text(),
+    parentId: integer(),
+    routeKey: text(),
+    path: text(),
+    url: text(),
     icon: text(),
-    permissionCode: text(),
+    permissionCode: text().references(() => permissions.key),
+    isExternal: boolean(),
+    isVisible: boolean(),
+    keepAlive: boolean(),
     sortOrder: integer().notNull().default(0),
     ...timestamps,
   },
-  (table) => [index("menus_parent_idx").on(table.parentId)],
+  (table) => [
+    check(
+      "menus_directory_fields_check",
+      sql`${table.type} <> 'directory' OR (
+        ${table.routeKey} IS NULL
+        AND ${table.path} IS NULL
+        AND ${table.url} IS NULL
+        AND ${table.permissionCode} IS NULL
+        AND ${table.isExternal} IS NULL
+        AND ${table.keepAlive} IS NULL
+        AND ${table.isVisible} IS NOT NULL
+      )`,
+    ),
+    check(
+      "menus_internal_menu_fields_check",
+      sql`${table.type} <> 'menu' OR ${table.isExternal} IS TRUE OR (
+        ${table.isExternal} IS FALSE
+        AND ${table.routeKey} IS NOT NULL
+        AND ${table.path} IS NULL
+        AND ${table.url} IS NULL
+        AND ${table.permissionCode} IS NOT NULL
+        AND ${table.isVisible} IS NOT NULL
+        AND ${table.keepAlive} IS NOT NULL
+      )`,
+    ),
+    check(
+      "menus_external_menu_fields_check",
+      sql`${table.type} <> 'menu' OR ${table.isExternal} IS FALSE OR (
+        ${table.isExternal} IS TRUE
+        AND ${table.routeKey} IS NULL
+        AND ${table.path} IS NOT NULL
+        AND ${table.url} IS NOT NULL
+        AND ${table.path} = ${table.url}
+        AND ${table.permissionCode} IS NOT NULL
+        AND ${table.isVisible} IS NOT NULL
+        AND ${table.keepAlive} IS NULL
+      )`,
+    ),
+    check(
+      "menus_button_fields_check",
+      sql`${table.type} <> 'button' OR (
+        ${table.parentId} IS NOT NULL
+        AND ${table.routeKey} IS NULL
+        AND ${table.path} IS NULL
+        AND ${table.url} IS NULL
+        AND ${table.icon} IS NULL
+        AND ${table.permissionCode} IS NOT NULL
+        AND ${table.isExternal} IS NULL
+        AND ${table.isVisible} IS NULL
+        AND ${table.keepAlive} IS NULL
+      )`,
+    ),
+    uniqueIndex("menus_organization_route_key_unique")
+      .on(table.organizationId, table.routeKey)
+      .where(sql`${table.routeKey} IS NOT NULL`),
+    uniqueIndex("menus_organization_path_unique")
+      .on(table.organizationId, table.path)
+      .where(sql`${table.path} IS NOT NULL`),
+    unique("menus_organization_id_unique").on(table.organizationId, table.id),
+    foreignKey({
+      name: "menus_organization_parent_fk",
+      columns: [table.organizationId, table.parentId],
+      foreignColumns: [table.organizationId, table.id],
+    }),
+    index("menus_organization_idx").on(table.organizationId),
+    index("menus_organization_parent_idx").on(table.organizationId, table.parentId),
+    index("menus_organization_parent_sort_idx").on(
+      table.organizationId,
+      table.parentId,
+      table.sortOrder,
+    ),
+  ],
 );
