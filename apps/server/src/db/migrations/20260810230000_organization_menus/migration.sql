@@ -23,6 +23,8 @@ SELECT "roles"."id", "permissions"."id"
 FROM "roles"
 CROSS JOIN "permissions"
 WHERE "roles"."key" IN ('owner', 'admin')
+  AND "roles"."is_system" IS TRUE
+  AND "roles"."organization_id" IS NULL
   AND "permissions"."key" IN ('menus:read', 'menus:create', 'menus:update', 'menus:delete')
 ON CONFLICT DO NOTHING;
 
@@ -62,6 +64,42 @@ BEGIN
 
   IF legacy_menu_count > 0 AND organization_count = 0 THEN
     RAISE EXCEPTION 'Cannot migrate legacy menus without organizations';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM "menus"
+    WHERE "component_key" IS NULL
+      AND "path" = ''
+      AND "permission_code" IS NOT NULL
+      AND "permission_code" <> ''
+  ) THEN
+    RAISE EXCEPTION 'Cannot migrate legacy directory menu %: permission code is not allowed',
+      (SELECT "id" FROM "menus"
+       WHERE "component_key" IS NULL
+         AND "path" = ''
+         AND "permission_code" IS NOT NULL
+         AND "permission_code" <> ''
+       LIMIT 1);
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM "menus"
+    WHERE "component_key" = 'DashboardPage'
+      AND "path" = '/'
+      AND "permission_code" IS NOT NULL
+      AND "permission_code" <> ''
+      AND "permission_code" <> 'dashboard:read'
+  ) THEN
+    RAISE EXCEPTION 'Cannot migrate dashboard menu %: invalid permission code',
+      (SELECT "id" FROM "menus"
+       WHERE "component_key" = 'DashboardPage'
+         AND "path" = '/'
+         AND "permission_code" IS NOT NULL
+         AND "permission_code" <> ''
+         AND "permission_code" <> 'dashboard:read'
+       LIMIT 1);
   END IF;
 
   IF EXISTS (
@@ -120,7 +158,7 @@ BEGIN
   SELECT "component_key", "path"
   INTO invalid_menu
   FROM "menus"
-  WHERE NOT (
+  WHERE (
     ("component_key" IS NULL AND "path" = '')
     OR ("component_key" IS NULL AND "path" ~ '^https?://')
     OR ("component_key" = 'DashboardPage' AND "path" = '/')
@@ -128,7 +166,7 @@ BEGIN
     OR ("component_key" = 'RolesPage' AND "path" = '/roles')
     OR ("component_key" = 'SessionsPage' AND "path" = '/sessions')
     OR ("component_key" = 'AuditLogsPage' AND "path" = '/audit-logs')
-  )
+  ) IS NOT TRUE
   LIMIT 1;
 
   IF FOUND THEN
@@ -603,3 +641,4 @@ CREATE INDEX "menus_organization_parent_sort_idx"
 
 DROP TABLE "menus";
 ALTER TABLE "menus_next" RENAME TO "menus";
+ALTER TABLE "menus" RENAME CONSTRAINT "menus_next_pkey" TO "menus_pkey";

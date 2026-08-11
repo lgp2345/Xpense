@@ -82,6 +82,9 @@ describe("organization menu UUID-to-identity migration contract", () => {
       'FOR organization_row IN SELECT "id" FROM "organizations"',
     );
     const replacementIndex = migration.indexOf('ALTER TABLE "menus_next" RENAME TO "menus";');
+    const primaryKeyRenameIndex = migration.indexOf(
+      'ALTER TABLE "menus" RENAME CONSTRAINT "menus_next_pkey" TO "menus_pkey";',
+    );
     const legacyDropIndex = migration.indexOf('DROP TABLE "menus";');
     const finalConstraintIndex = migration.indexOf('ADD CONSTRAINT "menus_organization_parent_fk"');
 
@@ -93,6 +96,7 @@ describe("organization menu UUID-to-identity migration contract", () => {
     expect(finalConstraintIndex).toBeGreaterThan(organizationCopyIndex);
     expect(legacyDropIndex).toBeGreaterThan(finalConstraintIndex);
     expect(replacementIndex).toBeGreaterThan(legacyDropIndex);
+    expect(primaryKeyRenameIndex).toBeGreaterThan(replacementIndex);
   });
 
   it("declares the executable copy contract for organization-local identity trees", async () => {
@@ -116,6 +120,15 @@ describe("organization menu UUID-to-identity migration contract", () => {
     expect(source).toMatch(/RAISE EXCEPTION 'Cannot migrate legacy menu tree: cycle detected'/);
     expect(source).toMatch(/RAISE EXCEPTION 'Cannot migrate legacy menu tree: unreachable node'/);
     expect(source).toMatch(/RAISE EXCEPTION 'Cannot migrate legacy menus without organizations'/);
+    expect(source).toMatch(
+      /WHERE "component_key" IS NULL[\s\S]*"path" = ''[\s\S]*"permission_code" IS NOT NULL[\s\S]*"permission_code" <> ''[\s\S]*RAISE EXCEPTION 'Cannot migrate legacy directory menu %: permission code is not allowed'/,
+    );
+    expect(source).toMatch(
+      /WHERE "component_key" = 'DashboardPage'[\s\S]*"path" = '\/'[\s\S]*"permission_code" IS NOT NULL[\s\S]*"permission_code" <> ''[\s\S]*"permission_code" <> 'dashboard:read'[\s\S]*RAISE EXCEPTION 'Cannot migrate dashboard menu %: invalid permission code'/,
+    );
+    expect(source).toMatch(
+      /WHERE \([\s\S]*"component_key" = 'AuditLogsPage'[\s\S]*\) IS NOT TRUE\s+LIMIT 1;/,
+    );
     expect(source).toMatch(/RAISE EXCEPTION 'Menu migration count mismatch'/);
     expect(source).toMatch(/RAISE EXCEPTION 'Menu migration parent ownership mismatch'/);
     expect(source).toMatch(/"path" text/);
@@ -129,7 +142,7 @@ describe("organization menu UUID-to-identity migration contract", () => {
       /\('menus:read', 'menus:read', 'menus', 'read', 'menus:read'\)[\s\S]*\('menus:create', 'menus:create', 'menus', 'create', 'menus:create'\)[\s\S]*\('menus:update', 'menus:update', 'menus', 'update', 'menus:update'\)[\s\S]*\('menus:delete', 'menus:delete', 'menus', 'delete', 'menus:delete'\)/,
     );
     expect(source).toMatch(
-      /"roles"\."key" IN \('owner', 'admin'\)[\s\S]*"permissions"\."key" IN \('menus:read', 'menus:create', 'menus:update', 'menus:delete'\)/,
+      /"roles"\."key" IN \('owner', 'admin'\)\s+AND "roles"\."is_system" IS TRUE\s+AND "roles"\."organization_id" IS NULL\s+AND "permissions"\."key" IN \('menus:read', 'menus:create', 'menus:update', 'menus:delete'\)/,
     );
     expect(source).toMatch(
       /'menu',\s+'菜单管理',\s+menu_management_parent_id,\s+'Menus',\s+NULL,\s+'ShieldCheck',\s+'menus:read'/,
