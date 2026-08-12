@@ -1,4 +1,4 @@
-import type { MenuItem } from "@xpense/shared";
+import type { AuthorizedMenuNode } from "@xpense/shared";
 import {
   LayoutDashboard,
   type LucideIcon,
@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useStore } from "zustand";
 
 import {
@@ -40,24 +39,30 @@ function resolveIcon(iconName: string | null): LucideIcon {
   return LayoutDashboard;
 }
 
-function menuToNavigationGroups(menus: MenuItem[]): NavigationGroup[] {
+function menuToNavigationGroups(menus: AuthorizedMenuNode[]): NavigationGroup[] {
   const groups: NavigationGroup[] = [];
 
   for (const menu of menus) {
-    if (menu.children.length > 0) {
+    if (menu.type === "directory" && menu.children.length > 0) {
       // 带子节点的目录 → NavigationGroup
-      const items: NavigationItem[] = menu.children.map((child) => ({
-        title: child.name,
-        to: child.path as NavigationItem["to"],
-        icon: resolveIcon(child.icon),
-        permission: child.permissionCode as NavigationItem["permission"],
-      }));
+      const items: NavigationItem[] = menu.children.flatMap((child) =>
+        child.type === "menu" && !child.isExternal && child.path
+          ? [
+              {
+                title: child.name,
+                to: child.path as NavigationItem["to"],
+                icon: resolveIcon(child.icon),
+                permission: child.permissionCode,
+              },
+            ]
+          : [],
+      );
 
       if (items.length > 0) {
         groups.push({ title: menu.name, items });
       }
-    } else if (menu.componentKey) {
-      // 叶子节点（有 componentKey） → 单条 NavigationItem
+    } else if (menu.type === "menu" && !menu.isExternal && menu.path) {
+      // 根菜单 → 单条 NavigationItem
       groups.push({
         title: menu.name,
         items: [
@@ -65,7 +70,7 @@ function menuToNavigationGroups(menus: MenuItem[]): NavigationGroup[] {
             title: menu.name,
             to: menu.path as NavigationItem["to"],
             icon: resolveIcon(menu.icon),
-            permission: menu.permissionCode as NavigationItem["permission"],
+            permission: menu.permissionCode,
           },
         ],
       });
@@ -76,26 +81,7 @@ function menuToNavigationGroups(menus: MenuItem[]): NavigationGroup[] {
 }
 
 export function AppSidebar({ session }: { session: WebSessionDependency }) {
-  const [menus, setMenus] = useState<MenuItem[]>([]);
-  const status = useStore(session.authStore, (state) => state.status);
-
-  useEffect(() => {
-    if (status !== "authenticated") return;
-
-    let cancelled = false;
-    session.iamApi
-      .getMenus()
-      .then((data) => {
-        if (!cancelled) setMenus(data);
-      })
-      .catch(() => {
-        // 菜单加载失败时静默降级：sidebar 显示为空
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session.iamApi, status]);
+  const menus = useStore(session.menuStore, (state) => state.tree);
 
   const navigationGroups = menuToNavigationGroups(menus);
 

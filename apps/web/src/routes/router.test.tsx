@@ -1,7 +1,7 @@
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { PermissionKey } from "@xpense/shared";
+import type { AuthorizedMenuNode, PermissionKey } from "@xpense/shared";
 import axios, { type AxiosInstance } from "axios";
 import MockAdapter from "axios-mock-adapter";
 import { describe, expect, it } from "vitest";
@@ -10,6 +10,25 @@ import { AppProviders } from "../components/app-providers";
 import { createWebSession } from "../services/web-session";
 import { createAuthStore } from "../stores/auth-store";
 import { createAppRouter, protectedRoutePermissions } from "./router";
+
+const authorizedMenus: AuthorizedMenuNode[] = [
+  {
+    id: 1,
+    parentId: null,
+    type: "menu",
+    name: "仪表盘",
+    sortOrder: 0,
+    icon: "LayoutDashboard",
+    isVisible: true,
+    routeKey: "Dashboard",
+    path: "/",
+    url: null,
+    permissionCode: "dashboard:read",
+    isExternal: false,
+    keepAlive: false,
+    children: [],
+  },
+];
 
 function createAuthenticatedStore(permissions: PermissionKey[] = [], isSuperAdmin = false) {
   return createAuthStore({
@@ -46,6 +65,7 @@ function createRouterSession(
 function createRejectingInstance(): AxiosInstance {
   const instance = axios.create();
   const mock = new MockAdapter(instance);
+  mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
   mock.onAny().reply(() => {
     throw new Error("Unexpected request");
   });
@@ -135,6 +155,7 @@ describe("router auth guards", () => {
     const store = createAuthenticatedStore(["audit_logs:read"]);
     const instance = axios.create();
     const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
     mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
     const router = createAppRouter({
       history,
@@ -152,6 +173,7 @@ describe("router auth guards", () => {
     expect(screen.getByRole("textbox", { name: "操作" })).toHaveValue("role.created");
     expect(screen.getByRole("textbox", { name: "目标类型" })).toHaveValue("role");
     expect(screen.queryByText("此页面将在后续管理任务中完成。")).not.toBeInTheDocument();
+    expect(mock.history.get.some((config) => config.url?.endsWith("/menus"))).toBe(true);
 
     await user.clear(screen.getByRole("textbox", { name: "操作" }));
     await user.type(screen.getByRole("textbox", { name: "操作" }), "member.disabled");
@@ -170,6 +192,7 @@ describe("router auth guards", () => {
     });
     const instance = axios.create();
     const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
     mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
     const router = createAppRouter({
       history,
@@ -197,6 +220,7 @@ describe("router auth guards", () => {
     const store = createAuthenticatedStore(["sessions:read", "sessions:revoke"]);
     const instance = axios.create();
     const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
     mock.onGet(/\/auth\/sessions$/).reply(200, {
       code: "OK",
       message: "ok",

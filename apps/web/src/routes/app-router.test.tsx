@@ -1,7 +1,7 @@
 import { createMemoryHistory } from "@tanstack/react-router";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { CurrentUserResponse } from "@xpense/shared";
+import type { AuthorizedMenuNode, CurrentUserResponse } from "@xpense/shared";
 import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
 import { StrictMode } from "react";
@@ -11,6 +11,25 @@ import { AppProviders } from "../components/app-providers";
 import { createWebSession } from "../services/web-session";
 import { authStore, createAuthStore } from "../stores/auth-store";
 import { AppRouter, createAppRouter } from "./router";
+
+const authorizedMenus: AuthorizedMenuNode[] = [
+  {
+    id: 1,
+    parentId: null,
+    type: "menu",
+    name: "仪表盘",
+    sortOrder: 0,
+    icon: "LayoutDashboard",
+    isVisible: true,
+    routeKey: "Dashboard",
+    path: "/",
+    url: null,
+    permissionCode: "dashboard:read",
+    isExternal: false,
+    keepAlive: false,
+    children: [],
+  },
+];
 
 const injectedUserContext: CurrentUserResponse = {
   user: {
@@ -34,6 +53,7 @@ const globalUserContext: CurrentUserResponse = {
 function createTestSession(store: ReturnType<typeof createAuthStore>) {
   const instance = axios.create();
   const mock = new MockAdapter(instance);
+  mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
   mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
 
   return createWebSession({
@@ -146,6 +166,7 @@ describe("AppRouter startup", () => {
     authStore.getState().setCurrentUserContext(globalUserContext);
     const instance = axios.create();
     const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
     mock.onGet(/\/user\/organizations$/).reply(200, {
       code: "OK",
       message: "ok",
@@ -174,6 +195,7 @@ describe("AppRouter startup", () => {
       );
 
       expect((await screen.findAllByText("injected@example.com")).length).toBeGreaterThan(0);
+      expect(mock.history.get.some((config) => config.url?.endsWith("/menus"))).toBe(true);
       expect(screen.queryByText("global@example.com")).not.toBeInTheDocument();
       await vi.waitFor(() =>
         expect(mock.history.get.some((config) => config.url?.endsWith("/user/organizations"))).toBe(
@@ -214,6 +236,7 @@ describe("AppRouter startup", () => {
     const store = createAuthStore();
     const instance = axios.create();
     const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
     mock.onPost(/\/auth\/refresh$/).reply(200, {
       code: "OK",
       message: "ok",
@@ -248,5 +271,6 @@ describe("AppRouter startup", () => {
       status: "authenticated",
     });
     expect(mock.history.post.some((config) => config.url?.endsWith("/auth/refresh"))).toBe(true);
+    expect(mock.history.get.some((config) => config.url?.endsWith("/menus"))).toBe(true);
   });
 });
