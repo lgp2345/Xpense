@@ -78,10 +78,14 @@ export type TestAppHarness = {
   state: TestState;
 };
 
-export async function createTestApp(): Promise<TestAppHarness> {
+export type TestAppOptions = {
+  managerPermissions?: readonly PermissionKey[];
+};
+
+export async function createTestApp(options: TestAppOptions = {}): Promise<TestAppHarness> {
   ensureTestEnv();
 
-  const state = createTestState();
+  const state = createTestState(options);
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
   })
@@ -134,7 +138,7 @@ function ensureTestEnv(): void {
   process.env.VITE_API_PREFIX ??= "api";
 }
 
-function createTestState(): TestState {
+function createTestState(options: TestAppOptions): TestState {
   const users = new Map<string, TestUser>([
     [testIds.ownerUser, createUser(testIds.ownerUser, "owner@example.com", false)],
     [testIds.managerUser, createUser(testIds.managerUser, "manager@example.com", false)],
@@ -163,19 +167,26 @@ function createTestState(): TestState {
     ],
     [
       testIds.managerRole,
-      createRole(testIds.managerRole, "manager", "Manager", [
-        "roles:read",
-        "roles:create",
-        "roles:update",
-        "roles:permissions:update",
-        "menus:read",
-        "menus:create",
-        "menus:update",
-        "menus:delete",
-        "members:create",
-        "members:update",
-        "sessions:read",
-      ]),
+      createRole(
+        testIds.managerRole,
+        "manager",
+        "Manager",
+        options.managerPermissions
+          ? [...options.managerPermissions]
+          : [
+              "roles:read",
+              "roles:create",
+              "roles:update",
+              "roles:permissions:update",
+              "menus:read",
+              "menus:create",
+              "menus:update",
+              "menus:delete",
+              "members:create",
+              "members:update",
+              "sessions:read",
+            ],
+      ),
     ],
     [testIds.viewerRole, createRole(testIds.viewerRole, "viewer", "Viewer", ["transactions:read"])],
     [

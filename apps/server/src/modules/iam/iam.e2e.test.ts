@@ -1,10 +1,92 @@
+import type { PermissionKey, PermissionTreeNode } from "@xpense/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { login, parseJson, testIds } from "../../test/auth-test-helpers.js";
-import { createTestApp, type TestAppHarness } from "../../test/create-test-app.js";
+import {
+  createTestApp,
+  type TestAppHarness,
+  type TestAppOptions,
+} from "../../test/create-test-app.js";
 
 const otherOrganizationRoleId = "22222222-2222-4222-8222-222222222299";
 const missingOrganizationId = "00000000-0000-4000-8000-000000000099";
+
+type ExactPermissionCase = {
+  title: string;
+  method: "GET" | "POST";
+  url: string;
+  payload?: Record<string, unknown>;
+  targetPermission: PermissionKey;
+  adjacentPermission: PermissionKey;
+  successStatus: number;
+};
+
+const exactPermissionCases: readonly ExactPermissionCase[] = [
+  {
+    title: "menu configuration",
+    method: "GET",
+    url: "/api/menus/configuration",
+    targetPermission: "menus:read",
+    adjacentPermission: "menus:create",
+    successStatus: 200,
+  },
+  {
+    title: "menu add",
+    method: "POST",
+    url: "/api/menus/add",
+    payload: { type: "directory", name: "Reports", parentId: null },
+    targetPermission: "menus:create",
+    adjacentPermission: "menus:update",
+    successStatus: 201,
+  },
+  {
+    title: "menu edit",
+    method: "POST",
+    url: "/api/menus/edit",
+    payload: {
+      id: 2,
+      type: "menu",
+      name: "Menu settings",
+      parentId: 1,
+      routeKey: "Menus",
+      icon: "ShieldCheck",
+      permissionCode: "menus:read",
+      isExternal: false,
+      isVisible: true,
+      keepAlive: true,
+    },
+    targetPermission: "menus:update",
+    adjacentPermission: "menus:delete",
+    successStatus: 201,
+  },
+  {
+    title: "menu delete",
+    method: "POST",
+    url: "/api/menus/delete",
+    payload: { id: 5 },
+    targetPermission: "menus:delete",
+    adjacentPermission: "menus:update",
+    successStatus: 201,
+  },
+  {
+    title: "menu edit order",
+    method: "POST",
+    url: "/api/menus/edit-order",
+    payload: { id: 8, direction: "up" },
+    targetPermission: "menus:update",
+    adjacentPermission: "menus:read",
+    successStatus: 201,
+  },
+  {
+    title: "role metadata edit",
+    method: "POST",
+    url: "/api/roles/edit",
+    payload: { roleId: testIds.viewerRole, name: "Read only" },
+    targetPermission: "roles:update",
+    adjacentPermission: "roles:permissions:update",
+    successStatus: 201,
+  },
+];
 
 type InjectResponse = {
   payload: string;
@@ -23,11 +105,21 @@ function expectOk<T>(response: InjectResponse): T {
 
 function expectApiError(response: InjectResponse, statusCode: number, code: string): void {
   expect(response.statusCode).toBe(statusCode);
-  expect(parseJson(response)).toMatchObject({
-    code,
-    message: expect.any(String),
-    data: null,
-  });
+  const body = parseJson<{ code: string; message: string; data: unknown }>(response);
+
+  expect(Object.keys(body).toSorted()).toEqual(["code", "data", "message"]);
+  expect(body.code).toBe(code);
+  expect(body.message).toEqual(expect.any(String));
+  expect(body.data).toBeNull();
+}
+
+function collectPermissionCodes(nodes: readonly PermissionTreeNode[]): PermissionKey[] {
+  return nodes
+    .flatMap((node) => [
+      ...(node.permissionCode === null ? [] : [node.permissionCode]),
+      ...collectPermissionCodes(node.children),
+    ])
+    .toSorted();
 }
 
 describe("IAM e2e", () => {
@@ -38,10 +130,68 @@ describe("IAM e2e", () => {
     harness = null;
   });
 
-  async function createHarness(): Promise<TestAppHarness> {
-    harness = await createTestApp();
+  async function createHarness(options?: TestAppOptions): Promise<TestAppHarness> {
+    harness = await createTestApp(options);
     return harness;
   }
+
+  it.each(
+    exactPermissionCases,
+  )("$title accepts the exact target permission without adjacent permissions", async ({
+    method,
+    url,
+    payload,
+    targetPermission,
+    adjacentPermission,
+    successStatus,
+  }) => {
+    const { app, state } = await createHarness({ managerPermissions: [targetPermission] });
+    const managerPermissions = state.roles.get(testIds.managerRole)?.permissions ?? [];
+    const { accessToken } = await login(app, "manager@example.com");
+
+    expect(managerPermissions).toEqual([targetPermission]);
+    expect(managerPermissions).not.toContain(adjacentPermission);
+
+    const response = await app.inject({
+      method,
+      url,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      ...(payload ? { payload } : {}),
+    });
+
+    expect(response.statusCode).toBe(successStatus);
+    expectOk(response);
+  });
+
+  it.each(
+    exactPermissionCases,
+  )("$title rejects an adjacent permission without the target permission", async ({
+    method,
+    url,
+    payload,
+    targetPermission,
+    adjacentPermission,
+  }) => {
+    const { app, state } = await createHarness({ managerPermissions: [adjacentPermission] });
+    const managerPermissions = state.roles.get(testIds.managerRole)?.permissions ?? [];
+    const { accessToken } = await login(app, "manager@example.com");
+
+    expect(managerPermissions).toEqual([adjacentPermission]);
+    expect(managerPermissions).not.toContain(targetPermission);
+
+    const response = await app.inject({
+      method,
+      url,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      ...(payload ? { payload } : {}),
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
 
   it("GET /roles without permission returns 403", async () => {
     const { app } = await createHarness();
@@ -492,8 +642,10 @@ describe("IAM e2e", () => {
     expectApiError(response, 404, "NOT_FOUND");
   });
 
-  it("GET /permissions/tree returns the actor-manageable permission hierarchy", async () => {
-    const { app } = await createHarness();
+  it("GET /permissions/tree applies the actor ceiling and ancestor closure recursively", async () => {
+    const { app } = await createHarness({
+      managerPermissions: ["roles:permissions:update", "menus:create", "transactions:read"],
+    });
     const { accessToken } = await login(app, "manager@example.com");
 
     const response = await app.inject({
@@ -505,18 +657,70 @@ describe("IAM e2e", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(expectOk(response)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: 1,
-          type: "directory",
-          children: expect.arrayContaining([
-            expect.objectContaining({ id: 2, permissionCode: "menus:read" }),
-            expect.objectContaining({ id: 7, permissionCode: "roles:read" }),
-          ]),
-        }),
-      ]),
-    );
+    const permissionCodes = collectPermissionCodes(expectOk<PermissionTreeNode[]>(response));
+
+    expect(permissionCodes).toEqual(["roles:permissions:update", "transactions:read"]);
+    expect(permissionCodes).not.toContain("menus:create");
+    expect(permissionCodes).not.toContain("transactions:delete");
+    expect(permissionCodes).not.toContain("audit_logs:read");
+  });
+
+  it.each([
+    {
+      missingAncestor: "top-level menus:read",
+      managerPermissions: ["roles:permissions:update", "roles:read", "roles:update"] as const,
+      expectedPermissionCodes: ["roles:permissions:update"],
+    },
+    {
+      missingAncestor: "intermediate roles:read",
+      managerPermissions: ["roles:permissions:update", "menus:read", "roles:update"] as const,
+      expectedPermissionCodes: ["menus:read", "roles:permissions:update"],
+    },
+    {
+      missingAncestor: "no ancestor",
+      managerPermissions: [
+        "roles:permissions:update",
+        "menus:read",
+        "roles:read",
+        "roles:update",
+      ] as const,
+      expectedPermissionCodes: [
+        "menus:read",
+        "roles:permissions:update",
+        "roles:read",
+        "roles:update",
+      ],
+    },
+  ])("GET /permissions/tree excludes a deep permission when $missingAncestor is missing", async ({
+    managerPermissions,
+    expectedPermissionCodes,
+    missingAncestor,
+  }) => {
+    const { app, state } = await createHarness({ managerPermissions });
+    const roleMenu = state.menus.get(7);
+
+    if (!roleMenu) {
+      throw new Error("Role menu fixture is required");
+    }
+
+    state.menus.set(7, { ...roleMenu, parentId: 2 });
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/permissions/tree",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const permissionCodes = collectPermissionCodes(expectOk<PermissionTreeNode[]>(response));
+
+    expect(permissionCodes).toEqual(expectedPermissionCodes);
+    if (missingAncestor !== "no ancestor") {
+      expect(permissionCodes).not.toContain("roles:update");
+    }
   });
 
   it("GET /permissions/tree returns 403 without roles.permissions.update", async () => {
@@ -1130,8 +1334,16 @@ describe("IAM e2e", () => {
   });
 
   it("POST /organizations/menus/reset checks super-admin status in the service", async () => {
-    const { app } = await createHarness();
+    const allMenuPermissions = [
+      "menus:read",
+      "menus:create",
+      "menus:update",
+      "menus:delete",
+    ] as const;
+    const { app, state } = await createHarness({ managerPermissions: allMenuPermissions });
     const { accessToken } = await login(app, "manager@example.com");
+
+    expect(state.roles.get(testIds.managerRole)?.permissions).toEqual(allMenuPermissions);
 
     const response = await app.inject({
       method: "POST",
@@ -1147,7 +1359,13 @@ describe("IAM e2e", () => {
 
   it("POST /organizations/menus/reset lets a super admin reset another organization", async () => {
     const { app, state } = await createHarness();
+    const superMember = state.members.get(testIds.superMember);
+    const superPermissions = superMember
+      ? (state.roles.get(superMember.roleId)?.permissions ?? [])
+      : [];
     const { accessToken } = await login(app, "super@example.com");
+
+    expect(superPermissions.filter((permission) => permission.startsWith("menus:"))).toEqual([]);
 
     const response = await app.inject({
       method: "POST",
