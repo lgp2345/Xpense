@@ -302,6 +302,23 @@ describe("router auth and menu guards", () => {
     expect(screen.queryByText("菜单加载失败，请稍后重试。")).not.toBeInTheDocument();
   });
 
+  it("redirects an anonymous menu recovery request to login with its return path", async () => {
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onAny().reply(() => {
+      throw new Error("Unexpected request");
+    });
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/system/menu-reset"] }),
+      session: createRouterSession(createAuthStore(), instance),
+    });
+
+    await router.load();
+
+    expect(router.state.location.pathname).toBe("/login");
+    expect(router.state.location.search).toEqual({ redirect: "/system/menu-reset" });
+  });
+
   it("rejects an ordinary authenticated user from the static menu recovery route", async () => {
     const harness = await createReadySession([authorizedMenu("Dashboard", 1)]);
     const router = createAppRouter({
@@ -363,6 +380,7 @@ describe("registered page adapters", () => {
       session: harness.session,
     });
     await router.load();
+    const navigate = vi.spyOn(router, "navigate");
     renderRouter(router);
 
     expect(await screen.findByRole("textbox", { name: "操作" }, { timeout: 3_000 })).toHaveValue(
@@ -388,5 +406,18 @@ describe("registered page adapters", () => {
         targetType: "role",
       }),
     );
+    const filterNavigation = navigate.mock.calls
+      .map(([options]) => options)
+      .find((options) => JSON.stringify(options.search).includes("member.disabled"));
+
+    expect(filterNavigation).toMatchObject({
+      from: ROUTE_DEFINITIONS.AuditLogs.path,
+      replace: true,
+      search: expect.objectContaining({
+        action: "member.disabled",
+        targetType: "role",
+      }),
+    });
+    expect(filterNavigation).not.toHaveProperty("to");
   });
 });

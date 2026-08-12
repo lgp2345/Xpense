@@ -214,7 +214,11 @@ export function AppRouter({ router: activeRouter = router, restoreSession }: App
     });
     const unsubscribeMenus = activeSession.menuStore.subscribe((state, previousState) => {
       if (didMenuRouteBoundaryChange(state, previousState)) {
-        void activeRouter.invalidate();
+        queueMicrotask(() => {
+          if (hasActiveRegisteredMenuRoute(activeRouter)) {
+            void activeRouter.invalidate({ forcePending: true });
+          }
+        });
       }
     });
 
@@ -236,6 +240,10 @@ export function AppRouter({ router: activeRouter = router, restoreSession }: App
   }
 
   return <RouterProvider router={activeRouter} />;
+}
+
+function hasActiveRegisteredMenuRoute(routerInstance: AppRouterInstance): boolean {
+  return routerInstance.state.matches.some((match) => match.staticData.routeKey !== undefined);
 }
 
 function didAuthenticatedRouteBoundaryChange(
@@ -267,5 +275,8 @@ function didMenuRouteBoundaryChange(
   state: ReturnType<MenuStoreApi["getState"]>,
   previousState: ReturnType<MenuStoreApi["getState"]>,
 ): boolean {
-  return previousState.status === "error" && state.status === "loading";
+  return (
+    (previousState.status === "ready" || previousState.status === "error") &&
+    state.status === "loading"
+  );
 }

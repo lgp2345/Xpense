@@ -2,10 +2,10 @@ import {
   type AnyRoute,
   createRootRouteWithContext,
   createRoute,
-  type NavigateFn,
   notFound,
   Outlet,
   redirect,
+  type UseNavigateResult,
 } from "@tanstack/react-router";
 import { ROUTE_DEFINITIONS, type RouteKey } from "@xpense/shared";
 import { lazy, type ReactNode, Suspense } from "react";
@@ -36,17 +36,23 @@ export type AppRouterContext = {
   session: WebSessionDependency;
 };
 
-export type RegisteredPageInput = {
+export type RegisteredPageInput<TRoute extends AnyRoute> = {
   session: WebSessionDependency;
-  params: Record<string, string>;
-  search: Record<string, unknown>;
-  navigate: NavigateFn;
+  params: TRoute["types"]["allParams"];
+  search: TRoute["types"]["fullSearchSchema"];
+  navigate: UseNavigateResult<TRoute["fullPath"]>;
 };
 
-export type WebRouteRegistration = {
+export type WebRouteRegistration<TRoute extends AnyRoute = AnyRoute> = {
+  label: string;
+  route: TRoute;
+  render: (input: RegisteredPageInput<TRoute>) => ReactNode;
+};
+
+type WebRouteRegistrationConstraint = {
   label: string;
   route: AnyRoute;
-  render: (input: RegisteredPageInput) => ReactNode;
+  render: (input: never) => ReactNode;
 };
 
 declare module "@tanstack/react-router" {
@@ -68,64 +74,73 @@ export const authenticatedRoute = createRoute({
   component: AuthenticatedRoutePage,
 });
 
-const dashboardRoute = createRegisteredRoute("Dashboard");
-const membersRoute = createRegisteredRoute("Members");
-const rolesRoute = createRegisteredRoute("Roles");
-const sessionsRoute = createRegisteredRoute("Sessions");
-const menusRoute = createRegisteredRoute("Menus");
+const dashboardRoute = createRegisteredRoute("Dashboard", DashboardRoutePage);
+const membersRoute = createRegisteredRoute("Members", MembersRoutePage);
+const rolesRoute = createRegisteredRoute("Roles", RolesRoutePage);
+const sessionsRoute = createRegisteredRoute("Sessions", SessionsRoutePage);
+const menusRoute = createRegisteredRoute("Menus", MenusRoutePage);
 const auditLogsRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: ROUTE_DEFINITIONS.AuditLogs.path,
   staticData: { routeKey: "AuditLogs" },
   beforeLoad: ({ context, location }) =>
     requireRegisteredRouteAccess(context, location, "AuditLogs"),
-  component: () => <RegisteredRoutePage routeKey="AuditLogs" />,
+  component: AuditLogsRoutePage,
   pendingComponent: RouteAccessPending,
   pendingMs: 0,
   validateSearch: validateAuditLogSearch,
 });
 
 export const ROUTE_REGISTRY = {
-  Dashboard: {
+  Dashboard: defineRouteRegistration({
     label: "仪表盘",
     route: dashboardRoute,
-    render: (_input: RegisteredPageInput) => renderLazyPage(<DashboardPage />),
-  },
-  Members: {
+    render: (_input) => renderLazyPage(<DashboardPage />),
+  }),
+  Members: defineRouteRegistration({
     label: "成员管理",
     route: membersRoute,
     render: (input) => renderLazyPage(<MembersPageAdapter input={input} />),
-  },
-  Roles: {
+  }),
+  Roles: defineRouteRegistration({
     label: "角色管理",
     route: rolesRoute,
     render: (input) => renderLazyPage(<RolesPageAdapter input={input} />),
-  },
-  Sessions: {
+  }),
+  Sessions: defineRouteRegistration({
     label: "会话管理",
     route: sessionsRoute,
     render: (input) => renderLazyPage(<SessionsPageAdapter input={input} />),
-  },
-  AuditLogs: {
+  }),
+  AuditLogs: defineRouteRegistration({
     label: "审计日志",
     route: auditLogsRoute,
     render: (input) => renderLazyPage(<AuditLogsPageAdapter input={input} />),
-  },
-  Menus: {
+  }),
+  Menus: defineRouteRegistration({
     label: "菜单管理",
     route: menusRoute,
-    render: (_input: RegisteredPageInput) => <AdministrationPlaceholder title="菜单管理" />,
-  },
-} satisfies Record<RouteKey, WebRouteRegistration>;
+    render: (_input) => <AdministrationPlaceholder title="菜单管理" />,
+  }),
+} satisfies Record<RouteKey, WebRouteRegistrationConstraint>;
 
-function createRegisteredRoute<const Key extends Exclude<RouteKey, "AuditLogs">>(routeKey: Key) {
+function defineRouteRegistration<TRoute extends AnyRoute>(
+  registration: WebRouteRegistration<TRoute>,
+): WebRouteRegistration<TRoute> {
+  return registration;
+}
+
+function createRegisteredRoute<const Key extends Exclude<RouteKey, "AuditLogs">>(
+  routeKey: Key,
+  component: () => ReactNode,
+) {
   return createRoute({
     getParentRoute: () => authenticatedRoute,
     path: ROUTE_DEFINITIONS[routeKey].path,
     staticData: { routeKey },
     beforeLoad: ({ context, location }) =>
       requireRegisteredRouteAccess(context, location, routeKey),
-    component: () => <RegisteredRoutePage routeKey={routeKey} />,
+    component,
     pendingComponent: RouteAccessPending,
     pendingMs: 0,
   });
@@ -193,14 +208,16 @@ async function requireRegisteredRouteAccess(
   }
 }
 
-function useRegisteredPageInput(route: AnyRoute): RegisteredPageInput {
+function useRegisteredPageInput<TRoute extends AnyRoute>(
+  route: TRoute,
+): RegisteredPageInput<TRoute> {
   const { session } = route.useRouteContext() as AppRouterContext;
 
   return {
     session,
-    params: route.useParams() as Record<string, string>,
-    search: route.useSearch() as Record<string, unknown>,
-    navigate: route.useNavigate() as NavigateFn,
+    params: route.useParams(),
+    search: route.useSearch(),
+    navigate: route.useNavigate(),
   };
 }
 
@@ -210,24 +227,43 @@ function AuthenticatedRoutePage() {
   return <AuthenticatedLayout session={session} />;
 }
 
-function RegisteredRoutePage({ routeKey }: { routeKey: RouteKey }) {
-  const registration: WebRouteRegistration = ROUTE_REGISTRY[routeKey];
-  return registration.render(useRegisteredPageInput(registration.route));
+function DashboardRoutePage(): ReactNode {
+  return ROUTE_REGISTRY.Dashboard.render(useRegisteredPageInput(dashboardRoute));
 }
 
-function MembersPageAdapter({ input }: { input: RegisteredPageInput }) {
+function MembersRoutePage(): ReactNode {
+  return ROUTE_REGISTRY.Members.render(useRegisteredPageInput(membersRoute));
+}
+
+function RolesRoutePage(): ReactNode {
+  return ROUTE_REGISTRY.Roles.render(useRegisteredPageInput(rolesRoute));
+}
+
+function SessionsRoutePage(): ReactNode {
+  return ROUTE_REGISTRY.Sessions.render(useRegisteredPageInput(sessionsRoute));
+}
+
+function AuditLogsRoutePage(): ReactNode {
+  return ROUTE_REGISTRY.AuditLogs.render(useRegisteredPageInput(auditLogsRoute));
+}
+
+function MenusRoutePage(): ReactNode {
+  return ROUTE_REGISTRY.Menus.render(useRegisteredPageInput(menusRoute));
+}
+
+function MembersPageAdapter({ input }: { input: RegisteredPageInput<typeof membersRoute> }) {
   const permissions = useStore(input.session.authStore, (state) => state.permissions);
 
   return <MembersPage api={input.session.iamApi} permissions={permissions} />;
 }
 
-function RolesPageAdapter({ input }: { input: RegisteredPageInput }) {
+function RolesPageAdapter({ input }: { input: RegisteredPageInput<typeof rolesRoute> }) {
   const permissions = useStore(input.session.authStore, (state) => state.permissions);
 
   return <RolesPage api={input.session.iamApi} permissions={permissions} />;
 }
 
-function SessionsPageAdapter({ input }: { input: RegisteredPageInput }) {
+function SessionsPageAdapter({ input }: { input: RegisteredPageInput<typeof sessionsRoute> }) {
   const permissions = useStore(input.session.authStore, (state) => state.permissions);
   const currentSessionId = useStore(input.session.authStore, (state) => state.session?.id);
 
@@ -244,15 +280,15 @@ function SessionsPageAdapter({ input }: { input: RegisteredPageInput }) {
   );
 }
 
-function AuditLogsPageAdapter({ input }: { input: RegisteredPageInput }) {
+function AuditLogsPageAdapter({ input }: { input: RegisteredPageInput<typeof auditLogsRoute> }) {
   const permissions = useStore(input.session.authStore, (state) => state.permissions);
 
   return (
     <AuditLogsPage
       api={input.session.iamApi}
       permissions={permissions}
-      search={input.search as AuditLogSearch}
-      onSearchChange={(search) => void input.navigate({ to: "/audit-logs", search, replace: true })}
+      search={input.search}
+      onSearchChange={(search) => void input.navigate({ search, replace: true })}
     />
   );
 }
