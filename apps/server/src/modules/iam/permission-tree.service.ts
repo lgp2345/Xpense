@@ -108,6 +108,10 @@ export class PermissionTreeService {
       );
       const next = [...new Set([...unmanageableExisting, ...requested])].toSorted();
 
+      if (findMissingAncestorPermissions(rows, next).length > 0) {
+        throw this.badRequest("最终权限集合缺少必需的祖先权限");
+      }
+
       await this.repository.replaceRolePermissions(
         { roleId: dto.roleId, permissionKeys: next },
         transaction,

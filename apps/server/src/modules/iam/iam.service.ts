@@ -26,6 +26,8 @@ import type { IamMember, IamPermission, IamRole, IamRoleWithPermissions } from "
 import { MenuRepository } from "./menu.repository.js";
 import { type AuthorizedMenuTreeNode, buildAuthorizedMenuTree } from "./menu-tree.js";
 
+type UpdateRoleProfile = Pick<UpdateRoleDto, "name" | "description">;
+
 @Injectable()
 export class IamService {
   constructor(
@@ -264,10 +266,16 @@ export class IamService {
     });
   }
 
-  async updateRole(authContext: AuthContext, roleId: string, dto: UpdateRoleDto): Promise<IamRole> {
-    if (dto.permissionKeys !== undefined) {
-      this.assertCanUpdateRolePermissions(authContext);
-      this.assertPermissionsWithinCeiling(authContext, dto.permissionKeys);
+  async updateRole(
+    authContext: AuthContext,
+    roleId: string,
+    dto: UpdateRoleProfile,
+  ): Promise<IamRole> {
+    if ("permissionKeys" in dto) {
+      throw new ForbiddenException({
+        code: apiErrorCodes.forbidden,
+        message: "角色权限必须通过独立权限接口更新",
+      });
     }
 
     const role = await this.repository.findRoleById(authContext.organizationId, roleId);
@@ -289,16 +297,6 @@ export class IamService {
         transaction,
       );
 
-      if (dto.permissionKeys) {
-        await this.repository.replaceRolePermissions(
-          {
-            roleId,
-            permissionKeys: dto.permissionKeys,
-          },
-          transaction,
-        );
-      }
-
       if (dto.name !== undefined || dto.description !== undefined) {
         await this.auditService.appendRequired(
           {
@@ -313,23 +311,6 @@ export class IamService {
               nameTo: dto.name,
               descriptionFrom: role.description,
               descriptionTo: dto.description,
-            },
-          },
-          transaction,
-        );
-      }
-
-      if (dto.permissionKeys) {
-        await this.auditService.appendRequired(
-          {
-            organizationId: authContext.organizationId,
-            actorUserId: authContext.userId,
-            action: "role.permissions.changed",
-            targetType: "role",
-            targetId: roleId,
-            result: "succeeded",
-            metadata: {
-              permissionKeys: dto.permissionKeys,
             },
           },
           transaction,

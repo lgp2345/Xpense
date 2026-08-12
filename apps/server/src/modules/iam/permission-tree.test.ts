@@ -91,6 +91,22 @@ describe("permission tree", () => {
     ).toMatchObject({ id: 11, type: "menu" });
   });
 
+  it("chooses the smaller numeric id when priority and sortOrder are equal regardless of input order", () => {
+    const smaller = menu(10, "menu", "members:read", { isVisible: false, sortOrder: 7 });
+    const larger = menu(20, "menu", "members:read", { isVisible: false, sortOrder: 7 });
+
+    for (const rows of [
+      [smaller, larger],
+      [larger, smaller],
+    ]) {
+      expect(
+        flatten(buildPermissionTree(rows, permissions)).find(
+          (node) => node.permissionCode === "members:read",
+        ),
+      ).toMatchObject({ id: 10, type: "menu" });
+    }
+  });
+
   it("puts unmapped permissions in a final 其他权限 directory with stable key ordering", () => {
     const result = buildPermissionTree(
       [menu(1, "menu", "members:read")],

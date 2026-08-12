@@ -267,6 +267,29 @@ describe("PermissionTreeService", () => {
     expect(committed.permissions).toEqual(["members:read", "transactions:delete"]);
   });
 
+  it("rejects removing a manageable ancestor required by an unmanageable existing child", async () => {
+    const { auditService, committed, repository, service } = createHarness();
+    committed.permissions = ["members:read", "members:create"];
+    const ancestorOnlyContext: AuthContext = {
+      ...authContext,
+      permissions: ["roles:permissions:update", "members:read"],
+    };
+
+    await expect(
+      service.editRolePermissions(ancestorOnlyContext, {
+        roleId: "role-1",
+        permissionKeys: [],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
+    expect(auditService.appendRequired).not.toHaveBeenCalled();
+    expect(committed).toEqual({
+      permissions: ["members:read", "members:create"],
+      auditCount: 0,
+    });
+  });
+
   it("returns not found for a role outside the current organization", async () => {
     const { repository, service } = createHarness({ role: null });
 
