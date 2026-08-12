@@ -1,23 +1,29 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
 
-import type { MenuItem } from "@xpense/shared";
+import type { PermissionTreeNode } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
 import { RequirePermission } from "./decorators/require-permission.decorator.js";
 import { CreateMemberDto } from "./dto/create-member.dto.js";
 import { CreateRoleDto } from "./dto/create-role.dto.js";
+import { EditRoleDto } from "./dto/edit-role.dto.js";
+import { EditRolePermissionsDto } from "./dto/edit-role-permissions.dto.js";
 import { UpdateMemberDto } from "./dto/update-member.dto.js";
 import { UpdateRoleDto } from "./dto/update-role.dto.js";
 import { AuthGuard } from "./guards/auth.guard.js";
 import { RbacGuard } from "./guards/rbac.guard.js";
 import { IamService } from "./iam.service.js";
 import type { IamMember, IamPermission, IamRole, IamRoleWithPermissions } from "./iam.types.js";
+import { PermissionTreeService } from "./permission-tree.service.js";
 
 @Controller()
 @UseGuards(AuthGuard, RbacGuard)
 export class IamController {
-  constructor(private readonly iamService: IamService) {}
+  constructor(
+    private readonly iamService: IamService,
+    private readonly permissionTreeService: PermissionTreeService,
+  ) {}
 
   @Get("members")
   @RequirePermission("members:read")
@@ -68,6 +74,24 @@ export class IamController {
     return this.iamService.updateRole(authContext, roleId, dto);
   }
 
+  @Post("roles/edit")
+  @RequirePermission("roles:update")
+  editRole(
+    @CurrentAuthContext() authContext: AuthContext,
+    @Body() dto: EditRoleDto,
+  ): Promise<IamRole> {
+    return this.iamService.updateRole(authContext, dto.roleId, dto);
+  }
+
+  @Post("roles/permissions/edit")
+  @RequirePermission("roles:permissions:update")
+  editRolePermissions(
+    @CurrentAuthContext() authContext: AuthContext,
+    @Body() dto: EditRolePermissionsDto,
+  ): Promise<void> {
+    return this.permissionTreeService.editRolePermissions(authContext, dto);
+  }
+
   @Delete("roles/:roleId")
   @RequirePermission("roles:delete")
   deleteRole(
@@ -77,14 +101,15 @@ export class IamController {
     return this.iamService.deleteRole(authContext, roleId);
   }
 
-  @Get("menus")
-  getVisibleMenus(@CurrentAuthContext() authContext: AuthContext): Promise<MenuItem[]> {
-    return this.iamService.getVisibleMenus(authContext);
-  }
-
   @Get("permissions")
   @RequirePermission("permissions:read")
   listPermissions(@CurrentAuthContext() authContext: AuthContext): Promise<IamPermission[]> {
     return this.iamService.listPermissions(authContext);
+  }
+
+  @Get("permissions/tree")
+  @RequirePermission("roles:permissions:update")
+  getPermissionTree(@CurrentAuthContext() authContext: AuthContext): Promise<PermissionTreeNode[]> {
+    return this.permissionTreeService.getPermissionTree(authContext);
   }
 }

@@ -3,6 +3,33 @@ import { afterEach, describe, expect, it } from "vitest";
 import { login, parseJson, testIds } from "../../test/auth-test-helpers.js";
 import { createTestApp, type TestAppHarness } from "../../test/create-test-app.js";
 
+const otherOrganizationRoleId = "22222222-2222-4222-8222-222222222299";
+const missingOrganizationId = "00000000-0000-4000-8000-000000000099";
+
+type InjectResponse = {
+  payload: string;
+  statusCode: number;
+};
+
+function expectOk<T>(response: InjectResponse): T {
+  const body = parseJson<{ code: string; message: string; data: T }>(response);
+
+  expect(Object.keys(body).toSorted()).toEqual(["code", "data", "message"]);
+  expect(body.code).toBe("OK");
+  expect(body.message).toBe("ok");
+
+  return body.data;
+}
+
+function expectApiError(response: InjectResponse, statusCode: number, code: string): void {
+  expect(response.statusCode).toBe(statusCode);
+  expect(parseJson(response)).toMatchObject({
+    code,
+    message: expect.any(String),
+    data: null,
+  });
+}
+
 describe("IAM e2e", () => {
   let harness: TestAppHarness | null = null;
 
@@ -361,6 +388,253 @@ describe("IAM e2e", () => {
     ).toMatchObject({ roleId: testIds.managerRole });
   });
 
+  it("POST /roles/edit updates role metadata through the action API", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: testIds.viewerRole,
+        name: "Read only",
+        description: "Read-only role",
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(expectOk(response)).toMatchObject({
+      id: testIds.viewerRole,
+      name: "Read only",
+      description: "Read-only role",
+    });
+    expect(state.roles.get(testIds.viewerRole)?.permissions).toEqual(["transactions:read"]);
+  });
+
+  it("POST /roles/edit rejects permissionKeys instead of changing permissions", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: testIds.viewerRole,
+        name: "Read only",
+        permissionKeys: ["roles:read"],
+      },
+    });
+
+    expectApiError(response, 400, "VALIDATION_FAILED");
+    expect(state.roles.get(testIds.viewerRole)?.permissions).toEqual(["transactions:read"]);
+  });
+
+  it("POST /roles/edit validates roleId in the request body", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: 7,
+        name: "Read only",
+      },
+    });
+
+    expectApiError(response, 400, "VALIDATION_FAILED");
+  });
+
+  it("POST /roles/edit returns 403 without roles.update", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "viewer@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: testIds.viewerRole,
+        name: "Read only",
+      },
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
+
+  it("POST /roles/edit returns 404 for a role in another organization", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: otherOrganizationRoleId,
+        name: "Cross organization",
+      },
+    });
+
+    expectApiError(response, 404, "NOT_FOUND");
+  });
+
+  it("GET /permissions/tree returns the actor-manageable permission hierarchy", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/permissions/tree",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(expectOk(response)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 1,
+          type: "directory",
+          children: expect.arrayContaining([
+            expect.objectContaining({ id: 2, permissionCode: "menus:read" }),
+            expect.objectContaining({ id: 7, permissionCode: "roles:read" }),
+          ]),
+        }),
+      ]),
+    );
+  });
+
+  it("GET /permissions/tree returns 403 without roles.permissions.update", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "owner@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/permissions/tree",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
+
+  it("POST /roles/permissions/edit replaces manageable permissions separately from metadata", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles/permissions/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: testIds.viewerRole,
+        permissionKeys: ["roles:read", "roles:update"],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(expectOk(response)).toBeNull();
+    expect(state.roles.get(testIds.viewerRole)?.permissions).toEqual([
+      "roles:read",
+      "roles:update",
+      "transactions:read",
+    ]);
+  });
+
+  it("POST /roles/permissions/edit returns 400 when a menu ancestor permission is missing", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles/permissions/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: testIds.viewerRole,
+        permissionKeys: ["menus:create"],
+      },
+    });
+
+    expectApiError(response, 400, "VALIDATION_FAILED");
+  });
+
+  it("POST /roles/permissions/edit returns 403 without its permission", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "owner@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles/permissions/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: testIds.viewerRole,
+        permissionKeys: [],
+      },
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
+
+  it("POST /roles/permissions/edit rejects permissions above the actor", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles/permissions/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: testIds.viewerRole,
+        permissionKeys: ["transactions:delete"],
+      },
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
+
+  it("POST /roles/permissions/edit returns 404 for a role in another organization", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/roles/permissions/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        roleId: otherOrganizationRoleId,
+        permissionKeys: ["roles:read"],
+      },
+    });
+
+    expectApiError(response, 404, "NOT_FOUND");
+  });
+
   it("GET /menus returns 401 without authentication", async () => {
     const { app } = await createHarness();
 
@@ -369,10 +643,31 @@ describe("IAM e2e", () => {
       url: "/api/menus",
     });
 
-    expect(response.statusCode).toBe(401);
+    expectApiError(response, 401, "UNAUTHENTICATED");
   });
 
-  it("GET /menus returns 200 for authenticated user with seeded menus", async () => {
+  it("GET /menus self-filters for authenticated users without menus.read", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "owner@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/menus",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(expectOk(response)).toEqual([
+      expect.objectContaining({
+        id: 1,
+        children: [expect.objectContaining({ id: 7, permissionCode: "roles:read" })],
+      }),
+    ]);
+  });
+
+  it("GET /menus never returns button nodes", async () => {
     const { app } = await createHarness();
     const { accessToken } = await login(app, "manager@example.com");
 
@@ -384,11 +679,506 @@ describe("IAM e2e", () => {
       },
     });
 
-    // 测试环境使用内存 mock DB，menus 表不存在时会返回 500。
-    // 在真实数据库环境中此端点返回 200 + 菜单数组。
-    expect([200, 500]).toContain(response.statusCode);
-    if (response.statusCode === 200) {
-      expect(parseJson<{ data: unknown }>(response).data).toEqual(expect.any(Array));
-    }
+    expect(response.statusCode).toBe(200);
+    expect(JSON.stringify(expectOk(response))).not.toContain('"type":"button"');
+  });
+
+  it("GET /menus/resolve resolves an authorized route from the path query", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/menus/resolve?path=%2Froles",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(expectOk(response)).toMatchObject({
+      id: 7,
+      routeKey: "Roles",
+      path: "/roles",
+      permissionCode: "roles:read",
+    });
+  });
+
+  it("GET /menus/resolve validates the path query", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/menus/resolve?path=roles",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expectApiError(response, 400, "VALIDATION_FAILED");
+  });
+
+  it("GET /menus/resolve returns 403 for an unauthorized route", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "viewer@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/menus/resolve?path=%2Froles",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
+
+  it("GET /menus/resolve does not resolve another organization's route", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/menus/resolve?path=%2Fsessions",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expectApiError(response, 404, "NOT_FOUND");
+  });
+
+  it("GET /menus/configuration returns the complete current-organization tree", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/menus/configuration",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(expectOk(response)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 1,
+          children: expect.arrayContaining([
+            expect.objectContaining({
+              id: 2,
+              children: expect.arrayContaining([
+                expect.objectContaining({ id: 3, type: "button" }),
+              ]),
+            }),
+          ]),
+        }),
+      ]),
+    );
+  });
+
+  it("GET /menus/configuration requires menus.read", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "owner@example.com");
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/menus/configuration",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
+
+  it("POST /menus/add creates a menu with a numeric ID", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/add",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        type: "directory",
+        name: "Reports",
+        parentId: null,
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const created = expectOk<{ id: number; name: string }>(response);
+    expect(created).toMatchObject({ id: expect.any(Number), name: "Reports" });
+    expect(state.menus.get(created.id)?.organizationId).toBe(testIds.organization);
+  });
+
+  it("POST /menus/add rejects string parent IDs", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/add",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        type: "directory",
+        name: "Reports",
+        parentId: "1",
+      },
+    });
+
+    expectApiError(response, 400, "VALIDATION_FAILED");
+  });
+
+  it.each([
+    [
+      "/api/menus/edit",
+      {
+        id: "2",
+        type: "menu",
+        name: "Menu settings",
+        parentId: 1,
+        routeKey: "Menus",
+        icon: "ShieldCheck",
+        permissionCode: "menus:read",
+        isExternal: false,
+        isVisible: true,
+        keepAlive: true,
+      },
+    ],
+    ["/api/menus/delete", { id: "5" }],
+    ["/api/menus/edit-order", { id: "8", direction: "up" }],
+  ])("POST %s rejects string menu IDs", async (url, payload) => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload,
+    });
+
+    expectApiError(response, 400, "VALIDATION_FAILED");
+  });
+
+  it("POST /menus/add requires menus.create", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "owner@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/add",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        type: "directory",
+        name: "Reports",
+        parentId: null,
+      },
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
+
+  it("POST /menus/add returns 409 for a duplicate internal route", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/add",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        type: "menu",
+        name: "Duplicate roles",
+        parentId: 1,
+        routeKey: "Roles",
+        icon: "ShieldCheck",
+        permissionCode: "roles:read",
+        isExternal: false,
+        isVisible: true,
+        keepAlive: true,
+      },
+    });
+
+    expectApiError(response, 409, "CONFLICT");
+  });
+
+  it("POST /menus/edit updates a menu by numeric body ID", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        id: 2,
+        type: "menu",
+        name: "Menu settings",
+        parentId: 1,
+        routeKey: "Menus",
+        icon: "ShieldCheck",
+        permissionCode: "menus:read",
+        isExternal: false,
+        isVisible: true,
+        keepAlive: true,
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(expectOk(response)).toMatchObject({ id: 2, name: "Menu settings" });
+    expect(state.menus.get(2)?.name).toBe("Menu settings");
+  });
+
+  it("POST /menus/edit requires menus.update", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "owner@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        id: 1,
+        type: "directory",
+        name: "Access",
+        parentId: null,
+        icon: "ShieldCheck",
+        isVisible: true,
+      },
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
+
+  it("POST /menus/edit returns 404 for a numeric ID in another organization", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/edit",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: {
+        id: 101,
+        type: "menu",
+        name: "Cross organization",
+        parentId: null,
+        routeKey: "Sessions",
+        icon: "ShieldCheck",
+        permissionCode: "sessions:read",
+        isExternal: false,
+        isVisible: true,
+        keepAlive: true,
+      },
+    });
+
+    expectApiError(response, 404, "NOT_FOUND");
+  });
+
+  it("POST /menus/delete deletes a leaf by numeric body ID", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/delete",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: { id: 5 },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(expectOk(response)).toBeNull();
+    expect(state.menus.has(5)).toBe(false);
+  });
+
+  it("POST /menus/delete requires menus.delete", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "owner@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/delete",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: { id: 5 },
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
+
+  it("POST /menus/delete returns 409 for a non-leaf menu", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/delete",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: { id: 1 },
+    });
+
+    expectApiError(response, 409, "CONFLICT");
+  });
+
+  it("POST /menus/delete returns 404 for a numeric ID in another organization", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/delete",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: { id: 101 },
+    });
+
+    expectApiError(response, 404, "NOT_FOUND");
+  });
+
+  it("POST /menus/edit-order moves a menu by numeric body ID", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const before = state.menus.get(8)?.sortOrder;
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/edit-order",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: { id: 8, direction: "up" },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(expectOk(response)).toBeNull();
+    expect(state.menus.get(8)?.sortOrder).not.toBe(before);
+  });
+
+  it("POST /menus/edit-order requires menus.update", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "owner@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/edit-order",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: { id: 8, direction: "up" },
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
+
+  it("POST /menus/edit-order returns 409 at a sibling boundary", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/edit-order",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: { id: 1, direction: "up" },
+    });
+
+    expectApiError(response, 409, "CONFLICT");
+  });
+
+  it("POST /menus/edit-order returns 404 for a numeric ID in another organization", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/menus/edit-order",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: { id: 101, direction: "up" },
+    });
+
+    expectApiError(response, 404, "NOT_FOUND");
+  });
+
+  it("POST /organizations/menus/reset checks super-admin status in the service", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "manager@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/organizations/menus/reset",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: { organizationId: testIds.organization },
+    });
+
+    expectApiError(response, 403, "FORBIDDEN");
+  });
+
+  it("POST /organizations/menus/reset lets a super admin reset another organization", async () => {
+    const { app, state } = await createHarness();
+    const { accessToken } = await login(app, "super@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/organizations/menus/reset",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: { organizationId: testIds.otherOrganization },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(expectOk(response)).toBeNull();
+    expect(
+      [...state.menus.values()].filter((menu) => menu.organizationId === testIds.otherOrganization)
+        .length,
+    ).toBeGreaterThan(1);
+  });
+
+  it("POST /organizations/menus/reset returns 404 for an unknown organization", async () => {
+    const { app } = await createHarness();
+    const { accessToken } = await login(app, "super@example.com");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/organizations/menus/reset",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+      payload: { organizationId: missingOrganizationId },
+    });
+
+    expectApiError(response, 404, "NOT_FOUND");
   });
 });
