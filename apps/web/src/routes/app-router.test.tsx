@@ -29,6 +29,22 @@ const authorizedMenus: AuthorizedMenuNode[] = [
     keepAlive: false,
     children: [],
   },
+  {
+    id: 2,
+    parentId: null,
+    type: "menu",
+    name: "成员管理",
+    sortOrder: 1,
+    icon: "Users",
+    isVisible: true,
+    routeKey: "Members",
+    path: "/members",
+    url: null,
+    permissionCode: "members:read",
+    isExternal: false,
+    keepAlive: false,
+    children: [],
+  },
 ];
 
 const injectedUserContext: CurrentUserResponse = {
@@ -272,5 +288,60 @@ describe("AppRouter startup", () => {
     });
     expect(mock.history.post.some((config) => config.url?.endsWith("/auth/refresh"))).toBe(true);
     expect(mock.history.get.some((config) => config.url?.endsWith("/menus"))).toBe(true);
+  });
+
+  it("rechecks the active registered route after a failed menu bootstrap is retried", async () => {
+    const user = userEvent.setup();
+    const store = createAuthStore({
+      accessToken: "access-token",
+      currentUser: {
+        id: "user-1",
+        email: "owner@example.com",
+        isSuperAdmin: false,
+        status: "active",
+      },
+      currentOrganization: { id: "org-1", name: "个人账本" },
+      role: { id: "role-1", key: "owner", name: "所有者" },
+      permissions: ["members:read"],
+      session: { id: "session-1", clientType: "web_pc" },
+      status: "authenticated",
+    });
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).replyOnce(500, {
+      code: "INTERNAL_ERROR",
+      message: "menu unavailable",
+      data: null,
+    });
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: [] });
+    mock.onGet(/\/menus\/resolve\?path=%2Fmembers$/).reply(403, {
+      code: "FORBIDDEN",
+      message: "forbidden",
+      data: null,
+    });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/members"] }),
+      session,
+    });
+
+    render(
+      <AppProviders>
+        <AppRouter restoreSession={vi.fn().mockResolvedValue(true)} router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("菜单加载失败，请稍后重试。");
+
+    await user.click(screen.getByRole("button", { name: "重试" }));
+
+    expect(await screen.findByRole("heading", { name: "无权限访问" })).toBeInTheDocument();
+    expect(
+      mock.history.get.filter((request) => request.url?.includes("/menus/resolve")),
+    ).toHaveLength(1);
   });
 });
