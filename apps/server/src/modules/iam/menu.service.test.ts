@@ -9,7 +9,7 @@ import type { PermissionKey } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
-import { menus } from "../../db/schema.js";
+import { menus, organizations } from "../../db/schema.js";
 import { AuditService } from "../audit/audit.service.js";
 import { addMenuSchema } from "./dto/add-menu.dto.js";
 import { deleteMenuSchema } from "./dto/delete-menu.dto.js";
@@ -130,10 +130,20 @@ function button(id: number, parentId: number): MenuTreeNode {
 }
 
 async function createHarness(rows: MenuTreeNode[] = []) {
+  type TransactionState = {
+    id: string;
+    rows: MenuTreeNode[];
+    auditLogs: Array<{ action: string; targetId: string | null }>;
+  };
   const state = {
     rows: rows.map((row) => ({ ...row })),
+    auditLogs: [] as Array<{ action: string; targetId: string | null }>,
   };
-  const transaction = { id: "menu-transaction-1" };
+  const transaction: TransactionState = {
+    id: "menu-transaction-1",
+    rows: [],
+    auditLogs: [],
+  };
   const repository = {
     listByOrganizationId: vi
       .fn()
@@ -144,49 +154,71 @@ async function createHarness(rows: MenuTreeNode[] = []) {
       ),
     runInTransaction: vi
       .fn()
-      .mockImplementation(async (operation: (currentTransaction: object) => Promise<unknown>) =>
-        operation(transaction),
+      .mockImplementation(
+        async (operation: (currentTransaction: TransactionState) => Promise<unknown>) => {
+          transaction.rows = state.rows.map((row) => ({ ...row }));
+          transaction.auditLogs = state.auditLogs.map((log) => ({ ...log }));
+          const result = await operation(transaction);
+
+          state.rows = transaction.rows.map((row) => ({ ...row }));
+          state.auditLogs = transaction.auditLogs.map((log) => ({ ...log }));
+
+          return result;
+        },
       ),
+    lockOrganizationById: vi.fn().mockResolvedValue(true),
     lockByOrganizationId: vi
       .fn()
-      .mockImplementation(async (scopedOrganizationId: string) =>
-        state.rows
+      .mockImplementation(async (scopedOrganizationId: string, executor: TransactionState) =>
+        executor.rows
           .filter((row) => row.organizationId === scopedOrganizationId)
           .map((row) => ({ ...row })),
       ),
-    insertMenu: vi.fn().mockImplementation(async (input: Omit<MenuTreeNode, "id">) => {
-      const id = Math.max(0, ...state.rows.map((row) => row.id)) + 1;
-      const row = { id, ...input };
-      state.rows.push(row);
-      return { ...row };
-    }),
-    updateMenu: vi.fn().mockImplementation(async (input: MenuTreeNode) => {
-      const index = state.rows.findIndex(
-        (row) => row.organizationId === input.organizationId && row.id === input.id,
-      );
+    insertMenu: vi
+      .fn()
+      .mockImplementation(async (input: Omit<MenuTreeNode, "id">, executor: TransactionState) => {
+        const id = Math.max(0, ...executor.rows.map((row) => row.id)) + 1;
+        const row = { id, ...input };
+        executor.rows.push(row);
+        return { ...row };
+      }),
+    updateMenu: vi
+      .fn()
+      .mockImplementation(async (input: MenuTreeNode, executor: TransactionState) => {
+        const index = executor.rows.findIndex(
+          (row) => row.organizationId === input.organizationId && row.id === input.id,
+        );
 
-      if (index === -1) {
-        throw new Error("menu unavailable");
-      }
+        if (index === -1) {
+          throw new Error("menu unavailable");
+        }
 
-      state.rows[index] = { ...input };
-      return { ...input };
-    }),
-    deleteMenu: vi.fn().mockImplementation(async (scopedOrganizationId: string, id: number) => {
-      const index = state.rows.findIndex(
-        (row) => row.organizationId === scopedOrganizationId && row.id === id,
-      );
+        executor.rows[index] = { ...input };
+        return { ...input };
+      }),
+    deleteMenu: vi
+      .fn()
+      .mockImplementation(
+        async (scopedOrganizationId: string, id: number, executor: TransactionState) => {
+          const index = executor.rows.findIndex(
+            (row) => row.organizationId === scopedOrganizationId && row.id === id,
+          );
 
-      if (index !== -1) {
-        state.rows.splice(index, 1);
-      }
-    }),
+          if (index !== -1) {
+            executor.rows.splice(index, 1);
+          }
+        },
+      ),
     setMenuSortOrders: vi
       .fn()
       .mockImplementation(
-        async (scopedOrganizationId: string, updates: Array<{ id: number; sortOrder: number }>) => {
+        async (
+          scopedOrganizationId: string,
+          updates: Array<{ id: number; sortOrder: number }>,
+          executor: TransactionState,
+        ) => {
           for (const update of updates) {
-            const row = state.rows.find(
+            const row = executor.rows.find(
               (candidate) =>
                 candidate.organizationId === scopedOrganizationId && candidate.id === update.id,
             );
@@ -197,12 +229,16 @@ async function createHarness(rows: MenuTreeNode[] = []) {
           }
         },
       ),
-    deleteByOrganizationId: vi.fn().mockImplementation(async (scopedOrganizationId: string) => {
-      state.rows = state.rows.filter((row) => row.organizationId !== scopedOrganizationId);
-    }),
+    deleteByOrganizationId: vi
+      .fn()
+      .mockImplementation(async (scopedOrganizationId: string, executor: TransactionState) => {
+        executor.rows = executor.rows.filter((row) => row.organizationId !== scopedOrganizationId);
+      }),
   };
   const auditService = {
-    appendRequired: vi.fn().mockResolvedValue(undefined),
+    appendRequired: vi.fn().mockImplementation(async (input, executor: TransactionState) => {
+      executor.auditLogs.push({ action: input.action, targetId: input.targetId ?? null });
+    }),
   };
   const module = await Test.createTestingModule({
     providers: [
@@ -299,6 +335,53 @@ describe("menu DTO schemas", () => {
     const { routeKey: _routeKey, ...missingRouteKey } = internalMenuInput;
 
     expect(addMenuSchema.safeParse(missingRouteKey).success).toBe(false);
+  });
+
+  it("applies creation defaults to minimal directory and internal menu inputs", () => {
+    expect(
+      addMenuSchema.parse({
+        type: "directory",
+        name: "最小目录",
+        parentId: null,
+      }),
+    ).toEqual({
+      type: "directory",
+      name: "最小目录",
+      parentId: null,
+      icon: null,
+      isVisible: true,
+    });
+    expect(
+      addMenuSchema.parse({
+        type: "menu",
+        name: "最小内部菜单",
+        parentId: null,
+        routeKey: "Members",
+        permissionCode: "members:read",
+      }),
+    ).toEqual({
+      type: "menu",
+      name: "最小内部菜单",
+      parentId: null,
+      routeKey: "Members",
+      icon: null,
+      permissionCode: "members:read",
+      isExternal: false,
+      isVisible: true,
+      keepAlive: false,
+    });
+  });
+
+  it("keeps an explicit discriminator for external menu creation", () => {
+    expect(
+      addMenuSchema.safeParse({
+        type: "menu",
+        name: "外链",
+        parentId: null,
+        url: "https://docs.example.com",
+        permissionCode: "menus:read",
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects non-HTTP external menu URLs", () => {
@@ -410,6 +493,25 @@ describe("MenuRepository", () => {
     expect(containsReference(where.mock.calls[0]?.[0], menus.organizationId)).toBe(true);
     expect(containsReference(where.mock.calls[0]?.[0], organizationId)).toBe(true);
     expect(select).toHaveBeenCalledOnce();
+  });
+
+  it("locks the unique organization row with FOR UPDATE", async () => {
+    const limit = vi.fn().mockResolvedValue([{ id: organizationId }]);
+    const forUpdate = vi.fn().mockReturnValue({ limit });
+    const where = vi.fn().mockReturnValue({ for: forUpdate });
+    const from = vi.fn().mockReturnValue({ where });
+    const select = vi.fn().mockReturnValue({ from });
+    const transaction = { select };
+    const repository = new MenuRepository({} as never);
+
+    await expect(
+      repository.lockOrganizationById(organizationId, transaction as never),
+    ).resolves.toBe(true);
+    expect(select).toHaveBeenCalledWith({ id: organizations.id });
+    expect(from).toHaveBeenCalledWith(organizations);
+    expect(forUpdate).toHaveBeenCalledWith("update");
+    expect(limit).toHaveBeenCalledWith(1);
+    expect(containsReference(where.mock.calls[0]?.[0], organizationId)).toBe(true);
   });
 });
 
@@ -552,6 +654,10 @@ describe("MenuService", () => {
         sortOrder: 31,
       });
       expect(repository.lockByOrganizationId).toHaveBeenCalledWith(organizationId, transaction);
+      expect(repository.lockOrganizationById).toHaveBeenCalledWith(organizationId, transaction);
+      expect(repository.lockOrganizationById.mock.invocationCallOrder[0]).toBeLessThan(
+        repository.lockByOrganizationId.mock.invocationCallOrder[0] ?? 0,
+      );
       expect(repository.insertMenu).toHaveBeenCalledWith(
         expect.objectContaining({ organizationId, parentId: 1, sortOrder: 31 }),
         transaction,
@@ -575,6 +681,70 @@ describe("MenuService", () => {
         },
         transaction,
       );
+    });
+
+    it.each([
+      "menus_organization_route_key_unique",
+      "menus_organization_path_unique",
+    ])("maps the %s database unique violation to a stable conflict response", async (constraint) => {
+      const { repository, service } = await createHarness([]);
+      repository.insertMenu.mockRejectedValueOnce(
+        Object.assign(new Error("duplicate key"), { code: "23505", constraint }),
+      );
+
+      await expect(
+        service.addMenu(authContext, { ...internalInput, parentId: null }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("maps a wrapped menu path unique violation from its cause chain", async () => {
+      const { repository, service } = await createHarness([]);
+      repository.insertMenu.mockRejectedValueOnce(
+        Object.assign(new Error("query failed"), {
+          cause: Object.assign(new Error("duplicate key"), {
+            code: "23505",
+            constraint: "menus_organization_path_unique",
+          }),
+        }),
+      );
+
+      await expect(
+        service.addMenu(authContext, { ...internalInput, parentId: null }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it.each([
+      "menus_organization_id_unique",
+      "audit_logs_organization_id_unique",
+    ])("does not map an unrelated %s unique violation to a business conflict", async (constraint) => {
+      const { repository, service } = await createHarness([]);
+      const databaseError = Object.assign(new Error("duplicate key"), {
+        code: "23505",
+        constraint,
+      });
+      repository.insertMenu.mockRejectedValueOnce(databaseError);
+
+      await expect(service.addMenu(authContext, { ...internalInput, parentId: null })).rejects.toBe(
+        databaseError,
+      );
+    });
+
+    it("rolls back the inserted menu and audit when required auditing fails", async () => {
+      const initialRows = [directory(1, null)];
+      const { auditService, service, state } = await createHarness(initialRows);
+      auditService.appendRequired.mockImplementationOnce(async (input, executor) => {
+        executor.auditLogs.push({ action: input.action, targetId: input.targetId ?? null });
+        throw new Error("audit unavailable");
+      });
+
+      await expect(
+        service.addMenu(authContext, {
+          ...internalInput,
+          parentId: 1,
+        }),
+      ).rejects.toThrow("audit unavailable");
+      expect(state.rows).toEqual(initialRows);
+      expect(state.auditLogs).toEqual([]);
     });
 
     it("rejects duplicate internal routes and external URLs before writing", async () => {
@@ -635,6 +805,64 @@ describe("MenuService", () => {
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(repository.insertMenu).not.toHaveBeenCalled();
     });
+
+    it("adds an internal parameter page below an internal menu", async () => {
+      const { service } = await createHarness([menu(1, null, "Dashboard", "dashboard:read")]);
+
+      await expect(
+        service.addMenu(authContext, {
+          ...internalInput,
+          parentId: 1,
+          routeKey: "MemberDetails",
+          isVisible: true,
+        } as never),
+      ).resolves.toMatchObject({
+        parentId: 1,
+        routeKey: "MemberDetails",
+        isVisible: true,
+      });
+    });
+
+    it("persists add-menu defaults including a null icon", async () => {
+      const { repository, service, transaction } = await createHarness([]);
+      const dto = addMenuSchema.parse({
+        type: "menu",
+        name: "最小内部菜单",
+        parentId: null,
+        routeKey: "Members",
+        permissionCode: "members:read",
+      });
+
+      await service.addMenu(authContext, dto);
+
+      expect(repository.insertMenu).toHaveBeenCalledWith(
+        expect.objectContaining({
+          icon: null,
+          isExternal: false,
+          isVisible: true,
+          keepAlive: false,
+        }),
+        transaction,
+      );
+    });
+
+    it.each([
+      ["external menu", [externalMenu(1, "https://docs.example.com")]],
+      ["button", [menu(1, null, "Dashboard", "dashboard:read"), button(2, 1)]],
+    ])("rejects an internal menu below a %s parent", async (_name, rows) => {
+      const { repository, service } = await createHarness(rows);
+      const parentId = rows.at(-1)?.id ?? 0;
+
+      await expect(
+        service.addMenu(authContext, {
+          ...internalInput,
+          parentId,
+          routeKey: "MemberDetails",
+          isVisible: false,
+        } as never),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(repository.insertMenu).not.toHaveBeenCalled();
+    });
   });
 
   describe("editMenu", () => {
@@ -680,9 +908,9 @@ describe("MenuService", () => {
           targetId: "2",
           result: "succeeded",
           metadata: {
-            type: "menu",
-            parentIdFrom: null,
-            parentIdTo: 1,
+            name: { before: "菜单 2", after: "成员详情" },
+            parentId: { before: null, after: 1 },
+            isVisible: { before: false, after: true },
           },
         },
         transaction,
@@ -711,6 +939,158 @@ describe("MenuService", () => {
         expect.objectContaining({ id: 1, sortOrder: 40 }),
         expect.anything(),
       );
+    });
+
+    it("audits a name-only edit with an exact non-empty before and after diff", async () => {
+      const { auditService, service, transaction } = await createHarness([
+        menu(1, null, "Members", "members:read"),
+      ]);
+
+      await service.editMenu(authContext, {
+        id: 1,
+        type: "menu",
+        name: "成员列表",
+        parentId: null,
+        routeKey: "Members",
+        icon: "Users",
+        permissionCode: "members:read",
+        isExternal: false,
+        isVisible: true,
+        keepAlive: false,
+      });
+
+      expect(auditService.appendRequired).toHaveBeenCalledWith(
+        {
+          organizationId,
+          actorUserId: authContext.userId,
+          action: "menu.updated",
+          targetType: "menu",
+          targetId: "1",
+          result: "succeeded",
+          metadata: {
+            name: { before: "菜单 1", after: "成员列表" },
+          },
+        },
+        transaction,
+      );
+    });
+
+    it("audits an icon-only edit with an exact non-empty before and after diff", async () => {
+      const { auditService, service, transaction } = await createHarness([
+        menu(1, null, "Members", "members:read"),
+      ]);
+
+      await service.editMenu(authContext, {
+        id: 1,
+        type: "menu",
+        name: "菜单 1",
+        parentId: null,
+        routeKey: "Members",
+        icon: "Shield",
+        permissionCode: "members:read",
+        isExternal: false,
+        isVisible: true,
+        keepAlive: false,
+      });
+
+      expect(auditService.appendRequired).toHaveBeenCalledWith(
+        {
+          organizationId,
+          actorUserId: authContext.userId,
+          action: "menu.updated",
+          targetType: "menu",
+          targetId: "1",
+          result: "succeeded",
+          metadata: {
+            icon: { before: "Users", after: "Shield" },
+          },
+        },
+        transaction,
+      );
+    });
+
+    it("audits only the fields actually changed by an edit with before and after values", async () => {
+      const { auditService, service, transaction } = await createHarness([
+        directory(9, null),
+        menu(1, null, "Members", "members:read", {
+          name: "保持名称",
+          icon: "Users",
+          isVisible: true,
+          keepAlive: false,
+        }),
+      ]);
+
+      await service.editMenu(authContext, {
+        id: 1,
+        type: "menu",
+        name: "保持名称",
+        parentId: 9,
+        url: "https://docs.example.com/members",
+        icon: "Users",
+        permissionCode: "menus:read",
+        isExternal: true,
+        isVisible: false,
+      });
+
+      expect(auditService.appendRequired).toHaveBeenCalledWith(
+        {
+          organizationId,
+          actorUserId: authContext.userId,
+          action: "menu.updated",
+          targetType: "menu",
+          targetId: "1",
+          result: "succeeded",
+          metadata: {
+            parentId: { before: null, after: 9 },
+            routeKey: { before: "Members", after: null },
+            url: { before: null, after: "https://docs.example.com/members" },
+            permissionCode: { before: "members:read", after: "menus:read" },
+            isExternal: { before: false, after: true },
+            isVisible: { before: true, after: false },
+            keepAlive: { before: false, after: null },
+          },
+        },
+        transaction,
+      );
+    });
+
+    it("rejects revealing a parameter route by making its hidden directory ancestor visible", async () => {
+      const { repository, service } = await createHarness([
+        directory(1, null, { isVisible: false }),
+        menu(2, 1, "MemberDetails", "members:read", { isVisible: true }),
+      ]);
+
+      await expect(
+        service.editMenu(authContext, {
+          id: 1,
+          type: "directory",
+          name: "成员目录",
+          parentId: null,
+          icon: "Shield",
+          isVisible: true,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repository.updateMenu).not.toHaveBeenCalled();
+    });
+
+    it("rejects revealing a parameter route by moving its visible directory subtree to root", async () => {
+      const { repository, service } = await createHarness([
+        directory(1, null, { isVisible: false }),
+        directory(2, 1, { isVisible: true }),
+        menu(3, 2, "MemberDetails", "members:read", { isVisible: true }),
+      ]);
+
+      await expect(
+        service.editMenu(authContext, {
+          id: 2,
+          type: "directory",
+          name: "成员详情目录",
+          parentId: null,
+          icon: "Shield",
+          isVisible: true,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repository.updateMenu).not.toHaveBeenCalled();
     });
 
     it("rejects cycles, external nodes with children and duplicate route selection", async () => {
@@ -782,6 +1162,28 @@ describe("MenuService", () => {
           keepAlive: false,
         }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("moves an internal parameter page below another internal menu", async () => {
+      const { service } = await createHarness([
+        menu(1, null, "Dashboard", "dashboard:read"),
+        menu(2, null, "MemberDetails", "members:read", { isVisible: false }),
+      ]);
+
+      await expect(
+        service.editMenu(authContext, {
+          id: 2,
+          type: "menu",
+          name: "成员详情",
+          parentId: 1,
+          routeKey: "MemberDetails",
+          icon: null,
+          permissionCode: "members:read",
+          isExternal: false,
+          isVisible: true,
+          keepAlive: false,
+        } as never),
+      ).resolves.toMatchObject({ id: 2, parentId: 1, routeKey: "MemberDetails" });
     });
   });
 
@@ -878,6 +1280,87 @@ describe("MenuService", () => {
       );
     });
 
+    it("normalizes tied sibling sort values so the persisted read order changes", async () => {
+      const { repository, service, state, transaction } = await createHarness([
+        directory(1, null),
+        menu(2, 1, "Dashboard", "dashboard:read", { sortOrder: 10 }),
+        menu(3, 1, "Members", "members:read", { sortOrder: 10 }),
+        menu(4, 1, "Roles", "roles:read", { sortOrder: 20 }),
+      ]);
+
+      await service.editMenuOrder(authContext, { id: 3, direction: "up" });
+
+      expect(repository.setMenuSortOrders).toHaveBeenCalledWith(
+        organizationId,
+        [
+          { id: 3, sortOrder: 0 },
+          { id: 2, sortOrder: 1 },
+          { id: 4, sortOrder: 2 },
+        ],
+        transaction,
+      );
+      expect(
+        state.rows
+          .filter((row) => row.parentId === 1)
+          .sort((left, right) => left.sortOrder - right.sortOrder || left.id - right.id)
+          .map((row) => row.id),
+      ).toEqual([3, 2, 4]);
+    });
+
+    it("moves down by one sibling when the adjacent sort value is tied with a later sibling", async () => {
+      const { repository, service, state, transaction } = await createHarness([
+        directory(9, null),
+        menu(100, 9, "Dashboard", "dashboard:read", { sortOrder: 10 }),
+        menu(1, 9, "Members", "members:read", { sortOrder: 20 }),
+        menu(2, 9, "Roles", "roles:read", { sortOrder: 20 }),
+      ]);
+
+      await service.editMenuOrder(authContext, { id: 100, direction: "down" });
+
+      expect(repository.setMenuSortOrders).toHaveBeenCalledWith(
+        organizationId,
+        [
+          { id: 1, sortOrder: 0 },
+          { id: 100, sortOrder: 1 },
+          { id: 2, sortOrder: 2 },
+        ],
+        transaction,
+      );
+      expect(
+        state.rows
+          .filter((row) => row.parentId === 9)
+          .sort((left, right) => left.sortOrder - right.sortOrder || left.id - right.id)
+          .map((row) => row.id),
+      ).toEqual([1, 100, 2]);
+    });
+
+    it("moves up by one sibling when the adjacent sort value is tied with an earlier sibling", async () => {
+      const { repository, service, state, transaction } = await createHarness([
+        directory(9, null),
+        menu(100, 9, "Dashboard", "dashboard:read", { sortOrder: 10 }),
+        menu(200, 9, "Members", "members:read", { sortOrder: 10 }),
+        menu(1, 9, "Roles", "roles:read", { sortOrder: 20 }),
+      ]);
+
+      await service.editMenuOrder(authContext, { id: 1, direction: "up" });
+
+      expect(repository.setMenuSortOrders).toHaveBeenCalledWith(
+        organizationId,
+        [
+          { id: 100, sortOrder: 0 },
+          { id: 1, sortOrder: 1 },
+          { id: 200, sortOrder: 2 },
+        ],
+        transaction,
+      );
+      expect(
+        state.rows
+          .filter((row) => row.parentId === 9)
+          .sort((left, right) => left.sortOrder - right.sortOrder || left.id - right.id)
+          .map((row) => row.id),
+      ).toEqual([100, 1, 200]);
+    });
+
     it.each([
       ["up" as const, 2],
       ["down" as const, 4],
@@ -936,6 +1419,13 @@ describe("MenuService", () => {
         otherOrganizationId,
         transaction,
       );
+      expect(repository.lockOrganizationById).toHaveBeenCalledWith(
+        otherOrganizationId,
+        transaction,
+      );
+      expect(repository.lockOrganizationById.mock.invocationCallOrder[0]).toBeLessThan(
+        repository.lockByOrganizationId.mock.invocationCallOrder[0] ?? 0,
+      );
       expect(repository.deleteByOrganizationId).toHaveBeenCalledWith(
         otherOrganizationId,
         transaction,
@@ -969,6 +1459,35 @@ describe("MenuService", () => {
         },
         transaction,
       );
+    });
+
+    it("rolls back target deletion and partial template insertion when template copy fails", async () => {
+      const initialRows = [
+        menu(1, null, "Dashboard", "dashboard:read"),
+        directory(9, null, { organizationId: otherOrganizationId }),
+      ];
+      const { repository, service, state } = await createHarness(initialRows);
+      const defaultInsert = repository.insertMenu.getMockImplementation();
+      let insertionCount = 0;
+      repository.insertMenu.mockImplementation(async (...args) => {
+        insertionCount += 1;
+
+        if (insertionCount === 3) {
+          throw new Error("template insert unavailable");
+        }
+
+        return defaultInsert?.(...args);
+      });
+
+      await expect(
+        service.resetOrganizationMenus(
+          { ...authContext, isSuperAdmin: true },
+          { organizationId: otherOrganizationId },
+        ),
+      ).rejects.toThrow("template insert unavailable");
+      expect(state.rows).toEqual(initialRows);
+      expect(state.auditLogs).toEqual([]);
+      expect(repository.insertMenu).toHaveBeenCalledTimes(3);
     });
   });
 

@@ -3,7 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 
 import type { AppDb, AppDbExecutor, AppDbTransaction } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
-import { menus } from "../../db/schema.js";
+import { menus, organizations } from "../../db/schema.js";
 import type { MenuTreeNode } from "./menu-tree.js";
 
 export type MenuRow = MenuTreeNode;
@@ -40,6 +40,17 @@ export class MenuRepository {
 
   runInTransaction<T>(operation: (transaction: AppDbTransaction) => Promise<T>): Promise<T> {
     return this.db.transaction(operation);
+  }
+
+  async lockOrganizationById(organizationId: string, executor: AppDbExecutor): Promise<boolean> {
+    const [row] = await executor
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .for("update")
+      .limit(1);
+
+    return row !== undefined;
   }
 
   async lockByOrganizationId(organizationId: string, executor: AppDbExecutor): Promise<MenuRow[]> {
@@ -100,7 +111,7 @@ export class MenuRepository {
 
   async setMenuSortOrders(
     organizationId: string,
-    updates: readonly [MenuSortOrderUpdate, MenuSortOrderUpdate],
+    updates: readonly MenuSortOrderUpdate[],
     executor: AppDbExecutor = this.db,
   ): Promise<void> {
     for (const update of updates) {

@@ -21,8 +21,8 @@ export const addDirectoryMenuSchema = z
     type: z.literal("directory"),
     name: menuNameSchema,
     parentId: parentIdSchema,
-    icon: iconSchema,
-    isVisible: z.boolean(),
+    icon: iconSchema.default(null),
+    isVisible: z.boolean().default(true),
   })
   .strict();
 
@@ -32,11 +32,11 @@ export const addInternalMenuSchema = z
     name: menuNameSchema,
     parentId: parentIdSchema,
     routeKey: routeKeySchema,
-    icon: iconSchema,
+    icon: iconSchema.default(null),
     permissionCode: permissionCodeSchema,
-    isExternal: z.literal(false),
-    isVisible: z.boolean(),
-    keepAlive: z.boolean(),
+    isExternal: z.literal(false).default(false),
+    isVisible: z.boolean().default(true),
+    keepAlive: z.boolean().default(false),
   })
   .strict();
 
@@ -51,10 +51,10 @@ export const addExternalMenuSchema = z
       .refine((value) => /^https?:\/\//i.test(value), {
         message: "外链只允许 HTTP 或 HTTPS URL",
       }),
-    icon: iconSchema,
+    icon: iconSchema.default(null),
     permissionCode: permissionCodeSchema,
     isExternal: z.literal(true),
-    isVisible: z.boolean(),
+    isVisible: z.boolean().default(true),
   })
   .strict();
 
@@ -67,9 +67,10 @@ export const addButtonMenuSchema = z
   })
   .strict();
 
-const addMenuNodeSchema = z.discriminatedUnion("type", [
+const addMenuNodeSchema = z.union([
   addDirectoryMenuSchema,
-  z.discriminatedUnion("isExternal", [addInternalMenuSchema, addExternalMenuSchema]),
+  addExternalMenuSchema,
+  addInternalMenuSchema,
   addButtonMenuSchema,
 ]);
 

@@ -15,6 +15,7 @@ import {
 } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
+import type { AppDbTransaction } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import type { AddMenuDto } from "./dto/add-menu.dto.js";
 import type { DeleteMenuDto } from "./dto/delete-menu.dto.js";
@@ -91,11 +92,7 @@ export class MenuService {
   }
 
   async addMenu(authContext: AuthContext, dto: AddMenuDto): Promise<MenuRow> {
-    return this.repository.runInTransaction(async (transaction) => {
-      const rows = await this.repository.lockByOrganizationId(
-        authContext.organizationId,
-        transaction,
-      );
+    return this.runLockedMutation(authContext.organizationId, async (rows, transaction) => {
       const input = buildMenuInput(
         authContext.organizationId,
         dto,
@@ -108,7 +105,7 @@ export class MenuService {
         ...input,
       };
       assertValidTree([...rows, proposedNode]);
-      assertParameterRouteVisibility([...rows, proposedNode], proposedNode);
+      assertParameterRouteVisibility([...rows, proposedNode]);
 
       const created = await this.repository.insertMenu(input, transaction);
 
@@ -133,11 +130,7 @@ export class MenuService {
   }
 
   async editMenu(authContext: AuthContext, dto: EditMenuDto): Promise<MenuRow> {
-    return this.repository.runInTransaction(async (transaction) => {
-      const rows = await this.repository.lockByOrganizationId(
-        authContext.organizationId,
-        transaction,
-      );
+    return this.runLockedMutation(authContext.organizationId, async (rows, transaction) => {
       const current = rows.find((row) => row.id === dto.id);
 
       if (!current) {
@@ -154,7 +147,7 @@ export class MenuService {
       assertNoDuplicateRouteOrUrl(rows, input, dto.id);
       const proposedRows = rows.map((row) => (row.id === dto.id ? proposed : row));
       assertValidTree(proposedRows);
-      assertParameterRouteVisibility(proposedRows, proposed);
+      assertParameterRouteVisibility(proposedRows);
 
       const updated = await this.repository.updateMenu(proposed, transaction);
 
@@ -166,11 +159,7 @@ export class MenuService {
           targetType: "menu",
           targetId: String(updated.id),
           result: "succeeded",
-          metadata: {
-            type: updated.type,
-            parentIdFrom: current.parentId,
-            parentIdTo: updated.parentId,
-          },
+          metadata: buildMenuUpdateMetadata(current, updated),
         },
         transaction,
       );
@@ -180,11 +169,7 @@ export class MenuService {
   }
 
   async deleteMenu(authContext: AuthContext, dto: DeleteMenuDto): Promise<void> {
-    await this.repository.runInTransaction(async (transaction) => {
-      const rows = await this.repository.lockByOrganizationId(
-        authContext.organizationId,
-        transaction,
-      );
+    await this.runLockedMutation(authContext.organizationId, async (rows, transaction) => {
       const current = rows.find((row) => row.id === dto.id);
 
       if (!current) {
@@ -217,11 +202,7 @@ export class MenuService {
   }
 
   async editMenuOrder(authContext: AuthContext, dto: EditMenuOrderDto): Promise<void> {
-    await this.repository.runInTransaction(async (transaction) => {
-      const rows = await this.repository.lockByOrganizationId(
-        authContext.organizationId,
-        transaction,
-      );
+    await this.runLockedMutation(authContext.organizationId, async (rows, transaction) => {
       const current = rows.find((row) => row.id === dto.id);
 
       if (!current) {
@@ -239,10 +220,7 @@ export class MenuService {
 
       await this.repository.setMenuSortOrders(
         authContext.organizationId,
-        [
-          { id: current.id, sortOrder: sibling.sortOrder },
-          { id: sibling.id, sortOrder: current.sortOrder },
-        ],
+        buildSortOrderUpdates(siblings, currentIndex, siblingIndex),
         transaction,
       );
       await this.auditService.appendRequired(
@@ -272,12 +250,7 @@ export class MenuService {
       throw new ForbiddenException("只有超级管理员可以重置组织菜单");
     }
 
-    await this.repository.runInTransaction(async (transaction) => {
-      const previousRows = await this.repository.lockByOrganizationId(
-        dto.organizationId,
-        transaction,
-      );
-
+    await this.runLockedMutation(dto.organizationId, async (previousRows, transaction) => {
       await this.repository.deleteByOrganizationId(dto.organizationId, transaction);
       await copyMenuTemplate(dto.organizationId, {
         insertMenu: async (input) => (await this.repository.insertMenu(input, transaction)).id,
@@ -299,6 +272,64 @@ export class MenuService {
       );
     });
   }
+
+  private async runLockedMutation<T>(
+    organizationId: string,
+    operation: (rows: MenuRow[], transaction: AppDbTransaction) => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await this.repository.runInTransaction(async (transaction) => {
+        const organizationExists = await this.repository.lockOrganizationById(
+          organizationId,
+          transaction,
+        );
+
+        if (!organizationExists) {
+          throw new NotFoundException("组织不存在");
+        }
+
+        const rows = await this.repository.lockByOrganizationId(organizationId, transaction);
+
+        return operation(rows, transaction);
+      });
+    } catch (error) {
+      if (isDatabaseUniqueViolation(error)) {
+        throw new ConflictException("组织内的路由或外链已存在");
+      }
+
+      throw error;
+    }
+  }
+}
+
+const MENU_UNIQUE_CONSTRAINTS = new Set([
+  "menus_organization_route_key_unique",
+  "menus_organization_path_unique",
+]);
+
+function isDatabaseUniqueViolation(error: unknown, visited = new Set<object>()): boolean {
+  if (error === null || typeof error !== "object") {
+    return false;
+  }
+
+  if (visited.has(error)) {
+    return false;
+  }
+  visited.add(error);
+
+  const constraint =
+    ("constraint" in error && error.constraint) ||
+    ("constraint_name" in error && error.constraint_name);
+  if (
+    "code" in error &&
+    error.code === "23505" &&
+    typeof constraint === "string" &&
+    MENU_UNIQUE_CONSTRAINTS.has(constraint)
+  ) {
+    return true;
+  }
+
+  return "cause" in error && isDatabaseUniqueViolation(error.cause, visited);
 }
 
 function buildMenuInput(
@@ -388,6 +419,58 @@ function getNextSortOrder(rows: readonly MenuTreeNode[], parentId: number | null
   );
 }
 
+function buildSortOrderUpdates(
+  siblings: readonly MenuTreeNode[],
+  currentIndex: number,
+  siblingIndex: number,
+): Array<{ id: number; sortOrder: number }> {
+  const current = siblings[currentIndex];
+  const sibling = siblings[siblingIndex];
+
+  if (!current || !sibling) {
+    return [];
+  }
+
+  const hasDuplicateSortOrder =
+    new Set(siblings.map((node) => node.sortOrder)).size < siblings.length;
+  if (!hasDuplicateSortOrder) {
+    return [
+      { id: current.id, sortOrder: sibling.sortOrder },
+      { id: sibling.id, sortOrder: current.sortOrder },
+    ];
+  }
+
+  const reordered = [...siblings];
+  reordered[currentIndex] = sibling;
+  reordered[siblingIndex] = current;
+
+  return reordered.map((node, sortOrder) => ({ id: node.id, sortOrder }));
+}
+
+function buildMenuUpdateMetadata(
+  before: MenuTreeNode,
+  after: MenuTreeNode,
+): Record<string, { before: unknown; after: unknown }> {
+  const auditedFields = {
+    name: [before.name, after.name],
+    icon: [before.icon, after.icon],
+    type: [before.type, after.type],
+    parentId: [before.parentId, after.parentId],
+    routeKey: [before.routeKey, after.routeKey],
+    url: [before.path, after.path],
+    permissionCode: [before.permissionCode, after.permissionCode],
+    isExternal: [before.isExternal, after.isExternal],
+    isVisible: [before.isVisible, after.isVisible],
+    keepAlive: [before.keepAlive, after.keepAlive],
+  } satisfies Record<string, readonly [unknown, unknown]>;
+
+  return Object.fromEntries(
+    Object.entries(auditedFields).flatMap(([field, [previous, next]]) =>
+      previous === next ? [] : [[field, { before: previous, after: next }]],
+    ),
+  );
+}
+
 function assertNoDuplicateRouteOrUrl(
   rows: readonly MenuTreeNode[],
   proposed: MenuInsertInput,
@@ -413,20 +496,22 @@ function assertValidTree(rows: readonly MenuTreeNode[]): void {
   }
 }
 
-function assertParameterRouteVisibility(rows: readonly MenuTreeNode[], node: MenuTreeNode): void {
-  if (
-    node.type !== "menu" ||
-    node.isExternal === true ||
-    node.routeKey === null ||
-    !isActuallyVisible(rows, node)
-  ) {
-    return;
-  }
+function assertParameterRouteVisibility(rows: readonly MenuTreeNode[]): void {
+  for (const node of rows) {
+    if (
+      node.type !== "menu" ||
+      node.isExternal === true ||
+      node.routeKey === null ||
+      !isActuallyVisible(rows, node)
+    ) {
+      continue;
+    }
 
-  const routeKey = getRouteKey(node.routeKey);
+    const routeKey = getRouteKey(node.routeKey);
 
-  if (routeKey && /(^|\/)\$[A-Za-z_][A-Za-z0-9_]*(\/|$)/.test(ROUTE_DEFINITIONS[routeKey].path)) {
-    throw new BadRequestException("实际可见菜单不能使用参数路由");
+    if (routeKey && /(^|\/)\$[A-Za-z_][A-Za-z0-9_]*(\/|$)/.test(ROUTE_DEFINITIONS[routeKey].path)) {
+      throw new BadRequestException("实际可见菜单不能使用参数路由");
+    }
   }
 }
 
@@ -442,7 +527,12 @@ function isActuallyVisible(rows: readonly MenuTreeNode[], node: MenuTreeNode): b
   while (parentId !== null) {
     const parent = byId.get(parentId);
 
-    if (!parent || visited.has(parent.id) || parent.isVisible === false) {
+    if (
+      !parent ||
+      visited.has(parent.id) ||
+      parent.type !== "directory" ||
+      parent.isVisible !== true
+    ) {
       return false;
     }
 

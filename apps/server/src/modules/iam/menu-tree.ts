@@ -56,7 +56,7 @@ type MenuTreeIndexes = {
   childrenByParentId: Map<number, MenuTreeNode[]>;
 };
 
-const parameterRouteSegment = /(^|\/):[^/]+/;
+const parameterRouteSegment = /(^|\/)\$[A-Za-z][A-Za-z0-9_]*\??(?=\/|$)/;
 
 export function validateMenuTree(
   nodes: readonly MenuTreeNode[],
@@ -99,7 +99,12 @@ export function validateMenuTree(
       }
     }
 
-    if (node.type === "menu" && parent && parent.type !== "directory") {
+    if (
+      node.type === "menu" &&
+      parent &&
+      parent.type !== "directory" &&
+      (parent.type !== "menu" || parent.isExternal !== false)
+    ) {
       return failure("menu_parent_must_be_directory", node.id);
     }
 
@@ -136,7 +141,10 @@ export function getAllowedParentIds(
       }
 
       if (options.type === "menu") {
-        return node.type === "directory" && getDirectoryDepth(node, indexes.byId) <= 2;
+        return (
+          (node.type === "directory" && getDirectoryDepth(node, indexes.byId) <= 2) ||
+          (node.type === "menu" && node.isExternal === false)
+        );
       }
 
       return node.type === "menu" && node.isExternal !== true;
@@ -144,8 +152,12 @@ export function getAllowedParentIds(
     .map((node) => node.id);
 }
 
-export function isNavigationEligible(node: MenuTreeNode): boolean {
-  return node.type === "menu" && node.isVisible === true && !hasParameterRoute(node.path);
+export function isNavigationEligible(node: MenuTreeNode, nodes?: readonly MenuTreeNode[]): boolean {
+  if (!hasNavigationFields(node)) {
+    return false;
+  }
+
+  return nodes === undefined || hasVisibleDirectoryAncestors(node, buildIndexes(nodes).byId);
 }
 
 export function findNavigationAncestor(
@@ -157,7 +169,7 @@ export function findNavigationAncestor(
   let current = byId.get(nodeId);
 
   while (current && !visited.has(current.id)) {
-    if (isNavigationEligible(current)) {
+    if (isNavigationEligibleWithIndexes(current, byId)) {
       return current;
     }
 
@@ -179,7 +191,7 @@ export function buildAuthorizedMenuTree(
 
   for (const node of organizationNodes) {
     if (
-      !isNavigationEligible(node) ||
+      !isNavigationEligibleWithIndexes(node, indexes.byId) ||
       node.permissionCode === null ||
       !permissionCodes.has(node.permissionCode)
     ) {
@@ -286,7 +298,8 @@ function includeDirectoryAncestors(
       !parent ||
       visited.has(parent.id) ||
       parent.organizationId !== organizationId ||
-      parent.type !== "directory"
+      parent.type !== "directory" ||
+      parent.isVisible !== true
     ) {
       return false;
     }
@@ -305,6 +318,43 @@ function includeDirectoryAncestors(
 
 function hasParameterRoute(path: string | null): boolean {
   return path !== null && parameterRouteSegment.test(path);
+}
+
+function isNavigationEligibleWithIndexes(
+  node: MenuTreeNode,
+  byId: ReadonlyMap<number, MenuTreeNode>,
+): boolean {
+  return hasNavigationFields(node) && hasVisibleDirectoryAncestors(node, byId);
+}
+
+function hasNavigationFields(node: MenuTreeNode): boolean {
+  return node.type === "menu" && node.isVisible === true && !hasParameterRoute(node.path);
+}
+
+function hasVisibleDirectoryAncestors(
+  node: MenuTreeNode,
+  byId: ReadonlyMap<number, MenuTreeNode>,
+): boolean {
+  let parentId = node.parentId;
+  const visited = new Set<number>();
+
+  while (parentId !== null) {
+    const parent = byId.get(parentId);
+
+    if (
+      !parent ||
+      visited.has(parent.id) ||
+      parent.type !== "directory" ||
+      parent.isVisible !== true
+    ) {
+      return false;
+    }
+
+    visited.add(parent.id);
+    parentId = parent.parentId;
+  }
+
+  return true;
 }
 
 function compareNodes(left: MenuTreeNode, right: MenuTreeNode): number {
