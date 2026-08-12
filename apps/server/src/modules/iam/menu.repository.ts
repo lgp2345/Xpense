@@ -1,72 +1,36 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { asc, eq, isNull } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import type { AppDb } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import { menus } from "../../db/schema.js";
+import type { MenuTreeNode } from "./menu-tree.js";
 
-export type MenuRow = {
-  id: string;
-  name: string;
-  path: string;
-  parentId: string | null;
-  componentKey: string | null;
-  icon: string | null;
-  permissionCode: string | null;
-  sortOrder: number;
-};
+export type MenuRow = MenuTreeNode;
 
 @Injectable()
 export class MenuRepository {
   constructor(@Inject(DB) private readonly db: AppDb) {}
 
-  async listAllMenus(): Promise<MenuRow[]> {
+  async listByOrganizationId(organizationId: string): Promise<MenuRow[]> {
     return this.db
       .select({
         id: menus.id,
+        organizationId: menus.organizationId,
+        type: menus.type,
         name: menus.name,
-        path: menus.path,
         parentId: menus.parentId,
-        componentKey: menus.componentKey,
+        routeKey: menus.routeKey,
+        path: menus.path,
         icon: menus.icon,
         permissionCode: menus.permissionCode,
+        isExternal: menus.isExternal,
+        isVisible: menus.isVisible,
+        keepAlive: menus.keepAlive,
         sortOrder: menus.sortOrder,
       })
       .from(menus)
-      .orderBy(asc(menus.sortOrder), asc(menus.name));
-  }
-
-  async listRootMenus(): Promise<MenuRow[]> {
-    return this.db
-      .select({
-        id: menus.id,
-        name: menus.name,
-        path: menus.path,
-        parentId: menus.parentId,
-        componentKey: menus.componentKey,
-        icon: menus.icon,
-        permissionCode: menus.permissionCode,
-        sortOrder: menus.sortOrder,
-      })
-      .from(menus)
-      .where(isNull(menus.parentId))
-      .orderBy(asc(menus.sortOrder), asc(menus.name));
-  }
-
-  async listChildMenus(parentId: string): Promise<MenuRow[]> {
-    return this.db
-      .select({
-        id: menus.id,
-        name: menus.name,
-        path: menus.path,
-        parentId: menus.parentId,
-        componentKey: menus.componentKey,
-        icon: menus.icon,
-        permissionCode: menus.permissionCode,
-        sortOrder: menus.sortOrder,
-      })
-      .from(menus)
-      .where(eq(menus.parentId, parentId))
-      .orderBy(asc(menus.sortOrder), asc(menus.name));
+      .where(eq(menus.organizationId, organizationId))
+      .orderBy(asc(menus.sortOrder), asc(menus.id));
   }
 }
