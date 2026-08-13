@@ -5,7 +5,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AuthorizedMenuNode, CurrentUserResponse } from "@xpense/shared";
 import axios from "axios";
@@ -54,11 +54,44 @@ const authorizedMenus: AuthorizedMenuNode[] = [
     keepAlive: null,
     children: [
       {
+        id: 4,
+        parentId: 1,
+        type: "directory",
+        name: "安全",
+        sortOrder: 0,
+        icon: "Shield",
+        isVisible: true,
+        routeKey: null,
+        path: null,
+        url: null,
+        permissionCode: null,
+        isExternal: null,
+        keepAlive: null,
+        children: [
+          {
+            id: 5,
+            parentId: 4,
+            type: "menu",
+            name: "会话",
+            sortOrder: 0,
+            icon: "MonitorSmartphone",
+            isVisible: true,
+            routeKey: "Sessions",
+            path: "/sessions",
+            url: null,
+            permissionCode: "sessions:read",
+            isExternal: false,
+            keepAlive: false,
+            children: [],
+          },
+        ],
+      },
+      {
         id: 2,
         parentId: 1,
         type: "menu",
         name: "成员",
-        sortOrder: 0,
+        sortOrder: 10,
         icon: "Users",
         isVisible: true,
         routeKey: "Members",
@@ -70,6 +103,22 @@ const authorizedMenus: AuthorizedMenuNode[] = [
         children: [],
       },
     ],
+  },
+  {
+    id: 3,
+    parentId: null,
+    type: "menu",
+    name: "产品文档",
+    sortOrder: 10,
+    icon: "Shield",
+    isVisible: true,
+    routeKey: null,
+    path: null,
+    url: "https://docs.example.com",
+    permissionCode: "members:read",
+    isExternal: true,
+    keepAlive: null,
+    children: [],
   },
 ];
 
@@ -86,6 +135,7 @@ function createDeferred<T>() {
 
 describe("AuthenticatedLayout", () => {
   it("呈现当前会话的组织、邮箱与获授权导航控制项", async () => {
+    const user = userEvent.setup();
     const store = createAuthStore({ accessToken: "access-token" });
     store.getState().setCurrentUserContext(userContext);
     const instance = axios.create();
@@ -130,12 +180,84 @@ describe("AuthenticatedLayout", () => {
 
     expect(await screen.findByText("个人账本")).toBeInTheDocument();
     expect(screen.getByText("owner@example.com")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "成员" })).toHaveAttribute("href", "/members");
+    const membersLink = screen.getByRole("link", { name: "成员" });
+    expect(membersLink).toHaveAttribute("href", "/members");
+    const accessControlGroup = screen.getByText("访问控制").closest('[data-sidebar="group"]');
+    expect(accessControlGroup).not.toBeNull();
+    const accessControl = within(accessControlGroup as HTMLElement);
+    const securityTrigger = accessControl.getByRole("button", { name: /安全/ });
+    expect(
+      securityTrigger.compareDocumentPosition(membersLink) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(securityTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(accessControl.queryByRole("link", { name: "会话" })).not.toBeInTheDocument();
+
+    await user.click(securityTrigger);
+
+    expect(securityTrigger).toHaveAttribute("aria-expanded", "true");
+    expect(accessControl.getByRole("link", { name: "会话" })).toHaveAttribute("href", "/sessions");
+
+    await user.click(securityTrigger);
+
+    expect(accessControl.queryByRole("link", { name: "会话" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "产品文档" })).toHaveAttribute(
+      "href",
+      "https://docs.example.com",
+    );
+    expect(screen.getByRole("link", { name: "产品文档" })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: "产品文档" })).toHaveAttribute(
+      "rel",
+      "noopener noreferrer",
+    );
     expect(screen.queryByRole("link", { name: "角色" })).not.toBeInTheDocument();
     expect(document.querySelector('[data-sidebar="trigger"]')).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "切换主题" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "搜索命令" })).toBeInTheDocument();
     expect(mock.history.get.filter(({ url }) => url?.endsWith("/menus"))).toHaveLength(1);
+  });
+
+  it("按活动路由键高亮对应的动态菜单", async () => {
+    const store = createAuthStore({ accessToken: "access-token" });
+    store.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onGet("http://localhost:4000/menus").reply(200, {
+      code: "OK",
+      message: "ok",
+      data: authorizedMenus,
+    });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    await session.menuStore
+      .getState()
+      .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    const rootRoute = createRootRoute({
+      component: () => <AuthenticatedLayout session={session} />,
+    });
+    const membersRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/members",
+      staticData: { routeKey: "Members" },
+      component: () => <main>成员内容</main>,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([membersRoute]),
+      history: createMemoryHistory({ initialEntries: ["/members"] }),
+    });
+
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByRole("link", { name: "成员" })).toHaveAttribute(
+      "data-active",
+      "true",
+    );
   });
 
   it("菜单加载失败时保留认证并允许原地重试", async () => {

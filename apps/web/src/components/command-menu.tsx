@@ -1,9 +1,9 @@
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Laptop, Moon, Sun } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useStore } from "zustand";
 
-import { getNavigationGroups } from "@/components/layout/navigation";
+import { buildCommandItems } from "@/components/layout/menu-navigation";
 import {
   CommandDialog,
   CommandEmpty,
@@ -21,12 +21,8 @@ export function CommandMenu({ session }: { session: WebSessionDependency }) {
   const navigate = useNavigate();
   const { open, setOpen } = useSearch();
   const { setTheme } = useTheme();
-  const permissions = useStore(session.authStore, (state) => state.permissions);
-  const isSuperAdmin = useStore(
-    session.authStore,
-    (state) => state.currentUser?.isSuperAdmin ?? false,
-  );
-  const navigationGroups = getNavigationGroups({ permissions, isSuperAdmin });
+  const menus = useStore(session.menuStore, (state) => state.tree);
+  const commandGroups = useMemo(() => buildCommandItems(menus), [menus]);
   const runCommand = useCallback(
     (command: () => void) => {
       setOpen(false);
@@ -39,13 +35,22 @@ export function CommandMenu({ session }: { session: WebSessionDependency }) {
       <CommandInput placeholder="搜索命令..." />
       <CommandList>
         <CommandEmpty>未找到匹配的命令。</CommandEmpty>
-        {navigationGroups.map((group) => (
-          <CommandGroup key={group.title} heading={group.title}>
+        {commandGroups.map((group) => (
+          <CommandGroup key={group.id} heading={group.title}>
             {group.items.map((item) => (
               <CommandItem
-                key={item.to}
-                value={item.title}
-                onSelect={() => runCommand(() => void navigate({ to: item.to }))}
+                key={item.id}
+                keywords={[item.title]}
+                value={`menu-${item.id}`}
+                onSelect={() =>
+                  runCommand(() => {
+                    if (item.isExternal) {
+                      window.open(item.href, item.target, item.windowFeatures);
+                    } else {
+                      void navigate({ to: item.href });
+                    }
+                  })
+                }
               >
                 <ArrowRight className="size-4" />
                 {item.title}
