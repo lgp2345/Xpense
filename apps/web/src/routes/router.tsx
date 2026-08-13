@@ -9,6 +9,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import { AuthenticatedLayout } from "../components/layout/authenticated-layout";
+import { MenuResetPage } from "../features/menus/menu-reset-page";
 import { ForbiddenPage } from "../pages/forbidden-page";
 import { FoundationPage } from "../pages/foundation-page";
 import { LoginPage } from "../pages/login-page";
@@ -73,7 +74,7 @@ const menuResetRoute = createRoute({
       throw redirect({ to: "/forbidden" });
     }
   },
-  component: MenuResetPlaceholder,
+  component: MenuResetRoutePage,
 });
 
 const routeTree = rootRoute.addChildren([
@@ -117,13 +118,10 @@ function StaticAuthenticatedRoutePage() {
   return <AuthenticatedLayout requiresMenuBootstrap={false} session={session} />;
 }
 
-function MenuResetPlaceholder() {
-  return (
-    <main className="min-h-[100dvh] bg-background p-8 text-foreground">
-      <h1 className="text-3xl font-normal">菜单恢复</h1>
-      <p className="mt-4 text-muted-foreground">此页面将在后续管理任务中完成。</p>
-    </main>
-  );
+function MenuResetRoutePage() {
+  const { session } = menuResetRoute.useRouteContext();
+
+  return <MenuResetPage session={session} />;
 }
 
 function NotFoundPage() {
