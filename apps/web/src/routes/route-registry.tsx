@@ -34,6 +34,11 @@ const SessionsPage = lazy(() =>
 const AuditLogsPage = lazy(() =>
   import("../features/audit/audit-logs-page").then((module) => ({ default: module.AuditLogsPage })),
 );
+const MenuManagementPage = lazy(() =>
+  import("../features/menus/menu-management-page").then((module) => ({
+    default: module.MenuManagementPage,
+  })),
+);
 
 export type AppRouterContext = {
   registeredMenu?: AuthorizedMenuNode;
@@ -118,9 +123,15 @@ export const ROUTE_REGISTRY = {
   Menus: defineRouteRegistration({
     label: "菜单管理",
     route: menusRoute,
-    render: (_input) => <AdministrationPlaceholder title="菜单管理" />,
+    render: (input) => renderLazyPage(<MenusPageAdapter input={input} />),
   }),
 } satisfies Record<RouteKey, WebRouteRegistrationConstraint>;
+
+const MENU_ROUTE_OPTIONS = (Object.keys(ROUTE_DEFINITIONS) as RouteKey[]).map((key) => ({
+  key,
+  label: ROUTE_REGISTRY[key].label,
+  path: ROUTE_DEFINITIONS[key].path,
+}));
 
 function defineRouteRegistration<TRoute extends AnyRoute>(
   registration: WebRouteRegistration<TRoute>,
@@ -312,6 +323,18 @@ function AuditLogsPageAdapter({ input }: { input: RegisteredPageInput<typeof aud
   );
 }
 
+function MenusPageAdapter({ input }: { input: RegisteredPageInput<typeof menusRoute> }) {
+  const permissions = useStore(input.session.authStore, (state) => state.permissions);
+
+  return (
+    <MenuManagementPage
+      api={input.session.iamApi}
+      permissions={permissions}
+      routeOptions={MENU_ROUTE_OPTIONS}
+    />
+  );
+}
+
 function renderLazyPage(page: ReactNode): ReactNode {
   return <Suspense fallback={<PageLoading />}>{page}</Suspense>;
 }
@@ -331,15 +354,6 @@ function RouteStatus({ children }: { children: ReactNode }) {
       className="grid min-h-[50dvh] place-items-center text-sm text-muted-foreground"
     >
       {children}
-    </main>
-  );
-}
-
-function AdministrationPlaceholder({ title }: { title: string }) {
-  return (
-    <main className="min-h-[100dvh] bg-background p-8 text-foreground">
-      <h1 className="text-3xl font-normal">{title}</h1>
-      <p className="mt-4 text-muted-foreground">此页面将在后续管理任务中完成。</p>
     </main>
   );
 }
