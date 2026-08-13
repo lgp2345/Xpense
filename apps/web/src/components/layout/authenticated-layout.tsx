@@ -4,7 +4,7 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import type { AuthorizedMenuNode, RouteKey } from "@xpense/shared";
+import type { RouteKey } from "@xpense/shared";
 import type { JSX, ReactNode } from "react";
 import { useStore } from "zustand";
 
@@ -21,7 +21,7 @@ export type CapturedRegisteredPageInput = {
   navigate: UseNavigateResult<string>;
   params: Record<string, unknown>;
   routeKey: RouteKey;
-  search: unknown;
+  search: Record<string, unknown>;
   session: WebSessionDependency;
 };
 
@@ -42,7 +42,8 @@ export function AuthenticatedLayout({
       ? {
           fullPath: leafMatch.fullPath,
           params: leafMatch.params,
-          registeredMenu: leafMatch.context.registeredMenu as AuthorizedMenuNode | undefined,
+          registeredMenu: leafMatch.context.registeredMenu,
+          registeredMenuAuthorization: leafMatch.context.registeredMenuAuthorization,
           routeKey: leafMatch.staticData.routeKey,
           search: leafMatch.search,
         }
@@ -62,37 +63,22 @@ export function AuthenticatedLayout({
     return <LayoutStatus>正在验证登录状态...</LayoutStatus>;
   }
 
-  if (requiresMenuBootstrap && menuOrganizationId === organizationId && menuStatus === "error") {
-    return (
-      <LayoutStatus>
-        <p role="alert">{menuError ?? "菜单加载失败，请稍后重试。"}</p>
-        <Button
-          className="mt-4"
-          onClick={() => {
-            if (organizationId) {
-              void session.menuStore
-                .getState()
-                .loadMenusForOrganization(organizationId, session.iamApi.getAuthorizedMenus);
-            }
-          }}
-          type="button"
-        >
-          重试
-        </Button>
-      </LayoutStatus>
-    );
-  }
-
-  if (requiresMenuBootstrap && (menuStatus !== "ready" || menuOrganizationId !== organizationId)) {
-    return <LayoutStatus>正在加载组织菜单...</LayoutStatus>;
-  }
-
-  const activeMenu = activeRegisteredMatch
-    ? (authorizedRoutes[activeRegisteredMatch.routeKey] ?? activeRegisteredMatch.registeredMenu)
+  const isMenuReady =
+    !requiresMenuBootstrap || (menuStatus === "ready" && menuOrganizationId === organizationId);
+  const isMenuError =
+    requiresMenuBootstrap && menuStatus === "error" && menuOrganizationId === organizationId;
+  const registeredMenu =
+    activeRegisteredMatch?.registeredMenuAuthorization === authorizedRoutes
+      ? activeRegisteredMatch.registeredMenu
+      : undefined;
+  const localMenu = activeRegisteredMatch
+    ? authorizedRoutes[activeRegisteredMatch.routeKey]
     : undefined;
+  const activeMenu = localMenu ?? registeredMenu;
   const activePage: PageCacheHostPage | null =
-    activeMenu && activeRegisteredMatch && renderRegisteredPage
+    isMenuReady && activeMenu && activeRegisteredMatch && renderRegisteredPage
       ? {
+          authorizationSource: localMenu ? "local" : "resolved",
           keepAlive: activeMenu.keepAlive === true,
           menuId: activeMenu.id,
           params: activeRegisteredMatch.params,
@@ -109,6 +95,28 @@ export function AuthenticatedLayout({
   const cacheableMenuIds = new Set(
     Object.values(authorizedRoutes).flatMap((menu) => (menu?.keepAlive === true ? [menu.id] : [])),
   );
+  const fallback = isMenuError ? (
+    <LayoutContentStatus>
+      <p role="alert">{menuError ?? "菜单加载失败，请稍后重试。"}</p>
+      <Button
+        className="mt-4"
+        onClick={() => {
+          if (organizationId) {
+            void session.menuStore
+              .getState()
+              .loadMenusForOrganization(organizationId, session.iamApi.getAuthorizedMenus);
+          }
+        }}
+        type="button"
+      >
+        重试
+      </Button>
+    </LayoutContentStatus>
+  ) : isMenuReady ? (
+    <Outlet />
+  ) : (
+    <LayoutContentStatus>正在加载组织菜单...</LayoutContentStatus>
+  );
 
   return (
     <SidebarProvider>
@@ -118,8 +126,9 @@ export function AuthenticatedLayout({
         <main id="main-content" className="min-h-0 flex-1">
           <PageCacheHost
             activePage={activePage}
+            authorizationVersion={isMenuReady ? authorizedRoutes : null}
             cacheableMenuIds={cacheableMenuIds}
-            fallback={<Outlet />}
+            fallback={fallback}
             scopeKey={organizationId}
           />
         </main>
@@ -137,5 +146,17 @@ function LayoutStatus({ children }: { children: React.ReactNode }): JSX.Element 
     >
       <div className="text-center">{children}</div>
     </main>
+  );
+}
+
+function LayoutContentStatus({ children }: { children: React.ReactNode }): JSX.Element {
+  return (
+    <div
+      aria-live="polite"
+      className="grid min-h-[50dvh] place-items-center text-sm text-muted-foreground"
+      role="status"
+    >
+      <div className="text-center">{children}</div>
+    </div>
   );
 }
