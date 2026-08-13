@@ -78,6 +78,7 @@ export function MenuResetPage({ session }: { session: WebSessionDependency }) {
       await session.iamApi.resetOrganizationMenus(selectedId.data);
 
       if (session.authStore.getState().currentOrganization?.id === selectedId.data) {
+        session.menuStore.getState().clearMenus();
         await session.menuStore
           .getState()
           .loadMenusForOrganization(selectedId.data, session.iamApi.getAuthorizedMenus);

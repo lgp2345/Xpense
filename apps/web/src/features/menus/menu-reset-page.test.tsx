@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { AuthorizedMenuNode } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import { AppProviders } from "@/components/app-providers";
@@ -20,6 +21,34 @@ const otherOrganization: UserOrganization = {
   status: "active",
 };
 const organizations = [activeOrganization, otherOrganization];
+
+function authorizedMenu(id: number, name: string): AuthorizedMenuNode {
+  return {
+    id,
+    parentId: null,
+    type: "menu",
+    name,
+    sortOrder: id,
+    icon: null,
+    isVisible: true,
+    routeKey: "Dashboard",
+    path: "/",
+    url: null,
+    permissionCode: "dashboard:read",
+    isExternal: false,
+    keepAlive: false,
+    children: [],
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => {
+    resolve = next;
+  });
+
+  return { promise, resolve };
+}
 
 function createHarness() {
   const authStore = createAuthStore({
@@ -86,22 +115,75 @@ describe("MenuResetPage", () => {
     expect(session.iamApi.resetOrganizationMenus).not.toHaveBeenCalled();
   });
 
-  it("refreshes menus after successfully resetting the active target", async () => {
+  it("invalidates an old same-organization request before loading fresh active-target menus", async () => {
     const user = userEvent.setup();
     const { session } = createHarness();
-    const loadMenus = vi.spyOn(session.menuStore.getState(), "loadMenusForOrganization");
+    const oldMenus = [authorizedMenu(1, "旧菜单")];
+    const freshMenus = [authorizedMenu(2, "新菜单")];
+    const oldRequest = deferred<AuthorizedMenuNode[]>();
+    vi.mocked(session.iamApi.getAuthorizedMenus)
+      .mockReturnValueOnce(oldRequest.promise)
+      .mockResolvedValueOnce(freshMenus);
+    const oldLoad = session.menuStore
+      .getState()
+      .loadMenusForOrganization(activeOrganization.id, session.iamApi.getAuthorizedMenus);
 
     await selectOrganization(user, "个人账本");
     await user.click(screen.getByRole("button", { name: "恢复默认菜单" }));
     await user.click(screen.getByRole("button", { name: "确认恢复" }));
 
+    await waitFor(() => expect(session.iamApi.getAuthorizedMenus).toHaveBeenCalledTimes(2));
+    expect(session.menuStore.getState().tree).toEqual(freshMenus);
+
+    oldRequest.resolve(oldMenus);
+    await oldLoad;
+
+    expect(session.menuStore.getState().tree).toEqual(freshMenus);
+  });
+
+  it("does not clear or reload active menus after resetting another organization", async () => {
+    const user = userEvent.setup();
+    const { session } = createHarness();
+    const activeMenus = [authorizedMenu(1, "当前菜单")];
+    vi.mocked(session.iamApi.getAuthorizedMenus).mockResolvedValue(activeMenus);
+    await session.menuStore
+      .getState()
+      .loadMenusForOrganization(activeOrganization.id, session.iamApi.getAuthorizedMenus);
+    const clearMenus = vi.spyOn(session.menuStore.getState(), "clearMenus");
+
+    await selectOrganization(user, "家庭账本");
+    await user.click(screen.getByRole("button", { name: "恢复默认菜单" }));
+    await user.click(screen.getByRole("button", { name: "确认恢复" }));
+
     await waitFor(() =>
-      expect(session.iamApi.resetOrganizationMenus).toHaveBeenCalledWith(activeOrganization.id),
+      expect(session.iamApi.resetOrganizationMenus).toHaveBeenCalledWith(otherOrganization.id),
     );
-    expect(loadMenus).toHaveBeenCalledWith(
-      activeOrganization.id,
-      session.iamApi.getAuthorizedMenus,
-    );
+    expect(clearMenus).not.toHaveBeenCalled();
+    expect(session.iamApi.getAuthorizedMenus).toHaveBeenCalledTimes(1);
+    expect(session.menuStore.getState()).toMatchObject({
+      organizationId: activeOrganization.id,
+      status: "ready",
+      tree: activeMenus,
+    });
+  });
+
+  it("disables confirmation and sends one request while reset is pending", async () => {
+    const user = userEvent.setup();
+    const { session } = createHarness();
+    const resetRequest = deferred<void>();
+    vi.mocked(session.iamApi.resetOrganizationMenus).mockReturnValueOnce(resetRequest.promise);
+
+    await selectOrganization(user, "家庭账本");
+    await user.click(screen.getByRole("button", { name: "恢复默认菜单" }));
+    const confirmButton = screen.getByRole("button", { name: "确认恢复" });
+    await user.click(confirmButton);
+
+    expect(confirmButton).toBeDisabled();
+    await user.click(confirmButton);
+    expect(session.iamApi.resetOrganizationMenus).toHaveBeenCalledTimes(1);
+
+    resetRequest.resolve();
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
   });
 
   it("retains the selected organization when reset fails", async () => {
