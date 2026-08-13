@@ -1,11 +1,17 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { ROUTE_DEFINITIONS, type RouteKey } from "@xpense/shared";
 import type * as TypeScript from "typescript";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import type { AuditLogSearch } from "../features/audit/audit-log-filters";
+import type { IamApi } from "../services/iam-api";
+import type { WebSessionDependency } from "../services/web-session";
+import { createAuthStore } from "../stores/auth-store";
+import { createMenuStore } from "../stores/menu-store";
 import { ROUTE_REGISTRY } from "./route-registry";
 
 const require = createRequire(import.meta.url);
@@ -66,10 +72,88 @@ describe("ROUTE_REGISTRY", () => {
     });
   });
 
+  it("renders the lazy menu page and wires its configuration and authorized-menu refresh", async () => {
+    const user = userEvent.setup();
+    const configuredDirectory = {
+      id: 1,
+      parentId: null,
+      type: "directory",
+      name: "配置中心",
+      sortOrder: 0,
+      icon: null,
+      isVisible: true,
+      routeKey: null,
+      path: null,
+      url: null,
+      permissionCode: null,
+      isExternal: null,
+      keepAlive: null,
+      children: [],
+    } as const;
+    const getMenuConfiguration = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([configuredDirectory]);
+    const getAuthorizedMenus = vi.fn().mockResolvedValue([]);
+    const addMenu = vi.fn().mockResolvedValue(undefined);
+    const authStore = createAuthStore({
+      accessToken: "access-token",
+      currentUser: {
+        id: "user-1",
+        email: "owner@example.com",
+        isSuperAdmin: false,
+        status: "active",
+      },
+      currentOrganization: { id: "org-1", name: "个人账本" },
+      role: { id: "role-1", key: "owner", name: "所有者" },
+      permissions: ["menus:read", "menus:create", "menus:update", "menus:delete"],
+      session: { id: "session-1", clientType: "web_pc" },
+      status: "authenticated",
+    });
+    const menuStore = createMenuStore();
+    const session = {
+      authApi: {},
+      authStore,
+      iamApi: {
+        addMenu,
+        deleteMenu: vi.fn(),
+        editMenu: vi.fn(),
+        editMenuOrder: vi.fn(),
+        getAuthorizedMenus,
+        getMenuConfiguration,
+      } as unknown as IamApi,
+      menuStore,
+      restoreSession: vi.fn(),
+    } as unknown as WebSessionDependency;
+    const input = {
+      navigate: vi.fn(),
+      params: {},
+      search: {},
+      session,
+    } as unknown as Parameters<typeof ROUTE_REGISTRY.Menus.render>[0];
+
+    render(ROUTE_REGISTRY.Menus.render(input));
+
+    expect(await screen.findByRole("heading", { name: "菜单管理" })).toBeInTheDocument();
+    expect(getMenuConfiguration).toHaveBeenCalledOnce();
+
+    await user.click(screen.getByRole("button", { name: "新增根节点" }));
+    await user.type(screen.getByRole("textbox", { name: "名称" }), "配置中心");
+    await user.click(screen.getByRole("button", { name: "创建节点" }));
+
+    expect(await screen.findByText("配置中心")).toBeInTheDocument();
+    await waitFor(() => expect(getAuthorizedMenus).toHaveBeenCalledOnce());
+    expect(menuStore.getState()).toMatchObject({
+      organizationId: "org-1",
+      status: "ready",
+    });
+  });
+
   it("keeps every page module behind a React.lazy dynamic import", () => {
     const expectedPageModules = new Set([
       "../features/audit/audit-logs-page",
       "../features/members/members-page",
+      "../features/menus/menu-management-page",
       "../features/roles/roles-page",
       "../features/sessions/sessions-page",
       "../pages/dashboard-page",

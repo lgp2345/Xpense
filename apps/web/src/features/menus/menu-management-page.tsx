@@ -1,5 +1,5 @@
 import type { MenuConfigurationNode, PermissionKey } from "@xpense/shared";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +18,7 @@ type MenusApi = Pick<
 type MenuManagementPageProps = {
   api?: MenusApi;
   menuItems?: MenuConfigurationNode[];
+  onAuthorizedMenusRefresh: () => Promise<void>;
   permissions: PermissionKey[];
   routeOptions: MenuRouteOption[];
 };
@@ -26,9 +27,14 @@ type EditorState =
   | { kind: "create"; initialParentId: number | null }
   | { kind: "edit"; node: MenuConfigurationNode };
 
+type ConfigurationRefreshResult = "applied" | "failed" | "stale";
+
+const SYNCHRONIZATION_ERROR = "菜单操作已成功，但配置与导航同步未完成，请重试同步。";
+
 export function MenuManagementPage({
   api = webIamApi,
   menuItems,
+  onAuthorizedMenusRefresh,
   permissions,
   routeOptions,
 }: MenuManagementPageProps) {
@@ -36,50 +42,57 @@ export function MenuManagementPage({
   const [nodes, setNodes] = useState(() => menuItems ?? []);
   const [isLoading, setIsLoading] = useState(!hasInitialItems);
   const [isMutating, setIsMutating] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [hasPendingSynchronization, setHasPendingSynchronization] = useState(false);
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const configurationRequestGeneration = useRef(0);
 
-  async function refreshMenus() {
-    const nextNodes = await api.getMenuConfiguration();
-    setNodes(nextNodes);
-  }
+  const refreshMenus = useCallback(async (): Promise<ConfigurationRefreshResult> => {
+    const requestGeneration = configurationRequestGeneration.current + 1;
+    configurationRequestGeneration.current = requestGeneration;
+
+    try {
+      const nextNodes = await api.getMenuConfiguration();
+
+      if (requestGeneration !== configurationRequestGeneration.current) {
+        return "stale";
+      }
+
+      setNodes(nextNodes);
+      return "applied";
+    } catch {
+      return requestGeneration === configurationRequestGeneration.current ? "failed" : "stale";
+    }
+  }, [api]);
 
   useEffect(() => {
     if (hasInitialItems) {
       return;
     }
 
-    let isActive = true;
+    setIsLoading(true);
 
-    void api
-      .getMenuConfiguration()
-      .then((nextNodes) => {
-        if (isActive) {
-          setNodes(nextNodes);
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setErrorMessage("加载菜单配置失败，请稍后重试。");
-        }
-      })
-      .finally(() => {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      });
+    void refreshMenus().then((result) => {
+      if (result === "failed") {
+        setRequestError("加载菜单配置失败，请稍后重试。");
+        setIsLoading(false);
+      } else if (result === "applied") {
+        setRequestError(null);
+        setIsLoading(false);
+      }
+    });
 
     return () => {
-      isActive = false;
+      configurationRequestGeneration.current += 1;
     };
-  }, [api, hasInitialItems]);
+  }, [hasInitialItems, refreshMenus]);
 
   async function handleSave(input: MenuFormValues): Promise<boolean> {
-    if (!editor) {
+    if (!editor || isLoading || isMutating) {
       return false;
     }
 
-    setErrorMessage(null);
+    setRequestError(null);
     setIsMutating(true);
 
     try {
@@ -89,74 +102,98 @@ export function MenuManagementPage({
         await api.addMenu(input);
       }
     } catch {
-      return false;
-    } finally {
       setIsMutating(false);
+      return false;
     }
 
-    try {
-      await refreshMenus();
-    } catch {
-      setErrorMessage("菜单节点已保存，但刷新配置失败，请稍后重试。");
-    }
+    await refreshAfterMutation();
 
     return true;
   }
 
   async function handleMove(node: MenuConfigurationNode, direction: "up" | "down") {
-    setErrorMessage(null);
+    if (isLoading || isMutating) {
+      return;
+    }
+
+    setRequestError(null);
     setIsMutating(true);
 
     try {
       await api.editMenuOrder(node.id, direction);
     } catch {
-      setErrorMessage("调整菜单顺序失败，请稍后重试。");
-      return;
-    } finally {
+      setRequestError("调整菜单顺序失败，请稍后重试。");
       setIsMutating(false);
+      return;
     }
 
-    try {
-      await refreshMenus();
-    } catch {
-      setErrorMessage("菜单顺序已调整，但刷新配置失败，请稍后重试。");
-    }
+    await refreshAfterMutation();
   }
 
   async function handleDelete(node: MenuConfigurationNode) {
-    if (node.children.length > 0) {
+    if (node.children.length > 0 || isLoading || isMutating) {
       return;
     }
 
-    setErrorMessage(null);
+    setRequestError(null);
     setIsMutating(true);
 
     try {
       await api.deleteMenu(node.id);
     } catch {
-      setErrorMessage("删除菜单节点失败，请稍后重试。");
-      return;
-    } finally {
+      setRequestError("删除菜单节点失败，请稍后重试。");
       setIsMutating(false);
+      return;
     }
 
-    try {
-      await refreshMenus();
-    } catch {
-      setErrorMessage("菜单节点已删除，但刷新配置失败，请稍后重试。");
-    }
+    await refreshAfterMutation();
+  }
+
+  async function refreshAfterMutation() {
+    setHasPendingSynchronization(true);
+    await synchronizeConfigurationAndAuthorizedMenus();
+    setIsMutating(false);
   }
 
   async function handleRetry() {
-    setErrorMessage(null);
+    setRequestError(null);
     setIsLoading(true);
 
-    try {
-      await refreshMenus();
-    } catch {
-      setErrorMessage("加载菜单配置失败，请稍后重试。");
-    } finally {
+    const result = await refreshMenus();
+
+    if (result === "failed") {
+      setRequestError("加载菜单配置失败，请稍后重试。");
+    }
+    if (result !== "stale") {
       setIsLoading(false);
+    }
+  }
+
+  async function handleSynchronizationRetry() {
+    setIsMutating(true);
+    await synchronizeConfigurationAndAuthorizedMenus();
+    setIsMutating(false);
+  }
+
+  async function synchronizeConfigurationAndAuthorizedMenus() {
+    const configurationResult = await refreshMenus();
+
+    if (configurationResult !== "applied") {
+      return;
+    }
+
+    setIsLoading(false);
+
+    if (typeof onAuthorizedMenusRefresh !== "function") {
+      setHasPendingSynchronization(true);
+      return;
+    }
+
+    try {
+      await onAuthorizedMenusRefresh();
+      setHasPendingSynchronization(false);
+    } catch {
+      setHasPendingSynchronization(true);
     }
   }
 
@@ -176,18 +213,38 @@ export function MenuManagementPage({
           <p className="text-sm text-muted-foreground">配置当前组织的导航、页面和按钮权限节点</p>
         </div>
         {canCreate ? (
-          <Button onClick={() => setEditor({ kind: "create", initialParentId: null })}>
+          <Button
+            disabled={isLoading || isMutating}
+            onClick={() => setEditor({ kind: "create", initialParentId: null })}
+          >
             新增根节点
           </Button>
         ) : null}
       </header>
 
-      {errorMessage ? (
+      {hasPendingSynchronization ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/50 px-4 py-3 text-sm text-foreground"
+          role="alert"
+        >
+          <span>{SYNCHRONIZATION_ERROR}</span>
+          <Button
+            disabled={isMutating}
+            size="sm"
+            variant="outline"
+            onClick={() => void handleSynchronizationRetry()}
+          >
+            重试同步
+          </Button>
+        </div>
+      ) : null}
+
+      {requestError ? (
         <div
           className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           role="alert"
         >
-          <span>{errorMessage}</span>
+          <span>{requestError}</span>
           <Button size="sm" variant="outline" onClick={() => void handleRetry()}>
             重试
           </Button>
@@ -220,6 +277,7 @@ export function MenuManagementPage({
 
       {editor ? (
         <MenuFormDialog
+          busy={isLoading || isMutating}
           key={editorKey}
           initialParentId={editor.kind === "create" ? editor.initialParentId : undefined}
           node={editor.kind === "edit" ? editor.node : undefined}

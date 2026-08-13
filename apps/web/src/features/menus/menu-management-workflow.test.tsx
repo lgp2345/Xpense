@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MenuConfigurationNode, PermissionKey } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
@@ -166,6 +166,38 @@ const menuTree: MenuConfigurationNode[] = [
   },
 ];
 
+const addedMenuTree: MenuConfigurationNode[] = [
+  ...menuTree,
+  {
+    id: 10,
+    parentId: null,
+    type: "directory",
+    name: "新的配置目录",
+    sortOrder: 4,
+    icon: null,
+    isVisible: true,
+    routeKey: null,
+    path: null,
+    url: null,
+    permissionCode: null,
+    isExternal: null,
+    keepAlive: null,
+    children: [],
+  },
+];
+
+const staleMenuTree = menuTree.map((node) =>
+  node.id === 1 ? { ...node, name: "过期的菜单配置" } : node,
+);
+
+const deletedMenuTree = menuTree.filter((node) => node.id !== 9);
+const editedMenuTree = menuTree.map((node) =>
+  node.id === 9 ? { ...node, name: "开发者文档" } : node,
+);
+const reorderedMenuTree = [menuTree[1], menuTree[0], menuTree[2], menuTree[3]].filter(
+  (node): node is MenuConfigurationNode => node !== undefined,
+);
+
 type MenusApi = Pick<
   IamApi,
   "addMenu" | "deleteMenu" | "editMenu" | "editMenuOrder" | "getMenuConfiguration"
@@ -189,13 +221,23 @@ const allMenuPermissions: PermissionKey[] = [
   "menus:delete",
 ];
 
+const successfulAuthorizedMenusRefresh = () => Promise.resolve();
+
 function renderPage(
-  options: { api?: MenusApi; items?: MenuConfigurationNode[]; permissions?: PermissionKey[] } = {},
+  options: {
+    api?: MenusApi;
+    items?: MenuConfigurationNode[];
+    onAuthorizedMenusRefresh?: () => Promise<void>;
+    permissions?: PermissionKey[];
+  } = {},
 ) {
   render(
     <MenuManagementPage
       api={options.api}
       menuItems={options.items ?? menuTree}
+      onAuthorizedMenusRefresh={
+        options.onAuthorizedMenusRefresh ?? successfulAuthorizedMenusRefresh
+      }
       permissions={options.permissions ?? allMenuPermissions}
       routeOptions={routeOptions}
     />,
@@ -277,6 +319,23 @@ describe("getMenuParentOptions", () => {
 });
 
 describe("MenuManagementPage", () => {
+  it("disables creating a root node while the configuration is loading", () => {
+    const api = createMenusApi({
+      getMenuConfiguration: vi.fn().mockReturnValue(new Promise(() => undefined)),
+    });
+
+    render(
+      <MenuManagementPage
+        api={api}
+        onAuthorizedMenusRefresh={successfulAuthorizedMenusRefresh}
+        permissions={allMenuPermissions}
+        routeOptions={routeOptions}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "新增根节点" })).toBeDisabled();
+  });
+
   it("shows a safe load error and retries the configuration request", async () => {
     const user = userEvent.setup();
     const api = createMenusApi({
@@ -287,7 +346,12 @@ describe("MenuManagementPage", () => {
     });
 
     render(
-      <MenuManagementPage api={api} permissions={allMenuPermissions} routeOptions={routeOptions} />,
+      <MenuManagementPage
+        api={api}
+        onAuthorizedMenusRefresh={successfulAuthorizedMenusRefresh}
+        permissions={allMenuPermissions}
+        routeOptions={routeOptions}
+      />,
     );
 
     expect(await screen.findByRole("alert")).toHaveTextContent("加载菜单配置失败，请稍后重试。");
@@ -351,7 +415,9 @@ describe("MenuManagementPage", () => {
 
   it("asks for destructive confirmation before deleting a leaf and refreshes after success", async () => {
     const user = userEvent.setup();
-    const api = createMenusApi();
+    const api = createMenusApi({
+      getMenuConfiguration: vi.fn().mockResolvedValue(deletedMenuTree),
+    });
     renderPage({ api });
 
     await user.click(screen.getByRole("button", { name: "删除 产品文档" }));
@@ -365,6 +431,7 @@ describe("MenuManagementPage", () => {
 
     await waitFor(() => expect(api.deleteMenu).toHaveBeenCalledWith(9));
     await waitFor(() => expect(api.getMenuConfiguration).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.queryByText("产品文档")).not.toBeInTheDocument());
   });
 
   it("preserves entered values after a server error and refreshes after a successful retry", async () => {
@@ -374,6 +441,7 @@ describe("MenuManagementPage", () => {
         .fn()
         .mockRejectedValueOnce(new Error("permission token=secret"))
         .mockResolvedValueOnce(undefined),
+      getMenuConfiguration: vi.fn().mockResolvedValue(addedMenuTree),
     });
     renderPage({ api });
 
@@ -391,16 +459,287 @@ describe("MenuManagementPage", () => {
     await waitFor(() => expect(api.addMenu).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(api.getMenuConfiguration).toHaveBeenCalledOnce());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("新的配置目录")).toBeInTheDocument();
   });
 
   it("posts the requested sibling direction and refreshes the tree", async () => {
     const user = userEvent.setup();
-    const api = createMenusApi();
+    const api = createMenusApi({
+      getMenuConfiguration: vi.fn().mockResolvedValue(reorderedMenuTree),
+    });
     renderPage({ api });
 
     await user.click(screen.getByRole("button", { name: "上移 隐藏分组" }));
 
     await waitFor(() => expect(api.editMenuOrder).toHaveBeenCalledWith(5, "up"));
     await waitFor(() => expect(api.getMenuConfiguration).toHaveBeenCalledOnce());
+    await waitFor(() => {
+      const rows = screen.getAllByRole("row").map((row) => row.textContent ?? "");
+      expect(rows.findIndex((row) => row.includes("隐藏分组"))).toBeLessThan(
+        rows.findIndex((row) => row.includes("系统管理")),
+      );
+    });
+  });
+
+  it("renders the edited configuration returned after a successful update", async () => {
+    const user = userEvent.setup();
+    const api = createMenusApi({
+      getMenuConfiguration: vi.fn().mockResolvedValue(editedMenuTree),
+    });
+    renderPage({ api });
+
+    await user.click(screen.getByRole("button", { name: "编辑 产品文档" }));
+    await user.clear(screen.getByRole("textbox", { name: "名称" }));
+    await user.type(screen.getByRole("textbox", { name: "名称" }), "开发者文档");
+    await user.click(screen.getByRole("button", { name: "保存节点" }));
+
+    await waitFor(() => expect(api.editMenu).toHaveBeenCalledOnce());
+    expect(await screen.findByText("开发者文档")).toBeInTheDocument();
+    expect(screen.queryByText("产品文档")).not.toBeInTheDocument();
+  });
+
+  it("retries the complete configuration and authorized-menu sync without repeating a successful mutation", async () => {
+    const user = userEvent.setup();
+    const events: string[] = [];
+    let globallyAuthorizedMenuNames = menuTree.map((node) => node.name);
+    const api = createMenusApi({
+      getMenuConfiguration: vi
+        .fn()
+        .mockImplementationOnce(async () => {
+          events.push("configuration-failed");
+          throw new Error("configuration unavailable");
+        })
+        .mockImplementationOnce(async () => {
+          events.push("configuration-retry");
+          return reorderedMenuTree;
+        })
+        .mockImplementationOnce(async () => {
+          events.push("configuration-retry-after-authorized-failure");
+          return reorderedMenuTree;
+        }),
+    });
+    const onAuthorizedMenusRefresh = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        events.push("authorized-failed");
+        throw new Error("navigation unavailable");
+      })
+      .mockImplementationOnce(async () => {
+        events.push("authorized-retry");
+        globallyAuthorizedMenuNames = reorderedMenuTree.map((node) => node.name);
+      });
+    renderPage({ api, onAuthorizedMenusRefresh });
+
+    await user.click(screen.getByRole("button", { name: "上移 隐藏分组" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("同步未完成");
+    expect(events).toEqual(["configuration-failed"]);
+    expect(api.editMenuOrder).toHaveBeenCalledOnce();
+
+    await user.click(screen.getByRole("button", { name: "重试同步" }));
+
+    await waitFor(() => expect(onAuthorizedMenusRefresh).toHaveBeenCalledOnce());
+    expect(events).toEqual(["configuration-failed", "configuration-retry", "authorized-failed"]);
+    expect(screen.getByRole("alert")).toHaveTextContent("同步未完成");
+
+    await user.click(screen.getByRole("button", { name: "重试同步" }));
+
+    await waitFor(() => expect(onAuthorizedMenusRefresh).toHaveBeenCalledTimes(2));
+    expect(api.editMenuOrder).toHaveBeenCalledOnce();
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(events).toEqual([
+      "configuration-failed",
+      "configuration-retry",
+      "authorized-failed",
+      "configuration-retry-after-authorized-failure",
+      "authorized-retry",
+    ]);
+    expect(globallyAuthorizedMenuNames[0]).toBe("隐藏分组");
+  });
+
+  it("keeps synchronization pending when the authorized-menu refresh dependency is missing at runtime", async () => {
+    const user = userEvent.setup();
+    const api = createMenusApi({
+      getMenuConfiguration: vi.fn().mockResolvedValue(reorderedMenuTree),
+    });
+
+    render(
+      <MenuManagementPage
+        api={api}
+        menuItems={menuTree}
+        onAuthorizedMenusRefresh={undefined as unknown as () => Promise<void>}
+        permissions={allMenuPermissions}
+        routeOptions={routeOptions}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "上移 隐藏分组" }));
+
+    expect(await screen.findByRole("button", { name: "重试同步" })).toBeInTheDocument();
+    expect(api.editMenuOrder).toHaveBeenCalledOnce();
+
+    await user.click(screen.getByRole("button", { name: "重试同步" }));
+
+    await waitFor(() => expect(api.getMenuConfiguration).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("button", { name: "重试同步" })).toBeInTheDocument();
+    expect(api.editMenuOrder).toHaveBeenCalledOnce();
+  });
+
+  it("keeps pending synchronization recoverable when a later mutation request fails", async () => {
+    const user = userEvent.setup();
+    const api = createMenusApi({
+      editMenuOrder: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("mutation unavailable")),
+      getMenuConfiguration: vi.fn().mockResolvedValue(reorderedMenuTree),
+    });
+    const onAuthorizedMenusRefresh = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("navigation unavailable"))
+      .mockResolvedValueOnce(undefined);
+    renderPage({ api, onAuthorizedMenusRefresh });
+
+    await user.click(screen.getByRole("button", { name: "上移 隐藏分组" }));
+    expect(await screen.findByRole("button", { name: "重试同步" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "下移 隐藏分组" }));
+    await waitFor(() => expect(api.editMenuOrder).toHaveBeenCalledTimes(2));
+
+    expect(screen.getByRole("button", { name: "重试同步" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "重试同步" }));
+
+    await waitFor(() => expect(onAuthorizedMenusRefresh).toHaveBeenCalledTimes(2));
+    expect(api.getMenuConfiguration).toHaveBeenCalledTimes(2);
+    expect(api.editMenuOrder).toHaveBeenCalledTimes(2);
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "重试同步" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps a newer configuration when an earlier mutation refresh resolves late", async () => {
+    const user = userEvent.setup();
+    let resolveEarlierConfiguration: ((tree: MenuConfigurationNode[]) => void) | undefined;
+    const earlierConfiguration = new Promise<MenuConfigurationNode[]>((resolve) => {
+      resolveEarlierConfiguration = resolve;
+    });
+    const earlierApi = createMenusApi({
+      getMenuConfiguration: vi.fn().mockReturnValue(earlierConfiguration),
+    });
+    const newerApi = createMenusApi({
+      getMenuConfiguration: vi.fn().mockResolvedValue(reorderedMenuTree),
+    });
+    const view = render(
+      <MenuManagementPage
+        api={earlierApi}
+        menuItems={menuTree}
+        onAuthorizedMenusRefresh={successfulAuthorizedMenusRefresh}
+        permissions={allMenuPermissions}
+        routeOptions={routeOptions}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "上移 隐藏分组" }));
+    await waitFor(() => expect(earlierApi.getMenuConfiguration).toHaveBeenCalledOnce());
+
+    view.rerender(
+      <MenuManagementPage
+        api={newerApi}
+        onAuthorizedMenusRefresh={successfulAuthorizedMenusRefresh}
+        permissions={allMenuPermissions}
+        routeOptions={routeOptions}
+      />,
+    );
+    await waitFor(() => expect(newerApi.getMenuConfiguration).toHaveBeenCalledOnce());
+    await waitFor(() => {
+      const rows = screen.getAllByRole("row").map((row) => row.textContent ?? "");
+      expect(rows.findIndex((row) => row.includes("隐藏分组"))).toBeLessThan(
+        rows.findIndex((row) => row.includes("系统管理")),
+      );
+    });
+
+    await act(async () => {
+      resolveEarlierConfiguration?.(staleMenuTree);
+      await earlierConfiguration;
+    });
+
+    expect(screen.getByText("隐藏分组")).toBeInTheDocument();
+    expect(screen.queryByText("过期的菜单配置")).not.toBeInTheDocument();
+  });
+
+  it("prevents an already-open dialog from submitting while configuration is loading", async () => {
+    const user = userEvent.setup();
+    const api = createMenusApi({
+      getMenuConfiguration: vi.fn().mockReturnValue(new Promise(() => undefined)),
+    });
+    const view = render(
+      <MenuManagementPage
+        api={api}
+        menuItems={menuTree}
+        onAuthorizedMenusRefresh={successfulAuthorizedMenusRefresh}
+        permissions={allMenuPermissions}
+        routeOptions={routeOptions}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "新增根节点" }));
+    await user.type(screen.getByRole("textbox", { name: "名称" }), "加载期间不能提交");
+
+    view.rerender(
+      <MenuManagementPage
+        api={api}
+        onAuthorizedMenusRefresh={successfulAuthorizedMenusRefresh}
+        permissions={allMenuPermissions}
+        routeOptions={routeOptions}
+      />,
+    );
+    await waitFor(() => expect(api.getMenuConfiguration).toHaveBeenCalledOnce());
+
+    const submitButton = screen.getByRole("button", { name: "创建节点" });
+    expect(submitButton).toBeDisabled();
+    await user.click(submitButton);
+    const form = submitButton.closest("form");
+    expect(form).not.toBeNull();
+    if (!form) {
+      throw new Error("menu dialog submit button must belong to a form");
+    }
+    fireEvent.submit(form);
+
+    expect(api.addMenu).not.toHaveBeenCalled();
+  });
+
+  it("keeps mutation actions disabled through configuration and authorized-menu refresh", async () => {
+    const user = userEvent.setup();
+    let resolveConfiguration: ((tree: MenuConfigurationNode[]) => void) | undefined;
+    let resolveAuthorizedMenus: (() => void) | undefined;
+    const configurationRefresh = new Promise<MenuConfigurationNode[]>((resolve) => {
+      resolveConfiguration = resolve;
+    });
+    const authorizedRefresh = new Promise<void>((resolve) => {
+      resolveAuthorizedMenus = resolve;
+    });
+    const api = createMenusApi({
+      getMenuConfiguration: vi.fn().mockReturnValue(configurationRefresh),
+    });
+    const onAuthorizedMenusRefresh = vi.fn().mockReturnValue(authorizedRefresh);
+    renderPage({ api, onAuthorizedMenusRefresh });
+
+    await user.click(screen.getByRole("button", { name: "上移 隐藏分组" }));
+    await waitFor(() => expect(api.getMenuConfiguration).toHaveBeenCalledOnce());
+    expect(screen.getByRole("button", { name: "上移 隐藏分组" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "新增根节点" })).toBeDisabled();
+
+    resolveConfiguration?.(reorderedMenuTree);
+    await waitFor(() => expect(onAuthorizedMenusRefresh).toHaveBeenCalledOnce());
+    expect(screen.getByRole("button", { name: "上移 系统管理" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "上移 系统管理" }));
+    expect(api.editMenuOrder).toHaveBeenCalledOnce();
+
+    resolveAuthorizedMenus?.();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "上移 系统管理" })).toBeEnabled(),
+    );
   });
 });

@@ -59,6 +59,7 @@ const ICONS: Record<MenuIconKey, LucideIcon> = {
 };
 
 type MenuFormDialogProps = {
+  busy: boolean;
   initialParentId?: number | null;
   node?: MenuConfigurationNode;
   open: boolean;
@@ -69,6 +70,7 @@ type MenuFormDialogProps = {
 };
 
 export function MenuFormDialog({
+  busy,
   initialParentId = null,
   node,
   open,
@@ -86,6 +88,10 @@ export function MenuFormDialog({
       onSubmit: menuFormDraftSchema,
     },
     onSubmit: async ({ value }) => {
+      if (busy) {
+        return;
+      }
+
       setSubmissionError(null);
       const parsed = menuFormDraftSchema.safeParse(value);
 
@@ -126,7 +132,9 @@ export function MenuFormDialog({
           onSubmit={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            void form.handleSubmit();
+            if (!busy) {
+              void form.handleSubmit();
+            }
           }}
         >
           <div className="grid gap-4 sm:grid-cols-2">
@@ -440,7 +448,7 @@ export function MenuFormDialog({
             </Button>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
-                <Button disabled={isSubmitting} type="submit">
+                <Button disabled={busy || isSubmitting} type="submit">
                   {isSubmitting ? "正在保存..." : isEditing ? "保存节点" : "创建节点"}
                 </Button>
               )}

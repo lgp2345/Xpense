@@ -331,6 +331,23 @@ function MenusPageAdapter({ input }: { input: RegisteredPageInput<typeof menusRo
       api={input.session.iamApi}
       permissions={permissions}
       routeOptions={MENU_ROUTE_OPTIONS}
+      onAuthorizedMenusRefresh={async () => {
+        const organizationId = input.session.authStore.getState().currentOrganization?.id;
+
+        if (!organizationId) {
+          throw new Error("Current organization is unavailable");
+        }
+
+        await input.session.menuStore
+          .getState()
+          .loadMenusForOrganization(organizationId, input.session.iamApi.getAuthorizedMenus);
+
+        const menuState = input.session.menuStore.getState();
+
+        if (menuState.status !== "ready" || menuState.organizationId !== organizationId) {
+          throw new Error("Authorized menus could not be synchronized");
+        }
+      }}
     />
   );
 }
