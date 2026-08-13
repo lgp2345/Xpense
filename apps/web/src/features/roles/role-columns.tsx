@@ -1,5 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
-import type { PermissionKey } from "@xpense/shared";
+import type { PermissionKey, PermissionTreeNode } from "@xpense/shared";
 import { DataTableColumnHeader } from "@/components/data-table";
 import {
   AlertDialog,
@@ -13,17 +13,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
-import type {
-  IamPermission,
-  IamRoleWithPermissions,
-  UpdateRoleRequest,
-} from "../../services/iam-api";
+import type { IamRoleWithPermissions, UpdateRoleRequest } from "../../services/iam-api";
 import { RoleEditorDialog, type RoleEditorInput } from "./role-editor-dialog";
 
 type RoleColumnsOptions = {
+  canUpdatePermissions: boolean;
   isMutating: boolean;
   permissions: readonly PermissionKey[];
-  permissionItems: IamPermission[];
+  permissionTree: readonly PermissionTreeNode[];
   onDelete: (roleId: string) => Promise<boolean>;
   onUpdate: (roleId: string, input: UpdateRoleRequest) => Promise<boolean>;
 };
@@ -32,22 +29,22 @@ type RoleColumnsOptions = {
 type RoleColumnDef = ColumnDef<any, IamRoleWithPermissions>;
 
 export function createRoleColumns({
+  canUpdatePermissions,
   isMutating,
   permissions,
-  permissionItems,
+  permissionTree,
   onDelete,
   onUpdate,
 }: RoleColumnsOptions): RoleColumnDef[] {
   const canUpdate = permissions.includes("roles:update");
   const canDelete = permissions.includes("roles:delete");
-  const canUpdatePermissions =
-    permissions.includes("permissions:read") && permissions.includes("roles:permissions:update");
 
   function getUpdateInput(input: RoleEditorInput): UpdateRoleRequest {
-    const request: UpdateRoleRequest = {
-      name: input.name,
-      description: input.description,
-    };
+    const request: UpdateRoleRequest = {};
+    if (canUpdate) {
+      request.name = input.name;
+      request.description = input.description;
+    }
     if (canUpdatePermissions) {
       request.permissionKeys = input.permissionKeys;
     }
@@ -85,15 +82,15 @@ export function createRoleColumns({
         const role = row.original;
         return (
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {role.isEditable && canUpdate ? (
+            {role.isEditable && (canUpdate || canUpdatePermissions) ? (
               <RoleEditorDialog
+                canEditMetadata={canUpdate}
                 canUpdatePermissions={canUpdatePermissions}
                 key={getRoleEditorKey(role)}
-                permissions={permissionItems}
+                permissionTree={permissionTree}
                 role={role}
                 triggerLabel={`编辑 ${role.name}`}
-                // biome-ignore lint/suspicious/noExplicitAny: type mismatch from existing component
-                onSubmit={(input: any) => onUpdate(role.id, getUpdateInput(input))}
+                onSubmit={(input) => onUpdate(role.id, getUpdateInput(input))}
               />
             ) : null}
             {role.isEditable && canDelete ? (

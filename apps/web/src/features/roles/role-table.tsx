@@ -18,7 +18,7 @@ import {
   tableFeatures,
   useTable,
 } from "@tanstack/react-table";
-import type { PermissionKey } from "@xpense/shared";
+import type { PermissionKey, PermissionTreeNode } from "@xpense/shared";
 import { useState } from "react";
 
 import { DataTablePagination, DataTableToolbar } from "@/components/data-table";
@@ -31,11 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type {
-  IamPermission,
-  IamRoleWithPermissions,
-  UpdateRoleRequest,
-} from "../../services/iam-api";
+import type { IamRoleWithPermissions, UpdateRoleRequest } from "../../services/iam-api";
 import { createRoleColumns } from "./role-columns";
 
 const roleTableFeatures = tableFeatures({
@@ -53,18 +49,20 @@ const roleTableFeatures = tableFeatures({
 });
 
 type RoleTableProps = {
+  canUpdatePermissions: boolean;
   isMutating: boolean;
   permissions: readonly PermissionKey[];
-  permissionItems: IamPermission[];
+  permissionTree: readonly PermissionTreeNode[];
   roles: IamRoleWithPermissions[];
   onDelete: (roleId: string) => Promise<boolean>;
   onUpdate: (roleId: string, input: UpdateRoleRequest) => Promise<boolean>;
 };
 
 export function RoleTable({
+  canUpdatePermissions,
   isMutating,
   permissions,
-  permissionItems,
+  permissionTree,
   roles,
   onDelete,
   onUpdate,
@@ -78,9 +76,10 @@ export function RoleTable({
   });
 
   const columns = createRoleColumns({
+    canUpdatePermissions,
     isMutating,
     permissions,
-    permissionItems,
+    permissionTree,
     onDelete,
     onUpdate,
   });

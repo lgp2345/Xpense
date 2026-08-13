@@ -1,4 +1,5 @@
 import { useForm } from "@tanstack/react-form";
+import type { PermissionTreeNode } from "@xpense/shared";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -13,19 +14,28 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { IamPermission, IamRoleWithPermissions } from "../../services/iam-api";
-import { PermissionMatrix } from "./permission-matrix";
+import type { IamRoleWithPermissions } from "../../services/iam-api";
+import { PermissionTree } from "./permission-tree";
+import { collectTreePermissionKeys } from "./permission-tree-state";
 import { createRoleFormSchema, type RoleFormValues, toRoleSlug } from "./role-form-schema";
 
 export type RoleEditorInput = RoleFormValues;
 
 type RoleEditorDialogProps = {
+  canEditMetadata?: boolean;
   canUpdatePermissions: boolean;
-  permissions: IamPermission[];
+  permissionTree: readonly PermissionTreeNode[];
   role?: IamRoleWithPermissions;
   triggerLabel: string;
   onSubmit: (input: RoleEditorInput) => Promise<boolean>;
 };
+
+export class RoleEditorSaveError extends Error {
+  constructor(readonly operation: "basic-info" | "permissions") {
+    super(operation);
+    this.name = "RoleEditorSaveError";
+  }
+}
 
 function getValidationMessage(error: unknown): string | undefined {
   if (typeof error === "string") {
@@ -57,8 +67,9 @@ function getValidationMessage(error: unknown): string | undefined {
 }
 
 export function RoleEditorDialog({
+  canEditMetadata = true,
   canUpdatePermissions,
-  permissions,
+  permissionTree,
   role,
   triggerLabel,
   onSubmit,
@@ -66,13 +77,16 @@ export function RoleEditorDialog({
   const [open, setOpen] = useState(false);
   const isEditing = role !== undefined;
   const isEditable = role?.isEditable ?? true;
+  const grantablePermissionKeys = new Set(collectTreePermissionKeys(permissionTree));
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const form = useForm({
     defaultValues: {
       key: role?.key ?? "",
       name: role?.name ?? "",
       description: role?.description ?? "",
-      permissionKeys: role?.permissionKeys ?? [],
+      permissionKeys: (role?.permissionKeys ?? []).filter((permissionKey) =>
+        grantablePermissionKeys.has(permissionKey),
+      ),
     },
     validators: {
       onChange: createRoleFormSchema(isEditing),
@@ -81,12 +95,30 @@ export function RoleEditorDialog({
     onSubmit: async ({ value }) => {
       setSubmissionError(null);
 
-      const didSave = await onSubmit({
-        key: isEditing ? value.key : toRoleSlug(value.key),
-        name: value.name.trim(),
-        description: value.description.trim(),
-        permissionKeys: value.permissionKeys,
-      });
+      let didSave: boolean;
+
+      try {
+        didSave = await onSubmit({
+          key: isEditing ? value.key : toRoleSlug(value.key),
+          name: value.name.trim(),
+          description: value.description.trim(),
+          permissionKeys: value.permissionKeys,
+        });
+      } catch (error) {
+        if (error instanceof RoleEditorSaveError) {
+          setSubmissionError(
+            error.operation === "basic-info"
+              ? "角色基本信息保存失败，请稍后重试。"
+              : canEditMetadata
+                ? "角色基本信息已保存，但权限保存失败，请稍后重试。"
+                : "角色权限保存失败，请稍后重试。",
+          );
+          return;
+        }
+
+        setSubmissionError(isEditing ? "更新角色失败，请稍后重试。" : "新增角色失败，请稍后重试。");
+        return;
+      }
 
       if (!didSave) {
         setSubmissionError(isEditing ? "更新角色失败，请稍后重试。" : "新增角色失败，请稍后重试。");
@@ -132,7 +164,8 @@ export function RoleEditorDialog({
                       autoComplete="off"
                       id={field.name}
                       placeholder="例如 bookkeeper"
-                      readOnly={isEditing || !isEditable}
+                      disabled={(isEditing && !canEditMetadata) || !isEditable}
+                      readOnly={isEditing}
                       value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(event) => field.handleChange(event.target.value)}
@@ -161,7 +194,7 @@ export function RoleEditorDialog({
                       autoComplete="off"
                       id={field.name}
                       placeholder="输入角色名称"
-                      readOnly={!isEditable}
+                      disabled={!canEditMetadata || !isEditable}
                       value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(event) => field.handleChange(event.target.value)}
@@ -186,7 +219,7 @@ export function RoleEditorDialog({
                   autoComplete="off"
                   id={field.name}
                   placeholder="说明该角色的职责"
-                  readOnly={!isEditable}
+                  disabled={!canEditMetadata || !isEditable}
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(event) => field.handleChange(event.target.value)}
@@ -195,23 +228,24 @@ export function RoleEditorDialog({
             )}
           </form.Field>
 
-          <div>
-            <h3 className="text-base font-medium">权限</h3>
-            <p className="mt-1 text-sm text-muted-foreground">选择该角色可使用的功能权限。</p>
-            <div className="mt-3">
-              <form.Field name="permissionKeys">
-                {(field) => (
-                  <PermissionMatrix
-                    canUpdatePermissions={canUpdatePermissions}
-                    isEditable={isEditable}
-                    permissions={permissions}
-                    selected={field.state.value}
-                    onChange={(next) => field.handleChange(next)}
-                  />
-                )}
-              </form.Field>
+          {canUpdatePermissions ? (
+            <div>
+              <h3 className="text-base font-medium">权限</h3>
+              <p className="mt-1 text-sm text-muted-foreground">选择该角色可使用的功能权限。</p>
+              <div className="mt-3">
+                <form.Field name="permissionKeys" mode="array">
+                  {(field) => (
+                    <PermissionTree
+                      disabled={!isEditable}
+                      nodes={permissionTree}
+                      selected={field.state.value}
+                      onChange={(next) => field.handleChange(next)}
+                    />
+                  )}
+                </form.Field>
+              </div>
             </div>
-          </div>
+          ) : null}
 
           {submissionError ? (
             <p className="text-sm text-destructive" role="alert">
