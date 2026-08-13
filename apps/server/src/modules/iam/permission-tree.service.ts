@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { PermissionTreeNode } from "@xpense/shared";
+import type { PermissionKey, PermissionTreeNode } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
@@ -12,7 +12,8 @@ import { DatabaseTransactionService } from "../../db/database-transaction.servic
 import { AuditService } from "../audit/audit.service.js";
 import type { EditRolePermissionsDto } from "./dto/edit-role-permissions.dto.js";
 import { IamRepository } from "./iam.repository.js";
-import { MenuRepository } from "./menu.repository.js";
+import type { IamPermission } from "./iam.types.js";
+import { MenuRepository, type MenuRow } from "./menu.repository.js";
 import {
   buildPermissionTree,
   completePermissionSelection,
@@ -33,14 +34,13 @@ export class PermissionTreeService {
       this.menuRepository.listByOrganizationId(authContext.organizationId),
       this.repository.listPermissions(),
     ]);
-    const withinCeiling = authContext.isSuperAdmin
-      ? permissions
-      : permissions.filter((permission) => authContext.permissions.includes(permission.key));
-    const manageableCodes = new Set(withinCeiling.map((permission) => permission.key));
-    const manageablePermissions = withinCeiling.filter((permission) =>
-      completePermissionSelection(rows, [permission.key]).every((required) =>
-        manageableCodes.has(required),
-      ),
+    const manageablePermissionKeys = getActuallyGrantablePermissionKeys(
+      rows,
+      permissions,
+      authContext,
+    );
+    const manageablePermissions = permissions.filter((permission) =>
+      manageablePermissionKeys.has(permission.key),
     );
 
     return buildPermissionTree(rows, manageablePermissions);
@@ -61,11 +61,7 @@ export class PermissionTreeService {
       throw this.badRequest("请求包含不存在的权限");
     }
 
-    const manageable = new Set(
-      authContext.isSuperAdmin
-        ? permissions.map((permission) => permission.key)
-        : authContext.permissions,
-    );
+    const manageable = getActuallyGrantablePermissionKeys(rows, permissions, authContext);
 
     if (requested.some((permissionCode) => !manageable.has(permissionCode))) {
       throw new ForbiddenException({
@@ -152,4 +148,26 @@ export class PermissionTreeService {
       message,
     });
   }
+}
+
+function getActuallyGrantablePermissionKeys(
+  rows: readonly MenuRow[],
+  permissions: readonly IamPermission[],
+  authContext: AuthContext,
+): Set<PermissionKey> {
+  const ceiling = new Set(
+    authContext.isSuperAdmin
+      ? permissions.map((permission) => permission.key)
+      : authContext.permissions,
+  );
+
+  return new Set(
+    permissions
+      .filter((permission) =>
+        completePermissionSelection(rows, [permission.key]).every((required) =>
+          ceiling.has(required),
+        ),
+      )
+      .map((permission) => permission.key),
+  );
 }

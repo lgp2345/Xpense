@@ -83,6 +83,89 @@ const allPermissions = [
   },
 ];
 
+const rolePermissionChain = [
+  {
+    id: 10,
+    organizationId: "organization-1",
+    type: "menu" as const,
+    name: "菜单管理",
+    parentId: null,
+    routeKey: "Menus",
+    path: null,
+    icon: "Shield",
+    permissionCode: "menus:read",
+    isExternal: false,
+    isVisible: true,
+    keepAlive: false,
+    sortOrder: 10,
+  },
+  {
+    id: 11,
+    organizationId: "organization-1",
+    type: "menu" as const,
+    name: "角色管理",
+    parentId: 10,
+    routeKey: "Roles",
+    path: null,
+    icon: "Shield",
+    permissionCode: "roles:read",
+    isExternal: false,
+    isVisible: true,
+    keepAlive: false,
+    sortOrder: 11,
+  },
+  {
+    id: 12,
+    organizationId: "organization-1",
+    type: "button" as const,
+    name: "编辑角色",
+    parentId: 11,
+    routeKey: null,
+    path: null,
+    icon: null,
+    permissionCode: "roles:update",
+    isExternal: null,
+    isVisible: null,
+    keepAlive: null,
+    sortOrder: 12,
+  },
+];
+
+const roleChainPermissions = [
+  {
+    id: "permission-menus-read",
+    key: "menus:read" as const,
+    name: "查看菜单",
+    resource: "menus",
+    action: "read",
+    description: "",
+  },
+  {
+    id: "permission-roles-read",
+    key: "roles:read" as const,
+    name: "查看角色",
+    resource: "roles",
+    action: "read",
+    description: "",
+  },
+  {
+    id: "permission-roles-update",
+    key: "roles:update" as const,
+    name: "编辑角色",
+    resource: "roles",
+    action: "update",
+    description: "",
+  },
+  {
+    id: "permission-roles-permissions-update",
+    key: "roles:permissions:update" as const,
+    name: "编辑角色权限",
+    resource: "roles",
+    action: "permissions:update",
+    description: "",
+  },
+];
+
 function createHarness(options: { auditFails?: boolean; role?: typeof editableRole | null } = {}) {
   const committed = {
     permissions: ["members:read", "transactions:delete"] as PermissionKey[],
@@ -176,6 +259,60 @@ describe("PermissionTreeService", () => {
     const result = await service.getPermissionTree({ ...authContext, isSuperAdmin: true });
 
     expect(JSON.stringify(result)).toContain("transactions:delete");
+  });
+
+  it("preserves an existing deep permission that the tree correctly hides from the actor", async () => {
+    const { auditService, committed, menuRepository, repository, service } = createHarness();
+    const actor: AuthContext = {
+      ...authContext,
+      permissions: ["roles:permissions:update", "roles:update"],
+    };
+    committed.permissions = ["menus:read", "roles:read", "roles:update"];
+    menuRepository.listByOrganizationId.mockResolvedValue(rolePermissionChain);
+    repository.listPermissions.mockResolvedValue(roleChainPermissions);
+
+    const tree = await service.getPermissionTree(actor);
+
+    expect(JSON.stringify(tree)).not.toContain("roles:update");
+    await expect(
+      service.editRolePermissions(actor, { roleId: "role-1", permissionKeys: [] }),
+    ).resolves.toBeUndefined();
+    expect(committed.permissions).toEqual(["menus:read", "roles:read", "roles:update"]);
+    expect(repository.replaceRolePermissions).toHaveBeenCalledWith(
+      {
+        roleId: "role-1",
+        permissionKeys: ["menus:read", "roles:read", "roles:update"],
+      },
+      expect.anything(),
+    );
+    expect(auditService.appendRequired).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: {
+          manageableBefore: [],
+          manageableAfter: [],
+        },
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("allows an actor to remove an existing permission in the actual grantable set", async () => {
+    const { committed, repository, service } = createHarness();
+    committed.permissions = ["members:read", "members:create", "transactions:delete"];
+
+    await service.editRolePermissions(authContext, {
+      roleId: "role-1",
+      permissionKeys: ["members:read"],
+    });
+
+    expect(committed.permissions).toEqual(["members:read", "transactions:delete"]);
+    expect(repository.replaceRolePermissions).toHaveBeenCalledWith(
+      {
+        roleId: "role-1",
+        permissionKeys: ["members:read", "transactions:delete"],
+      },
+      expect.anything(),
+    );
   });
 
   it("locks the organization-scoped role and permission rows before replacing only the manageable subset", async () => {
