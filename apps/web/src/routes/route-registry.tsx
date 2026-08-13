@@ -5,13 +5,16 @@ import {
   notFound,
   Outlet,
   redirect,
-  type UseNavigateResult,
 } from "@tanstack/react-router";
-import { ROUTE_DEFINITIONS, type RouteKey } from "@xpense/shared";
+import { type AuthorizedMenuNode, ROUTE_DEFINITIONS, type RouteKey } from "@xpense/shared";
 import { lazy, type ReactNode, Suspense } from "react";
 import { useStore } from "zustand";
 
-import { AuthenticatedLayout } from "../components/layout/authenticated-layout";
+import {
+  AuthenticatedLayout,
+  type CapturedRegisteredPageInput,
+} from "../components/layout/authenticated-layout";
+import type { RegisteredPageInput } from "../components/layout/page-cache-host";
 import type { AuditLogSearch } from "../features/audit/audit-log-filters";
 import { ApiError } from "../services/api-client";
 import type { WebSessionDependency } from "../services/web-session";
@@ -33,14 +36,8 @@ const AuditLogsPage = lazy(() =>
 );
 
 export type AppRouterContext = {
+  registeredMenu?: AuthorizedMenuNode;
   session: WebSessionDependency;
-};
-
-export type RegisteredPageInput<TRoute extends AnyRoute> = {
-  session: WebSessionDependency;
-  params: TRoute["types"]["allParams"];
-  search: TRoute["types"]["fullSearchSchema"];
-  navigate: UseNavigateResult<TRoute["fullPath"]>;
 };
 
 export type WebRouteRegistration<TRoute extends AnyRoute = AnyRoute> = {
@@ -74,18 +71,18 @@ export const authenticatedRoute = createRoute({
   component: AuthenticatedRoutePage,
 });
 
-const dashboardRoute = createRegisteredRoute("Dashboard", DashboardRoutePage);
-const membersRoute = createRegisteredRoute("Members", MembersRoutePage);
-const rolesRoute = createRegisteredRoute("Roles", RolesRoutePage);
-const sessionsRoute = createRegisteredRoute("Sessions", SessionsRoutePage);
-const menusRoute = createRegisteredRoute("Menus", MenusRoutePage);
+const dashboardRoute = createRegisteredRoute("Dashboard");
+const membersRoute = createRegisteredRoute("Members");
+const rolesRoute = createRegisteredRoute("Roles");
+const sessionsRoute = createRegisteredRoute("Sessions");
+const menusRoute = createRegisteredRoute("Menus");
 const auditLogsRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: ROUTE_DEFINITIONS.AuditLogs.path,
   staticData: { routeKey: "AuditLogs" },
   beforeLoad: ({ context, location }) =>
     requireRegisteredRouteAccess(context, location, "AuditLogs"),
-  component: AuditLogsRoutePage,
+  component: RegisteredRouteLeaf,
   pendingComponent: RouteAccessPending,
   pendingMs: 0,
   validateSearch: validateAuditLogSearch,
@@ -130,17 +127,14 @@ function defineRouteRegistration<TRoute extends AnyRoute>(
   return registration;
 }
 
-function createRegisteredRoute<const Key extends Exclude<RouteKey, "AuditLogs">>(
-  routeKey: Key,
-  component: () => ReactNode,
-) {
+function createRegisteredRoute<const Key extends Exclude<RouteKey, "AuditLogs">>(routeKey: Key) {
   return createRoute({
     getParentRoute: () => authenticatedRoute,
     path: ROUTE_DEFINITIONS[routeKey].path,
     staticData: { routeKey },
     beforeLoad: ({ context, location }) =>
       requireRegisteredRouteAccess(context, location, routeKey),
-    component,
+    component: RegisteredRouteLeaf,
     pendingComponent: RouteAccessPending,
     pendingMs: 0,
   });
@@ -167,7 +161,7 @@ async function requireRegisteredRouteAccess(
   context: AppRouterContext,
   location: RouteGuardLocation,
   routeKey: RouteKey,
-): Promise<void> {
+): Promise<{ registeredMenu?: AuthorizedMenuNode }> {
   requireAuthenticatedRouteAccess(context, location);
 
   const { session } = context;
@@ -184,11 +178,13 @@ async function requireRegisteredRouteAccess(
   }
 
   if (menuState.status !== "ready" || menuState.organizationId !== organizationId) {
-    return;
+    return {};
   }
 
-  if (menuState.getAuthorizedRoute(routeKey)) {
-    return;
+  const registeredMenu = menuState.getAuthorizedRoute(routeKey);
+
+  if (registeredMenu) {
+    return { registeredMenu };
   }
 
   try {
@@ -197,6 +193,8 @@ async function requireRegisteredRouteAccess(
     if (resolvedRoute.routeKey !== routeKey) {
       throw notFound();
     }
+
+    return { registeredMenu: resolvedRoute };
   } catch (error) {
     if (error instanceof ApiError && error.status === 403) {
       throw redirect({ to: "/forbidden" });
@@ -208,47 +206,37 @@ async function requireRegisteredRouteAccess(
   }
 }
 
-function useRegisteredPageInput<TRoute extends AnyRoute>(
-  route: TRoute,
-): RegisteredPageInput<TRoute> {
-  const { session } = route.useRouteContext() as AppRouterContext;
-
-  return {
-    session,
-    params: route.useParams(),
-    search: route.useSearch(),
-    navigate: route.useNavigate(),
-  };
-}
-
 function AuthenticatedRoutePage() {
   const { session } = authenticatedRoute.useRouteContext();
 
-  return <AuthenticatedLayout session={session} />;
+  return <AuthenticatedLayout renderRegisteredPage={renderRegisteredPage} session={session} />;
 }
 
-function DashboardRoutePage(): ReactNode {
-  return ROUTE_REGISTRY.Dashboard.render(useRegisteredPageInput(dashboardRoute));
+function RegisteredRouteLeaf(): null {
+  return null;
 }
 
-function MembersRoutePage(): ReactNode {
-  return ROUTE_REGISTRY.Members.render(useRegisteredPageInput(membersRoute));
+function renderRegisteredPage(input: CapturedRegisteredPageInput): ReactNode {
+  switch (input.routeKey) {
+    case "Dashboard":
+      return ROUTE_REGISTRY.Dashboard.render(toRegisteredPageInput(input));
+    case "Members":
+      return ROUTE_REGISTRY.Members.render(toRegisteredPageInput(input));
+    case "Roles":
+      return ROUTE_REGISTRY.Roles.render(toRegisteredPageInput(input));
+    case "Sessions":
+      return ROUTE_REGISTRY.Sessions.render(toRegisteredPageInput(input));
+    case "AuditLogs":
+      return ROUTE_REGISTRY.AuditLogs.render(toRegisteredPageInput(input));
+    case "Menus":
+      return ROUTE_REGISTRY.Menus.render(toRegisteredPageInput(input));
+  }
 }
 
-function RolesRoutePage(): ReactNode {
-  return ROUTE_REGISTRY.Roles.render(useRegisteredPageInput(rolesRoute));
-}
-
-function SessionsRoutePage(): ReactNode {
-  return ROUTE_REGISTRY.Sessions.render(useRegisteredPageInput(sessionsRoute));
-}
-
-function AuditLogsRoutePage(): ReactNode {
-  return ROUTE_REGISTRY.AuditLogs.render(useRegisteredPageInput(auditLogsRoute));
-}
-
-function MenusRoutePage(): ReactNode {
-  return ROUTE_REGISTRY.Menus.render(useRegisteredPageInput(menusRoute));
+function toRegisteredPageInput<TRoute extends AnyRoute>(
+  input: CapturedRegisteredPageInput,
+): RegisteredPageInput<TRoute> {
+  return input as unknown as RegisteredPageInput<TRoute>;
 }
 
 function MembersPageAdapter({ input }: { input: RegisteredPageInput<typeof membersRoute> }) {
