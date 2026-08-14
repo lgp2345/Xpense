@@ -449,7 +449,7 @@ BEGIN
       INTO mapped_parent_id
       FROM "menus_next"
       WHERE "organization_id" = organization_row."id"
-        AND "route_key" = button_row."parent_route_key";
+        AND "menus_next"."route_key" = button_row."parent_route_key";
 
       IF mapped_parent_id IS NOT NULL THEN
         INSERT INTO "menus_next" (
@@ -505,7 +505,7 @@ BEGIN
     SELECT COUNT(*)
     FROM "menus_next"
     WHERE "type" = 'menu'
-      AND "route_key" = 'Menus'
+      AND "menus_next"."route_key" = 'Menus'
       AND "permission_code" = 'menus:read'
       AND "is_external" IS FALSE
   ) <> organization_count THEN
@@ -554,7 +554,7 @@ BEGIN
     FROM "menus_next"
     WHERE "type" = 'menu'
       AND "is_external" IS FALSE
-      AND "route_key" IS NULL
+      AND "menus_next"."route_key" IS NULL
   ) THEN
     RAISE EXCEPTION 'Menu migration route mapping mismatch';
   END IF;

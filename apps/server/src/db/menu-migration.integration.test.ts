@@ -157,7 +157,9 @@ describe("organization menu UUID-to-identity migration contract", () => {
       "A missing legacy access-control directory leaves menu management at the root.",
     );
     expect(source).not.toMatch(/AND "route_key" = 'Roles';/);
-    expect(source).toMatch(/"route_key" = button_row\."parent_route_key"/);
+    expect(source).toMatch(/"menus_next"\."route_key" = button_row\."parent_route_key"/);
+    expect(source).toMatch(/"menus_next"\."route_key" = 'Menus'/);
+    expect(source).toMatch(/"menus_next"\."route_key" IS NULL/);
     expect(source).toMatch(/RAISE EXCEPTION 'Menu migration management menu count mismatch'/);
     expect(source).toMatch(/RAISE EXCEPTION 'Menu migration management parent mismatch'/);
     expect(source).toMatch(/RAISE EXCEPTION 'Menu migration management button count mismatch'/);
