@@ -18,6 +18,18 @@
 - migration 必须和 schema 变更一起提交
 - 业务接口不得绕过认证和用户作用域校验
 
+## API 接口风格
+
+- 接口统一采用动作式路径，不使用 RESTful 的资源-方法映射：
+  - 读接口：`GET /{resource}/list`
+  - 写接口：`POST /{resource}/create`、`POST /{resource}/update`、`POST /{resource}/delete`
+  - 写操作一律 POST，HTTP 状态码统一 200
+  - update/delete 的资源 id 一律放请求 body（如 `{ id, ...fields }`），不放路径参数
+  - 接口动词与 RBAC 权限 key 对齐（`members:create` ↔ `POST /members/create`）
+- 例外：当前用户范围接口（`GET /user`、`GET /auth/sessions`、`GET /user/organizations`、`GET /menus`）与 auth 动作类接口（login/refresh/logout/revoke/current-organization）保持路径现状，不套用上述模板。
+- 前端路由 path（seed-rbac 中 `path` 字段）与 API 路径是两回事，互不影响。
+- 新增资源接口遵循上述模板，需要例外时先在评审中说明理由。
+
 ## NestJS 技能规范
 
 - 编写、评审或重构 NestJS module、controller、service、repository、guard、pipe、filter、interceptor 和后台任务时，必须使用 `$nestjs-best-practices` 进行约束检查

@@ -233,7 +233,7 @@ describe("IamService", () => {
   it("updates a member role in the current organization", async () => {
     const { repository, service, transaction } = createHarness();
 
-    await service.updateMember(authContext, "member-1", { roleId: "role-next" });
+    await service.updateMember(authContext, { id: "member-1", roleId: "role-next" });
 
     expect(repository.updateMember).toHaveBeenCalledWith(
       {
@@ -249,7 +249,7 @@ describe("IamService", () => {
   it("revokes current-organization sessions when disabling a member", async () => {
     const { repository, service, transaction } = createHarness();
 
-    await service.updateMember(authContext, "member-1", { status: "disabled" });
+    await service.updateMember(authContext, { id: "member-1", status: "disabled" });
 
     expect(repository.revokeActiveSessionsForUserInOrganization).toHaveBeenCalledWith(
       "user-1",
@@ -265,7 +265,7 @@ describe("IamService", () => {
         executor ? activeMember : { ...activeMember, status: "disabled" as const },
     );
 
-    await service.updateMember(authContext, "member-1", { status: "disabled" });
+    await service.updateMember(authContext, { id: "member-1", status: "disabled" });
 
     expect(repository.findMemberById).toHaveBeenCalledWith("org-1", "member-1", transaction, true);
     expect(repository.revokeActiveSessionsForUserInOrganization).toHaveBeenCalledWith(
@@ -279,7 +279,7 @@ describe("IamService", () => {
     const { repository, service } = createHarness();
     repository.findMemberById.mockResolvedValue({ ...activeMember, status: "disabled" });
 
-    await service.updateMember(authContext, "member-1", { status: "active" });
+    await service.updateMember(authContext, { id: "member-1", status: "active" });
 
     expect(repository.revokeActiveSessionsForUserInOrganization).not.toHaveBeenCalled();
   });
@@ -292,7 +292,7 @@ describe("IamService", () => {
     };
 
     await expect(
-      service.updateMember(withoutMemberUpdate, "member-1", { roleId: "role-next" }),
+      service.updateMember(withoutMemberUpdate, { id: "member-1", roleId: "role-next" }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(repository.updateMember).not.toHaveBeenCalled();
@@ -309,7 +309,7 @@ describe("IamService", () => {
     };
 
     await expect(
-      service.updateMember(withoutStatusPermission, "member-1", { status }),
+      service.updateMember(withoutStatusPermission, { id: "member-1", status }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(accessService.assertPermission).toHaveBeenCalledWith(
@@ -327,7 +327,7 @@ describe("IamService", () => {
     };
 
     await expect(
-      service.updateMember(statusOnlyContext, "member-1", { status: "disabled" }),
+      service.updateMember(statusOnlyContext, { id: "member-1", status: "disabled" }),
     ).resolves.toEqual(activeMember);
   });
 
@@ -339,7 +339,8 @@ describe("IamService", () => {
     };
 
     await expect(
-      service.updateMember(roleOnlyContext, "member-1", {
+      service.updateMember(roleOnlyContext, {
+        id: "member-1",
         roleId: "role-next",
         status: "disabled",
       }),
@@ -410,16 +411,17 @@ describe("IamService", () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     await expect(
-      service.updateRole(withoutPermissionUpdate, "role-custom", { permissionKeys: [] }),
+      service.updateRole(withoutPermissionUpdate, { id: "role-custom", permissionKeys: [] }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(repository.createRole).not.toHaveBeenCalled();
     expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
 
     await expect(
-      service.updateRole({ ...withoutPermissionUpdate, isSuperAdmin: true }, "role-custom", {
-        permissionKeys: [],
-      }),
+      service.updateRole(
+        { ...withoutPermissionUpdate, isSuperAdmin: true },
+        { id: "role-custom", permissionKeys: [] },
+      ),
     ).resolves.toEqual(editableRole);
 
     expect(repository.replaceRolePermissions).toHaveBeenCalledWith(
@@ -457,7 +459,8 @@ describe("IamService", () => {
     };
 
     await expect(
-      service.updateRole(limitedContext, "role-custom", {
+      service.updateRole(limitedContext, {
+        id: "role-custom",
         permissionKeys: ["transactions:delete"],
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -489,7 +492,7 @@ describe("IamService", () => {
     };
 
     await expect(
-      service.updateMember(limitedContext, "member-1", { roleId: "role-next" }),
+      service.updateMember(limitedContext, { id: "member-1", roleId: "role-next" }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(repository.updateMember).not.toHaveBeenCalled();
@@ -543,7 +546,7 @@ describe("IamService", () => {
     const { service, state } = createRollbackHarness();
 
     await expect(
-      service.updateMember(authContext, "member-1", { roleId: "role-next" }),
+      service.updateMember(authContext, { id: "member-1", roleId: "role-next" }),
     ).rejects.toThrow("audit unavailable");
 
     expect(state.memberRoleId).toBe("role-custom");
@@ -567,7 +570,7 @@ describe("IamService", () => {
     const { service, state } = createRollbackHarness();
 
     await expect(
-      service.updateRole(authContext, "role-custom", { name: "Ledger Owner" }),
+      service.updateRole(authContext, { id: "role-custom", name: "Ledger Owner" }),
     ).rejects.toThrow("audit unavailable");
 
     expect(state.roleName).toBe("Bookkeeper");
@@ -576,7 +579,7 @@ describe("IamService", () => {
   it("rolls back role deletion when its required audit write fails", async () => {
     const { service, state } = createRollbackHarness();
 
-    await expect(service.deleteRole(authContext, "role-custom")).rejects.toThrow(
+    await expect(service.deleteRole(authContext, { id: "role-custom" })).rejects.toThrow(
       "audit unavailable",
     );
 
@@ -601,16 +604,15 @@ describe("IamService", () => {
     repository.findRoleById.mockResolvedValue(protectedRole);
 
     await expect(
-      service.updateRole(authContext, "role-owner", {
-        name: "Owner Plus",
-      }),
+      service.updateRole(authContext, { id: "role-owner", name: "Owner Plus" }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("updates editable role details and permissions", async () => {
     const { repository, service, transaction } = createHarness();
 
-    await service.updateRole(authContext, "role-custom", {
+    await service.updateRole(authContext, {
+      id: "role-custom",
       name: "Ledger Owner",
       permissionKeys: ["transactions:read"],
     });
@@ -637,14 +639,14 @@ describe("IamService", () => {
     const { repository, service } = createHarness();
     repository.findRoleById.mockResolvedValueOnce(protectedRole);
 
-    await expect(service.deleteRole(authContext, "role-owner")).rejects.toBeInstanceOf(
+    await expect(service.deleteRole(authContext, { id: "role-owner" })).rejects.toBeInstanceOf(
       ForbiddenException,
     );
 
     repository.findRoleById.mockResolvedValue(editableRole);
     repository.countMembersUsingRole.mockResolvedValue(1);
 
-    await expect(service.deleteRole(authContext, "role-custom")).rejects.toBeInstanceOf(
+    await expect(service.deleteRole(authContext, { id: "role-custom" })).rejects.toBeInstanceOf(
       ConflictException,
     );
   });
@@ -652,7 +654,7 @@ describe("IamService", () => {
   it("deletes editable unassigned roles from the current organization", async () => {
     const { repository, service, transaction } = createHarness();
 
-    await expect(service.deleteRole(authContext, "role-custom")).resolves.toBeUndefined();
+    await expect(service.deleteRole(authContext, { id: "role-custom" })).resolves.toBeUndefined();
 
     expect(repository.deleteRole).toHaveBeenCalledWith("org-1", "role-custom", transaction);
   });
@@ -670,10 +672,10 @@ describe("IamService", () => {
     repository.findMemberById.mockResolvedValueOnce(null);
     repository.findRoleById.mockResolvedValueOnce(null);
 
-    await expect(service.updateMember(authContext, "missing-member", {})).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
-    await expect(service.updateRole(authContext, "missing-role", {})).rejects.toBeInstanceOf(
+    await expect(
+      service.updateMember(authContext, { id: "missing-member" }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.updateRole(authContext, { id: "missing-role" })).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });

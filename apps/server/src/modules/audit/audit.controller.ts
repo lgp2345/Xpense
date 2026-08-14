@@ -14,7 +14,7 @@ import { ListAuditLogsDto } from "./dto/list-audit-logs.dto.js";
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
-  @Get()
+  @Get("list")
   @RequirePermission("audit_logs:read")
   listCurrentOrganizationLogs(
     @CurrentAuthContext() authContext: AuthContext,

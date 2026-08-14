@@ -240,7 +240,8 @@ function createSession(input: {
   refreshTokenHash: string;
   clientType?: ClientType;
 }): AuthRefreshSession {
-  const now = new Date("2026-07-09T00:00:00.000Z");
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
   return {
     id: input.id,
@@ -249,7 +250,7 @@ function createSession(input: {
     clientType: input.clientType ?? "web_pc",
     refreshTokenHash: input.refreshTokenHash,
     status: "active",
-    expiresAt: new Date("2026-08-09T00:00:00.000Z"),
+    expiresAt,
     rotatedAt: null,
     revokedAt: null,
     lastUsedAt: null,

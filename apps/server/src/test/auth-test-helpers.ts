@@ -47,7 +47,7 @@ export async function login(app: InjectableApp, email: string): Promise<AuthToke
     },
   });
 
-  if (response.statusCode !== 201) {
+  if (response.statusCode !== 200) {
     throw new Error(`Login failed: ${response.statusCode} ${response.payload}`);
   }
 

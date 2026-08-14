@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, UseGuards } from "@nestjs/common";
 
 import type { MenuItem } from "@xpense/shared";
 
@@ -7,6 +7,7 @@ import { CurrentAuthContext } from "../../common/auth/current-auth-context.decor
 import { RequirePermission } from "./decorators/require-permission.decorator.js";
 import { CreateMemberDto } from "./dto/create-member.dto.js";
 import { CreateRoleDto } from "./dto/create-role.dto.js";
+import { DeleteRoleDto } from "./dto/delete-role.dto.js";
 import { UpdateMemberDto } from "./dto/update-member.dto.js";
 import { UpdateRoleDto } from "./dto/update-role.dto.js";
 import { AuthGuard } from "./guards/auth.guard.js";
@@ -19,13 +20,14 @@ import type { IamMember, IamPermission, IamRole, IamRoleWithPermissions } from "
 export class IamController {
   constructor(private readonly iamService: IamService) {}
 
-  @Get("members")
+  @Get("members/list")
   @RequirePermission("members:read")
   listMembers(@CurrentAuthContext() authContext: AuthContext): Promise<IamMember[]> {
     return this.iamService.listMembers(authContext);
   }
 
-  @Post("members")
+  @Post("members/create")
+  @HttpCode(200)
   @RequirePermission("members:create")
   createMember(
     @CurrentAuthContext() authContext: AuthContext,
@@ -34,22 +36,23 @@ export class IamController {
     return this.iamService.createMember(authContext, dto);
   }
 
-  @Patch("members/:memberId")
+  @Post("members/update")
+  @HttpCode(200)
   updateMember(
     @CurrentAuthContext() authContext: AuthContext,
-    @Param("memberId") memberId: string,
     @Body() dto: UpdateMemberDto,
   ): Promise<IamMember> {
-    return this.iamService.updateMember(authContext, memberId, dto);
+    return this.iamService.updateMember(authContext, dto);
   }
 
-  @Get("roles")
+  @Get("roles/list")
   @RequirePermission("roles:read")
   listRoles(@CurrentAuthContext() authContext: AuthContext): Promise<IamRoleWithPermissions[]> {
     return this.iamService.listRoles(authContext);
   }
 
-  @Post("roles")
+  @Post("roles/create")
+  @HttpCode(200)
   @RequirePermission("roles:create")
   createRole(
     @CurrentAuthContext() authContext: AuthContext,
@@ -58,23 +61,24 @@ export class IamController {
     return this.iamService.createRole(authContext, dto);
   }
 
-  @Patch("roles/:roleId")
+  @Post("roles/update")
+  @HttpCode(200)
   @RequirePermission("roles:update")
   updateRole(
     @CurrentAuthContext() authContext: AuthContext,
-    @Param("roleId") roleId: string,
     @Body() dto: UpdateRoleDto,
   ): Promise<IamRole> {
-    return this.iamService.updateRole(authContext, roleId, dto);
+    return this.iamService.updateRole(authContext, dto);
   }
 
-  @Delete("roles/:roleId")
+  @Post("roles/delete")
+  @HttpCode(200)
   @RequirePermission("roles:delete")
   deleteRole(
     @CurrentAuthContext() authContext: AuthContext,
-    @Param("roleId") roleId: string,
+    @Body() dto: DeleteRoleDto,
   ): Promise<void> {
-    return this.iamService.deleteRole(authContext, roleId);
+    return this.iamService.deleteRole(authContext, dto);
   }
 
   @Get("menus")
@@ -82,7 +86,7 @@ export class IamController {
     return this.iamService.getVisibleMenus(authContext);
   }
 
-  @Get("permissions")
+  @Get("permissions/list")
   @RequirePermission("permissions:read")
   listPermissions(@CurrentAuthContext() authContext: AuthContext): Promise<IamPermission[]> {
     return this.iamService.listPermissions(authContext);

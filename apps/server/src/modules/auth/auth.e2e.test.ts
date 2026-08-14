@@ -55,7 +55,7 @@ describe("Auth e2e", () => {
       },
     });
 
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode).toBe(200);
     expect(parseJson(response)).toEqual({
       code: "OK",
       message: "ok",
@@ -86,7 +86,7 @@ describe("Auth e2e", () => {
         },
       });
 
-      expect(loginResponse.statusCode).toBe(201);
+      expect(loginResponse.statusCode).toBe(200);
       expect(requireSetCookie(loginResponse)).toContain("Path=/v2/auth");
 
       const defaultPrefixResponse = await app.inject({
@@ -130,7 +130,7 @@ describe("Auth e2e", () => {
       },
     });
 
-    expect(refreshResponse.statusCode).toBe(201);
+    expect(refreshResponse.statusCode).toBe(200);
     expect(parseJson(refreshResponse)).toEqual({
       code: "OK",
       message: "ok",
@@ -176,7 +176,7 @@ describe("Auth e2e", () => {
       url: "/api/auth/refresh",
       headers: { cookie: loginCookie },
     });
-    expect(cookieRefreshResponse.statusCode).toBe(201);
+    expect(cookieRefreshResponse.statusCode).toBe(200);
   });
 
   it("rejects an App refresh token sent as a Cookie without rotating it", async () => {
@@ -206,7 +206,7 @@ describe("Auth e2e", () => {
       url: "/api/auth/refresh",
       payload: { refreshToken: tokens.refreshToken },
     });
-    expect(bodyRefreshResponse.statusCode).toBe(201);
+    expect(bodyRefreshResponse.statusCode).toBe(200);
   });
 
   it("allows only one concurrent Web refresh with the same Cookie", async () => {
@@ -227,7 +227,7 @@ describe("Auth e2e", () => {
       app.inject({ method: "POST", url: "/api/auth/refresh", headers: { cookie: loginCookie } }),
     ]);
 
-    expect(responses.map((response) => response.statusCode).sort()).toEqual([201, 401]);
+    expect(responses.map((response) => response.statusCode).sort()).toEqual([200, 401]);
   });
 
   it.each([
@@ -245,7 +245,7 @@ describe("Auth e2e", () => {
       },
     });
 
-    expect(loginResponse.statusCode).toBe(201);
+    expect(loginResponse.statusCode).toBe(200);
     expect(loginResponse.headers["set-cookie"]).toBeUndefined();
     const tokens = parseJson<{ data: { accessToken: string; refreshToken: string } }>(
       loginResponse,
@@ -261,7 +261,7 @@ describe("Auth e2e", () => {
       payload: { refreshToken: tokens.refreshToken },
     });
 
-    expect(refreshResponse.statusCode).toBe(201);
+    expect(refreshResponse.statusCode).toBe(200);
     expect(refreshResponse.headers["set-cookie"]).toBeUndefined();
     expect(parseJson(refreshResponse)).toEqual({
       code: "OK",
@@ -286,7 +286,7 @@ describe("Auth e2e", () => {
       },
     });
 
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode).toBe(200);
     expect(parseJson(response)).toEqual({
       code: "OK",
       message: "ok",

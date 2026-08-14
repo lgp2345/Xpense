@@ -13,6 +13,7 @@ import { AuditService } from "../audit/audit.service.js";
 import { AccessService } from "./access.service.js";
 import type { CreateMemberDto } from "./dto/create-member.dto.js";
 import type { CreateRoleDto } from "./dto/create-role.dto.js";
+import type { DeleteRoleDto } from "./dto/delete-role.dto.js";
 import type { UpdateMemberDto } from "./dto/update-member.dto.js";
 import type { UpdateRoleDto } from "./dto/update-role.dto.js";
 import { IamRepository } from "./iam.repository.js";
@@ -77,11 +78,9 @@ export class IamService {
     });
   }
 
-  async updateMember(
-    authContext: AuthContext,
-    memberId: string,
-    dto: UpdateMemberDto,
-  ): Promise<IamMember> {
+  async updateMember(authContext: AuthContext, dto: UpdateMemberDto): Promise<IamMember> {
+    const memberId = dto.id;
+
     if (dto.roleId !== undefined) {
       this.accessService.assertPermission(authContext, "members:update");
     }
@@ -257,7 +256,9 @@ export class IamService {
     });
   }
 
-  async updateRole(authContext: AuthContext, roleId: string, dto: UpdateRoleDto): Promise<IamRole> {
+  async updateRole(authContext: AuthContext, dto: UpdateRoleDto): Promise<IamRole> {
+    const roleId = dto.id;
+
     if (dto.permissionKeys !== undefined) {
       this.assertCanUpdateRolePermissions(authContext);
       this.assertPermissionsWithinCeiling(authContext, dto.permissionKeys);
@@ -333,7 +334,9 @@ export class IamService {
     });
   }
 
-  async deleteRole(authContext: AuthContext, roleId: string): Promise<void> {
+  async deleteRole(authContext: AuthContext, dto: DeleteRoleDto): Promise<void> {
+    const roleId = dto.id;
+
     const role = await this.repository.findRoleById(authContext.organizationId, roleId);
 
     if (!role) {

@@ -85,19 +85,19 @@ export type ListAuditLogsQuery = {
 
 export function createIamApi(client: ApiClient) {
   return {
-    listMembers: () => client.get<IamMember[]>("/members"),
-    createMember: (input: CreateMemberRequest) => client.post<IamMember>("/members", input),
+    listMembers: () => client.get<IamMember[]>("/members/list"),
+    createMember: (input: CreateMemberRequest) => client.post<IamMember>("/members/create", input),
     updateMember: (memberId: string, input: UpdateMemberRequest) =>
-      client.patch<IamMember>(`/members/${encodeURIComponent(memberId)}`, input),
-    listRoles: () => client.get<IamRoleWithPermissions[]>("/roles"),
-    createRole: (input: CreateRoleRequest) => client.post<IamRole>("/roles", input),
+      client.post<IamMember>("/members/update", { id: memberId, ...input }),
+    listRoles: () => client.get<IamRoleWithPermissions[]>("/roles/list"),
+    createRole: (input: CreateRoleRequest) => client.post<IamRole>("/roles/create", input),
     updateRole: (roleId: string, input: UpdateRoleRequest) =>
-      client.patch<IamRole>(`/roles/${encodeURIComponent(roleId)}`, input),
-    deleteRole: (roleId: string) => client.delete<void>(`/roles/${encodeURIComponent(roleId)}`),
+      client.post<IamRole>("/roles/update", { id: roleId, ...input }),
+    deleteRole: (roleId: string) => client.post<void>("/roles/delete", { id: roleId }),
     getMenus: () => client.get<MenuItem[]>("/menus"),
-    listPermissions: () => client.get<IamPermission[]>("/permissions"),
+    listPermissions: () => client.get<IamPermission[]>("/permissions/list"),
     listAuditLogs: (query: ListAuditLogsQuery = {}) =>
-      client.get<AuditLogRecord[]>(`/audit-logs${toQueryString(query)}`),
+      client.get<AuditLogRecord[]>(`/audit-logs/list${toQueryString(query)}`),
   };
 }
 

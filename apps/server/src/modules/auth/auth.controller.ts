@@ -51,6 +51,7 @@ export class AuthController {
   ) {}
 
   @Post("login")
+  @HttpCode(200)
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) reply: AuthCookieReply,
@@ -67,6 +68,7 @@ export class AuthController {
   }
 
   @Post("refresh")
+  @HttpCode(200)
   async refresh(
     @Body() dto: RefreshDto,
     @Req() request: AuthCookieRequest,
@@ -125,7 +127,7 @@ export class AuthController {
   }
 
   @Post("sessions/:id/revoke")
-  @HttpCode(204)
+  @HttpCode(200)
   @RequirePermission("sessions:revoke")
   @UseGuards(AuthGuard, RbacGuard)
   revokeSession(
@@ -136,7 +138,7 @@ export class AuthController {
   }
 
   @Post("sessions/revoke-all")
-  @HttpCode(204)
+  @HttpCode(200)
   @RequirePermission("sessions:revoke")
   @UseGuards(AuthGuard, RbacGuard)
   revokeAllSessions(@CurrentAuthContext() authContext: AuthContext): Promise<void> {

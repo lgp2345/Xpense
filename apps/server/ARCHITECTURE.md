@@ -70,7 +70,14 @@
 ## API 设计
 
 - API 同时服务移动端和 WEB 端，接口语义必须稳定。
-- 路由使用清晰的资源命名，例如 `/transactions`、`/accounts`、`/categories`。
+- 接口统一采用动作式路径，不使用 RESTful 的资源-方法映射：
+  - 读接口：`GET /{resource}/list`，例如 `GET /members/list`
+  - 写接口：`POST /{resource}/create`、`POST /{resource}/update`、`POST /{resource}/delete`
+  - 写操作一律 POST，HTTP 状态码统一 200
+  - update/delete 的资源 id 一律放请求 body（如 `{ id, ...fields }`），不放路径参数
+  - 接口动词与 RBAC 权限 key 对齐（`members:create` ↔ `POST /members/create`）
+- 例外：当前用户范围接口（`GET /user`、`GET /auth/sessions`、`GET /user/organizations`、`GET /menus`）与 auth 动作类接口（login/refresh/logout/revoke/current-organization）保持路径现状，不套用上述模板。
+- 前端路由 path（seed-rbac 中 `path` 字段）与 API 路径是两回事，互不影响。
 - 请求 DTO 和响应类型必须显式定义。
 - 分页、排序、筛选参数必须统一命名和行为。
 - 列表接口默认分页，禁止无上限返回大列表。

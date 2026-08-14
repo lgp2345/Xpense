@@ -3,6 +3,7 @@ import { z } from "zod";
 
 export const updateMemberSchema = z
   .object({
+    id: z.string().uuid(),
     roleId: z.string().uuid().optional(),
     status: z.enum(["active", "disabled"]).optional(),
   })

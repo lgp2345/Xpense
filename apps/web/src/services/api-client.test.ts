@@ -59,7 +59,7 @@ describe("createApiClient", () => {
       getAccessToken: () => activeToken,
       refreshAccessToken,
     });
-    mock.onGet(/\/members$|\/roles$/).reply((config) => {
+    mock.onGet(/\/members\/list$|\/roles\/list$/).reply((config) => {
       if (authorizationOf(config) === "Bearer expired-access") {
         return [401, errorEnvelope("UNAUTHENTICATED", "未登录或登录已过期")];
       }
@@ -67,11 +67,11 @@ describe("createApiClient", () => {
       return [200, okEnvelope({ authorization: authorizationOf(config) })];
     });
 
-    const firstRequest = client.get("/members").then(
+    const firstRequest = client.get("/members/list").then(
       (value) => ({ status: "fulfilled" as const, value }),
       (error: unknown) => ({ error, status: "rejected" as const }),
     );
-    const secondRequest = client.get("/roles").then(
+    const secondRequest = client.get("/roles/list").then(
       (value) => ({ status: "fulfilled" as const, value }),
       (error: unknown) => ({ error, status: "rejected" as const }),
     );
@@ -126,12 +126,12 @@ describe("createApiClient", () => {
       refreshAccessToken,
     });
     mock
-      .onGet(/\/members$/)
+      .onGet(/\/members\/list$/)
       .reply(() =>
         responseGate.then(() => [401, errorEnvelope("UNAUTHENTICATED", "未登录或登录已过期")]),
       );
 
-    const request = client.get("/members");
+    const request = client.get("/members/list");
     await vi.waitFor(() => expect(mock.history.get).toHaveLength(1));
     activeToken = null;
     resolveResponse?.();
@@ -153,19 +153,19 @@ describe("createApiClient", () => {
       refreshAccessToken,
     });
     mock
-      .onPatch(/\/members\/member-1$/)
+      .onPost(/\/members\/update$/)
       .reply(() =>
         responseGate.then(() => [401, errorEnvelope("UNAUTHENTICATED", "未登录或登录已过期")]),
       );
 
-    const request = client.patch("/members/member-1", { status: "disabled" });
-    await vi.waitFor(() => expect(mock.history.patch).toHaveLength(1));
+    const request = client.post("/members/update", { id: "member-1", status: "disabled" });
+    await vi.waitFor(() => expect(mock.history.post).toHaveLength(1));
     activeToken = "organization-b-access";
     resolveResponse?.();
 
     await expect(request).rejects.toMatchObject({ status: 401 });
     expect(refreshAccessToken).not.toHaveBeenCalled();
-    expect(mock.history.patch).toHaveLength(1);
+    expect(mock.history.post).toHaveLength(1);
   });
 
   it("reports missing API configuration when a request is attempted", async () => {
@@ -253,14 +253,14 @@ describe("createApiClient", () => {
   it("maps 403 responses to ApiError without clearing authentication", async () => {
     const onAuthFailure = vi.fn();
     const { client, mock } = createHarness({ onAuthFailure });
-    mock.onGet(/\/roles$/).reply(403, errorEnvelope("FORBIDDEN", "缺少所需权限"));
+    mock.onGet(/\/roles\/list$/).reply(403, errorEnvelope("FORBIDDEN", "缺少所需权限"));
 
-    await expect(client.get("/roles")).rejects.toMatchObject({
+    await expect(client.get("/roles/list")).rejects.toMatchObject({
       status: 403,
       code: "FORBIDDEN",
       message: "缺少所需权限",
     });
-    await expect(client.get("/roles")).rejects.toBeInstanceOf(ApiError);
+    await expect(client.get("/roles/list")).rejects.toBeInstanceOf(ApiError);
     expect(onAuthFailure).not.toHaveBeenCalled();
   });
 
@@ -317,9 +317,9 @@ describe("createApiClient", () => {
 
   it("resolves null for success responses without data", async () => {
     const { client, mock } = createHarness();
-    mock.onDelete(/\/roles\/role-1$/).reply(200, okEnvelope(null));
+    mock.onPost(/\/roles\/delete$/).reply(200, okEnvelope(null));
 
-    await expect(client.delete("/roles/role-1")).resolves.toBeNull();
+    await expect(client.post("/roles/delete", { id: "role-1" })).resolves.toBeNull();
   });
 
   it("rejects non-envelope success responses as protocol errors", async () => {
@@ -359,9 +359,11 @@ describe("createApiClient", () => {
 
   it("does not retry POST by default", async () => {
     const { client, mock } = createHarness();
-    mock.onPost(/\/members$/).reply(500, errorEnvelope("INTERNAL_ERROR", "服务器内部错误"));
+    mock.onPost(/\/members\/create$/).reply(500, errorEnvelope("INTERNAL_ERROR", "服务器内部错误"));
 
-    await expect(client.post("/members", { userId: "user-1" })).rejects.toMatchObject({
+    await expect(
+      client.post("/members/create", { userId: "user-1", roleId: "role-1" }),
+    ).rejects.toMatchObject({
       status: 500,
     });
     expect(mock.history.post).toHaveLength(1);
@@ -369,10 +371,14 @@ describe("createApiClient", () => {
 
   it("retries POST only when explicitly enabled", async () => {
     const { client, mock } = createHarness();
-    mock.onPost(/\/members$/).reply(500, errorEnvelope("INTERNAL_ERROR", "服务器内部错误"));
+    mock.onPost(/\/members\/create$/).reply(500, errorEnvelope("INTERNAL_ERROR", "服务器内部错误"));
 
     await expect(
-      client.post("/members", { userId: "user-1" }, { retry: { attempts: 2, baseDelayMs: 10 } }),
+      client.post(
+        "/members/create",
+        { userId: "user-1", roleId: "role-1" },
+        { retry: { attempts: 2, baseDelayMs: 10 } },
+      ),
     ).rejects.toMatchObject({ status: 500 });
     expect(mock.history.post).toHaveLength(3);
   });

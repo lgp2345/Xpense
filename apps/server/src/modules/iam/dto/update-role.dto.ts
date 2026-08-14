@@ -4,6 +4,7 @@ import { z } from "zod";
 
 export const updateRoleSchema = z
   .object({
+    id: z.string().uuid(),
     name: z.string().trim().min(1).max(120).optional(),
     description: z.string().trim().max(500).optional(),
     permissionKeys: z.array(z.enum(permissionKeys)).optional(),

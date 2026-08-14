@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, UseGuards } from "@nestjs/common";
 import type { AuthTokensResponse } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
@@ -20,6 +20,7 @@ export class OrganizationsController {
   }
 
   @Post("current-organization")
+  @HttpCode(200)
   switchCurrentOrganization(
     @CurrentAuthContext() authContext: AuthContext,
     @Body() dto: SwitchOrganizationDto,

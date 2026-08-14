@@ -27,23 +27,27 @@ describe("createIamApi", () => {
     await api.deleteRole("role-1");
     await api.listPermissions();
 
-    expect(client.get).toHaveBeenNthCalledWith(1, "/members");
-    expect(client.post).toHaveBeenNthCalledWith(1, "/members", {
+    expect(client.get).toHaveBeenNthCalledWith(1, "/members/list");
+    expect(client.post).toHaveBeenNthCalledWith(1, "/members/create", {
       userId: "user-1",
       roleId: "role-1",
     });
-    expect(client.patch).toHaveBeenNthCalledWith(1, "/members/member-1", { status: "disabled" });
-    expect(client.get).toHaveBeenNthCalledWith(2, "/roles");
-    expect(client.post).toHaveBeenNthCalledWith(2, "/roles", {
+    expect(client.post).toHaveBeenNthCalledWith(2, "/members/update", {
+      id: "member-1",
+      status: "disabled",
+    });
+    expect(client.get).toHaveBeenNthCalledWith(2, "/roles/list");
+    expect(client.post).toHaveBeenNthCalledWith(3, "/roles/create", {
       key: "bookkeeper",
       name: "Bookkeeper",
       permissionKeys: [],
     });
-    expect(client.patch).toHaveBeenNthCalledWith(2, "/roles/role-1", {
+    expect(client.post).toHaveBeenNthCalledWith(4, "/roles/update", {
+      id: "role-1",
       permissionKeys: ["roles:read"],
     });
-    expect(client.delete).toHaveBeenNthCalledWith(1, "/roles/role-1");
-    expect(client.get).toHaveBeenNthCalledWith(3, "/permissions");
+    expect(client.post).toHaveBeenNthCalledWith(5, "/roles/delete", { id: "role-1" });
+    expect(client.get).toHaveBeenNthCalledWith(3, "/permissions/list");
   });
 
   it("wraps audit query filters as query parameters", async () => {
@@ -60,7 +64,7 @@ describe("createIamApi", () => {
     });
 
     expect(client.get).toHaveBeenCalledWith(
-      "/audit-logs?action=member.role.changed&actorUserId=user-1&targetType=member&from=2026-07-01T00%3A00%3A00.000Z&to=2026-07-10T00%3A00%3A00.000Z&page=2&pageSize=25",
+      "/audit-logs/list?action=member.role.changed&actorUserId=user-1&targetType=member&from=2026-07-01T00%3A00%3A00.000Z&to=2026-07-10T00%3A00%3A00.000Z&page=2&pageSize=25",
     );
   });
 });

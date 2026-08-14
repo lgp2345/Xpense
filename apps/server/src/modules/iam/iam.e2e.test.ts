@@ -16,13 +16,13 @@ describe("IAM e2e", () => {
     return harness;
   }
 
-  it("GET /roles without permission returns 403", async () => {
+  it("GET /roles/list without permission returns 403", async () => {
     const { app } = await createHarness();
     const { accessToken } = await login(app, "viewer@example.com");
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/roles",
+      url: "/api/roles/list",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -31,13 +31,13 @@ describe("IAM e2e", () => {
     expect(response.statusCode).toBe(403);
   });
 
-  it("GET /roles with roles.read returns 200", async () => {
+  it("GET /roles/list with roles.read returns 200", async () => {
     const { app } = await createHarness();
     const { accessToken } = await login(app, "manager@example.com");
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/roles",
+      url: "/api/roles/list",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -56,13 +56,13 @@ describe("IAM e2e", () => {
     );
   });
 
-  it("super_admin active member can access /roles without roles.read", async () => {
+  it("super_admin active member can access /roles/list without roles.read", async () => {
     const { app } = await createHarness();
     const { accessToken } = await login(app, "super@example.com");
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/roles",
+      url: "/api/roles/list",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -81,7 +81,7 @@ describe("IAM e2e", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/roles",
+      url: "/api/roles/list",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -90,17 +90,18 @@ describe("IAM e2e", () => {
     expect([401, 403]).toContain(response.statusCode);
   });
 
-  it("PATCH /roles/:id rejects permission changes without roles.permissions.update", async () => {
+  it("POST /roles/update rejects permission changes without roles.permissions.update", async () => {
     const { app } = await createHarness();
     const { accessToken } = await login(app, "owner@example.com");
 
     const response = await app.inject({
-      method: "PATCH",
-      url: `/api/roles/${testIds.managerRole}`,
+      method: "POST",
+      url: "/api/roles/update",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
       payload: {
+        id: testIds.managerRole,
         permissionKeys: [],
       },
     });
@@ -108,18 +109,19 @@ describe("IAM e2e", () => {
     expect(response.statusCode).toBe(403);
   });
 
-  it("PATCH /members/:id writes audit log and ignores body.organizationId", async () => {
+  it("POST /members/update writes audit log and ignores body.organizationId", async () => {
     const { app, state } = await createHarness();
     const { accessToken } = await login(app, "manager@example.com");
 
     const response = await app.inject({
-      method: "PATCH",
-      url: `/api/members/${testIds.viewerMember}`,
+      method: "POST",
+      url: "/api/members/update",
       headers: {
         authorization: `Bearer ${accessToken}`,
         "x-request-id": "e2e-request-123",
       },
       payload: {
+        id: testIds.viewerMember,
         organizationId: testIds.otherOrganization,
         roleId: testIds.managerRole,
       },
@@ -145,17 +147,18 @@ describe("IAM e2e", () => {
     );
   });
 
-  it("PATCH /members/:id rejects disabling without members.disable", async () => {
+  it("POST /members/update rejects disabling without members.disable", async () => {
     const { app, state } = await createHarness();
     const { accessToken } = await login(app, "manager@example.com");
 
     const response = await app.inject({
-      method: "PATCH",
-      url: `/api/members/${testIds.viewerMember}`,
+      method: "POST",
+      url: "/api/members/update",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
       payload: {
+        id: testIds.viewerMember,
         status: "disabled",
       },
     });
@@ -164,7 +167,7 @@ describe("IAM e2e", () => {
     expect(state.members.get(testIds.viewerMember)?.status).toBe("active");
   });
 
-  it("PATCH /members/:id rejects enabling without members.enable", async () => {
+  it("POST /members/update rejects enabling without members.enable", async () => {
     const { app, state } = await createHarness();
     const viewerMember = state.members.get(testIds.viewerMember);
 
@@ -179,12 +182,13 @@ describe("IAM e2e", () => {
     const { accessToken } = await login(app, "manager@example.com");
 
     const response = await app.inject({
-      method: "PATCH",
-      url: `/api/members/${testIds.viewerMember}`,
+      method: "POST",
+      url: "/api/members/update",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
       payload: {
+        id: testIds.viewerMember,
         status: "active",
       },
     });
@@ -193,17 +197,18 @@ describe("IAM e2e", () => {
     expect(state.members.get(testIds.viewerMember)?.status).toBe("disabled");
   });
 
-  it("PATCH /members/:id allows status-only updates without members.update", async () => {
+  it("POST /members/update allows status-only updates without members.update", async () => {
     const { app, state } = await createHarness();
     const { accessToken } = await login(app, "owner@example.com");
 
     const response = await app.inject({
-      method: "PATCH",
-      url: `/api/members/${testIds.viewerMember}`,
+      method: "POST",
+      url: "/api/members/update",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
       payload: {
+        id: testIds.viewerMember,
         status: "disabled",
       },
     });
@@ -212,17 +217,18 @@ describe("IAM e2e", () => {
     expect(state.members.get(testIds.viewerMember)?.status).toBe("disabled");
   });
 
-  it("PATCH /members/:id requires members.update for role assignment", async () => {
+  it("POST /members/update requires members.update for role assignment", async () => {
     const { app, state } = await createHarness();
     const { accessToken } = await login(app, "owner@example.com");
 
     const response = await app.inject({
-      method: "PATCH",
-      url: `/api/members/${testIds.viewerMember}`,
+      method: "POST",
+      url: "/api/members/update",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
       payload: {
+        id: testIds.viewerMember,
         roleId: testIds.managerRole,
       },
     });
@@ -231,17 +237,18 @@ describe("IAM e2e", () => {
     expect(state.members.get(testIds.viewerMember)?.roleId).toBe(testIds.viewerRole);
   });
 
-  it("PATCH /members/:id requires every permission for a combined update", async () => {
+  it("POST /members/update requires every permission for a combined update", async () => {
     const { app, state } = await createHarness();
     const { accessToken } = await login(app, "manager@example.com");
 
     const response = await app.inject({
-      method: "PATCH",
-      url: `/api/members/${testIds.viewerMember}`,
+      method: "POST",
+      url: "/api/members/update",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
       payload: {
+        id: testIds.viewerMember,
         roleId: testIds.managerRole,
         status: "disabled",
       },
@@ -254,13 +261,13 @@ describe("IAM e2e", () => {
     });
   });
 
-  it("POST /roles rejects permissions above a non-super-admin actor", async () => {
+  it("POST /roles/create rejects permissions above a non-super-admin actor", async () => {
     const { app, state } = await createHarness();
     const { accessToken } = await login(app, "manager@example.com");
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/roles",
+      url: "/api/roles/create",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -275,17 +282,18 @@ describe("IAM e2e", () => {
     expect([...state.roles.values()].some((role) => role.key === "elevated")).toBe(false);
   });
 
-  it("PATCH /roles/:id rejects permissions above a non-super-admin actor", async () => {
+  it("POST /roles/update rejects permissions above a non-super-admin actor", async () => {
     const { app, state } = await createHarness();
     const { accessToken } = await login(app, "manager@example.com");
 
     const response = await app.inject({
-      method: "PATCH",
-      url: `/api/roles/${testIds.managerRole}`,
+      method: "POST",
+      url: "/api/roles/update",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
       payload: {
+        id: testIds.managerRole,
         permissionKeys: ["transactions:delete"],
       },
     });
@@ -294,13 +302,13 @@ describe("IAM e2e", () => {
     expect(state.roles.get(testIds.managerRole)?.permissions).not.toContain("transactions:delete");
   });
 
-  it("POST /members rejects assigning a role above a non-super-admin actor", async () => {
+  it("POST /members/create rejects assigning a role above a non-super-admin actor", async () => {
     const { app, state } = await createHarness();
     const { accessToken } = await login(app, "manager@example.com");
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/members",
+      url: "/api/members/create",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -322,7 +330,7 @@ describe("IAM e2e", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/roles",
+      url: "/api/roles/create",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -333,7 +341,7 @@ describe("IAM e2e", () => {
       },
     });
 
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode).toBe(200);
     expect(
       state.roles.get(parseJson<{ data: { id: string } }>(response).data.id)?.permissions,
     ).toEqual(["transactions:delete"]);
@@ -345,7 +353,7 @@ describe("IAM e2e", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/members",
+      url: "/api/members/create",
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -355,7 +363,7 @@ describe("IAM e2e", () => {
       },
     });
 
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode).toBe(200);
     expect(
       [...state.members.values()].find((member) => member.userId === testIds.outsiderUser),
     ).toMatchObject({ roleId: testIds.managerRole });
