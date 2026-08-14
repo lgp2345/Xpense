@@ -80,6 +80,7 @@
 - 菜单采用组织菜单模型（`menus` 表：`type` 为 directory/menu/button），动作接口 `POST /menus/add|edit|delete|edit-order`、`POST /organizations/menus/reset`，读接口 `GET /menus`、`GET /menus/configuration`、`GET /menus/resolve`、`GET /permissions/tree`。
 - 例外：当前用户范围接口（`GET /user`、`GET /auth/sessions`、`GET /user/organizations`、`GET /menus`）与 auth 动作类接口（login/refresh/logout/revoke/current-organization）保持路径现状，不套用上述模板。
 - 前端路由 path（seed-rbac 中 `path` 字段）与 API 路径是两回事，互不影响。
+- 新增资源接口遵循上述模板，需要例外时先在评审中说明理由。
 - 请求 DTO 和响应类型必须显式定义。
 - 分页、排序、筛选参数必须统一命名和行为。
 - 列表接口默认分页，禁止无上限返回大列表。
