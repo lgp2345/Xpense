@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
+import type { UpdateRoleDto } from "./dto/update-role.dto.js";
 import { IamService } from "./iam.service.js";
 
 const authContext: AuthContext = {
@@ -109,7 +110,7 @@ describe("IamService", () => {
     ) => IamService;
     const service = new ServiceWithAccess(repository, auditService, transactions, accessService);
 
-    return { accessService, auditService, repository, service, transaction };
+    return { accessService, auditService, repository, service, transaction, transactions };
   }
 
   function createRollbackHarness() {
@@ -399,8 +400,8 @@ describe("IamService", () => {
     );
   });
 
-  it("requires roles.permissions.update when role permissions are supplied", async () => {
-    const { repository, service, transaction } = createHarness();
+  it("requires roles.permissions.update when creating a role with permissions", async () => {
+    const { repository, service } = createHarness();
     const withoutPermissionUpdate = { ...authContext, permissions: [] };
 
     await expect(
@@ -410,27 +411,9 @@ describe("IamService", () => {
         permissionKeys: ["transactions:read"],
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(
-      service.updateRole(withoutPermissionUpdate, { id: "role-custom", permissionKeys: [] }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(repository.createRole).not.toHaveBeenCalled();
     expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
-
-    await expect(
-      service.updateRole(
-        { ...withoutPermissionUpdate, isSuperAdmin: true },
-        { id: "role-custom", permissionKeys: [] },
-      ),
-    ).resolves.toEqual(editableRole);
-
-    expect(repository.replaceRolePermissions).toHaveBeenCalledWith(
-      {
-        roleId: "role-custom",
-        permissionKeys: [],
-      },
-      transaction,
-    );
   });
 
   it("rejects creating a role with permissions the actor does not have", async () => {
@@ -451,7 +434,30 @@ describe("IamService", () => {
     expect(repository.createRole).not.toHaveBeenCalled();
   });
 
-  it("rejects updating a role with permissions the actor does not have", async () => {
+  it.each([
+    { permissionKeys: [] as PermissionKey[] },
+    { permissionKeys: ["transactions:delete"] as PermissionKey[] },
+  ])("rejects the legacy permissionKeys field in role profile updates: $permissionKeys", async ({
+    permissionKeys,
+  }) => {
+    const { auditService, repository, service, transactions } = createHarness();
+    const legacyPayload = {
+      id: "role-custom",
+      name: "Ledger Owner",
+      permissionKeys,
+    } as unknown as UpdateRoleDto;
+
+    await expect(service.updateRole(authContext, legacyPayload)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+
+    expect(transactions.run).not.toHaveBeenCalled();
+    expect(repository.updateRole).not.toHaveBeenCalled();
+    expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
+    expect(auditService.appendRequired).not.toHaveBeenCalled();
+  });
+
+  it("does not inspect permission ceilings during valid role profile updates", async () => {
     const { repository, service } = createHarness();
     const limitedContext = {
       ...authContext,
@@ -459,13 +465,11 @@ describe("IamService", () => {
     };
 
     await expect(
-      service.updateRole(limitedContext, {
-        id: "role-custom",
-        permissionKeys: ["transactions:delete"],
-      }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+      service.updateRole(limitedContext, { id: "role-custom", name: "Ledger Owner" }),
+    ).resolves.toEqual(editableRole);
 
-    expect(repository.updateRole).not.toHaveBeenCalled();
+    expect(repository.updateRole).toHaveBeenCalled();
+    expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
   });
 
   it("rejects creating a member with a role above the actor's permission ceiling", async () => {
@@ -608,14 +612,10 @@ describe("IamService", () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it("updates editable role details and permissions", async () => {
-    const { repository, service, transaction } = createHarness();
+  it("updates editable role details without writing permission changes or permission audits", async () => {
+    const { auditService, repository, service, transaction } = createHarness();
 
-    await service.updateRole(authContext, {
-      id: "role-custom",
-      name: "Ledger Owner",
-      permissionKeys: ["transactions:read"],
-    });
+    await service.updateRole(authContext, { id: "role-custom", name: "Ledger Owner" });
 
     expect(repository.updateRole).toHaveBeenCalledWith(
       {
@@ -626,12 +626,10 @@ describe("IamService", () => {
       },
       transaction,
     );
-    expect(repository.replaceRolePermissions).toHaveBeenCalledWith(
-      {
-        roleId: "role-custom",
-        permissionKeys: ["transactions:read"],
-      },
-      transaction,
+    expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
+    expect(auditService.appendRequired).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: "role.permissions.changed" }),
+      expect.anything(),
     );
   });
 

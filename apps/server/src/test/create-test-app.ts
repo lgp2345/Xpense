@@ -1,11 +1,12 @@
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
-import type { ClientType, PermissionKey } from "@xpense/shared";
+import { type ClientType, type PermissionKey, permissionKeys } from "@xpense/shared";
 
 import { AppModule } from "../app.module.js";
 import { ServerConfigService } from "../config/config.service.js";
 import { configureHttpApplication } from "../configure-http-application.js";
 import { DatabaseTransactionService } from "../db/database-transaction.service.js";
+import type { AppDbTransaction } from "../db/db.module.js";
 import { DB } from "../db/db.tokens.js";
 import { AuditRepository } from "../modules/audit/audit.repository.js";
 import type { AppendAuditLogInput, AuditLogRecord } from "../modules/audit/audit.types.js";
@@ -24,6 +25,12 @@ import type {
   UpdateMemberInput,
   UpdateRoleInput,
 } from "../modules/iam/iam.types.js";
+import {
+  type MenuInsertInput,
+  MenuRepository,
+  type MenuRow,
+  type MenuSortOrderUpdate,
+} from "../modules/iam/menu.repository.js";
 import { OrganizationsRepository } from "../modules/organizations/organizations.repository.js";
 import { UserRepository } from "../modules/user/user.repository.js";
 import { type TestAuth, testIds } from "./auth-test-helpers.js";
@@ -60,6 +67,7 @@ export type TestState = {
   organizations: Map<string, TestOrganization>;
   members: Map<string, TestMember>;
   roles: Map<string, TestRole>;
+  menus: Map<number, MenuRow>;
   sessions: Map<string, AuthRefreshSession>;
   auditLogs: AuditLogRecord[];
 };
@@ -70,10 +78,14 @@ export type TestAppHarness = {
   state: TestState;
 };
 
-export async function createTestApp(): Promise<TestAppHarness> {
+export type TestAppOptions = {
+  managerPermissions?: readonly PermissionKey[];
+};
+
+export async function createTestApp(options: TestAppOptions = {}): Promise<TestAppHarness> {
   ensureTestEnv();
 
-  const state = createTestState();
+  const state = createTestState(options);
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
   })
@@ -95,6 +107,8 @@ export async function createTestApp(): Promise<TestAppHarness> {
     .useValue(createUserRepository(state))
     .overrideProvider(IamRepository)
     .useValue(createIamRepository(state))
+    .overrideProvider(MenuRepository)
+    .useValue(createMenuRepository(state))
     .overrideProvider(AuditRepository)
     .useValue(createAuditRepository(state))
     .compile();
@@ -124,7 +138,7 @@ function ensureTestEnv(): void {
   process.env.VITE_API_PREFIX ??= "api";
 }
 
-function createTestState(): TestState {
+function createTestState(options: TestAppOptions): TestState {
   const users = new Map<string, TestUser>([
     [testIds.ownerUser, createUser(testIds.ownerUser, "owner@example.com", false)],
     [testIds.managerUser, createUser(testIds.managerUser, "manager@example.com", false)],
@@ -153,17 +167,37 @@ function createTestState(): TestState {
     ],
     [
       testIds.managerRole,
-      createRole(testIds.managerRole, "manager", "Manager", [
-        "roles:read",
-        "roles:create",
-        "roles:update",
-        "roles:permissions:update",
-        "members:create",
-        "members:update",
-        "sessions:read",
-      ]),
+      createRole(
+        testIds.managerRole,
+        "manager",
+        "Manager",
+        options.managerPermissions
+          ? [...options.managerPermissions]
+          : [
+              "roles:read",
+              "roles:create",
+              "roles:update",
+              "roles:permissions:update",
+              "menus:read",
+              "menus:create",
+              "menus:update",
+              "menus:delete",
+              "members:create",
+              "members:update",
+              "sessions:read",
+            ],
+      ),
     ],
     [testIds.viewerRole, createRole(testIds.viewerRole, "viewer", "Viewer", ["transactions:read"])],
+    [
+      "22222222-2222-4222-8222-222222222299",
+      {
+        ...createRole("22222222-2222-4222-8222-222222222299", "other-manager", "Other manager", [
+          "roles:read",
+        ]),
+        organizationId: testIds.otherOrganization,
+      },
+    ],
   ]);
   const members = new Map<string, TestMember>([
     [testIds.ownerMember, createMember(testIds.ownerMember, testIds.ownerUser, testIds.ownerRole)],
@@ -176,6 +210,30 @@ function createTestState(): TestState {
       createMember(testIds.viewerMember, testIds.viewerUser, testIds.viewerRole),
     ],
     [testIds.superMember, createMember(testIds.superMember, testIds.superUser, testIds.viewerRole)],
+  ]);
+  const menus = new Map<number, MenuRow>([
+    [1, createMenu(1, "directory", "访问控制", null, null, null, 0)],
+    [2, createMenu(2, "menu", "菜单管理", 1, "Menus", "menus:read", 10)],
+    [3, createMenu(3, "button", "新增菜单", 2, null, "menus:create", 100)],
+    [4, createMenu(4, "button", "编辑菜单", 2, null, "menus:update", 110)],
+    [5, createMenu(5, "button", "删除菜单", 2, null, "menus:delete", 120)],
+    [6, createMenu(6, "menu", "成员管理", 1, "Members", "members:read", 20)],
+    [7, createMenu(7, "menu", "角色管理", 1, "Roles", "roles:read", 30)],
+    [8, createMenu(8, "menu", "仪表盘", null, "Dashboard", "dashboard:read", 10)],
+    [9, createMenu(9, "button", "编辑角色", 7, null, "roles:update", 100)],
+    [
+      101,
+      createMenu(
+        101,
+        "menu",
+        "其他组织会话",
+        null,
+        "Sessions",
+        "sessions:read",
+        0,
+        testIds.otherOrganization,
+      ),
+    ],
   ]);
   const sessions = new Map<string, AuthRefreshSession>([
     [
@@ -194,8 +252,36 @@ function createTestState(): TestState {
     organizations,
     members,
     roles,
+    menus,
     sessions,
     auditLogs: [],
+  };
+}
+
+function createMenu(
+  id: number,
+  type: MenuRow["type"],
+  name: string,
+  parentId: number | null,
+  routeKey: string | null,
+  permissionCode: string | null,
+  sortOrder: number,
+  organizationId: string = testIds.organization,
+): MenuRow {
+  return {
+    id,
+    organizationId,
+    type,
+    name,
+    parentId,
+    routeKey,
+    path: null,
+    icon: type === "button" ? null : "ShieldCheck",
+    permissionCode,
+    isExternal: type === "menu" ? false : null,
+    isVisible: type === "button" ? null : true,
+    keepAlive: type === "menu" ? true : null,
+    sortOrder,
   };
 }
 
@@ -239,9 +325,9 @@ function createSession(input: {
   currentOrganizationId: string;
   refreshTokenHash: string;
   clientType?: ClientType;
+  expiresAt?: Date;
 }): AuthRefreshSession {
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
   return {
     id: input.id,
@@ -250,7 +336,7 @@ function createSession(input: {
     clientType: input.clientType ?? "web_pc",
     refreshTokenHash: input.refreshTokenHash,
     status: "active",
-    expiresAt,
+    expiresAt: input.expiresAt ?? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
     rotatedAt: null,
     revokedAt: null,
     lastUsedAt: null,
@@ -291,6 +377,7 @@ function createAuthRepository(state: TestState): Partial<AuthRepository> {
         currentOrganizationId: input.currentOrganizationId,
         refreshTokenHash: input.refreshTokenHash,
         clientType: input.clientType,
+        expiresAt: input.expiresAt,
       });
       state.sessions.set(session.id, session);
       return session;
@@ -524,6 +611,10 @@ function createIamRepository(state: TestState): Partial<IamRepository> {
       const role = state.roles.get(roleId);
       return role?.organizationId === organizationId || role?.organizationId === null ? role : null;
     },
+    lockRoleById: async (organizationId, roleId) => {
+      const role = state.roles.get(roleId);
+      return role?.organizationId === organizationId ? role : null;
+    },
     findRoleByKey: async (organizationId, key) =>
       [...state.roles.values()].find(
         (role) =>
@@ -531,6 +622,7 @@ function createIamRepository(state: TestState): Partial<IamRepository> {
           (role.organizationId === organizationId || role.organizationId === null),
       ) ?? null,
     listPermissionKeysForRole: async (roleId) => state.roles.get(roleId)?.permissions ?? [],
+    lockPermissionKeysForRole: async (roleId) => state.roles.get(roleId)?.permissions ?? [],
     createRole: async (input: CreateRoleInput) => {
       const role = createRole(
         `22222222-2222-4222-8222-${String(state.roles.size + 1).padStart(12, "0")}`,
@@ -570,11 +662,63 @@ function createIamRepository(state: TestState): Partial<IamRepository> {
       [...state.members.values()].filter(
         (member) => member.organizationId === organizationId && member.roleId === roleId,
       ).length,
-    listPermissions: async () => [
-      toPermission("roles:read"),
-      toPermission("members:update"),
-      toPermission("audit_logs:read"),
-    ],
+    listPermissions: async () => permissionKeys.map(toPermission),
+  };
+}
+
+function createMenuRepository(state: TestState): Partial<MenuRepository> {
+  let nextMenuId = Math.max(...state.menus.keys()) + 1;
+
+  const listForOrganization = (organizationId: string): MenuRow[] =>
+    [...state.menus.values()]
+      .filter((menu) => menu.organizationId === organizationId)
+      .toSorted((left, right) => left.sortOrder - right.sortOrder || left.id - right.id);
+
+  return {
+    listByOrganizationId: async (organizationId) => listForOrganization(organizationId),
+    runInTransaction: async <T>(
+      operation: (transaction: AppDbTransaction) => Promise<T>,
+    ): Promise<T> => operation({} as AppDbTransaction),
+    lockOrganizationById: async (organizationId) => state.organizations.has(organizationId),
+    lockByOrganizationId: async (organizationId) => listForOrganization(organizationId),
+    insertMenu: async (input: MenuInsertInput) => {
+      const menu = { id: nextMenuId++, ...input };
+      state.menus.set(menu.id, menu);
+      return menu;
+    },
+    updateMenu: async (menu: MenuRow) => {
+      const current = state.menus.get(menu.id);
+
+      if (!current || current.organizationId !== menu.organizationId) {
+        throw new Error("Menu is unavailable");
+      }
+
+      state.menus.set(menu.id, menu);
+      return menu;
+    },
+    deleteMenu: async (organizationId, id) => {
+      const menu = state.menus.get(id);
+
+      if (menu?.organizationId === organizationId) {
+        state.menus.delete(id);
+      }
+    },
+    setMenuSortOrders: async (organizationId: string, updates: readonly MenuSortOrderUpdate[]) => {
+      for (const update of updates) {
+        const menu = state.menus.get(update.id);
+
+        if (menu?.organizationId === organizationId) {
+          state.menus.set(update.id, { ...menu, sortOrder: update.sortOrder });
+        }
+      }
+    },
+    deleteByOrganizationId: async (organizationId) => {
+      for (const menu of state.menus.values()) {
+        if (menu.organizationId === organizationId) {
+          state.menus.delete(menu.id);
+        }
+      }
+    },
   };
 }
 

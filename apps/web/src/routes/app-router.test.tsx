@@ -1,7 +1,7 @@
 import { createMemoryHistory } from "@tanstack/react-router";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { CurrentUserResponse } from "@xpense/shared";
+import type { AuthorizedMenuNode, CurrentUserResponse } from "@xpense/shared";
 import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
 import { StrictMode } from "react";
@@ -11,6 +11,41 @@ import { AppProviders } from "../components/app-providers";
 import { createWebSession } from "../services/web-session";
 import { authStore, createAuthStore } from "../stores/auth-store";
 import { AppRouter, createAppRouter } from "./router";
+
+const authorizedMenus: AuthorizedMenuNode[] = [
+  {
+    id: 1,
+    parentId: null,
+    type: "menu",
+    name: "仪表盘",
+    sortOrder: 0,
+    icon: "LayoutDashboard",
+    isVisible: true,
+    routeKey: "Dashboard",
+    path: "/",
+    url: null,
+    permissionCode: "dashboard:read",
+    isExternal: false,
+    keepAlive: false,
+    children: [],
+  },
+  {
+    id: 2,
+    parentId: null,
+    type: "menu",
+    name: "成员管理",
+    sortOrder: 1,
+    icon: "Users",
+    isVisible: true,
+    routeKey: "Members",
+    path: "/members",
+    url: null,
+    permissionCode: "members:read",
+    isExternal: false,
+    keepAlive: false,
+    children: [],
+  },
+];
 
 const injectedUserContext: CurrentUserResponse = {
   user: {
@@ -34,6 +69,7 @@ const globalUserContext: CurrentUserResponse = {
 function createTestSession(store: ReturnType<typeof createAuthStore>) {
   const instance = axios.create();
   const mock = new MockAdapter(instance);
+  mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
   mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
 
   return createWebSession({
@@ -146,6 +182,7 @@ describe("AppRouter startup", () => {
     authStore.getState().setCurrentUserContext(globalUserContext);
     const instance = axios.create();
     const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
     mock.onGet(/\/user\/organizations$/).reply(200, {
       code: "OK",
       message: "ok",
@@ -174,6 +211,7 @@ describe("AppRouter startup", () => {
       );
 
       expect((await screen.findAllByText("injected@example.com")).length).toBeGreaterThan(0);
+      expect(mock.history.get.some((config) => config.url?.endsWith("/menus"))).toBe(true);
       expect(screen.queryByText("global@example.com")).not.toBeInTheDocument();
       await vi.waitFor(() =>
         expect(mock.history.get.some((config) => config.url?.endsWith("/user/organizations"))).toBe(
@@ -214,6 +252,7 @@ describe("AppRouter startup", () => {
     const store = createAuthStore();
     const instance = axios.create();
     const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
     mock.onPost(/\/auth\/refresh$/).reply(200, {
       code: "OK",
       message: "ok",
@@ -248,5 +287,309 @@ describe("AppRouter startup", () => {
       status: "authenticated",
     });
     expect(mock.history.post.some((config) => config.url?.endsWith("/auth/refresh"))).toBe(true);
+    expect(mock.history.get.some((config) => config.url?.endsWith("/menus"))).toBe(true);
+  });
+
+  it("rechecks the active registered route after a failed menu bootstrap is retried", async () => {
+    const user = userEvent.setup();
+    const store = createAuthStore({
+      accessToken: "access-token",
+      currentUser: {
+        id: "user-1",
+        email: "owner@example.com",
+        isSuperAdmin: false,
+        status: "active",
+      },
+      currentOrganization: { id: "org-1", name: "个人账本" },
+      role: { id: "role-1", key: "owner", name: "所有者" },
+      permissions: ["members:read"],
+      session: { id: "session-1", clientType: "web_pc" },
+      status: "authenticated",
+    });
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).replyOnce(500, {
+      code: "INTERNAL_ERROR",
+      message: "menu unavailable",
+      data: null,
+    });
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: [] });
+    mock.onGet(/\/menus\/resolve\?path=%2Fmembers$/).reply(403, {
+      code: "FORBIDDEN",
+      message: "forbidden",
+      data: null,
+    });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/members"] }),
+      session,
+    });
+
+    render(
+      <AppProviders>
+        <AppRouter restoreSession={vi.fn().mockResolvedValue(true)} router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("菜单加载失败，请稍后重试。");
+
+    await user.click(screen.getByRole("button", { name: "重试" }));
+
+    expect(await screen.findByRole("heading", { name: "无权限访问" })).toBeInTheDocument();
+    expect(
+      mock.history.get.filter((request) => request.url?.includes("/menus/resolve")),
+    ).toHaveLength(1);
+  });
+
+  it("keeps an unknown static URL on 404 throughout a same-organization menu refresh", async () => {
+    const store = createAuthStore({
+      accessToken: "access-token",
+      currentUser: {
+        id: "user-1",
+        email: "owner@example.com",
+        isSuperAdmin: false,
+        status: "active",
+      },
+      currentOrganization: { id: "org-1", name: "个人账本" },
+      role: { id: "role-1", key: "owner", name: "所有者" },
+      permissions: [],
+      session: { id: "session-1", clientType: "web_pc" },
+      status: "authenticated",
+    });
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    let finishRefresh: (() => void) | undefined;
+    mock.onGet(/\/menus$/).replyOnce(200, { code: "OK", message: "ok", data: authorizedMenus });
+    mock.onGet(/\/menus$/).reply(
+      () =>
+        new Promise((resolve) => {
+          finishRefresh = () =>
+            resolve([200, { code: "OK", message: "ok", data: authorizedMenus }]);
+        }),
+    );
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    await session.menuStore
+      .getState()
+      .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/unknown-static-path"] }),
+      session,
+    });
+
+    render(
+      <AppProviders>
+        <AppRouter restoreSession={vi.fn().mockResolvedValue(true)} router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "页面不存在" })).toBeInTheDocument();
+    let sawPermissionPending = false;
+    let sawNotFoundRemoval = false;
+    const observer = new MutationObserver((records) => {
+      for (const record of records) {
+        sawPermissionPending ||= [...record.addedNodes].some((node) =>
+          node.textContent?.includes("正在验证页面访问权限..."),
+        );
+        sawNotFoundRemoval ||= [...record.removedNodes].some((node) =>
+          node.textContent?.includes("页面不存在"),
+        );
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    let refreshPromise: Promise<void> | undefined;
+    act(() => {
+      refreshPromise = session.menuStore
+        .getState()
+        .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    });
+    await waitFor(() => expect(finishRefresh).toBeTypeOf("function"));
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+
+    expect(screen.getByRole("heading", { name: "页面不存在" })).toBeInTheDocument();
+    expect(screen.queryByText("正在验证页面访问权限...")).not.toBeInTheDocument();
+
+    await act(async () => {
+      finishRefresh?.();
+      await refreshPromise;
+    });
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+    observer.disconnect();
+
+    expect(screen.getByRole("heading", { name: "页面不存在" })).toBeInTheDocument();
+    expect(sawPermissionPending).toBe(false);
+    expect(sawNotFoundRemoval).toBe(false);
+    expect(
+      mock.history.get.filter((request) => request.url?.includes("/menus/resolve")),
+    ).toHaveLength(0);
+  });
+
+  it("restores a still-locally-authorized route after menu refresh without resolve", async () => {
+    const store = createAuthStore({
+      accessToken: "access-token",
+      currentUser: {
+        id: "user-1",
+        email: "owner@example.com",
+        isSuperAdmin: false,
+        status: "active",
+      },
+      currentOrganization: { id: "org-1", name: "个人账本" },
+      role: { id: "role-1", key: "owner", name: "所有者" },
+      permissions: ["members:read"],
+      session: { id: "session-1", clientType: "web_pc" },
+      status: "authenticated",
+    });
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    let finishRefresh: (() => void) | undefined;
+    mock.onGet(/\/menus$/).replyOnce(200, { code: "OK", message: "ok", data: authorizedMenus });
+    mock.onGet(/\/menus$/).reply(
+      () =>
+        new Promise((resolve) => {
+          finishRefresh = () =>
+            resolve([200, { code: "OK", message: "ok", data: authorizedMenus }]);
+        }),
+    );
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/members"] }),
+      session,
+    });
+
+    render(
+      <AppProviders>
+        <AppRouter restoreSession={vi.fn().mockResolvedValue(true)} router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "成员管理" })).toBeInTheDocument();
+
+    let refreshPromise: Promise<void> | undefined;
+    act(() => {
+      refreshPromise = session.menuStore
+        .getState()
+        .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    });
+    expect(await screen.findByText("正在加载组织菜单...")).toBeInTheDocument();
+    await waitFor(() => expect(finishRefresh).toBeTypeOf("function"));
+
+    await act(async () => {
+      finishRefresh?.();
+      await refreshPromise;
+    });
+
+    expect(await screen.findByRole("heading", { name: "成员管理" })).toBeInTheDocument();
+    expect(
+      mock.history.get.filter((request) => request.url?.includes("/menus/resolve")),
+    ).toHaveLength(0);
+  });
+
+  it.each([
+    { status: 403, heading: "无权限访问" },
+    { status: 404, heading: "页面不存在" },
+  ])("rechecks the active route after a ready menu refresh resolves $status", async ({
+    status,
+    heading,
+  }) => {
+    const store = createAuthStore({
+      accessToken: "access-token",
+      currentUser: {
+        id: "user-1",
+        email: "owner@example.com",
+        isSuperAdmin: false,
+        status: "active",
+      },
+      currentOrganization: { id: "org-1", name: "个人账本" },
+      role: { id: "role-1", key: "owner", name: "所有者" },
+      permissions: ["members:read"],
+      session: { id: "session-1", clientType: "web_pc" },
+      status: "authenticated",
+    });
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    let finishRefresh: (() => void) | undefined;
+    let finishResolve: (() => void) | undefined;
+    mock.onGet(/\/menus$/).replyOnce(200, { code: "OK", message: "ok", data: authorizedMenus });
+    mock.onGet(/\/menus$/).reply(
+      () =>
+        new Promise((resolve) => {
+          finishRefresh = () => resolve([200, { code: "OK", message: "ok", data: [] }]);
+        }),
+    );
+    mock.onGet(/\/menus\/resolve\?path=%2Fmembers$/).reply(
+      () =>
+        new Promise((resolve) => {
+          finishResolve = () =>
+            resolve([
+              status,
+              {
+                code: status === 403 ? "FORBIDDEN" : "NOT_FOUND",
+                message: status === 403 ? "forbidden" : "not found",
+                data: null,
+              },
+            ]);
+        }),
+    );
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/members"] }),
+      session,
+    });
+
+    render(
+      <AppProviders>
+        <AppRouter restoreSession={vi.fn().mockResolvedValue(true)} router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "成员管理" })).toBeInTheDocument();
+
+    let refreshPromise: Promise<void> | undefined;
+    act(() => {
+      refreshPromise = session.menuStore
+        .getState()
+        .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    });
+
+    expect(await screen.findByText("正在加载组织菜单...")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "成员管理" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "页面不存在" })).not.toBeInTheDocument();
+    await waitFor(() => expect(finishRefresh).toBeTypeOf("function"));
+
+    await act(async () => {
+      finishRefresh?.();
+      await refreshPromise;
+    });
+
+    expect(mock.history.get.filter((request) => request.url?.endsWith("/menus"))).toHaveLength(2);
+    expect(session.menuStore.getState().status).toBe("ready");
+    await waitFor(() => expect(finishResolve).toBeTypeOf("function"));
+    expect(screen.getByText("正在验证页面访问权限...")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "成员管理" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "页面不存在" })).not.toBeInTheDocument();
+
+    await act(async () => finishResolve?.());
+
+    expect(await screen.findByRole("heading", { name: heading })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "成员管理" })).not.toBeInTheDocument();
+    expect(
+      mock.history.get.filter((request) => request.url?.includes("/menus/resolve")),
+    ).toHaveLength(1);
   });
 });

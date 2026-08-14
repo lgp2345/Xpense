@@ -12,4 +12,16 @@ describe("RBAC shared constants", () => {
   it("defines the initial system roles", () => {
     expect(systemRoleKeys).toEqual(["owner", "admin", "member", "viewer"]);
   });
+
+  it("includes the dashboard and menu management permissions", () => {
+    expect(permissionKeys).toEqual(
+      expect.arrayContaining([
+        "dashboard:read",
+        "menus:read",
+        "menus:create",
+        "menus:update",
+        "menus:delete",
+      ]),
+    );
+  });
 });

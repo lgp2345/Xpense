@@ -1,4 +1,4 @@
-import type { PermissionKey } from "@xpense/shared";
+import type { PermissionKey, PermissionTreeNode } from "@xpense/shared";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -7,52 +7,59 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type {
   CreateRoleRequest,
   IamApi,
-  IamPermission,
   IamRoleWithPermissions,
   UpdateRoleRequest,
 } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
-import { RoleEditorDialog, type RoleEditorInput } from "./role-editor-dialog";
+import { RoleEditorDialog, type RoleEditorInput, RoleEditorSaveError } from "./role-editor-dialog";
 import { RoleTable } from "./role-table";
 
 type RolesApi = Pick<
   IamApi,
-  "listRoles" | "createRole" | "updateRole" | "deleteRole" | "listPermissions"
+  | "listRoles"
+  | "createRole"
+  | "deleteRole"
+  | "getPermissionTree"
+  | "editRole"
+  | "editRolePermissions"
 >;
 
 type RolesPageProps = {
   api?: RolesApi;
-  permissionItems?: IamPermission[];
+  permissionTreeItems?: PermissionTreeNode[];
   permissions: PermissionKey[];
   roleItems?: IamRoleWithPermissions[];
 };
 
-function loadRolesData(api: RolesApi, canReadPermissions: boolean) {
+function loadRolesData(api: RolesApi, canUpdatePermissions: boolean) {
   return Promise.all([
     api.listRoles(),
-    canReadPermissions ? api.listPermissions() : Promise.resolve([] as IamPermission[]),
+    canUpdatePermissions ? api.getPermissionTree() : Promise.resolve([] as PermissionTreeNode[]),
   ]);
 }
 
 export function RolesPage({
   api = webIamApi,
-  permissionItems,
+  permissionTreeItems,
   permissions,
   roleItems,
 }: RolesPageProps) {
-  const canReadPermissions = permissions.includes("permissions:read");
+  const canEditMetadata = permissions.includes("roles:update");
+  const canUpdatePermissions = permissions.includes("roles:permissions:update");
   const hasInitialData =
-    roleItems !== undefined && (!canReadPermissions || permissionItems !== undefined);
+    roleItems !== undefined && (!canUpdatePermissions || permissionTreeItems !== undefined);
   const [roles, setRoles] = useState(() => roleItems ?? []);
-  const [availablePermissions, setAvailablePermissions] = useState(() => permissionItems ?? []);
+  const [availablePermissionTree, setAvailablePermissionTree] = useState(() =>
+    canUpdatePermissions ? (permissionTreeItems ?? []) : [],
+  );
   const [isLoading, setIsLoading] = useState(!hasInitialData);
   const [isMutating, setIsMutating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function refreshRoles() {
-    const [nextRoles, nextPermissions] = await loadRolesData(api, canReadPermissions);
+    const [nextRoles, nextPermissionTree] = await loadRolesData(api, canUpdatePermissions);
     setRoles(nextRoles);
-    setAvailablePermissions(nextPermissions);
+    setAvailablePermissionTree(nextPermissionTree);
   }
 
   useEffect(() => {
@@ -62,11 +69,11 @@ export function RolesPage({
 
     let isActive = true;
 
-    void loadRolesData(api, canReadPermissions)
-      .then(([nextRoles, nextPermissions]) => {
+    void loadRolesData(api, canUpdatePermissions)
+      .then(([nextRoles, nextPermissionTree]) => {
         if (isActive) {
           setRoles(nextRoles);
-          setAvailablePermissions(nextPermissions);
+          setAvailablePermissionTree(nextPermissionTree);
         }
       })
       .catch(() => {
@@ -83,7 +90,7 @@ export function RolesPage({
     return () => {
       isActive = false;
     };
-  }, [api, canReadPermissions, hasInitialData]);
+  }, [api, canUpdatePermissions, hasInitialData]);
 
   async function handleCreate(input: RoleEditorInput): Promise<boolean> {
     const request: CreateRoleRequest = input;
@@ -107,10 +114,24 @@ export function RolesPage({
   async function handleUpdate(roleId: string, input: UpdateRoleRequest): Promise<boolean> {
     setErrorMessage(null);
 
-    try {
-      await api.updateRole(roleId, input);
-    } catch {
-      return false;
+    if (canEditMetadata) {
+      try {
+        await api.editRole({
+          roleId,
+          name: input.name,
+          description: input.description,
+        });
+      } catch {
+        throw new RoleEditorSaveError("basic-info");
+      }
+    }
+
+    if (canUpdatePermissions && input.permissionKeys !== undefined) {
+      try {
+        await api.editRolePermissions({ roleId, permissionKeys: input.permissionKeys });
+      } catch {
+        throw new RoleEditorSaveError("permissions");
+      }
     }
 
     try {
@@ -158,8 +179,6 @@ export function RolesPage({
   }
 
   const canCreate = permissions.includes("roles:create");
-  const canUpdatePermissions =
-    canReadPermissions && permissions.includes("roles:permissions:update");
 
   return (
     <main className="space-y-4 p-4 sm:p-6 lg:p-8">
@@ -171,7 +190,7 @@ export function RolesPage({
         {canCreate ? (
           <RoleEditorDialog
             canUpdatePermissions={canUpdatePermissions}
-            permissions={availablePermissions}
+            permissionTree={availablePermissionTree}
             triggerLabel="新增角色"
             onSubmit={handleCreate}
           />
@@ -201,8 +220,9 @@ export function RolesPage({
         </Card>
       ) : (
         <RoleTable
+          canUpdatePermissions={canUpdatePermissions}
           isMutating={isMutating}
-          permissionItems={availablePermissions}
+          permissionTree={availablePermissionTree}
           permissions={permissions}
           roles={roles}
           onDelete={handleDelete}

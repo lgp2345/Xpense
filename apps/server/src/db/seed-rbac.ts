@@ -7,6 +7,11 @@ import postgres from "postgres";
 
 import { parseServerEnv, type ServerEnv } from "../config/env.schema.js";
 import {
+  copyMenuTemplate,
+  type MenuTemplateExecutor,
+  type MenuTemplateInsert,
+} from "../modules/iam/menu-template.js";
+import {
   menus,
   organizationMemberships,
   organizations,
@@ -36,86 +41,10 @@ export type RoleSeed = {
   permissions: PermissionKey[];
 };
 
-export type MenuSeed = {
-  name: string;
-  path: string;
-  componentKey: string | null;
-  icon: string | null;
-  permissionCode: string | null;
-  sortOrder: number;
-  children?: MenuSeed[];
-};
-
 export type RbacSeedPlan = {
   permissions: PermissionSeed[];
   roles: RoleSeed[];
-  menus: MenuSeed[];
 };
-
-export function buildMenuSeedPlan(): MenuSeed[] {
-  return [
-    {
-      name: "仪表盘",
-      path: "/",
-      componentKey: "DashboardPage",
-      icon: "LayoutDashboard",
-      permissionCode: null,
-      sortOrder: 0,
-    },
-    {
-      name: "访问控制",
-      path: "",
-      componentKey: null,
-      icon: "ShieldCheck",
-      permissionCode: null,
-      sortOrder: 10,
-      children: [
-        {
-          name: "成员管理",
-          path: "/members",
-          componentKey: "MembersPage",
-          icon: "Users",
-          permissionCode: "members:read",
-          sortOrder: 0,
-        },
-        {
-          name: "角色管理",
-          path: "/roles",
-          componentKey: "RolesPage",
-          icon: "ShieldCheck",
-          permissionCode: "roles:read",
-          sortOrder: 10,
-        },
-      ],
-    },
-    {
-      name: "安全",
-      path: "",
-      componentKey: null,
-      icon: "Shield",
-      permissionCode: null,
-      sortOrder: 20,
-      children: [
-        {
-          name: "会话管理",
-          path: "/sessions",
-          componentKey: "SessionsPage",
-          icon: "MonitorSmartphone",
-          permissionCode: "sessions:read",
-          sortOrder: 0,
-        },
-        {
-          name: "审计日志",
-          path: "/audit-logs",
-          componentKey: "AuditLogsPage",
-          icon: "ScrollText",
-          permissionCode: "audit_logs:read",
-          sortOrder: 10,
-        },
-      ],
-    },
-  ];
-}
 
 export function buildRbacSeedPlan(): RbacSeedPlan {
   const permissions = permissionKeys.map((key) => {
@@ -152,17 +81,21 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
         name: "Member",
         isSystem: true,
         isEditable: false,
-        permissions: ["transactions:read", "transactions:create", "transactions:update"],
+        permissions: [
+          "dashboard:read",
+          "transactions:read",
+          "transactions:create",
+          "transactions:update",
+        ],
       },
       {
         key: "viewer",
         name: "Viewer",
         isSystem: true,
         isEditable: false,
-        permissions: ["transactions:read"],
+        permissions: ["dashboard:read", "transactions:read"],
       },
     ],
-    menus: buildMenuSeedPlan(),
   };
 }
 
@@ -183,14 +116,16 @@ export async function seedRbac(db: SeedDb, env: ServerEnv): Promise<void> {
       await replaceRolePermissions(tx, roleId, role.permissions, permissionIdByKey);
     }
 
-    await seedBootstrapData(tx, env, roleIdByKey);
+    const bootstrapOrganization = await seedBootstrapData(tx, env, roleIdByKey);
 
-    // 仅在菜单表为空时初始化默认菜单（避免覆盖管理员自定义）
-    const [existingMenu] = await tx.select({ id: menus.id }).from(menus).limit(1);
-    if (!existingMenu) {
-      await seedDefaultMenus(tx, plan.menus);
+    if (bootstrapOrganization && shouldInitializeMenuTemplate(bootstrapOrganization.created)) {
+      await copyMenuTemplate(bootstrapOrganization.id, createMenuTemplateExecutor(tx));
     }
   });
+}
+
+export function shouldInitializeMenuTemplate(organizationWasCreated: boolean): boolean {
+  return organizationWasCreated;
 }
 
 export async function runSeedRbacFromProcessEnv(
@@ -319,13 +254,13 @@ async function seedBootstrapData(
   db: SeedExecutor,
   env: ServerEnv,
   roleIdByKey: Map<SystemRoleKey, string>,
-): Promise<void> {
+): Promise<{ id: string; created: boolean } | undefined> {
   if (
     !env.BOOTSTRAP_SUPER_ADMIN_EMAIL ||
     !env.BOOTSTRAP_SUPER_ADMIN_PASSWORD ||
     !env.BOOTSTRAP_ORGANIZATION_NAME
   ) {
-    return;
+    return undefined;
   }
 
   const superAdminUserId = await upsertBootstrapUser(
@@ -333,7 +268,7 @@ async function seedBootstrapData(
     env.BOOTSTRAP_SUPER_ADMIN_EMAIL,
     env.BOOTSTRAP_SUPER_ADMIN_PASSWORD,
   );
-  const organizationId = await ensureBootstrapOrganization(
+  const bootstrapOrganization = await ensureBootstrapOrganization(
     db,
     env.BOOTSTRAP_ORGANIZATION_NAME,
     superAdminUserId,
@@ -347,7 +282,7 @@ async function seedBootstrapData(
   await db
     .insert(organizationMemberships)
     .values({
-      organizationId,
+      organizationId: bootstrapOrganization.id,
       userId: superAdminUserId,
       roleId: ownerRoleId,
       status: "active",
@@ -360,6 +295,8 @@ async function seedBootstrapData(
         updatedAt: new Date(),
       },
     });
+
+  return bootstrapOrganization;
 }
 
 async function upsertBootstrapUser(
@@ -409,7 +346,7 @@ async function ensureBootstrapOrganization(
   db: SeedExecutor,
   name: string,
   createdByUserId: string,
-): Promise<string> {
+): Promise<{ id: string; created: boolean }> {
   const [existingOrganization] = await db
     .select({
       id: organizations.id,
@@ -427,7 +364,7 @@ async function ensureBootstrapOrganization(
       })
       .where(eq(organizations.id, existingOrganization.id));
 
-    return existingOrganization.id;
+    return { id: existingOrganization.id, created: false };
   }
 
   const [insertedOrganization] = await db
@@ -443,32 +380,21 @@ async function ensureBootstrapOrganization(
     throw new Error(`Failed to seed bootstrap organization: ${name}`);
   }
 
-  return insertedOrganization.id;
+  return { id: insertedOrganization.id, created: true };
 }
 
-async function seedDefaultMenus(
-  db: SeedExecutor,
-  menuSeeds: MenuSeed[],
-  parentId: string | null = null,
-): Promise<void> {
-  for (const menuSeed of menuSeeds) {
-    const [inserted] = await db
-      .insert(menus)
-      .values({
-        name: menuSeed.name,
-        path: menuSeed.path,
-        parentId,
-        componentKey: menuSeed.componentKey,
-        icon: menuSeed.icon,
-        permissionCode: menuSeed.permissionCode,
-        sortOrder: menuSeed.sortOrder,
-      })
-      .returning({ id: menus.id });
+function createMenuTemplateExecutor(db: SeedExecutor): MenuTemplateExecutor {
+  return {
+    async insertMenu(input: MenuTemplateInsert): Promise<number> {
+      const [insertedMenu] = await db.insert(menus).values(input).returning({ id: menus.id });
 
-    if (inserted && menuSeed.children && menuSeed.children.length > 0) {
-      await seedDefaultMenus(db, menuSeed.children, inserted.id);
-    }
-  }
+      if (!insertedMenu) {
+        throw new Error(`Failed to seed menu template node: ${input.name}`);
+      }
+
+      return insertedMenu.id;
+    },
+  };
 }
 
 function isEntrypoint(): boolean {

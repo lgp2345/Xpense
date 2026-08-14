@@ -7,8 +7,7 @@
     "jsx": "react-jsx",
     "noEmit": true,
     "paths": {
-      "@/*": ["./src/*"],
-      "~/*": ["./src/*"]
+      "@/*": ["./src/*"]
     },
     "types": ["vite/client", "vitest/globals"]
   },

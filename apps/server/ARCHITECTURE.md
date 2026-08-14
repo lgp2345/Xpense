@@ -76,6 +76,8 @@
   - 写操作一律 POST，HTTP 状态码统一 200
   - update/delete 的资源 id 一律放请求 body（如 `{ id, ...fields }`），不放路径参数
   - 接口动词与 RBAC 权限 key 对齐（`members:create` ↔ `POST /members/create`）
+- 角色权限更新必须走独立接口 `POST /roles/permissions/edit`，`POST /roles/update` 只更新元数据（DTO strict 拒绝 `permissionKeys`）。
+- 菜单采用组织菜单模型（`menus` 表：`type` 为 directory/menu/button），动作接口 `POST /menus/add|edit|delete|edit-order`、`POST /organizations/menus/reset`，读接口 `GET /menus`、`GET /menus/configuration`、`GET /menus/resolve`、`GET /permissions/tree`。
 - 例外：当前用户范围接口（`GET /user`、`GET /auth/sessions`、`GET /user/organizations`、`GET /menus`）与 auth 动作类接口（login/refresh/logout/revoke/current-organization）保持路径现状，不套用上述模板。
 - 前端路由 path（seed-rbac 中 `path` 字段）与 API 路径是两回事，互不影响。
 - 请求 DTO 和响应类型必须显式定义。

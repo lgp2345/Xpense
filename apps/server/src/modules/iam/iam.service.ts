@@ -4,7 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { MenuItem, PermissionKey } from "@xpense/shared";
+import {
+  type AuthorizedMenuNode,
+  type MenuIconKey,
+  type PermissionKey,
+  ROUTE_DEFINITIONS,
+  type RouteKey,
+} from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
@@ -18,7 +24,10 @@ import type { UpdateMemberDto } from "./dto/update-member.dto.js";
 import type { UpdateRoleDto } from "./dto/update-role.dto.js";
 import { IamRepository } from "./iam.repository.js";
 import type { IamMember, IamPermission, IamRole, IamRoleWithPermissions } from "./iam.types.js";
-import { MenuRepository, type MenuRow } from "./menu.repository.js";
+import { MenuRepository } from "./menu.repository.js";
+import { type AuthorizedMenuTreeNode, buildAuthorizedMenuTree } from "./menu-tree.js";
+
+type UpdateRoleProfile = Pick<UpdateRoleDto, "id" | "name" | "description">;
 
 @Injectable()
 export class IamService {
@@ -256,12 +265,14 @@ export class IamService {
     });
   }
 
-  async updateRole(authContext: AuthContext, dto: UpdateRoleDto): Promise<IamRole> {
+  async updateRole(authContext: AuthContext, dto: UpdateRoleProfile): Promise<IamRole> {
     const roleId = dto.id;
 
-    if (dto.permissionKeys !== undefined) {
-      this.assertCanUpdateRolePermissions(authContext);
-      this.assertPermissionsWithinCeiling(authContext, dto.permissionKeys);
+    if ("permissionKeys" in dto) {
+      throw new ForbiddenException({
+        code: apiErrorCodes.forbidden,
+        message: "角色权限必须通过独立权限接口更新",
+      });
     }
 
     const role = await this.repository.findRoleById(authContext.organizationId, roleId);
@@ -283,16 +294,6 @@ export class IamService {
         transaction,
       );
 
-      if (dto.permissionKeys) {
-        await this.repository.replaceRolePermissions(
-          {
-            roleId,
-            permissionKeys: dto.permissionKeys,
-          },
-          transaction,
-        );
-      }
-
       if (dto.name !== undefined || dto.description !== undefined) {
         await this.auditService.appendRequired(
           {
@@ -307,23 +308,6 @@ export class IamService {
               nameTo: dto.name,
               descriptionFrom: role.description,
               descriptionTo: dto.description,
-            },
-          },
-          transaction,
-        );
-      }
-
-      if (dto.permissionKeys) {
-        await this.auditService.appendRequired(
-          {
-            organizationId: authContext.organizationId,
-            actorUserId: authContext.userId,
-            action: "role.permissions.changed",
-            targetType: "role",
-            targetId: roleId,
-            result: "succeeded",
-            metadata: {
-              permissionKeys: dto.permissionKeys,
             },
           },
           transaction,
@@ -373,47 +357,24 @@ export class IamService {
     });
   }
 
-  async getVisibleMenus(authContext: AuthContext): Promise<MenuItem[]> {
-    const allMenus = await this.menuRepository.listAllMenus();
-    return this.filterMenuTree(allMenus, null, authContext);
+  async getVisibleMenus(authContext: AuthContext): Promise<AuthorizedMenuNode[]> {
+    const rows = await this.menuRepository.listByOrganizationId(authContext.organizationId);
+    const permissionCodes = authContext.isSuperAdmin
+      ? rows.flatMap((row) => (row.permissionCode === null ? [] : [row.permissionCode]))
+      : authContext.permissions;
+    const tree = buildAuthorizedMenuTree(rows, {
+      organizationId: authContext.organizationId,
+      permissionCodes,
+    });
+
+    return tree.flatMap((node) => {
+      const projected = projectAuthorizedMenuNode(node);
+      return projected ? [projected] : [];
+    });
   }
 
   listPermissions(_authContext: AuthContext): Promise<IamPermission[]> {
     return this.repository.listPermissions();
-  }
-
-  private filterMenuTree(
-    rows: MenuRow[],
-    parentId: string | null,
-    authContext: AuthContext,
-  ): MenuItem[] {
-    const children = rows.filter((row) => row.parentId === parentId);
-
-    return children
-      .filter((item) => {
-        // 超管看全部；无权限码=所有人可见
-        if (authContext.isSuperAdmin || !item.permissionCode) return true;
-        return authContext.permissions.includes(item.permissionCode as PermissionKey);
-      })
-      .map((item) => ({
-        id: item.id,
-        name: item.name,
-        path: item.path,
-        parentId: item.parentId,
-        componentKey: item.componentKey,
-        icon: item.icon,
-        permissionCode: item.permissionCode,
-        sortOrder: item.sortOrder,
-        children: this.filterMenuTree(rows, item.id, authContext),
-      }))
-      .filter(
-        (item) =>
-          // 保留：有权限直接可见 或 子节点非空（作为目录容器）
-          !item.permissionCode ||
-          authContext.isSuperAdmin ||
-          authContext.permissions.includes(item.permissionCode as PermissionKey) ||
-          item.children.length > 0,
-      );
   }
 
   private async ensureRoleInCurrentOrganization(
@@ -492,4 +453,77 @@ export class IamService {
       message,
     });
   }
+}
+
+function projectAuthorizedMenuNode(node: AuthorizedMenuTreeNode): AuthorizedMenuNode | null {
+  const children = node.children.flatMap((child) => {
+    const projected = projectAuthorizedMenuNode(child);
+    return projected ? [projected] : [];
+  });
+  const base = {
+    id: node.id,
+    parentId: node.parentId,
+    name: node.name,
+    sortOrder: node.sortOrder,
+    children,
+  };
+
+  if (node.type === "directory") {
+    return {
+      ...base,
+      type: "directory",
+      icon: node.icon as MenuIconKey | null,
+      isVisible: node.isVisible === true,
+      routeKey: null,
+      path: null,
+      url: null,
+      permissionCode: null,
+      isExternal: null,
+      keepAlive: null,
+    };
+  }
+
+  if (node.type !== "menu" || node.permissionCode === null) {
+    return null;
+  }
+
+  if (node.isExternal === true) {
+    if (node.path === null) {
+      return null;
+    }
+
+    return {
+      ...base,
+      type: "menu",
+      icon: node.icon as MenuIconKey | null,
+      isVisible: node.isVisible === true,
+      routeKey: null,
+      path: null,
+      url: node.path,
+      permissionCode: node.permissionCode as PermissionKey,
+      isExternal: true,
+      keepAlive: null,
+    };
+  }
+
+  if (!isRouteKey(node.routeKey)) {
+    return null;
+  }
+
+  return {
+    ...base,
+    type: "menu",
+    icon: node.icon as MenuIconKey | null,
+    isVisible: node.isVisible === true,
+    routeKey: node.routeKey,
+    path: ROUTE_DEFINITIONS[node.routeKey].path,
+    url: null,
+    permissionCode: node.permissionCode as PermissionKey,
+    isExternal: false,
+    keepAlive: node.keepAlive === true,
+  } as AuthorizedMenuNode;
+}
+
+function isRouteKey(value: string | null): value is RouteKey {
+  return value !== null && value in ROUTE_DEFINITIONS;
 }

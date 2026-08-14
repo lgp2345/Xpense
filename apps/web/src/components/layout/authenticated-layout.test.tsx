@@ -5,12 +5,12 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { CurrentUserResponse } from "@xpense/shared";
+import type { AuthorizedMenuNode, CurrentUserResponse } from "@xpense/shared";
 import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useStore } from "zustand";
 
 import { AppProviders } from "@/components/app-providers";
@@ -30,61 +30,127 @@ const userContext: CurrentUserResponse = {
 function ConditionalAuthenticatedLayout({ session }: { session: WebSessionDependency }) {
   const isAuthenticated = useStore(session.authStore, (state) => state.status === "authenticated");
 
-  return isAuthenticated ? <AuthenticatedLayout session={session} /> : <p>已退出</p>;
+  return isAuthenticated ? (
+    <AuthenticatedLayout requiresMenuBootstrap={false} session={session} />
+  ) : (
+    <p>已退出</p>
+  );
+}
+
+const authorizedMenus: AuthorizedMenuNode[] = [
+  {
+    id: 1,
+    parentId: null,
+    type: "directory",
+    name: "访问控制",
+    sortOrder: 0,
+    icon: "ShieldCheck",
+    isVisible: true,
+    routeKey: null,
+    path: null,
+    url: null,
+    permissionCode: null,
+    isExternal: null,
+    keepAlive: null,
+    children: [
+      {
+        id: 4,
+        parentId: 1,
+        type: "directory",
+        name: "安全",
+        sortOrder: 0,
+        icon: "Shield",
+        isVisible: true,
+        routeKey: null,
+        path: null,
+        url: null,
+        permissionCode: null,
+        isExternal: null,
+        keepAlive: null,
+        children: [
+          {
+            id: 5,
+            parentId: 4,
+            type: "menu",
+            name: "会话",
+            sortOrder: 0,
+            icon: "MonitorSmartphone",
+            isVisible: true,
+            routeKey: "Sessions",
+            path: "/sessions",
+            url: null,
+            permissionCode: "sessions:read",
+            isExternal: false,
+            keepAlive: false,
+            children: [],
+          },
+        ],
+      },
+      {
+        id: 2,
+        parentId: 1,
+        type: "menu",
+        name: "成员",
+        sortOrder: 10,
+        icon: "Users",
+        isVisible: true,
+        routeKey: "Members",
+        path: "/members",
+        url: null,
+        permissionCode: "members:read",
+        isExternal: false,
+        keepAlive: false,
+        children: [],
+      },
+    ],
+  },
+  {
+    id: 3,
+    parentId: null,
+    type: "menu",
+    name: "产品文档",
+    sortOrder: 10,
+    icon: "Shield",
+    isVisible: true,
+    routeKey: null,
+    path: null,
+    url: "https://docs.example.com",
+    permissionCode: "members:read",
+    isExternal: true,
+    keepAlive: null,
+    children: [],
+  },
+];
+
+function createDeferred<T>() {
+  let resolve: (value: T) => void = () => undefined;
+  let reject: (reason?: unknown) => void = () => undefined;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, reject, resolve };
 }
 
 describe("AuthenticatedLayout", () => {
   it("呈现当前会话的组织、邮箱与获授权导航控制项", async () => {
+    const user = userEvent.setup();
     const store = createAuthStore({ accessToken: "access-token" });
     store.getState().setCurrentUserContext(userContext);
     const instance = axios.create();
     const mock = new MockAdapter(instance);
-    mock.onGet("http://localhost:4000/menus").reply(200, {
-      code: "OK",
-      message: "ok",
-      data: [
-        {
-          id: "1",
-          name: "仪表盘",
-          path: "/",
-          parentId: null,
-          componentKey: "DashboardPage",
-          icon: "LayoutDashboard",
-          permissionCode: null,
-          sortOrder: 0,
-          children: [],
-        },
-        {
-          id: "2",
-          name: "访问控制",
-          path: "",
-          parentId: null,
-          componentKey: null,
-          icon: "ShieldCheck",
-          permissionCode: null,
-          sortOrder: 10,
-          children: [
-            {
-              id: "3",
-              name: "成员",
-              path: "/members",
-              parentId: "2",
-              componentKey: "MembersPage",
-              icon: "Users",
-              permissionCode: "members:read",
-              sortOrder: 0,
-              children: [],
-            },
-          ],
-        },
-      ],
-    });
+    const menuResponse = createDeferred<[number, unknown]>();
+    mock.onGet("http://localhost:4000/menus").reply(() => menuResponse.promise);
     mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
     const session = createWebSession({
       authStore: store,
       baseUrl: "http://localhost:4000",
       instance,
     });
+    const menuLoad = session.menuStore
+      .getState()
+      .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
     const rootRoute = createRootRoute({
       component: () => <AuthenticatedLayout session={session} />,
     });
@@ -104,13 +170,233 @@ describe("AuthenticatedLayout", () => {
       </AppProviders>,
     );
 
+    expect(await screen.findByText("正在加载组织菜单...")).toBeInTheDocument();
+    expect(screen.queryByText("受保护内容")).not.toBeInTheDocument();
+
+    await act(async () => {
+      menuResponse.resolve([200, { code: "OK", message: "ok", data: authorizedMenus }]);
+      await menuLoad;
+    });
+
     expect(await screen.findByText("个人账本")).toBeInTheDocument();
     expect(screen.getByText("owner@example.com")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "成员" })).toHaveAttribute("href", "/members");
+    const membersLink = screen.getByRole("link", { name: "成员" });
+    expect(membersLink).toHaveAttribute("href", "/members");
+    const accessControlGroup = screen.getByText("访问控制").closest('[data-sidebar="group"]');
+    expect(accessControlGroup).not.toBeNull();
+    const accessControl = within(accessControlGroup as HTMLElement);
+    const securityTrigger = accessControl.getByRole("button", { name: /安全/ });
+    expect(
+      securityTrigger.compareDocumentPosition(membersLink) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(securityTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(accessControl.queryByRole("link", { name: "会话" })).not.toBeInTheDocument();
+
+    await user.click(securityTrigger);
+
+    expect(securityTrigger).toHaveAttribute("aria-expanded", "true");
+    expect(accessControl.getByRole("link", { name: "会话" })).toHaveAttribute("href", "/sessions");
+
+    await user.click(securityTrigger);
+
+    expect(accessControl.queryByRole("link", { name: "会话" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "产品文档" })).toHaveAttribute(
+      "href",
+      "https://docs.example.com",
+    );
+    expect(screen.getByRole("link", { name: "产品文档" })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: "产品文档" })).toHaveAttribute(
+      "rel",
+      "noopener noreferrer",
+    );
     expect(screen.queryByRole("link", { name: "角色" })).not.toBeInTheDocument();
     expect(document.querySelector('[data-sidebar="trigger"]')).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "切换主题" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "搜索命令" })).toBeInTheDocument();
+    expect(mock.history.get.filter(({ url }) => url?.endsWith("/menus"))).toHaveLength(1);
+  });
+
+  it("按活动路由键高亮对应的动态菜单", async () => {
+    const store = createAuthStore({ accessToken: "access-token" });
+    store.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onGet("http://localhost:4000/menus").reply(200, {
+      code: "OK",
+      message: "ok",
+      data: authorizedMenus,
+    });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    await session.menuStore
+      .getState()
+      .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    const rootRoute = createRootRoute({
+      component: () => <AuthenticatedLayout session={session} />,
+    });
+    const membersRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/members",
+      staticData: { routeKey: "Members" },
+      component: () => <main>成员内容</main>,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([membersRoute]),
+      history: createMemoryHistory({ initialEntries: ["/members"] }),
+    });
+
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByRole("link", { name: "成员" })).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+  });
+
+  it("菜单加载失败时保留认证并允许原地重试", async () => {
+    const user = userEvent.setup();
+    const store = createAuthStore({ accessToken: "access-token" });
+    store.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock
+      .onGet("http://localhost:4000/menus")
+      .replyOnce(400, { code: "VALIDATION_FAILED", message: "failed", data: null })
+      .onGet("http://localhost:4000/menus")
+      .reply(200, { code: "OK", message: "ok", data: authorizedMenus });
+    mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    await session.menuStore
+      .getState()
+      .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    const rootRoute = createRootRoute({
+      component: () => <AuthenticatedLayout session={session} />,
+    });
+    const indexRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/",
+      component: () => <main>重试后的内容</main>,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([indexRoute]),
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+    });
+
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("菜单加载失败，请稍后重试。");
+    expect(store.getState().status).toBe("authenticated");
+    expect(screen.queryByText("重试后的内容")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "重试" }));
+
+    expect(await screen.findByText("重试后的内容")).toBeInTheDocument();
+    expect(mock.history.get.filter(({ url }) => url?.endsWith("/menus"))).toHaveLength(2);
+  });
+
+  it("组织切换失败后恢复旧菜单并显示全局错误反馈", async () => {
+    const user = userEvent.setup();
+    const store = createAuthStore({ accessToken: "org-1-access" });
+    store.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    vi.spyOn(session.authApi, "listOrganizations").mockResolvedValue([
+      { id: "org-1", name: "个人账本", status: "active" },
+      { id: "org-2", name: "家庭账本", status: "active" },
+    ]);
+    vi.spyOn(session.authApi, "switchOrganization").mockRejectedValue(new Error("switch failed"));
+    const getAuthorizedMenus = vi
+      .spyOn(session.iamApi, "getAuthorizedMenus")
+      .mockResolvedValue(authorizedMenus);
+    await session.menuStore
+      .getState()
+      .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    const rootRoute = createRootRoute({
+      component: () => <AuthenticatedLayout session={session} />,
+    });
+    const indexRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/",
+      component: () => <main>组织内容</main>,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([indexRoute]),
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+    });
+
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: /个人账本/ }));
+    await user.click(await screen.findByRole("menuitem", { name: "家庭账本" }));
+
+    expect(await screen.findByText("切换组织失败，请稍后重试。")).toBeInTheDocument();
+    expect(await screen.findByText("组织内容")).toBeInTheDocument();
+    expect(session.menuStore.getState()).toMatchObject({
+      organizationId: "org-1",
+      status: "ready",
+    });
+    expect(getAuthorizedMenus).toHaveBeenCalledOnce();
+    expect(mock.history.get.filter(({ url }) => url?.endsWith("/menus"))).toHaveLength(1);
+  });
+
+  it("恢复路由可绕过菜单门控，但匿名会话仍不能呈现受保护内容", async () => {
+    const store = createAuthStore();
+    const session = createWebSession({ authStore: store, baseUrl: "http://localhost:4000" });
+    const rootRoute = createRootRoute({
+      component: () => <AuthenticatedLayout requiresMenuBootstrap={false} session={session} />,
+    });
+    const indexRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/",
+      component: () => <main>静态恢复内容</main>,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([indexRoute]),
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+    });
+
+    const view = render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    expect(screen.queryByText("静态恢复内容")).not.toBeInTheDocument();
+
+    store.getState().setAccessToken("access-token");
+    store.getState().setCurrentUserContext(userContext);
+    view.rerender(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByText("静态恢复内容")).toBeInTheDocument();
   });
 
   it("在退出请求失败且壳层卸载后仍显示全局错误反馈", async () => {

@@ -205,6 +205,21 @@ export class IamRepository {
     return role ?? null;
   }
 
+  async lockRoleById(
+    organizationId: string,
+    roleId: string,
+    executor: AppDbExecutor,
+  ): Promise<IamRole | null> {
+    const [role] = await executor
+      .select(roleSelectFields)
+      .from(roles)
+      .where(and(eq(roles.id, roleId), eq(roles.organizationId, organizationId)))
+      .for("update")
+      .limit(1);
+
+    return role ?? null;
+  }
+
   async findRoleByKey(organizationId: string, key: string): Promise<IamRole | null> {
     const [role] = await this.db
       .select(roleSelectFields)
@@ -231,6 +246,20 @@ export class IamRepository {
       .from(rolePermissions)
       .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
       .where(eq(rolePermissions.roleId, roleId));
+
+    return rows.map((row) => row.key as PermissionKey);
+  }
+
+  async lockPermissionKeysForRole(
+    roleId: string,
+    executor: AppDbExecutor,
+  ): Promise<PermissionKey[]> {
+    const rows = await executor
+      .select({ key: permissions.key })
+      .from(rolePermissions)
+      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+      .where(eq(rolePermissions.roleId, roleId))
+      .for("update", { of: rolePermissions });
 
     return rows.map((row) => row.key as PermissionKey);
   }

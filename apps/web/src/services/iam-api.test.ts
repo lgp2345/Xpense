@@ -67,4 +67,81 @@ describe("createIamApi", () => {
       "/audit-logs/list?action=member.role.changed&actorUserId=user-1&targetType=member&from=2026-07-01T00%3A00%3A00.000Z&to=2026-07-10T00%3A00%3A00.000Z&page=2&pageSize=25",
     );
   });
+
+  it("wraps menu and permission-tree endpoints with action paths and request bodies", async () => {
+    const { api, client } = createHarness();
+
+    await api.getAuthorizedMenus();
+    await api.resolveMenuRoute("/members/42");
+    await api.getMenuConfiguration();
+    await api.addMenu({
+      type: "menu",
+      name: "成员",
+      parentId: 1,
+      routeKey: "Members",
+      icon: "Users",
+      permissionCode: "members:read",
+      isExternal: false,
+      isVisible: true,
+      keepAlive: false,
+    });
+    await api.editMenu({
+      id: 2,
+      type: "directory",
+      name: "系统管理",
+      parentId: null,
+      icon: "Shield",
+      isVisible: false,
+    });
+    await api.deleteMenu(3);
+    await api.editMenuOrder(4, "down");
+    await api.getPermissionTree();
+    await api.editRole({ roleId: "role-1", name: "管理员" });
+    await api.editRolePermissions({
+      roleId: "role-1",
+      permissionKeys: ["members:read", "roles:read"],
+    });
+    await api.resetOrganizationMenus("00000000-0000-4000-8000-000000000001");
+
+    expect(client.get).toHaveBeenNthCalledWith(1, "/menus", { retry: false });
+    expect(client.get).toHaveBeenNthCalledWith(2, "/menus/resolve?path=%2Fmembers%2F42");
+    expect(client.get).toHaveBeenNthCalledWith(3, "/menus/configuration");
+    expect(client.post).toHaveBeenNthCalledWith(1, "/menus/add", {
+      type: "menu",
+      name: "成员",
+      parentId: 1,
+      routeKey: "Members",
+      icon: "Users",
+      permissionCode: "members:read",
+      isExternal: false,
+      isVisible: true,
+      keepAlive: false,
+    });
+    expect(client.post).toHaveBeenNthCalledWith(2, "/menus/edit", {
+      id: 2,
+      type: "directory",
+      name: "系统管理",
+      parentId: null,
+      icon: "Shield",
+      isVisible: false,
+    });
+    expect(client.post).toHaveBeenNthCalledWith(3, "/menus/delete", { id: 3 });
+    expect(client.post).toHaveBeenNthCalledWith(4, "/menus/edit-order", {
+      id: 4,
+      direction: "down",
+    });
+    expect(client.get).toHaveBeenNthCalledWith(4, "/permissions/tree");
+    expect(client.post).toHaveBeenNthCalledWith(5, "/roles/update", {
+      id: "role-1",
+      name: "管理员",
+      description: undefined,
+    });
+    expect(client.post).toHaveBeenNthCalledWith(6, "/roles/permissions/edit", {
+      roleId: "role-1",
+      permissionKeys: ["members:read", "roles:read"],
+    });
+    expect(client.post).toHaveBeenNthCalledWith(7, "/organizations/menus/reset", {
+      organizationId: "00000000-0000-4000-8000-000000000001",
+    });
+  });
 });

@@ -3,6 +3,11 @@ import type { AxiosInstance } from "axios";
 
 import { API_BASE_URL } from "../lib/env";
 import { type AuthStoreApi, authStore } from "../stores/auth-store";
+import {
+  createMenuStore,
+  menuStore as defaultMenuStore,
+  type MenuStoreApi,
+} from "../stores/menu-store";
 import { ApiError, createApiClient } from "./api-client";
 import { type AuthApi, createAuthApi, type LoginRequest, type UserOrganization } from "./auth-api";
 import { createIamApi, type IamApi } from "./iam-api";
@@ -25,6 +30,7 @@ export type WebSessionDependency = {
   authApi: AuthApi;
   authStore: AuthStoreApi;
   iamApi: IamApi;
+  menuStore: MenuStoreApi;
   restoreSession: () => Promise<boolean>;
 };
 
@@ -32,6 +38,12 @@ type CreateWebSessionOptions = {
   authStore: AuthStoreApi;
   baseUrl?: string;
   instance?: AxiosInstance;
+  menuStore?: MenuStoreApi;
+};
+
+export type MenuBootstrapDependency = {
+  iamApi: Pick<IamApi, "getAuthorizedMenus">;
+  menuStore: MenuStoreApi;
 };
 
 export type WebLoginFailureKind = "invalid_credentials" | "service_unavailable";
@@ -62,6 +74,8 @@ type SwitchOperation = {
 
 type SessionMutationCoordinator = {
   activeSwitch?: SwitchOperation;
+  observesAuthContext?: boolean;
+  menuBootstrap?: MenuBootstrapDependency;
 };
 
 const sessionMutationCoordinators = new WeakMap<AuthStoreApi, SessionMutationCoordinator>();
@@ -69,16 +83,23 @@ const sessionMutationCoordinators = new WeakMap<AuthStoreApi, SessionMutationCoo
 export async function restoreWebSession(
   api: SessionAuthApi,
   store: AuthStoreApi,
+  menuBootstrap?: MenuBootstrapDependency,
 ): Promise<boolean> {
+  invalidateOrganizationSwitch(store);
+  const menus = resolveMenuBootstrap(store, menuBootstrap);
+  menus?.menuStore.getState().clearMenus();
+
   try {
     const { accessToken } = await api.refresh();
     store.getState().setAccessToken(accessToken);
     const currentUser = await api.getCurrentUser();
     store.getState().setCurrentUserContext(currentUser);
+    await loadOrganizationMenus(menus, currentUser.organization.id);
 
     return true;
   } catch {
     store.getState().clearAuth();
+    menus?.menuStore.getState().clearMenus();
 
     return false;
   }
@@ -88,8 +109,12 @@ export async function loginWebSession(
   api: SessionAuthApi,
   store: AuthStoreApi,
   input: WebLoginInput,
+  menuBootstrap?: MenuBootstrapDependency,
 ): Promise<void> {
+  invalidateOrganizationSwitch(store);
   let didCreateSession = false;
+  const menus = resolveMenuBootstrap(store, menuBootstrap);
+  menus?.menuStore.getState().clearMenus();
 
   try {
     const { accessToken } = await api.login({ ...input, clientType: "web_pc" });
@@ -97,12 +122,14 @@ export async function loginWebSession(
     store.getState().setAccessToken(accessToken);
     const currentUser = await api.getCurrentUser();
     store.getState().setCurrentUserContext(currentUser);
+    await loadOrganizationMenus(menus, currentUser.organization.id);
   } catch (error) {
     if (didCreateSession) {
       await api.logout().catch(() => undefined);
     }
 
     store.getState().clearAuth();
+    menus?.menuStore.getState().clearMenus();
     throw new WebLoginError(getLoginFailureKind(error, didCreateSession), error);
   }
 }
@@ -111,6 +138,7 @@ export function switchWebOrganization(
   api: WebOrganizationAuthApi,
   store: AuthStoreApi,
   organizationId: string,
+  menuBootstrap?: MenuBootstrapDependency,
 ): Promise<void> {
   const coordinator = getSessionMutationCoordinator(store);
 
@@ -118,15 +146,21 @@ export function switchWebOrganization(
     return coordinator.activeSwitch.promise;
   }
 
+  const menus = resolveMenuBootstrap(store, menuBootstrap);
+  menus?.menuStore.getState().clearMenus();
+
   const operationId = Symbol("switch-organization");
   const startingAccessToken = store.getState().accessToken;
+  const startingOrganizationId = store.getState().currentOrganization?.id ?? null;
   const promise = performOrganizationSwitch(
     api,
     store,
     coordinator,
     operationId,
     startingAccessToken,
+    startingOrganizationId,
     organizationId,
+    menus,
   ).finally(() => {
     if (coordinator.activeSwitch?.id === operationId) {
       coordinator.activeSwitch = undefined;
@@ -144,17 +178,23 @@ async function performOrganizationSwitch(
   coordinator: SessionMutationCoordinator,
   operationId: symbol,
   startingAccessToken: string | null,
+  startingOrganizationId: string | null,
   organizationId: string,
+  menuBootstrap: MenuBootstrapDependency | undefined,
 ): Promise<void> {
   let accessToken: string;
 
   try {
     ({ accessToken } = await api.switchOrganization(organizationId));
   } catch (error) {
-    if (!isCurrentSwitch(coordinator, operationId)) {
+    if (
+      !isCurrentSwitch(coordinator, operationId) ||
+      store.getState().accessToken !== startingAccessToken
+    ) {
       return;
     }
 
+    await loadOrganizationMenus(menuBootstrap, startingOrganizationId);
     throw new WebOrganizationSwitchError(error);
   }
 
@@ -178,6 +218,7 @@ async function performOrganizationSwitch(
     }
 
     store.getState().setCurrentUserContext(currentUser);
+    await loadOrganizationMenus(menuBootstrap, currentUser.organization.id);
   } catch (error) {
     if (!isCurrentSwitch(coordinator, operationId)) {
       return;
@@ -185,6 +226,7 @@ async function performOrganizationSwitch(
 
     if (store.getState().accessToken === accessToken) {
       store.getState().clearAuth();
+      menuBootstrap?.menuStore.getState().clearMenus();
     }
 
     throw new WebOrganizationSwitchError(error);
@@ -194,8 +236,11 @@ async function performOrganizationSwitch(
 export async function logoutWebSession(
   api: Pick<SessionAuthApi, "logout">,
   store: AuthStoreApi,
+  menuBootstrap?: MenuBootstrapDependency,
 ): Promise<void> {
   invalidateOrganizationSwitch(store);
+  const menus = resolveMenuBootstrap(store, menuBootstrap);
+  menus?.menuStore.getState().clearMenus();
 
   let logoutRequest: Promise<void>;
 
@@ -221,6 +266,60 @@ function getSessionMutationCoordinator(store: AuthStoreApi): SessionMutationCoor
   return coordinator;
 }
 
+function resolveMenuBootstrap(
+  store: AuthStoreApi,
+  menuBootstrap?: MenuBootstrapDependency,
+): MenuBootstrapDependency | undefined {
+  return menuBootstrap ?? getSessionMutationCoordinator(store).menuBootstrap;
+}
+
+function loadOrganizationMenus(
+  menuBootstrap: MenuBootstrapDependency | undefined,
+  organizationId: string | null,
+): Promise<void> {
+  if (!menuBootstrap || !organizationId) {
+    return Promise.resolve();
+  }
+
+  return menuBootstrap.menuStore
+    .getState()
+    .loadMenusForOrganization(organizationId, menuBootstrap.iamApi.getAuthorizedMenus);
+}
+
+function bindMenuBootstrap(store: AuthStoreApi, menuBootstrap: MenuBootstrapDependency): void {
+  const coordinator = getSessionMutationCoordinator(store);
+  coordinator.menuBootstrap = menuBootstrap;
+
+  if (!coordinator.observesAuthContext) {
+    coordinator.observesAuthContext = true;
+    store.subscribe((state, previousState) => {
+      const activeMenus = coordinator.menuBootstrap;
+
+      if (!activeMenus) {
+        return;
+      }
+      if (state.status !== "authenticated") {
+        activeMenus.menuStore.getState().clearMenus();
+        return;
+      }
+
+      const organizationId = state.currentOrganization?.id ?? null;
+      const previousOrganizationId = previousState.currentOrganization?.id ?? null;
+
+      if (
+        organizationId &&
+        (previousState.status !== "authenticated" || organizationId !== previousOrganizationId)
+      ) {
+        void loadOrganizationMenus(activeMenus, organizationId);
+      }
+    });
+  }
+
+  if (store.getState().status === "authenticated") {
+    void loadOrganizationMenus(menuBootstrap, store.getState().currentOrganization?.id ?? null);
+  }
+}
+
 function isCurrentSwitch(coordinator: SessionMutationCoordinator, operationId: symbol): boolean {
   return coordinator.activeSwitch?.id === operationId;
 }
@@ -238,6 +337,7 @@ function getLoginFailureKind(error: unknown, didCreateSession: boolean): WebLogi
 }
 
 export function createWebSession(options: CreateWebSessionOptions): WebSessionDependency {
+  const sessionMenuStore = options.menuStore ?? createMenuStore();
   const apiClient = createApiClient({
     baseUrl: options.baseUrl,
     getAccessToken: () => options.authStore.getState().accessToken,
@@ -245,6 +345,7 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
     onAuthFailure: (_error, requestAccessToken) => {
       if (options.authStore.getState().accessToken === requestAccessToken) {
         options.authStore.getState().clearAuth();
+        sessionMenuStore.getState().clearMenus();
       }
     },
     refreshAccessToken: async (requestAccessToken) => {
@@ -264,16 +365,23 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
   });
   const authApi = createAuthApi(apiClient);
   const iamApi = createIamApi(apiClient);
+  const menuBootstrap = { iamApi, menuStore: sessionMenuStore };
+  bindMenuBootstrap(options.authStore, menuBootstrap);
 
   return {
     authApi,
     authStore: options.authStore,
     iamApi,
-    restoreSession: () => restoreWebSession(authApi, options.authStore),
+    menuStore: sessionMenuStore,
+    restoreSession: () => restoreWebSession(authApi, options.authStore, menuBootstrap),
   };
 }
 
-export const webSession = createWebSession({ authStore, baseUrl: API_BASE_URL });
+export const webSession = createWebSession({
+  authStore,
+  baseUrl: API_BASE_URL,
+  menuStore: defaultMenuStore,
+});
 export const webAuthApi = webSession.authApi;
 export const webIamApi = webSession.iamApi;
 

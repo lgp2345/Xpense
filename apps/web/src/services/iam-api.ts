@@ -1,4 +1,11 @@
-import type { MenuItem, PermissionKey } from "@xpense/shared";
+import type {
+  AuthorizedMenuNode,
+  MenuConfigurationNode,
+  MenuIconKey,
+  PermissionKey,
+  PermissionTreeNode,
+  RouteKey,
+} from "@xpense/shared";
 
 import type { ApiClient } from "./api-client";
 
@@ -51,6 +58,61 @@ export type UpdateRoleRequest = {
   permissionKeys?: PermissionKey[];
 };
 
+type MenuInputBase = {
+  name: string;
+  parentId: number | null;
+};
+
+type DirectoryMenuInput = MenuInputBase & {
+  type: "directory";
+  icon: MenuIconKey | null;
+  isVisible: boolean;
+};
+
+type InternalMenuInput = MenuInputBase & {
+  type: "menu";
+  routeKey: RouteKey;
+  icon: MenuIconKey | null;
+  permissionCode: PermissionKey;
+  isExternal: false;
+  isVisible: boolean;
+  keepAlive: boolean;
+};
+
+type ExternalMenuInput = MenuInputBase & {
+  type: "menu";
+  url: string;
+  icon: MenuIconKey | null;
+  permissionCode: PermissionKey;
+  isExternal: true;
+  isVisible: boolean;
+};
+
+type ButtonMenuInput = Omit<MenuInputBase, "parentId"> & {
+  type: "button";
+  parentId: number;
+  permissionCode: PermissionKey;
+};
+
+export type AddMenuRequest =
+  | DirectoryMenuInput
+  | InternalMenuInput
+  | ExternalMenuInput
+  | ButtonMenuInput;
+
+export type EditMenuRequest = AddMenuRequest & { id: number };
+
+export type EditRoleActionRequest = {
+  roleId: string;
+  name?: string;
+  description?: string;
+};
+
+export type EditRolePermissionsRequest = {
+  roleId: string;
+  permissionKeys: PermissionKey[];
+};
+
 export type IamPermission = {
   id: string;
   key: PermissionKey;
@@ -94,8 +156,27 @@ export function createIamApi(client: ApiClient) {
     updateRole: (roleId: string, input: UpdateRoleRequest) =>
       client.post<IamRole>("/roles/update", { id: roleId, ...input }),
     deleteRole: (roleId: string) => client.post<void>("/roles/delete", { id: roleId }),
-    getMenus: () => client.get<MenuItem[]>("/menus"),
+    editRole: (input: EditRoleActionRequest) =>
+      client.post<IamRole>("/roles/update", {
+        id: input.roleId,
+        name: input.name,
+        description: input.description,
+      }),
+    editRolePermissions: (input: EditRolePermissionsRequest) =>
+      client.post<void>("/roles/permissions/edit", input),
+    getAuthorizedMenus: () => client.get<AuthorizedMenuNode[]>("/menus", { retry: false }),
+    resolveMenuRoute: (path: string) =>
+      client.get<AuthorizedMenuNode>(`/menus/resolve?path=${encodeURIComponent(path)}`),
+    getMenuConfiguration: () => client.get<MenuConfigurationNode[]>("/menus/configuration"),
+    addMenu: (input: AddMenuRequest) => client.post<void>("/menus/add", input),
+    editMenu: (input: EditMenuRequest) => client.post<void>("/menus/edit", input),
+    deleteMenu: (id: number) => client.post<void>("/menus/delete", { id }),
+    editMenuOrder: (id: number, direction: "up" | "down") =>
+      client.post<void>("/menus/edit-order", { id, direction }),
     listPermissions: () => client.get<IamPermission[]>("/permissions/list"),
+    getPermissionTree: () => client.get<PermissionTreeNode[]>("/permissions/tree"),
+    resetOrganizationMenus: (organizationId: string) =>
+      client.post<void>("/organizations/menus/reset", { organizationId }),
     listAuditLogs: (query: ListAuditLogsQuery = {}) =>
       client.get<AuditLogRecord[]>(`/audit-logs/list${toQueryString(query)}`),
   };

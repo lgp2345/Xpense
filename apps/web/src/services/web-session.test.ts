@@ -1,9 +1,10 @@
-import type { AuthTokensResponse, CurrentUserResponse } from "@xpense/shared";
+import type { AuthorizedMenuNode, AuthTokensResponse, CurrentUserResponse } from "@xpense/shared";
 import axios, { type AxiosHeaders } from "axios";
 import MockAdapter from "axios-mock-adapter";
 import { describe, expect, it, vi } from "vitest";
 
 import { createAuthStore } from "../stores/auth-store";
+import { createMenuStore } from "../stores/menu-store";
 import {
   createWebSession,
   loginWebSession,
@@ -34,6 +35,25 @@ const currentUserContext: CurrentUserResponse = {
     clientType: "web_pc",
   },
 };
+
+const authorizedMenus: AuthorizedMenuNode[] = [
+  {
+    id: 1,
+    parentId: null,
+    type: "menu",
+    name: "仪表盘",
+    sortOrder: 0,
+    icon: "LayoutDashboard",
+    isVisible: true,
+    routeKey: "Dashboard",
+    path: "/",
+    url: null,
+    permissionCode: "dashboard:read",
+    isExternal: false,
+    keepAlive: false,
+    children: [],
+  },
+];
 
 function createAuthApi(options: {
   loginResult?: AuthTokensResponse;
@@ -152,7 +172,7 @@ describe("web session", () => {
 
     await expect(requestOutcome).resolves.toMatchObject({ status: 401 });
     expectAnonymousState(store);
-    expect(mock.history.get).toHaveLength(1);
+    expect(mock.history.get.filter(({ url }) => url?.endsWith("/user"))).toHaveLength(1);
     expect(mock.history.post).toHaveLength(1);
   });
 
@@ -181,6 +201,52 @@ describe("web session", () => {
     });
   });
 
+  it("bootstraps menus when a session adopts an already-authenticated store", async () => {
+    const store = createAuthStore({ accessToken: "existing-access" });
+    store.getState().setCurrentUserContext(currentUserContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
+
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+
+    await vi.waitFor(() => expect(session.menuStore.getState().status).toBe("ready"));
+    expect(session.menuStore.getState()).toMatchObject({
+      organizationId: "org-1",
+      tree: authorizedMenus,
+    });
+  });
+
+  it("owns menu bootstrap and cleanup for direct authentication-context changes", async () => {
+    const store = createAuthStore();
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+
+    store.getState().setAccessToken("new-access");
+    store.getState().setCurrentUserContext(currentUserContext);
+
+    await vi.waitFor(() => expect(session.menuStore.getState().status).toBe("ready"));
+    expect(mock.history.get.filter(({ url }) => url?.endsWith("/menus"))).toHaveLength(1);
+
+    store.getState().clearAuth();
+
+    expect(session.menuStore.getState()).toMatchObject({
+      organizationId: null,
+      status: "idle",
+      tree: [],
+    });
+  });
+
   it("restores the in-memory access token and current user from the refresh cookie", async () => {
     const store = createAuthStore();
     const api = createAuthApi({});
@@ -193,6 +259,47 @@ describe("web session", () => {
       accessToken: "refresh-access",
       currentUser: currentUserContext.user,
       status: "authenticated",
+    });
+  });
+
+  it("loads menus after restoring the current organization context", async () => {
+    const store = createAuthStore();
+    const menuStore = createMenuStore();
+    const api = createAuthApi({});
+    const iamApi = {
+      getAuthorizedMenus: vi.fn().mockImplementation(async () => {
+        expect(store.getState().currentOrganization?.id).toBe("org-1");
+        return authorizedMenus;
+      }),
+    };
+
+    await expect(restoreWebSession(api, store, { iamApi, menuStore })).resolves.toBe(true);
+
+    expect(menuStore.getState()).toMatchObject({
+      organizationId: "org-1",
+      status: "ready",
+      tree: authorizedMenus,
+    });
+  });
+
+  it("preserves restored authentication when menu loading fails", async () => {
+    const store = createAuthStore();
+    const menuStore = createMenuStore();
+    const api = createAuthApi({});
+    const iamApi = {
+      getAuthorizedMenus: vi.fn().mockRejectedValue(new Error("menu unavailable")),
+    };
+
+    await expect(restoreWebSession(api, store, { iamApi, menuStore })).resolves.toBe(true);
+
+    expect(store.getState()).toMatchObject({
+      currentOrganization: currentUserContext.organization,
+      status: "authenticated",
+    });
+    expect(menuStore.getState()).toMatchObject({
+      organizationId: "org-1",
+      status: "error",
+      tree: [],
     });
   });
 
@@ -260,6 +367,45 @@ describe("web session", () => {
       role: switchedContext.role,
       permissions: ["transactions:read"],
       session: switchedContext.session,
+    });
+  });
+
+  it("clears old menus before switching and loads only after the new user context is ready", async () => {
+    const store = createAuthStore({ accessToken: "org-1-access" });
+    store.getState().setCurrentUserContext(currentUserContext);
+    const menuStore = createMenuStore();
+    await menuStore.getState().loadMenusForOrganization("org-1", async () => authorizedMenus);
+    const switchRequest = createDeferred<AuthTokensResponse>();
+    const switchedContext: CurrentUserResponse = {
+      ...currentUserContext,
+      organization: { id: "org-2", name: "家庭账本" },
+      permissions: ["transactions:read"],
+    };
+    const api = createAuthApi({ userResult: switchedContext });
+    api.switchOrganization.mockReturnValue(switchRequest.promise);
+    const iamApi = {
+      getAuthorizedMenus: vi.fn().mockImplementation(async () => {
+        expect(store.getState().currentOrganization?.id).toBe("org-2");
+        return authorizedMenus;
+      }),
+    };
+
+    const switching = switchWebOrganization(api, store, "org-2", { iamApi, menuStore });
+
+    expect(menuStore.getState()).toMatchObject({
+      organizationId: null,
+      status: "idle",
+      tree: [],
+    });
+
+    switchRequest.resolve({ accessToken: "org-2-access" });
+    await switching;
+
+    expect(iamApi.getAuthorizedMenus).toHaveBeenCalledOnce();
+    expect(menuStore.getState()).toMatchObject({
+      organizationId: "org-2",
+      status: "ready",
+      tree: authorizedMenus,
     });
   });
 
@@ -333,6 +479,30 @@ describe("web session", () => {
     await logout;
   });
 
+  it("clears menu state immediately when logout starts", async () => {
+    const store = createAuthStore({ accessToken: "org-1-access" });
+    store.getState().setCurrentUserContext(currentUserContext);
+    const menuStore = createMenuStore();
+    await menuStore.getState().loadMenusForOrganization("org-1", async () => authorizedMenus);
+    const logoutRequest = createDeferred<void>();
+    const api = createAuthApi({});
+    api.logout.mockReturnValue(logoutRequest.promise);
+
+    const logout = logoutWebSession(api, store, {
+      iamApi: { getAuthorizedMenus: vi.fn() },
+      menuStore,
+    });
+
+    expect(menuStore.getState()).toMatchObject({
+      organizationId: null,
+      status: "idle",
+      tree: [],
+    });
+
+    logoutRequest.resolve();
+    await logout;
+  });
+
   it("invalidates a pending switch when logout starts so its result cannot restore auth", async () => {
     const store = createAuthStore({ accessToken: "org-1-access" });
     store.getState().setCurrentUserContext(currentUserContext);
@@ -380,6 +550,69 @@ describe("web session", () => {
       currentOrganization: newLoginContext.organization,
       status: "authenticated",
     });
+  });
+
+  it("does not restore old menus when a stale switch rejects after a new login", async () => {
+    const store = createAuthStore({ accessToken: "org-1-access" });
+    store.getState().setCurrentUserContext(currentUserContext);
+    const menuStore = createMenuStore();
+    await menuStore.getState().loadMenusForOrganization("org-1", async () => authorizedMenus);
+    const switchRequest = createDeferred<AuthTokensResponse>();
+    const api = createAuthApi({});
+    api.switchOrganization.mockReturnValue(switchRequest.promise);
+    const getAuthorizedMenus = vi.fn().mockResolvedValue(authorizedMenus);
+
+    const switching = switchWebOrganization(api, store, "org-2", {
+      iamApi: { getAuthorizedMenus },
+      menuStore,
+    });
+    const newLoginContext: CurrentUserResponse = {
+      ...currentUserContext,
+      organization: { id: "org-3", name: "新登录账本" },
+    };
+    store.getState().clearAuth();
+    const loginApi = createAuthApi({
+      loginResult: { accessToken: "new-login-access" },
+      userResult: newLoginContext,
+    });
+    await loginWebSession(
+      loginApi,
+      store,
+      { email: "new-login@example.com", password: "password" },
+      { iamApi: { getAuthorizedMenus }, menuStore },
+    );
+
+    switchRequest.reject(new Error("stale switch failed"));
+
+    await expect(switching).resolves.toBeUndefined();
+    expect(menuStore.getState()).toMatchObject({ organizationId: "org-3", status: "ready" });
+    expect(getAuthorizedMenus).toHaveBeenCalledOnce();
+  });
+
+  it("does not restore old menus when authentication clears before a switch rejects", async () => {
+    const store = createAuthStore();
+    const menuStore = createMenuStore();
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      menuStore,
+    });
+    vi.spyOn(session.iamApi, "getAuthorizedMenus").mockResolvedValue(authorizedMenus);
+    store.getState().setAccessToken("org-1-access");
+    store.getState().setCurrentUserContext(currentUserContext);
+    await vi.waitFor(() =>
+      expect(menuStore.getState()).toMatchObject({ organizationId: "org-1", status: "ready" }),
+    );
+    const switchRequest = createDeferred<AuthTokensResponse>();
+    vi.spyOn(session.authApi, "switchOrganization").mockReturnValue(switchRequest.promise);
+
+    const switching = switchWebOrganization(session.authApi, store, "org-2");
+    store.getState().clearAuth();
+    switchRequest.reject(new Error("stale switch failed"));
+
+    await expect(switching).resolves.toBeUndefined();
+    expectAnonymousState(store);
+    expect(menuStore.getState()).toMatchObject({ organizationId: null, status: "idle", tree: [] });
   });
 
   it("does not let an old current-user response overwrite a new login after logout", async () => {
