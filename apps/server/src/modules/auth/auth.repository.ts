@@ -8,7 +8,7 @@ import { organizationMemberships, organizations, refreshSessions, users } from "
 
 export type AuthUser = {
   id: string;
-  email: string;
+  phone: string | null;
   passwordHash: string;
   status: "active" | "disabled";
   isSuperAdmin: boolean;
@@ -54,17 +54,17 @@ export type UpdateRefreshSessionTokenInput = {
 export class AuthRepository {
   constructor(@Inject(DB) private readonly db: AppDb) {}
 
-  async findActiveUserByEmail(email: string): Promise<AuthUser | null> {
+  async findActiveUserByPhone(phone: string): Promise<AuthUser | null> {
     const [user] = await this.db
       .select({
         id: users.id,
-        email: users.email,
+        phone: users.phone,
         passwordHash: users.passwordHash,
         status: users.status,
         isSuperAdmin: users.isSuperAdmin,
       })
       .from(users)
-      .where(and(eq(users.email, email), eq(users.status, "active")))
+      .where(and(eq(users.phone, phone), eq(users.status, "active")))
       .limit(1);
 
     if (!user) {

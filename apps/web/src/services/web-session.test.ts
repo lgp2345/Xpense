@@ -324,14 +324,18 @@ describe("web session", () => {
 
     await expect(
       loginWebSession(api, store, {
-        email: "owner@example.com",
+        phone: "13800000001",
         password: "password",
+        captchaId: "captcha-1",
+        captchaText: "abcd",
       }),
     ).rejects.toMatchObject({ kind: "service_unavailable" });
 
     expect(api.login).toHaveBeenCalledWith({
-      email: "owner@example.com",
+      phone: "13800000001",
       password: "password",
+      captchaId: "captcha-1",
+      captchaText: "abcd",
       clientType: "web_pc",
     });
     expect(api.logout).toHaveBeenCalledOnce();
@@ -578,7 +582,7 @@ describe("web session", () => {
     await loginWebSession(
       loginApi,
       store,
-      { email: "new-login@example.com", password: "password" },
+      { phone: "13800000009", password: "password", captchaId: "captcha-1", captchaText: "abcd" },
       { iamApi: { getAuthorizedMenus }, menuStore },
     );
 

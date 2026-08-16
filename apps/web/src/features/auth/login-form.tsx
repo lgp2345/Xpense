@@ -11,7 +11,9 @@ import {
   WebLoginError,
   type WebSessionDependency,
 } from "../../services/web-session";
+import { CaptchaField } from "./captcha-field";
 import { loginSchema } from "./login-schema";
+import { useCaptcha } from "./use-captcha";
 
 type LoginFormProps = {
   onAuthenticated: (path: string) => void | Promise<void>;
@@ -48,13 +50,37 @@ function getValidationMessage(error: unknown): string | undefined {
   return undefined;
 }
 
+function resolveSubmitError(error: unknown): string {
+  if (!(error instanceof WebLoginError)) {
+    return "服务暂时不可用，请稍后重试";
+  }
+
+  if (error.kind === "invalid_credentials") {
+    return "手机号、密码或验证码不正确，请重试";
+  }
+
+  if (error.kind === "rate_limited") {
+    return "尝试过于频繁，请稍后重试";
+  }
+
+  return "服务暂时不可用，请稍后重试";
+}
+
 export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { authApi, authStore } = session;
+  const {
+    captchaId,
+    svg,
+    loading: captchaLoading,
+    error: captchaError,
+    refresh: refreshCaptcha,
+  } = useCaptcha({ getCaptcha: authApi.getCaptcha });
   const form = useForm({
     defaultValues: {
-      email: "",
+      phone: "",
       password: "",
+      captchaText: "",
     },
     validators: {
       onSubmit: loginSchema,
@@ -62,18 +88,24 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
     onSubmit: async ({ value }) => {
       setSubmitError(null);
 
+      if (!captchaId) {
+        setSubmitError("验证码未加载，请刷新后重试");
+        await refreshCaptcha();
+        return;
+      }
+
       try {
         await loginWebSession(authApi, authStore, {
-          email: value.email.trim(),
+          phone: value.phone.trim(),
           password: value.password,
+          captchaId,
+          captchaText: value.captchaText.trim(),
         });
         await onAuthenticated(getSafeRedirectPath(redirectPath));
       } catch (error) {
-        setSubmitError(
-          error instanceof WebLoginError && error.kind === "invalid_credentials"
-            ? "邮箱或密码不正确，请重试"
-            : "服务暂时不可用，请稍后重试",
-        );
+        setSubmitError(resolveSubmitError(error));
+        form.setFieldValue("captchaText", "");
+        await refreshCaptcha();
       }
     },
   });
@@ -88,7 +120,7 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
           void form.handleSubmit();
         }}
       >
-        <form.Field name="email">
+        <form.Field name="phone">
           {(field) => {
             const error = field.state.meta.isTouched
               ? getValidationMessage(field.state.meta.errors[0])
@@ -96,21 +128,24 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
 
             return (
               <div className="grid gap-2">
-                <Label htmlFor="login-email">邮箱</Label>
+                <Label htmlFor="login-phone">手机号</Label>
                 <Input
-                  aria-describedby={error ? "login-email-error" : undefined}
+                  aria-describedby={error ? "login-phone-error" : undefined}
                   aria-invalid={Boolean(error)}
-                  autoComplete="email"
-                  id="login-email"
-                  inputMode="email"
+                  autoComplete="username"
+                  id="login-phone"
+                  inputMode="numeric"
+                  maxLength={11}
                   name={field.name}
                   onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                  type="email"
+                  onChange={(event) =>
+                    field.handleChange(event.target.value.replace(/\D/g, "").slice(0, 11))
+                  }
+                  type="text"
                   value={field.state.value}
                 />
                 {error ? (
-                  <p className="text-sm text-destructive" id="login-email-error" role="alert">
+                  <p className="text-sm text-destructive" id="login-phone-error" role="alert">
                     {error}
                   </p>
                 ) : null}
@@ -141,6 +176,48 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
                 />
                 {error ? (
                   <p className="text-sm text-destructive" id="login-password-error" role="alert">
+                    {error}
+                  </p>
+                ) : null}
+              </div>
+            );
+          }}
+        </form.Field>
+
+        <form.Field name="captchaText">
+          {(field) => {
+            const error = field.state.meta.isTouched
+              ? getValidationMessage(field.state.meta.errors[0])
+              : undefined;
+
+            return (
+              <div className="grid gap-2">
+                <Label htmlFor="login-captcha">验证码</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    aria-describedby={error ? "login-captcha-error" : undefined}
+                    aria-invalid={Boolean(error)}
+                    autoCapitalize="off"
+                    autoComplete="off"
+                    className="flex-1"
+                    id="login-captcha"
+                    maxLength={4}
+                    name={field.name}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    spellCheck={false}
+                    type="text"
+                    value={field.state.value}
+                  />
+                  <CaptchaField
+                    error={captchaError}
+                    loading={captchaLoading}
+                    onRefresh={() => void refreshCaptcha()}
+                    svg={svg}
+                  />
+                </div>
+                {error ? (
+                  <p className="text-sm text-destructive" id="login-captcha-error" role="alert">
                     {error}
                   </p>
                 ) : null}

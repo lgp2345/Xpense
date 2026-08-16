@@ -29,22 +29,34 @@ describe("createAuthApi", () => {
     return { api: createAuthApi(client as unknown as ApiClient), client };
   }
 
-  it("posts login payload and refreshes the web session without a body", async () => {
+  it("posts the phone and captcha login payload", async () => {
     const { api, client } = createHarness();
 
     await api.login({
-      email: "owner@example.com",
+      phone: "13800000001",
       password: "password",
+      captchaId: "captcha-1",
+      captchaText: "abcd",
       clientType: "web_pc",
     });
+
+    expect(client.post).toHaveBeenCalledWith("/auth/login", {
+      phone: "13800000001",
+      password: "password",
+      captchaId: "captcha-1",
+      captchaText: "abcd",
+      clientType: "web_pc",
+    });
+  });
+
+  it("fetches a captcha challenge and refreshes the web session without a body", async () => {
+    const { api, client } = createHarness();
+
+    await api.getCaptcha();
     await api.refresh();
 
-    expect(client.post).toHaveBeenNthCalledWith(1, "/auth/login", {
-      email: "owner@example.com",
-      password: "password",
-      clientType: "web_pc",
-    });
-    expect(client.post).toHaveBeenNthCalledWith(2, "/auth/refresh", undefined, {
+    expect(client.get).toHaveBeenNthCalledWith(1, "/auth/captcha");
+    expect(client.post).toHaveBeenNthCalledWith(1, "/auth/refresh", undefined, {
       authFailure: "ignore",
       authRefresh: "ignore",
     });

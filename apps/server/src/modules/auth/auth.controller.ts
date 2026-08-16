@@ -10,7 +10,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from "@nestjs/common";
-import type { AuthTokensResponse, ClientType } from "@xpense/shared";
+import type { AuthTokensResponse, CaptchaChallengeResponse, ClientType } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
@@ -21,6 +21,7 @@ import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import type { SessionResponse } from "./auth.service.js";
 import { AuthService } from "./auth.service.js";
+import { CaptchaService } from "./captcha.service.js";
 import { LoginDto } from "./dto/login.dto.js";
 import { RefreshDto } from "./dto/refresh.dto.js";
 import { OptionalAuthGuard } from "./optional-auth.guard.js";
@@ -28,6 +29,11 @@ import { OptionalAuthGuard } from "./optional-auth.guard.js";
 type AuthCookieRequest = {
   authContext?: AuthContext;
   cookies: Record<string, string | undefined>;
+};
+
+type AuthLoginRequest = {
+  ip?: string;
+  headers: Record<string, string | string[] | undefined>;
 };
 
 type AuthCookieReply = {
@@ -47,16 +53,28 @@ type RefreshCookieOptions = {
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly captchaService: CaptchaService,
     private readonly config: ServerConfigService,
   ) {}
+
+  @Get("captcha")
+  @HttpCode(200)
+  captcha(): CaptchaChallengeResponse {
+    return this.captchaService.issue();
+  }
 
   @Post("login")
   @HttpCode(200)
   async login(
     @Body() dto: LoginDto,
+    @Req() request: AuthLoginRequest,
     @Res({ passthrough: true }) reply: AuthCookieReply,
   ): Promise<AuthTokensResponse> {
-    const tokens = await this.authService.login(dto);
+    const tokens = await this.authService.login({
+      ...dto,
+      ip: request.ip,
+      userAgent: toHeaderValue(request.headers["user-agent"]),
+    });
 
     if (!this.isWebClient(dto.clientType)) {
       return tokens;
@@ -174,4 +192,8 @@ export class AuthController {
       secure: new URL(this.config.env.WEB_ORIGIN).protocol === "https:",
     };
   }
+}
+
+function toHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }

@@ -1,10 +1,17 @@
-import type { AuthTokensResponse, ClientType, CurrentUserResponse } from "@xpense/shared";
+import type {
+  AuthTokensResponse,
+  CaptchaChallengeResponse,
+  ClientType,
+  CurrentUserResponse,
+} from "@xpense/shared";
 
 import type { ApiClient } from "./api-client";
 
 export type LoginRequest = {
-  email: string;
+  phone: string;
   password: string;
+  captchaId: string;
+  captchaText: string;
   clientType: ClientType;
   deviceId?: string;
   deviceName?: string;
@@ -35,6 +42,7 @@ export type SessionResponse = {
 export function createAuthApi(client: ApiClient) {
   return {
     login: (input: LoginRequest) => client.post<AuthTokensResponse>("/auth/login", input),
+    getCaptcha: () => client.get<CaptchaChallengeResponse>("/auth/captcha"),
     refresh: (input?: RefreshRequest) =>
       client.post<AuthTokensResponse>("/auth/refresh", input, {
         authFailure: "ignore",

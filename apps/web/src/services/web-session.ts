@@ -46,7 +46,7 @@ export type MenuBootstrapDependency = {
   menuStore: MenuStoreApi;
 };
 
-export type WebLoginFailureKind = "invalid_credentials" | "service_unavailable";
+export type WebLoginFailureKind = "invalid_credentials" | "rate_limited" | "service_unavailable";
 
 export class WebLoginError extends Error {
   constructor(
@@ -65,7 +65,7 @@ export class WebOrganizationSwitchError extends Error {
   }
 }
 
-type WebLoginInput = Pick<LoginRequest, "email" | "password">;
+type WebLoginInput = Pick<LoginRequest, "phone" | "password" | "captchaId" | "captchaText">;
 
 type SwitchOperation = {
   id: symbol;
@@ -329,8 +329,14 @@ function invalidateOrganizationSwitch(store: AuthStoreApi): void {
 }
 
 function getLoginFailureKind(error: unknown, didCreateSession: boolean): WebLoginFailureKind {
-  if (!didCreateSession && error instanceof ApiError && error.status === 401) {
-    return "invalid_credentials";
+  if (!didCreateSession && error instanceof ApiError) {
+    if (error.status === 401) {
+      return "invalid_credentials";
+    }
+
+    if (error.status === 429) {
+      return "rate_limited";
+    }
   }
 
   return "service_unavailable";

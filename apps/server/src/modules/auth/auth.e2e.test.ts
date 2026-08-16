@@ -49,7 +49,9 @@ describe("Auth e2e", () => {
       method: "POST",
       url: "/api/auth/login",
       payload: {
-        email: "owner@example.com",
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
         password: "password",
         clientType: "web_pc",
       },
@@ -70,6 +72,109 @@ describe("Auth e2e", () => {
     expect(setCookie).not.toContain("Secure");
   });
 
+  it("GET /api/auth/captcha issues a captcha challenge", async () => {
+    const { app } = await createHarness();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/auth/captcha",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(parseJson(response)).toEqual({
+      code: "OK",
+      message: "ok",
+      data: {
+        captchaId: expect.any(String),
+        svg: expect.any(String),
+      },
+    });
+  });
+
+  it("POST /api/auth/login rejects an invalid captcha with 401", async () => {
+    const { app } = await createHarness();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "wrong",
+        password: "password",
+        clientType: "web_pc",
+      },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(parseJson(response)).toMatchObject({
+      code: "UNAUTHENTICATED",
+      message: "验证码错误或已过期",
+      data: null,
+    });
+  });
+
+  it("POST /api/auth/login rejects unknown credentials with 401", async () => {
+    const { app } = await createHarness();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        phone: "13800000009",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
+        password: "password",
+        clientType: "web_pc",
+      },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(parseJson(response)).toMatchObject({
+      code: "UNAUTHENTICATED",
+      message: "账号或密码错误",
+      data: null,
+    });
+  });
+
+  it("POST /api/auth/login rate-limits repeated phone failures with 429", async () => {
+    const { app } = await createHarness();
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        payload: {
+          phone: "13800000001",
+          captchaId: "test-captcha-id",
+          captchaText: "wrong",
+          password: "password",
+          clientType: "web_pc",
+        },
+      });
+      expect(response.statusCode).toBe(401);
+    }
+
+    const limitedResponse = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
+        password: "password",
+        clientType: "web_pc",
+      },
+    });
+
+    expect(limitedResponse.statusCode).toBe(429);
+    expect(parseJson(limitedResponse)).toMatchObject({
+      code: "TOO_MANY_REQUESTS",
+      message: "尝试过于频繁，请稍后重试",
+      data: null,
+    });
+  });
+
   it("uses a configured API prefix for auth routes and refresh-cookie path", async () => {
     const previousApiPrefix = process.env.VITE_API_PREFIX;
     process.env.VITE_API_PREFIX = "v2";
@@ -80,7 +185,9 @@ describe("Auth e2e", () => {
         method: "POST",
         url: "/v2/auth/login",
         payload: {
-          email: "owner@example.com",
+          phone: "13800000001",
+          captchaId: "test-captcha-id",
+          captchaText: "test",
           password: "password",
           clientType: "web_pc",
         },
@@ -93,7 +200,9 @@ describe("Auth e2e", () => {
         method: "POST",
         url: "/api/auth/login",
         payload: {
-          email: "owner@example.com",
+          phone: "13800000001",
+          captchaId: "test-captcha-id",
+          captchaText: "test",
           password: "password",
           clientType: "web_pc",
         },
@@ -115,7 +224,9 @@ describe("Auth e2e", () => {
       method: "POST",
       url: "/api/auth/login",
       payload: {
-        email: "owner@example.com",
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
         password: "password",
         clientType: "web_pc",
       },
@@ -156,7 +267,9 @@ describe("Auth e2e", () => {
       method: "POST",
       url: "/api/auth/login",
       payload: {
-        email: "owner@example.com",
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
         password: "password",
         clientType: "web_pc",
       },
@@ -185,7 +298,9 @@ describe("Auth e2e", () => {
       method: "POST",
       url: "/api/auth/login",
       payload: {
-        email: "owner@example.com",
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
         password: "password",
         clientType: "app_ios",
       },
@@ -215,7 +330,9 @@ describe("Auth e2e", () => {
       method: "POST",
       url: "/api/auth/login",
       payload: {
-        email: "owner@example.com",
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
         password: "password",
         clientType: "web_pc",
       },
@@ -239,7 +356,9 @@ describe("Auth e2e", () => {
       method: "POST",
       url: "/api/auth/login",
       payload: {
-        email: "owner@example.com",
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
         password: "password",
         clientType,
       },
@@ -280,7 +399,9 @@ describe("Auth e2e", () => {
       method: "POST",
       url: "/api/auth/login",
       payload: {
-        email: "owner@example.com",
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
         password: "password",
         clientType: "web_mobile",
       },
@@ -305,7 +426,9 @@ describe("Auth e2e", () => {
         method: "POST",
         url: "/api/auth/login",
         payload: {
-          email: "owner@example.com",
+          phone: "13800000001",
+          captchaId: "test-captcha-id",
+          captchaText: "test",
           password: "password",
           clientType: "web_pc",
         },
@@ -327,7 +450,9 @@ describe("Auth e2e", () => {
       method: "POST",
       url: "/api/auth/login",
       payload: {
-        email: "owner@example.com",
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
         password: "password",
         clientType: "web_pc",
       },
@@ -362,7 +487,9 @@ describe("Auth e2e", () => {
       method: "POST",
       url: "/api/auth/login",
       payload: {
-        email: "owner@example.com",
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
         password: "password",
         clientType: "web_pc",
       },
@@ -395,7 +522,9 @@ describe("Auth e2e", () => {
       method: "POST",
       url: "/api/auth/login",
       payload: {
-        email: "owner@example.com",
+        phone: "13800000001",
+        captchaId: "test-captcha-id",
+        captchaText: "test",
         password: "password",
         clientType: "app_android",
       },
@@ -487,7 +616,7 @@ describe("Auth e2e", () => {
 
   it("GET /api/user returns current organization and permissions", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "GET",
@@ -526,7 +655,7 @@ describe("Auth e2e", () => {
     ["/api/user/organizations", "organization list"],
   ])("GET %s returns the authenticated user's %s", async (url) => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "GET",
@@ -552,7 +681,7 @@ describe("Auth e2e", () => {
 
   it("GET /api/auth/sessions rejects users without sessions.read", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "viewer@example.com");
+    const { accessToken } = await login(app, "13800000003");
 
     const response = await app.inject({
       method: "GET",
@@ -567,7 +696,7 @@ describe("Auth e2e", () => {
 
   it("POST /api/auth/sessions/:id/revoke rejects users without sessions.revoke", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "viewer@example.com");
+    const { accessToken } = await login(app, "13800000003");
     const session = [...state.sessions.values()].find(
       (item) => item.userId === testIds.viewerUser && item.status === "active",
     );
@@ -586,7 +715,7 @@ describe("Auth e2e", () => {
 
   it("POST /api/auth/sessions/revoke-all rejects users without sessions.revoke", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "viewer@example.com");
+    const { accessToken } = await login(app, "13800000003");
 
     const response = await app.inject({
       method: "POST",

@@ -11,6 +11,7 @@ import { DB } from "../db/db.tokens.js";
 import { AuditRepository } from "../modules/audit/audit.repository.js";
 import type { AppendAuditLogInput, AuditLogRecord } from "../modules/audit/audit.types.js";
 import { type AuthRefreshSession, AuthRepository } from "../modules/auth/auth.repository.js";
+import { CaptchaService } from "../modules/auth/captcha.service.js";
 import { PasswordService } from "../modules/auth/password.service.js";
 import { type AccessTokenPayload, TokenService } from "../modules/auth/token.service.js";
 import { AccessRepository } from "../modules/iam/access.repository.js";
@@ -33,11 +34,12 @@ import {
 } from "../modules/iam/menu.repository.js";
 import { OrganizationsRepository } from "../modules/organizations/organizations.repository.js";
 import { UserRepository } from "../modules/user/user.repository.js";
-import { type TestAuth, testIds } from "./auth-test-helpers.js";
+import { TEST_CAPTCHA, TEST_PHONES, type TestAuth, testIds } from "./auth-test-helpers.js";
 
 type TestUser = {
   id: string;
   email: string;
+  phone: string | null;
   passwordHash: string;
   status: "active" | "disabled";
   isSuperAdmin: boolean;
@@ -97,6 +99,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     })
     .overrideProvider(PasswordService)
     .useValue(createPasswordService())
+    .overrideProvider(CaptchaService)
+    .useValue(createCaptchaService())
     .overrideProvider(AuthRepository)
     .useValue(createAuthRepository(state))
     .overrideProvider(AccessRepository)
@@ -140,14 +144,34 @@ function ensureTestEnv(): void {
 
 function createTestState(options: TestAppOptions): TestState {
   const users = new Map<string, TestUser>([
-    [testIds.ownerUser, createUser(testIds.ownerUser, "owner@example.com", false)],
-    [testIds.managerUser, createUser(testIds.managerUser, "manager@example.com", false)],
-    [testIds.viewerUser, createUser(testIds.viewerUser, "viewer@example.com", false)],
-    [testIds.superUser, createUser(testIds.superUser, "super@example.com", true)],
-    [testIds.outsiderUser, createUser(testIds.outsiderUser, "outsider@example.com", false)],
+    [
+      testIds.ownerUser,
+      createUser(testIds.ownerUser, "owner@example.com", TEST_PHONES.owner, false),
+    ],
+    [
+      testIds.managerUser,
+      createUser(testIds.managerUser, "manager@example.com", TEST_PHONES.manager, false),
+    ],
+    [
+      testIds.viewerUser,
+      createUser(testIds.viewerUser, "viewer@example.com", TEST_PHONES.viewer, false),
+    ],
+    [
+      testIds.superUser,
+      createUser(testIds.superUser, "super@example.com", TEST_PHONES.super, true),
+    ],
+    [
+      testIds.outsiderUser,
+      createUser(testIds.outsiderUser, "outsider@example.com", TEST_PHONES.outsider, false),
+    ],
     [
       testIds.superNonMemberUser,
-      createUser(testIds.superNonMemberUser, "super-non-member@example.com", true),
+      createUser(
+        testIds.superNonMemberUser,
+        "super-non-member@example.com",
+        TEST_PHONES.superNonMember,
+        true,
+      ),
     ],
   ]);
   const organizations = new Map<string, TestOrganization>([
@@ -285,10 +309,11 @@ function createMenu(
   };
 }
 
-function createUser(id: string, email: string, isSuperAdmin: boolean): TestUser {
+function createUser(id: string, email: string, phone: string, isSuperAdmin: boolean): TestUser {
   return {
     id,
     email,
+    phone,
     passwordHash: "password:password",
     status: "active",
     isSuperAdmin,
@@ -352,13 +377,20 @@ function createPasswordService(): Pick<PasswordService, "hash" | "verify"> {
   };
 }
 
+function createCaptchaService(): Pick<CaptchaService, "issue" | "verify"> {
+  return {
+    issue: () => ({ captchaId: TEST_CAPTCHA.captchaId, svg: "<svg>mock</svg>" }),
+    verify: (_captchaId: string, captchaText: string) => captchaText === TEST_CAPTCHA.captchaText,
+  };
+}
+
 function createAuthRepository(state: TestState): Partial<AuthRepository> {
   let nextSessionId = 1;
 
   return {
-    findActiveUserByEmail: async (email) => {
+    findActiveUserByPhone: async (phone) => {
       const user = [...state.users.values()].find(
-        (item) => item.email === email && item.status === "active",
+        (item) => item.phone === phone && item.status === "active",
       );
 
       if (!user) {

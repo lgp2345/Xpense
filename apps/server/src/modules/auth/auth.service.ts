@@ -6,12 +6,16 @@ import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { ServerConfigService } from "../../config/config.service.js";
 import { AuditService } from "../audit/audit.service.js";
 import { type AuthRefreshSession, AuthRepository } from "./auth.repository.js";
+import { CaptchaService } from "./captcha.service.js";
+import { LoginRateLimiterService } from "./login-rate-limiter.service.js";
 import { PasswordService } from "./password.service.js";
 import { TokenService } from "./token.service.js";
 
 export type LoginInput = {
-  email: string;
+  phone: string;
   password: string;
+  captchaId: string;
+  captchaText: string;
   clientType: ClientType;
   deviceId?: string;
   deviceName?: string;
@@ -55,13 +59,23 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly config: ServerConfigService,
     private readonly auditService: AuditService,
+    private readonly captchaService: CaptchaService,
+    private readonly rateLimiter: LoginRateLimiterService,
   ) {}
 
   async login(input: LoginInput): Promise<AuthTokensResponse> {
-    const email = input.email.trim().toLowerCase();
-    const user = await this.repository.findActiveUserByEmail(email);
+    this.rateLimiter.assertAllowed(input.ip, input.phone);
+
+    if (!this.captchaService.verify(input.captchaId, input.captchaText)) {
+      this.rateLimiter.recordFailure(input.ip, input.phone);
+      throw this.unauthenticated("验证码错误或已过期");
+    }
+
+    const phone = input.phone.trim();
+    const user = await this.repository.findActiveUserByPhone(phone);
 
     if (!user) {
+      this.rateLimiter.recordFailure(input.ip, input.phone);
       await this.auditService.append({
         organizationId: null,
         actorUserId: null,
@@ -69,7 +83,7 @@ export class AuthService {
         targetType: "user",
         result: "failed",
         metadata: {
-          email,
+          phone,
           clientType: input.clientType,
           reason: "user_not_found",
           ip: input.ip,
@@ -81,6 +95,7 @@ export class AuthService {
     const passwordMatches = await this.passwordService.verify(user.passwordHash, input.password);
 
     if (!passwordMatches || !user.defaultOrganizationId) {
+      this.rateLimiter.recordFailure(input.ip, input.phone);
       await this.auditService.append({
         organizationId: user.defaultOrganizationId,
         actorUserId: user.id,
@@ -89,7 +104,7 @@ export class AuthService {
         targetId: user.id,
         result: "failed",
         metadata: {
-          email,
+          phone,
           clientType: input.clientType,
           reason: passwordMatches ? "missing_default_organization" : "password_mismatch",
           ip: input.ip,
@@ -97,6 +112,8 @@ export class AuthService {
       });
       throw this.unauthenticated("账号或密码错误");
     }
+
+    this.rateLimiter.resetPhone(input.phone);
 
     const refreshToken = this.tokenService.createRefreshToken();
     const refreshTokenHash = await this.tokenService.hashRefreshToken(refreshToken);

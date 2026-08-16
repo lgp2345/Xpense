@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import type { ClientType, PermissionKey } from "./rbac.js";
 
 export type {
@@ -39,6 +41,15 @@ export type CurrentUserResponse = {
 export type AuthTokensResponse = {
   accessToken: string;
   refreshToken?: string;
+};
+
+export const chinaPhoneRegex = /^1[3-9]\d{9}$/;
+
+export const chinaPhoneSchema = z.string().trim().regex(chinaPhoneRegex, "请输入有效的手机号");
+
+export type CaptchaChallengeResponse = {
+  captchaId: string;
+  svg: string;
 };
 
 /** @deprecated Use AuthorizedMenuNode after menu API consumers migrate. */

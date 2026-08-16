@@ -27,6 +27,20 @@ export const testIds = {
   superMember: "33333333-3333-4333-8333-333333333334",
 } as const;
 
+export const TEST_PHONES = {
+  owner: "13800000001",
+  manager: "13800000002",
+  viewer: "13800000003",
+  super: "13800000004",
+  outsider: "13800000005",
+  superNonMember: "13800000006",
+} as const;
+
+export const TEST_CAPTCHA = {
+  captchaId: "test-captcha-id",
+  captchaText: "test",
+} as const;
+
 export type AuthTokens = {
   accessToken: string;
   refreshToken: string;
@@ -36,13 +50,15 @@ export function parseJson<T = Record<string, unknown>>(response: InjectResponse)
   return JSON.parse(response.payload) as T;
 }
 
-export async function login(app: InjectableApp, email: string): Promise<AuthTokens> {
+export async function login(app: InjectableApp, phone: string): Promise<AuthTokens> {
   const response = await app.inject({
     method: "POST",
     url: "/api/auth/login",
     payload: {
-      email,
+      phone,
       password: "password",
+      captchaId: TEST_CAPTCHA.captchaId,
+      captchaText: TEST_CAPTCHA.captchaText,
       clientType: "web_pc",
     },
   });

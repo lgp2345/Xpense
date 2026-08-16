@@ -257,6 +257,7 @@ async function seedBootstrapData(
 ): Promise<{ id: string; created: boolean } | undefined> {
   if (
     !env.BOOTSTRAP_SUPER_ADMIN_EMAIL ||
+    !env.BOOTSTRAP_SUPER_ADMIN_PHONE ||
     !env.BOOTSTRAP_SUPER_ADMIN_PASSWORD ||
     !env.BOOTSTRAP_ORGANIZATION_NAME
   ) {
@@ -266,6 +267,7 @@ async function seedBootstrapData(
   const superAdminUserId = await upsertBootstrapUser(
     db,
     env.BOOTSTRAP_SUPER_ADMIN_EMAIL,
+    env.BOOTSTRAP_SUPER_ADMIN_PHONE,
     env.BOOTSTRAP_SUPER_ADMIN_PASSWORD,
   );
   const bootstrapOrganization = await ensureBootstrapOrganization(
@@ -302,6 +304,7 @@ async function seedBootstrapData(
 async function upsertBootstrapUser(
   db: SeedExecutor,
   email: string,
+  phone: string,
   password: string,
 ): Promise<string> {
   const [existingUser] = await db
@@ -318,6 +321,7 @@ async function upsertBootstrapUser(
       .set({
         status: "active",
         isSuperAdmin: true,
+        phone,
         updatedAt: new Date(),
       })
       .where(eq(users.id, existingUser.id));
@@ -329,6 +333,7 @@ async function upsertBootstrapUser(
     .insert(users)
     .values({
       email,
+      phone,
       passwordHash: await argon2.hash(password, { type: argon2.argon2id }),
       status: "active",
       isSuperAdmin: true,

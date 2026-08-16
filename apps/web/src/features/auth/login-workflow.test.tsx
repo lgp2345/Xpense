@@ -37,6 +37,7 @@ function createLoginTestSession() {
 
   Object.assign(session.authApi, {
     getCurrentUser: vi.fn().mockResolvedValue(currentUserContext),
+    getCaptcha: vi.fn().mockResolvedValue({ captchaId: "captcha-1", svg: "<svg>mock</svg>" }),
     login: vi.fn().mockResolvedValue({ accessToken: "access-token" }),
     logout: vi.fn().mockResolvedValue(undefined),
     refresh: vi.fn(),
@@ -54,21 +55,22 @@ describe("LoginPage", () => {
     expect(screen.getByRole("complementary", { name: "产品预览" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "登录" }));
 
-    expect(await screen.findByText("请输入邮箱地址")).toBeVisible();
+    expect(await screen.findByText("请输入手机号")).toBeVisible();
     expect(screen.getByText("请输入密码")).toBeVisible();
+    expect(screen.getByText("请输入验证码")).toBeVisible();
     expect(session.authApi.login).not.toHaveBeenCalled();
   });
 
-  it("shows the Zod email-format error without calling the API", async () => {
+  it("shows the Zod phone-format error without calling the API", async () => {
     const user = userEvent.setup();
     const session = createLoginTestSession();
     render(<LoginPage session={session} />);
 
-    await user.type(screen.getByRole("textbox", { name: "邮箱" }), "not-an-email");
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), "12345");
     await user.type(screen.getByLabelText("密码"), "password");
     await user.click(screen.getByRole("button", { name: "登录" }));
 
-    expect(await screen.findByText("请输入有效的邮箱地址")).toBeVisible();
+    expect(await screen.findByText("请输入有效的手机号")).toBeVisible();
     expect(session.authApi.login).not.toHaveBeenCalled();
   });
 
@@ -80,15 +82,34 @@ describe("LoginPage", () => {
     );
     render(<LoginPage session={session} />);
 
-    await user.type(screen.getByRole("textbox", { name: "邮箱" }), "owner@example.com");
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), "13800000001");
     await user.type(screen.getByLabelText("密码"), "password");
+    await user.type(screen.getByRole("textbox", { name: "验证码" }), "abcd");
     await user.click(screen.getByRole("button", { name: "登录" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("邮箱或密码不正确，请重试");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "手机号、密码或验证码不正确，请重试",
+    );
     expect(screen.queryByText(/credential lookup|user_42/i)).not.toBeInTheDocument();
   });
 
-  it("trims the email and redirects only to a safe path after login", async () => {
+  it("shows a rate-limit message for a 429 response", async () => {
+    const user = userEvent.setup();
+    const session = createLoginTestSession();
+    vi.mocked(session.authApi.login).mockRejectedValue(
+      new ApiError(429, "TOO_MANY_REQUESTS", "尝试过于频繁，请稍后重试"),
+    );
+    render(<LoginPage session={session} />);
+
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), "13800000001");
+    await user.type(screen.getByLabelText("密码"), "password");
+    await user.type(screen.getByRole("textbox", { name: "验证码" }), "abcd");
+    await user.click(screen.getByRole("button", { name: "登录" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("尝试过于频繁，请稍后重试");
+  });
+
+  it("submits phone and captcha and redirects only to a safe path after login", async () => {
     const user = userEvent.setup();
     const session = createLoginTestSession();
     const onAuthenticated = vi.fn();
@@ -100,14 +121,17 @@ describe("LoginPage", () => {
       />,
     );
 
-    await user.type(screen.getByRole("textbox", { name: "邮箱" }), "  owner@example.com  ");
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), "13800000001");
     await user.type(screen.getByLabelText("密码"), "password");
+    await user.type(screen.getByRole("textbox", { name: "验证码" }), "abcd");
     await user.click(screen.getByRole("button", { name: "登录" }));
 
     await waitFor(() => expect(onAuthenticated).toHaveBeenCalledWith("/"));
     expect(session.authApi.login).toHaveBeenCalledWith({
-      email: "owner@example.com",
+      phone: "13800000001",
       password: "password",
+      captchaId: "captcha-1",
+      captchaText: "abcd",
       clientType: "web_pc",
     });
   });

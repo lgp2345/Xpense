@@ -3,7 +3,7 @@ import type { ClientType } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
-import { AuthService } from "./auth.service.js";
+import { AuthService, type LoginInput } from "./auth.service.js";
 
 type TestSession = {
   id: string;
@@ -21,6 +21,14 @@ const authContext: AuthContext = {
   organizationId: "org-1",
   isSuperAdmin: false,
   permissions: [],
+};
+
+const loginInput: LoginInput = {
+  phone: "13800000001",
+  password: "password",
+  captchaId: "captcha-1",
+  captchaText: "abcd",
+  clientType: "web_pc",
 };
 
 function requireValue<T>(value: T | undefined, label: string): T {
@@ -48,9 +56,9 @@ describe("AuthService", () => {
     let nextSessionId = 1;
 
     const repository = {
-      findActiveUserByEmail: vi.fn().mockResolvedValue({
+      findActiveUserByPhone: vi.fn().mockResolvedValue({
         id: "user-1",
-        email: "root@example.com",
+        phone: "13800000001",
         passwordHash: "hash",
         status: "active",
         isSuperAdmin: false,
@@ -146,22 +154,42 @@ describe("AuthService", () => {
     const auditService = {
       append: vi.fn().mockResolvedValue(undefined),
     };
+    const captchaService = {
+      verify: vi.fn().mockReturnValue(true),
+    };
+    const rateLimiter = {
+      assertAllowed: vi.fn(),
+      recordFailure: vi.fn(),
+      resetPhone: vi.fn(),
+    };
     const service = new AuthService(
       repository as never,
       passwordService as never,
       tokenService as never,
       config as never,
       auditService as never,
+      captchaService as never,
+      rateLimiter as never,
     );
 
-    return { auditService, service, sessions, repository, passwordService, tokenService, now };
+    return {
+      auditService,
+      service,
+      sessions,
+      repository,
+      passwordService,
+      tokenService,
+      captchaService,
+      rateLimiter,
+      now,
+    };
   }
 
   it("creates an independent active session for every login", async () => {
     const { auditService, service, sessions } = createHarness();
 
-    await service.login({ email: "root@example.com", password: "password", clientType: "web_pc" });
-    await service.login({ email: "root@example.com", password: "password", clientType: "app_ios" });
+    await service.login(loginInput);
+    await service.login({ ...loginInput, clientType: "app_ios" });
 
     expect([...sessions.values()].filter((session) => session.status === "active")).toHaveLength(2);
     expect(sessions.get("session-1")?.currentOrganizationId).toBe("org-1");
@@ -176,13 +204,43 @@ describe("AuthService", () => {
     );
   });
 
+  it("checks the rate limit before validating credentials", async () => {
+    const { service, rateLimiter } = createHarness();
+
+    await service.login(loginInput);
+
+    expect(rateLimiter.assertAllowed).toHaveBeenCalledWith(undefined, "13800000001");
+  });
+
+  it("rejects login and records a failure when the captcha is invalid", async () => {
+    const { service, captchaService, rateLimiter, repository } = createHarness();
+    captchaService.verify.mockReturnValue(false);
+
+    await expect(service.login(loginInput)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(rateLimiter.recordFailure).toHaveBeenCalledWith(undefined, "13800000001");
+    expect(repository.findActiveUserByPhone).not.toHaveBeenCalled();
+  });
+
+  it("rejects login when the phone does not match an active user", async () => {
+    const { auditService, service, repository, rateLimiter } = createHarness();
+    repository.findActiveUserByPhone.mockResolvedValue(null);
+
+    await expect(service.login(loginInput)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(rateLimiter.recordFailure).toHaveBeenCalledWith(undefined, "13800000001");
+    expect(auditService.append).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "auth.login.failed",
+        metadata: expect.objectContaining({ phone: "13800000001", reason: "user_not_found" }),
+      }),
+    );
+  });
+
   it("rejects login when the password does not match", async () => {
-    const { auditService, service, passwordService } = createHarness();
+    const { auditService, service, passwordService, rateLimiter } = createHarness();
     passwordService.verify.mockResolvedValue(false);
 
-    await expect(
-      service.login({ email: "root@example.com", password: "bad-password", clientType: "web_pc" }),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(service.login(loginInput)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(rateLimiter.recordFailure).toHaveBeenCalledWith(undefined, "13800000001");
     expect(auditService.append).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "auth.login.failed",
@@ -192,14 +250,18 @@ describe("AuthService", () => {
     );
   });
 
+  it("resets the phone failure count after a successful login", async () => {
+    const { service, rateLimiter } = createHarness();
+
+    await service.login(loginInput);
+
+    expect(rateLimiter.resetPhone).toHaveBeenCalledWith("13800000001");
+  });
+
   it("rotates refresh token and rejects the old hash after refresh", async () => {
     const { service, sessions } = createHarness();
 
-    const login = await service.login({
-      email: "root@example.com",
-      password: "password",
-      clientType: "web_pc",
-    });
+    const login = await service.login(loginInput);
     const refreshToken = requireValue(login.refreshToken, "login refreshToken");
 
     const refreshed = await service.refresh({ refreshToken, transport: "cookie" });
@@ -218,11 +280,7 @@ describe("AuthService", () => {
     ["app_android", "cookie"],
   ] as const)("rejects %s refresh over %s without rotating the persisted token", async (clientType, transport) => {
     const { service, sessions } = createHarness();
-    const login = await service.login({
-      email: "root@example.com",
-      password: "password",
-      clientType,
-    });
+    const login = await service.login({ ...loginInput, clientType });
     const refreshToken = requireValue(login.refreshToken, "login refreshToken");
 
     await expect(service.refresh({ refreshToken, transport })).rejects.toBeInstanceOf(
@@ -233,11 +291,7 @@ describe("AuthService", () => {
 
   it("allows only one concurrent rotation of the same refresh token", async () => {
     const { service } = createHarness();
-    const login = await service.login({
-      email: "root@example.com",
-      password: "password",
-      clientType: "web_pc",
-    });
+    const login = await service.login(loginInput);
     const refreshToken = requireValue(login.refreshToken, "login refreshToken");
 
     const results = await Promise.allSettled([
@@ -252,11 +306,7 @@ describe("AuthService", () => {
   it("rejects revoked and expired sessions during refresh", async () => {
     const { service, sessions } = createHarness();
 
-    const login = await service.login({
-      email: "root@example.com",
-      password: "password",
-      clientType: "web_pc",
-    });
+    const login = await service.login(loginInput);
     sessions.set("session-1", { ...requireSession(sessions, "session-1"), status: "revoked" });
 
     const refreshToken = requireValue(login.refreshToken, "login refreshToken");
@@ -265,11 +315,7 @@ describe("AuthService", () => {
       UnauthorizedException,
     );
 
-    const secondLogin = await service.login({
-      email: "root@example.com",
-      password: "password",
-      clientType: "app_ios",
-    });
+    const secondLogin = await service.login({ ...loginInput, clientType: "app_ios" });
     sessions.set("session-2", {
       ...requireSession(sessions, "session-2"),
       expiresAt: new Date(Date.now() - 1),
@@ -285,8 +331,8 @@ describe("AuthService", () => {
   it("revokes only the current session on logout", async () => {
     const { auditService, service, sessions } = createHarness();
 
-    await service.login({ email: "root@example.com", password: "password", clientType: "web_pc" });
-    await service.login({ email: "root@example.com", password: "password", clientType: "app_ios" });
+    await service.login(loginInput);
+    await service.login({ ...loginInput, clientType: "app_ios" });
     await service.logout({ authContext });
 
     expect(sessions.get("session-1")?.status).toBe("revoked");
@@ -302,8 +348,8 @@ describe("AuthService", () => {
   it("revokes all active user sessions on revoke all", async () => {
     const { service, sessions } = createHarness();
 
-    await service.login({ email: "root@example.com", password: "password", clientType: "web_pc" });
-    await service.login({ email: "root@example.com", password: "password", clientType: "app_ios" });
+    await service.login(loginInput);
+    await service.login({ ...loginInput, clientType: "app_ios" });
     await service.revokeAllSessions(authContext);
 
     expect([...sessions.values()].every((session) => session.status === "revoked")).toBe(true);
@@ -312,7 +358,7 @@ describe("AuthService", () => {
   it("does not revoke another user's session by id", async () => {
     const { service, sessions } = createHarness();
 
-    await service.login({ email: "root@example.com", password: "password", clientType: "web_pc" });
+    await service.login(loginInput);
     sessions.set("session-2", {
       id: "session-2",
       userId: "user-2",

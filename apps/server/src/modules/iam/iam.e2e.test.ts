@@ -147,7 +147,7 @@ describe("IAM e2e", () => {
   }) => {
     const { app, state } = await createHarness({ managerPermissions: [targetPermission] });
     const managerPermissions = state.roles.get(testIds.managerRole)?.permissions ?? [];
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     expect(managerPermissions).toEqual([targetPermission]);
     expect(managerPermissions).not.toContain(adjacentPermission);
@@ -176,7 +176,7 @@ describe("IAM e2e", () => {
   }) => {
     const { app, state } = await createHarness({ managerPermissions: [adjacentPermission] });
     const managerPermissions = state.roles.get(testIds.managerRole)?.permissions ?? [];
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     expect(managerPermissions).toEqual([adjacentPermission]);
     expect(managerPermissions).not.toContain(targetPermission);
@@ -195,7 +195,7 @@ describe("IAM e2e", () => {
 
   it("GET /roles/list without permission returns 403", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "viewer@example.com");
+    const { accessToken } = await login(app, "13800000003");
 
     const response = await app.inject({
       method: "GET",
@@ -210,7 +210,7 @@ describe("IAM e2e", () => {
 
   it("GET /roles/list with roles.read returns 200", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "GET",
@@ -235,7 +235,7 @@ describe("IAM e2e", () => {
 
   it("super_admin active member can access /roles/list without roles.read", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "super@example.com");
+    const { accessToken } = await login(app, "13800000004");
 
     const response = await app.inject({
       method: "GET",
@@ -269,7 +269,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/update rejects permission changes without roles.permissions.update", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "owner@example.com");
+    const { accessToken } = await login(app, "13800000001");
 
     const response = await app.inject({
       method: "POST",
@@ -288,7 +288,7 @@ describe("IAM e2e", () => {
 
   it("POST /members/update writes audit log and ignores body.organizationId", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -326,7 +326,7 @@ describe("IAM e2e", () => {
 
   it("POST /members/update rejects disabling without members.disable", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -356,7 +356,7 @@ describe("IAM e2e", () => {
       ...viewerMember,
       status: "disabled",
     });
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -376,7 +376,7 @@ describe("IAM e2e", () => {
 
   it("POST /members/update allows status-only updates without members.update", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "owner@example.com");
+    const { accessToken } = await login(app, "13800000001");
 
     const response = await app.inject({
       method: "POST",
@@ -396,7 +396,7 @@ describe("IAM e2e", () => {
 
   it("POST /members/update requires members.update for role assignment", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "owner@example.com");
+    const { accessToken } = await login(app, "13800000001");
 
     const response = await app.inject({
       method: "POST",
@@ -416,7 +416,7 @@ describe("IAM e2e", () => {
 
   it("POST /members/update requires every permission for a combined update", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -440,7 +440,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/create rejects permissions above a non-super-admin actor", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -461,7 +461,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/update rejects permissions above a non-super-admin actor", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -481,7 +481,7 @@ describe("IAM e2e", () => {
 
   it("POST /members/create rejects assigning a role above a non-super-admin actor", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -503,7 +503,7 @@ describe("IAM e2e", () => {
 
   it("allows a super admin to grant permissions above their assigned role", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "super@example.com");
+    const { accessToken } = await login(app, "13800000004");
 
     const response = await app.inject({
       method: "POST",
@@ -526,7 +526,7 @@ describe("IAM e2e", () => {
 
   it("allows a super admin to assign a role above their assigned role", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "super@example.com");
+    const { accessToken } = await login(app, "13800000004");
 
     const response = await app.inject({
       method: "POST",
@@ -548,7 +548,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/update updates role metadata through the action API", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -574,7 +574,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/update rejects permissionKeys instead of changing permissions", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -595,7 +595,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/update validates id in the request body", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -614,7 +614,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/update returns 403 without roles.update", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "viewer@example.com");
+    const { accessToken } = await login(app, "13800000003");
 
     const response = await app.inject({
       method: "POST",
@@ -633,7 +633,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/update returns 404 for a role in another organization", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -654,7 +654,7 @@ describe("IAM e2e", () => {
     const { app } = await createHarness({
       managerPermissions: ["roles:permissions:update", "menus:create", "transactions:read"],
     });
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "GET",
@@ -712,7 +712,7 @@ describe("IAM e2e", () => {
     }
 
     state.menus.set(7, { ...roleMenu, parentId: 2 });
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "GET",
@@ -733,7 +733,7 @@ describe("IAM e2e", () => {
 
   it("GET /permissions/tree returns 403 without roles.permissions.update", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "owner@example.com");
+    const { accessToken } = await login(app, "13800000001");
 
     const response = await app.inject({
       method: "GET",
@@ -748,7 +748,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/permissions/edit replaces manageable permissions separately from metadata", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -773,7 +773,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/permissions/edit returns 400 when a menu ancestor permission is missing", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -792,7 +792,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/permissions/edit returns 403 without its permission", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "owner@example.com");
+    const { accessToken } = await login(app, "13800000001");
 
     const response = await app.inject({
       method: "POST",
@@ -811,7 +811,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/permissions/edit rejects permissions above the actor", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -830,7 +830,7 @@ describe("IAM e2e", () => {
 
   it("POST /roles/permissions/edit returns 404 for a role in another organization", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -860,7 +860,7 @@ describe("IAM e2e", () => {
 
   it("GET /menus self-filters for authenticated users without menus.read", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "owner@example.com");
+    const { accessToken } = await login(app, "13800000001");
 
     const response = await app.inject({
       method: "GET",
@@ -881,7 +881,7 @@ describe("IAM e2e", () => {
 
   it("GET /menus never returns button nodes", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "GET",
@@ -897,7 +897,7 @@ describe("IAM e2e", () => {
 
   it("GET /menus/resolve resolves an authorized route from the path query", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "GET",
@@ -918,7 +918,7 @@ describe("IAM e2e", () => {
 
   it("GET /menus/resolve validates the path query", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "GET",
@@ -933,7 +933,7 @@ describe("IAM e2e", () => {
 
   it("GET /menus/resolve returns 403 for an unauthorized route", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "viewer@example.com");
+    const { accessToken } = await login(app, "13800000003");
 
     const response = await app.inject({
       method: "GET",
@@ -948,7 +948,7 @@ describe("IAM e2e", () => {
 
   it("GET /menus/resolve does not resolve another organization's route", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "GET",
@@ -963,7 +963,7 @@ describe("IAM e2e", () => {
 
   it("GET /menus/configuration returns the complete current-organization tree", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "GET",
@@ -993,7 +993,7 @@ describe("IAM e2e", () => {
 
   it("GET /menus/configuration requires menus.read", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "owner@example.com");
+    const { accessToken } = await login(app, "13800000001");
 
     const response = await app.inject({
       method: "GET",
@@ -1008,7 +1008,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/add creates a menu with a numeric ID", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -1031,7 +1031,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/add rejects string parent IDs", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -1069,7 +1069,7 @@ describe("IAM e2e", () => {
     ["/api/menus/edit-order", { id: "8", direction: "up" }],
   ])("POST %s rejects string menu IDs", async (url, payload) => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -1085,7 +1085,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/add requires menus.create", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "owner@example.com");
+    const { accessToken } = await login(app, "13800000001");
 
     const response = await app.inject({
       method: "POST",
@@ -1105,7 +1105,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/add returns 409 for a duplicate internal route", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -1131,7 +1131,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/edit updates a menu by numeric body ID", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -1160,7 +1160,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/edit requires menus.update", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "owner@example.com");
+    const { accessToken } = await login(app, "13800000001");
 
     const response = await app.inject({
       method: "POST",
@@ -1183,7 +1183,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/edit returns 404 for a numeric ID in another organization", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -1210,7 +1210,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/delete deletes a leaf by numeric body ID", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -1228,7 +1228,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/delete requires menus.delete", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "owner@example.com");
+    const { accessToken } = await login(app, "13800000001");
 
     const response = await app.inject({
       method: "POST",
@@ -1244,7 +1244,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/delete returns 409 for a non-leaf menu", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -1260,7 +1260,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/delete returns 404 for a numeric ID in another organization", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -1276,7 +1276,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/edit-order moves a menu by numeric body ID", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const before = state.menus.get(8)?.sortOrder;
     const response = await app.inject({
@@ -1295,7 +1295,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/edit-order requires menus.update", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "owner@example.com");
+    const { accessToken } = await login(app, "13800000001");
 
     const response = await app.inject({
       method: "POST",
@@ -1311,7 +1311,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/edit-order returns 409 at a sibling boundary", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -1327,7 +1327,7 @@ describe("IAM e2e", () => {
 
   it("POST /menus/edit-order returns 404 for a numeric ID in another organization", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     const response = await app.inject({
       method: "POST",
@@ -1349,7 +1349,7 @@ describe("IAM e2e", () => {
       "menus:delete",
     ] as const;
     const { app, state } = await createHarness({ managerPermissions: allMenuPermissions });
-    const { accessToken } = await login(app, "manager@example.com");
+    const { accessToken } = await login(app, "13800000002");
 
     expect(state.roles.get(testIds.managerRole)?.permissions).toEqual(allMenuPermissions);
 
@@ -1371,7 +1371,7 @@ describe("IAM e2e", () => {
     const superPermissions = superMember
       ? (state.roles.get(superMember.roleId)?.permissions ?? [])
       : [];
-    const { accessToken } = await login(app, "super@example.com");
+    const { accessToken } = await login(app, "13800000004");
 
     expect(superPermissions.filter((permission) => permission.startsWith("menus:"))).toEqual([]);
 
@@ -1394,7 +1394,7 @@ describe("IAM e2e", () => {
 
   it("POST /organizations/menus/reset returns 404 for an unknown organization", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "super@example.com");
+    const { accessToken } = await login(app, "13800000004");
 
     const response = await app.inject({
       method: "POST",

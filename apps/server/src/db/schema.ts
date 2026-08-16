@@ -34,12 +34,16 @@ export const users = snakeCase.table(
   {
     id: uuid().primaryKey().defaultRandom(),
     email: text().notNull(),
+    phone: text(),
     passwordHash: text().notNull(),
     status: userStatus().notNull().default("active"),
     isSuperAdmin: boolean().notNull().default(false),
     ...timestamps,
   },
-  (table) => [uniqueIndex("users_email_unique").on(table.email)],
+  (table) => [
+    uniqueIndex("users_email_unique").on(table.email),
+    uniqueIndex("users_phone_unique").on(table.phone),
+  ],
 );
 
 export const organizations = snakeCase.table("organizations", {

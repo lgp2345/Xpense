@@ -15,6 +15,7 @@ describe("parseServerEnv", () => {
       ACCESS_TOKEN_TTL_SECONDS: "900",
       REFRESH_TOKEN_TTL_DAYS: "30",
       BOOTSTRAP_SUPER_ADMIN_EMAIL: "root@example.com",
+      BOOTSTRAP_SUPER_ADMIN_PHONE: "13800138000",
       BOOTSTRAP_SUPER_ADMIN_PASSWORD: "strong-password",
       BOOTSTRAP_ORGANIZATION_NAME: "Xpense",
     });
@@ -24,6 +25,7 @@ describe("parseServerEnv", () => {
     expect(env.REFRESH_TOKEN_TTL_DAYS).toBe(30);
     expect(env.WEB_ORIGIN).toBe("http://localhost:5173");
     expect(env.BOOTSTRAP_SUPER_ADMIN_EMAIL).toBe("root@example.com");
+    expect(env.BOOTSTRAP_SUPER_ADMIN_PHONE).toBe("13800138000");
     expect(env.BOOTSTRAP_SUPER_ADMIN_PASSWORD).toBe("strong-password");
     expect(env.BOOTSTRAP_ORGANIZATION_NAME).toBe("Xpense");
   });
@@ -92,6 +94,10 @@ describe("parseServerEnv", () => {
     expect(env.ACCESS_TOKEN).toBe("jwt");
     expect(env.REFRESH_TOKEN).toBe("opaque_random_hash_at_rest");
     expect(env.VITE_API_PREFIX).toBe("api");
+    expect(env.CAPTCHA_TTL_SECONDS).toBe(60);
+    expect(env.LOGIN_RATE_LIMIT_IP_MAX).toBe(10);
+    expect(env.LOGIN_RATE_LIMIT_PHONE_MAX).toBe(5);
+    expect(env.LOGIN_RATE_LIMIT_WINDOW_SECONDS).toBe(300);
   });
 
   it("accepts a custom API prefix path segment", () => {
@@ -167,5 +173,28 @@ describe("parseServerEnv", () => {
         BOOTSTRAP_SUPER_ADMIN_EMAIL: "root@example.com",
       }),
     ).toThrow(/BOOTSTRAP_SUPER_ADMIN_PASSWORD/);
+  });
+
+  it("rejects a bootstrap phone in an invalid format", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validRequiredEnv,
+        BOOTSTRAP_SUPER_ADMIN_EMAIL: "root@example.com",
+        BOOTSTRAP_SUPER_ADMIN_PHONE: "12345",
+        BOOTSTRAP_SUPER_ADMIN_PASSWORD: "strong-password",
+        BOOTSTRAP_ORGANIZATION_NAME: "Xpense",
+      }),
+    ).toThrow(/BOOTSTRAP_SUPER_ADMIN_PHONE/);
+  });
+
+  it("requires a bootstrap phone when other bootstrap values are present", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validRequiredEnv,
+        BOOTSTRAP_SUPER_ADMIN_EMAIL: "root@example.com",
+        BOOTSTRAP_SUPER_ADMIN_PASSWORD: "strong-password",
+        BOOTSTRAP_ORGANIZATION_NAME: "Xpense",
+      }),
+    ).toThrow(/BOOTSTRAP_SUPER_ADMIN_PHONE/);
   });
 });

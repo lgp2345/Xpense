@@ -1,3 +1,4 @@
+import { chinaPhoneRegex } from "@xpense/shared";
 import { z } from "zod";
 
 const defaultSystemRoles = ["owner", "admin", "member", "viewer"] as const;
@@ -59,12 +60,18 @@ const serverEnvSchema = z
     ACCESS_TOKEN: z.literal("jwt").default("jwt"),
     REFRESH_TOKEN: z.literal("opaque_random_hash_at_rest").default("opaque_random_hash_at_rest"),
     BOOTSTRAP_SUPER_ADMIN_EMAIL: z.string().email().optional(),
+    BOOTSTRAP_SUPER_ADMIN_PHONE: z.string().regex(chinaPhoneRegex).optional(),
     BOOTSTRAP_SUPER_ADMIN_PASSWORD: z.string().min(8).optional(),
     BOOTSTRAP_ORGANIZATION_NAME: z.string().min(1).optional(),
+    CAPTCHA_TTL_SECONDS: z.coerce.number().int().positive().default(60),
+    LOGIN_RATE_LIMIT_IP_MAX: z.coerce.number().int().positive().default(10),
+    LOGIN_RATE_LIMIT_PHONE_MAX: z.coerce.number().int().positive().default(5),
+    LOGIN_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(300),
   })
   .superRefine((env, ctx) => {
     const bootstrapValues = [
       env.BOOTSTRAP_SUPER_ADMIN_EMAIL,
+      env.BOOTSTRAP_SUPER_ADMIN_PHONE,
       env.BOOTSTRAP_SUPER_ADMIN_PASSWORD,
       env.BOOTSTRAP_ORGANIZATION_NAME,
     ];
@@ -81,6 +88,14 @@ const serverEnvSchema = z
         code: "custom",
         message: "BOOTSTRAP_SUPER_ADMIN_EMAIL is required when bootstrap env is configured",
         path: ["BOOTSTRAP_SUPER_ADMIN_EMAIL"],
+      });
+    }
+
+    if (env.BOOTSTRAP_SUPER_ADMIN_PHONE === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: "BOOTSTRAP_SUPER_ADMIN_PHONE is required when bootstrap env is configured",
+        path: ["BOOTSTRAP_SUPER_ADMIN_PHONE"],
       });
     }
 

@@ -1,5 +1,6 @@
 import { forwardRef, Module } from "@nestjs/common";
 
+import { ServerConfigService } from "../../config/config.service.js";
 import { DbModule } from "../../db/db.module.js";
 import { AuditModule } from "../audit/audit.module.js";
 import { AccessRepository } from "../iam/access.repository.js";
@@ -8,8 +9,11 @@ import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { AuthController } from "./auth.controller.js";
 import { AuthRepository } from "./auth.repository.js";
 import { AuthService } from "./auth.service.js";
+import { CaptchaService } from "./captcha.service.js";
+import { LoginRateLimiterService } from "./login-rate-limiter.service.js";
 import { OptionalAuthGuard } from "./optional-auth.guard.js";
 import { PasswordService } from "./password.service.js";
+import { InMemoryRateLimitStore, LOGIN_RATE_LIMIT_STORE } from "./rate-limit-store.js";
 import { TokenService } from "./token.service.js";
 
 @Module({
@@ -22,6 +26,14 @@ import { TokenService } from "./token.service.js";
     OptionalAuthGuard,
     AuthRepository,
     AuthService,
+    CaptchaService,
+    LoginRateLimiterService,
+    {
+      provide: LOGIN_RATE_LIMIT_STORE,
+      inject: [ServerConfigService],
+      useFactory: (config: ServerConfigService) =>
+        new InMemoryRateLimitStore(config.env.LOGIN_RATE_LIMIT_WINDOW_SECONDS),
+    },
     PasswordService,
     TokenService,
   ],
