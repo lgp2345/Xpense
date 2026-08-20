@@ -5,7 +5,8 @@ import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
 import { describe, expect, it, vi } from "vitest";
 
-import { LoginPage } from "../../pages/login-page";
+import { ThemeProvider } from "../../context/theme-provider";
+import { LoginPage, type LoginPageProps } from "../../pages/login-page";
 import { ApiError } from "../../services/api-client";
 import { createWebSession } from "../../services/web-session";
 import { createAuthStore } from "../../stores/auth-store";
@@ -46,11 +47,34 @@ function createLoginTestSession() {
   return session;
 }
 
+function renderLoginPage(props: LoginPageProps) {
+  return render(
+    <ThemeProvider defaultTheme="light" storageKey="xpense-login-test-theme">
+      <LoginPage {...props} />
+    </ThemeProvider>,
+  );
+}
+
 describe("LoginPage", () => {
+  it("switches between light and dark themes", async () => {
+    const user = userEvent.setup();
+    const session = createLoginTestSession();
+    renderLoginPage({ session });
+
+    const themeButton = screen.getByRole("button", { name: "切换主题" });
+    expect(document.documentElement).toHaveClass("light");
+
+    await user.click(themeButton);
+    expect(document.documentElement).toHaveClass("dark");
+
+    await user.click(themeButton);
+    expect(document.documentElement).toHaveClass("light");
+  });
+
   it("shows Zod field errors without calling the API", async () => {
     const user = userEvent.setup();
     const session = createLoginTestSession();
-    render(<LoginPage session={session} />);
+    renderLoginPage({ session });
 
     expect(screen.getByRole("complementary", { name: "产品预览" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "登录" }));
@@ -64,7 +88,7 @@ describe("LoginPage", () => {
   it("shows the Zod phone-format error without calling the API", async () => {
     const user = userEvent.setup();
     const session = createLoginTestSession();
-    render(<LoginPage session={session} />);
+    renderLoginPage({ session });
 
     await user.type(screen.getByRole("textbox", { name: "手机号" }), "12345");
     await user.type(screen.getByLabelText("密码"), "password");
@@ -80,7 +104,7 @@ describe("LoginPage", () => {
     vi.mocked(session.authApi.login).mockRejectedValue(
       new ApiError(401, "UNAUTHENTICATED", "internal credential lookup user_42 failed"),
     );
-    render(<LoginPage session={session} />);
+    renderLoginPage({ session });
 
     await user.type(screen.getByRole("textbox", { name: "手机号" }), "13800000001");
     await user.type(screen.getByLabelText("密码"), "password");
@@ -99,7 +123,7 @@ describe("LoginPage", () => {
     vi.mocked(session.authApi.login).mockRejectedValue(
       new ApiError(429, "TOO_MANY_REQUESTS", "尝试过于频繁，请稍后重试"),
     );
-    render(<LoginPage session={session} />);
+    renderLoginPage({ session });
 
     await user.type(screen.getByRole("textbox", { name: "手机号" }), "13800000001");
     await user.type(screen.getByLabelText("密码"), "password");
@@ -113,13 +137,11 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
     const session = createLoginTestSession();
     const onAuthenticated = vi.fn();
-    render(
-      <LoginPage
-        redirectPath="https://evil.example/steal"
-        session={session}
-        onAuthenticated={onAuthenticated}
-      />,
-    );
+    renderLoginPage({
+      redirectPath: "https://evil.example/steal",
+      session,
+      onAuthenticated,
+    });
 
     await user.type(screen.getByRole("textbox", { name: "手机号" }), "13800000001");
     await user.type(screen.getByLabelText("密码"), "password");

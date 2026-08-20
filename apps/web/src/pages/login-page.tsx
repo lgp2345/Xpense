@@ -1,3 +1,7 @@
+import { SunMoon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { useTheme } from "@/context/theme-provider";
 import { LoginForm } from "../features/auth/login-form";
 import { LoginShowcase } from "../features/auth/login-showcase";
 import { type WebSessionDependency, webSession } from "../services/web-session";
@@ -13,14 +17,25 @@ export function LoginPage({
   session = webSession,
   onAuthenticated = () => undefined,
 }: LoginPageProps) {
+  const { setTheme, theme } = useTheme();
+
   return (
     <main className="grid min-h-svh bg-background lg:grid-cols-[minmax(0,1.15fr)_minmax(26rem,0.85fr)]">
       <LoginShowcase />
 
       <section
         aria-labelledby="login-title"
-        className="flex items-center justify-center p-6 sm:p-10"
+        className="relative flex items-center justify-center p-6 sm:p-10"
       >
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="切换主题"
+          className="absolute right-6 top-6 sm:right-10 sm:top-10"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        >
+          <SunMoon />
+        </Button>
         <div className="w-full max-w-sm">
           <header className="mb-8">
             <p className="text-sm font-medium text-muted-foreground">后台工作区</p>
