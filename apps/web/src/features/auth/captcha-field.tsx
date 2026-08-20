@@ -16,7 +16,7 @@ function toSvgDataUri(svg: string): string {
 export function CaptchaField({ svg, loading, error, onRefresh }: CaptchaFieldProps) {
   return (
     <div className="flex items-center gap-2">
-      <div className="relative h-9 w-28 shrink-0 overflow-hidden rounded-md border bg-muted/40">
+      <div className="relative h-9 w-28 shrink-0 overflow-hidden rounded-md border bg-white">
         {svg ? (
           <img alt="验证码" className="h-full w-full" src={toSvgDataUri(svg)} />
         ) : (
