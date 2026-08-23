@@ -1,4 +1,4 @@
-import { permissionKeys, systemRoleKeys } from "@xpense/shared";
+import { type PermissionKey, permissionKeys, systemRoleKeys } from "@xpense/shared";
 import { describe, expect, it } from "vitest";
 
 import type { ServerEnv } from "../config/env.schema.js";
@@ -9,6 +9,19 @@ import {
   seedRbac,
   shouldInitializeMenuTemplate,
 } from "./seed-rbac.js";
+
+const bookkeepingWritePermissionKeys = [
+  "transactions:create",
+  "transactions:update",
+  "transactions:delete",
+  "accounts:create",
+  "accounts:update",
+  "accounts:delete",
+  "categories:create",
+  "categories:update",
+  "categories:delete",
+] as const satisfies readonly PermissionKey[];
+const bookkeepingWritePermissions = new Set<PermissionKey>(bookkeepingWritePermissionKeys);
 
 describe("buildRbacSeedPlan", () => {
   it("includes every shared permission", () => {
@@ -26,6 +39,13 @@ describe("buildRbacSeedPlan", () => {
     expect(owner?.permissions.toSorted()).toEqual([...permissionKeys].sort());
   });
 
+  it("grants admin every permission except deleting roles", () => {
+    const admin = buildRbacSeedPlan().roles.find((role) => role.key === "admin");
+    const expected = permissionKeys.filter((permission) => permission !== "roles:delete");
+
+    expect(admin?.permissions.toSorted()).toEqual(expected.toSorted());
+  });
+
   it("grants dashboard access to every default role", () => {
     const plan = buildRbacSeedPlan();
 
@@ -41,6 +61,45 @@ describe("buildRbacSeedPlan", () => {
 
       expect(role?.permissions).toEqual(expect.arrayContaining(menuPermissions));
     }
+  });
+
+  it("grants the confirmed bookkeeping permissions to member", () => {
+    const member = buildRbacSeedPlan().roles.find((role) => role.key === "member");
+
+    expect(member?.permissions.toSorted()).toEqual(
+      [
+        "dashboard:read",
+        "ledgers:read",
+        "accounts:read",
+        "categories:read",
+        "transactions:read",
+        "transactions:create",
+        "transactions:update",
+        "statistics:read",
+      ].sort(),
+    );
+    expect(member?.permissions).toEqual(
+      expect.arrayContaining(["transactions:create", "transactions:update"]),
+    );
+    expect(member?.permissions.some((permission) => permission.endsWith(":delete"))).toBe(false);
+  });
+
+  it("grants viewer only dashboard and bookkeeping read permissions", () => {
+    const viewer = buildRbacSeedPlan().roles.find((role) => role.key === "viewer");
+
+    expect(viewer?.permissions.toSorted()).toEqual(
+      [
+        "dashboard:read",
+        "ledgers:read",
+        "accounts:read",
+        "categories:read",
+        "transactions:read",
+        "statistics:read",
+      ].sort(),
+    );
+    expect(
+      viewer?.permissions.filter((permission) => bookkeepingWritePermissions.has(permission)),
+    ).toEqual([]);
   });
 
   it("defines the confirmed system roles in order", () => {

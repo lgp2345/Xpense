@@ -3,7 +3,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { buildRbacSeedPlan } from "../../db/seed-rbac.js";
+import { DEFAULT_MENU_TEMPLATE } from "./menu-template.js";
 import {
+  type AuthorizedMenuTreeNode,
   buildAuthorizedMenuTree,
   findNavigationAncestor,
   getAllowedParentIds,
@@ -242,6 +245,44 @@ describe("navigation helpers", () => {
 });
 
 describe("buildAuthorizedMenuTree", () => {
+  it("只为 member 和 viewer 返回三个只读记账导航且不泄露按钮", () => {
+    const rows = materializeDefaultTemplate();
+    const plan = buildRbacSeedPlan();
+
+    for (const roleKey of ["member", "viewer"] as const) {
+      const permissions = plan.roles.find((role) => role.key === roleKey)?.permissions ?? [];
+      const tree = buildAuthorizedMenuTree(rows, {
+        organizationId,
+        permissionCodes: permissions,
+      });
+      const bookkeeping = tree.find((node) => node.name === "记账管理");
+      const resolvedBookkeepingNodes = flattenAuthorizedMenuTree(bookkeeping ? [bookkeeping] : []);
+
+      expect(
+        resolvedBookkeepingNodes.map((node) => ({
+          type: node.type,
+          routeKey: node.routeKey,
+          permissionCode: node.permissionCode,
+        })),
+      ).toEqual([
+        { type: "directory", routeKey: null, permissionCode: null },
+        {
+          type: "menu",
+          routeKey: "Transactions",
+          permissionCode: "transactions:read",
+        },
+        { type: "menu", routeKey: "Accounts", permissionCode: "accounts:read" },
+        { type: "menu", routeKey: "Categories", permissionCode: "categories:read" },
+      ]);
+      expect(resolvedBookkeepingNodes.some((node) => node.type === "button")).toBe(false);
+      expect(
+        resolvedBookkeepingNodes
+          .flatMap((node) => (node.permissionCode ? [node.permissionCode] : []))
+          .every((permissionCode) => permissionCode.endsWith(":read")),
+      ).toBe(true);
+    }
+  });
+
   it("在循环目录祖先下有授权菜单时，在受控超时内返回且不泄露循环节点", () => {
     const moduleUrl = pathToFileURL(fileURLToPath(new URL("./menu-tree.ts", import.meta.url))).href;
     const child = spawnSync(
@@ -313,3 +354,38 @@ process.stdout.write(JSON.stringify(buildAuthorizedMenuTree(nodes, { organizatio
     ).toEqual([1]);
   });
 });
+
+function materializeDefaultTemplate(): MenuTreeNode[] {
+  const idByTemplateKey = new Map<string, number>();
+
+  return DEFAULT_MENU_TEMPLATE.map((node, index) => {
+    const id = index + 1;
+    const parentId = node.parentTemplateKey
+      ? (idByTemplateKey.get(node.parentTemplateKey) ?? null)
+      : null;
+
+    idByTemplateKey.set(node.templateKey, id);
+
+    return {
+      id,
+      organizationId,
+      type: node.type,
+      name: node.name,
+      parentId,
+      routeKey: node.routeKey,
+      path: null,
+      icon: node.icon,
+      permissionCode: node.permissionCode,
+      isExternal: node.isExternal,
+      isVisible: node.isVisible,
+      keepAlive: node.keepAlive,
+      sortOrder: node.sortOrder,
+    };
+  });
+}
+
+function flattenAuthorizedMenuTree(
+  nodes: readonly AuthorizedMenuTreeNode[],
+): AuthorizedMenuTreeNode[] {
+  return nodes.flatMap((node) => [node, ...flattenAuthorizedMenuTree(node.children)]);
+}

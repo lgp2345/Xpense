@@ -73,6 +73,11 @@ export type SeedRbacWorkflowDependencies<TExecutor> = {
   initializeMenu(executor: TExecutor, organizationId: string): Promise<void>;
 };
 
+/**
+ * 根据共享权限词表构建稳定的系统角色授权计划。
+ *
+ * @returns 包含全部权限元数据及 owner、admin、member、viewer 精确授权的计划。
+ */
 export function buildRbacSeedPlan(): RbacSeedPlan {
   const permissions = permissionKeys.map((key) => {
     const [resource, ...actionParts] = key.split(":");
@@ -110,9 +115,13 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
         isEditable: false,
         permissions: [
           "dashboard:read",
+          "ledgers:read",
+          "accounts:read",
+          "categories:read",
           "transactions:read",
           "transactions:create",
           "transactions:update",
+          "statistics:read",
         ],
       },
       {
@@ -120,7 +129,14 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
         name: "Viewer",
         isSystem: true,
         isEditable: false,
-        permissions: ["dashboard:read", "transactions:read"],
+        permissions: [
+          "dashboard:read",
+          "ledgers:read",
+          "accounts:read",
+          "categories:read",
+          "transactions:read",
+          "statistics:read",
+        ],
       },
     ],
   };

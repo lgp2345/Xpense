@@ -1,5 +1,7 @@
 import type { MenuIconKey, MenuType, PermissionKey, RouteKey } from "@xpense/shared";
 
+import { BOOKKEEPING_MENU_TEMPLATE } from "./bookkeeping-menu-template.js";
+
 export type MenuTemplateNode = {
   templateKey: string;
   parentTemplateKey: string | null;
@@ -38,6 +40,7 @@ export const DEFAULT_MENU_TEMPLATE: readonly MenuTemplateNode[] = [
     keepAlive: true,
     sortOrder: 0,
   },
+  ...BOOKKEEPING_MENU_TEMPLATE,
   {
     templateKey: "access-control",
     parentTemplateKey: null,
@@ -287,6 +290,14 @@ export const DEFAULT_MENU_TEMPLATE: readonly MenuTemplateNode[] = [
   },
 ];
 
+/**
+ * 按父节点优先顺序把默认菜单模板复制到指定组织。
+ *
+ * @param organizationId 接收菜单模板的组织 ID。
+ * @param executor 负责持久化单个菜单节点并返回数据库 ID 的执行器。
+ * @returns 全部模板节点写入后无返回值。
+ * @throws 父模板节点尚未写入或底层持久化失败时传播异常。
+ */
 export async function copyMenuTemplate(
   organizationId: string,
   executor: MenuTemplateExecutor,
