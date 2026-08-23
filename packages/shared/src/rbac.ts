@@ -37,6 +37,28 @@ const transactionPermissions = [
   "transactions:delete",
 ] as const;
 
+// ── 账本 ──────────────────────────────────────────
+const ledgerPermissions = ["ledgers:read"] as const;
+
+// ── 账户 ──────────────────────────────────────────
+const accountPermissions = [
+  "accounts:read",
+  "accounts:create",
+  "accounts:update",
+  "accounts:delete",
+] as const;
+
+// ── 分类 ──────────────────────────────────────────
+const categoryPermissions = [
+  "categories:read",
+  "categories:create",
+  "categories:update",
+  "categories:delete",
+] as const;
+
+// ── 统计 ──────────────────────────────────────────
+const statisticsPermissions = ["statistics:read"] as const;
+
 // ── 汇总（不修改此行逻辑）─────────────────────────
 export const permissionKeys = [
   ...dashboardPermissions,
@@ -45,7 +67,11 @@ export const permissionKeys = [
   ...rolePermissions,
   ...sessionPermissions,
   ...auditPermissions,
+  ...ledgerPermissions,
+  ...accountPermissions,
+  ...categoryPermissions,
   ...transactionPermissions,
+  ...statisticsPermissions,
 ] as const;
 
 export type PermissionKey = (typeof permissionKeys)[number];

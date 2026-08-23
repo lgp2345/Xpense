@@ -24,4 +24,25 @@ describe("RBAC shared constants", () => {
       ]),
     );
   });
+
+  it("includes the bookkeeping permission vocabulary", () => {
+    expect(permissionKeys).toEqual(
+      expect.arrayContaining([
+        "ledgers:read",
+        "accounts:read",
+        "accounts:create",
+        "accounts:update",
+        "accounts:delete",
+        "categories:read",
+        "categories:create",
+        "categories:update",
+        "categories:delete",
+        "transactions:read",
+        "transactions:create",
+        "transactions:update",
+        "transactions:delete",
+        "statistics:read",
+      ]),
+    );
+  });
 });

@@ -105,8 +105,14 @@ describe("organization menu shared contract", () => {
       "Sessions",
       "AuditLogs",
       "Menus",
+      "Transactions",
+      "Accounts",
+      "Categories",
     ]);
     expect(ROUTE_DEFINITIONS.Menus.path).toBe("/menus");
+    expect(ROUTE_DEFINITIONS.Transactions.path).toBe("/transactions");
+    expect(ROUTE_DEFINITIONS.Accounts.path).toBe("/accounts");
+    expect(ROUTE_DEFINITIONS.Categories.path).toBe("/categories");
   });
 
   it("keeps menu types and icon keys stable across clients", () => {
@@ -118,6 +124,9 @@ describe("organization menu shared contract", () => {
       "Shield",
       "ShieldCheck",
       "Users",
+      "ReceiptText",
+      "WalletCards",
+      "Shapes",
     ]);
   });
 

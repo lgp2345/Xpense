@@ -7,6 +7,9 @@ export const ROUTE_DEFINITIONS = {
   Sessions: { path: "/sessions" },
   AuditLogs: { path: "/audit-logs" },
   Menus: { path: "/menus" },
+  Transactions: { path: "/transactions" },
+  Accounts: { path: "/accounts" },
+  Categories: { path: "/categories" },
 } as const;
 
 export type RouteKey = keyof typeof ROUTE_DEFINITIONS;
@@ -22,6 +25,9 @@ export const menuIconKeys = [
   "Shield",
   "ShieldCheck",
   "Users",
+  "ReceiptText",
+  "WalletCards",
+  "Shapes",
 ] as const;
 
 export type MenuIconKey = (typeof menuIconKeys)[number];
