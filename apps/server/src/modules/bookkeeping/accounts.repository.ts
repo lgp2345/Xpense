@@ -10,7 +10,11 @@ import {
   organizations,
   transactions,
 } from "../../db/schema.js";
-import { buildActiveAccountSummaryQuery, buildActiveAccountsQuery } from "./accounts.queries.js";
+import {
+  buildActiveAccountSummaryQuery,
+  buildActiveAccountsForUpdateQuery,
+  buildActiveAccountsQuery,
+} from "./accounts.queries.js";
 import { accountRecordFields } from "./accounts.repository.select-fields.js";
 import type {
   AccountListRecord,
@@ -79,6 +83,23 @@ export class AccountsRepository {
   }
 
   /**
+   * 在交易组织锁之后，按稳定 ID 顺序一次锁定全部活动账户。
+   * @param organizationId 当前认证组织 ID。
+   * @param ids 来源及可选目标账户 ID；重复 ID 会被去除。
+   * @param executor 当前交易写事务执行器，不允许回退默认连接。
+   * @returns 同组织且未软删除的账户；调用方必须验证精确包含全部请求 ID。
+   */
+  findActiveOwnedAccountsForUpdate(
+    organizationId: string,
+    ids: string[],
+    executor: AppDbExecutor,
+  ): Promise<AccountRecord[]> {
+    if (ids.length === 0) return Promise.resolve([]);
+
+    return buildActiveAccountsForUpdateQuery(executor, organizationId, ids);
+  }
+
+  /**
    * 创建组织级账户。
    * @param input 账户字段与可信创建人。
    * @param executor 同一业务事务执行器。
@@ -132,7 +153,7 @@ export class AccountsRepository {
   }
 
   /**
-   * 软删除组织内账户并记录删除人。
+   * 软删除组织内账户并记录删除人；UPDATE 获取的行锁会与交易账户 FOR UPDATE 锁自然竞争。
    * @param input 组织、账户及可信删除人。
    * @param executor 同一业务事务执行器。
    */

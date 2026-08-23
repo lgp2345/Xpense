@@ -8,6 +8,7 @@ import type { CategoryType } from "@xpense/shared";
 
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
+import { BookkeepingWriteLockRepository } from "./bookkeeping-write-lock.repository.js";
 import { CategoriesRepository } from "./categories.repository.js";
 import type { CategoryRecord, UpdateCategoryInput } from "./categories.repository.types.js";
 import { changesActiveParentScope, isCategoryNameUniqueViolation } from "./categories.rules.js";
@@ -15,11 +16,14 @@ import { changesActiveParentScope, isCategoryNameUniqueViolation } from "./categ
 /** 集中执行分类写入前的并发锁、层级、引用与冲突策略。 */
 @Injectable()
 export class CategoriesPolicyService {
-  constructor(private readonly repository: CategoriesRepository) {}
+  constructor(
+    private readonly repository: CategoriesRepository,
+    private readonly writeLockRepository: BookkeepingWriteLockRepository,
+  ) {}
 
   /** 在任何分类写规则读取前锁定当前组织的稳定竞争行。 */
   async lockWriteScope(organizationId: string, executor: AppDbExecutor): Promise<void> {
-    const locked = await this.repository.lockOrganizationForCategoryWrite(organizationId, executor);
+    const locked = await this.writeLockRepository.lockOrganization(organizationId, executor);
     if (!locked) throw this.notFound("组织不存在");
   }
 

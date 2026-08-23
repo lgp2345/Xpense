@@ -1,13 +1,42 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { accountMovements, accounts, transactions } from "../../db/schema.js";
 import {
+  accountRecordFields,
   accountSummaryFields,
   accountSummaryGroupFields,
 } from "./accounts.repository.select-fields.js";
 
 type AccountSelectExecutor = Pick<AppDbExecutor, "select">;
+
+/**
+ * 构建组织内活动账户的稳定批量行锁查询。
+ * @param executor 当前交易写事务执行器。
+ * @param organizationId 可信认证组织 ID。
+ * @param ids 待锁账户 ID；函数去重并按 ID 升序，避免转账双账户反向锁导致死锁。
+ * @returns 使用 `FOR UPDATE` 的可执行 Drizzle 查询。
+ */
+export function buildActiveAccountsForUpdateQuery(
+  executor: AccountSelectExecutor,
+  organizationId: string,
+  ids: string[],
+) {
+  const stableIds = [...new Set(ids)].sort();
+
+  return executor
+    .select(accountRecordFields)
+    .from(accounts)
+    .where(
+      and(
+        eq(accounts.organizationId, organizationId),
+        inArray(accounts.id, stableIds),
+        isNull(accounts.deletedAt),
+      ),
+    )
+    .orderBy(asc(accounts.id))
+    .for("update");
+}
 
 /**
  * 构建组织内有效账户及有效交易派生余额的列表查询。

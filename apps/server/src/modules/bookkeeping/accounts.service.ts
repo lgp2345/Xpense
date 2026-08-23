@@ -4,9 +4,11 @@ import type { AccountSummary } from "@xpense/shared";
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
+import type { AppDbExecutor } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import { AccountsRepository } from "./accounts.repository.js";
 import type { AccountListRecord } from "./bookkeeping.types.js";
+import { BookkeepingWriteLockRepository } from "./bookkeeping-write-lock.repository.js";
 import type { CreateAccountDto } from "./dto/create-account.dto.js";
 import type { DeleteAccountDto } from "./dto/delete-account.dto.js";
 import type { UpdateAccountDto } from "./dto/update-account.dto.js";
@@ -17,6 +19,7 @@ import { OpeningBalanceService } from "./opening-balance.service.js";
 export class AccountsService {
   constructor(
     private readonly repository: AccountsRepository,
+    private readonly writeLockRepository: BookkeepingWriteLockRepository,
     private readonly openingBalanceService: OpeningBalanceService,
     private readonly auditService: AuditService,
     private readonly transactions: DatabaseTransactionService,
@@ -40,6 +43,7 @@ export class AccountsService {
    */
   create(authContext: AuthContext, dto: CreateAccountDto): Promise<AccountSummary> {
     return this.transactions.run(async (transaction) => {
+      await this.lockOrganization(authContext.organizationId, transaction);
       const account = await this.repository.create(
         {
           organizationId: authContext.organizationId,
@@ -101,6 +105,7 @@ export class AccountsService {
    */
   async update(authContext: AuthContext, dto: UpdateAccountDto): Promise<AccountSummary> {
     return this.transactions.run(async (transaction) => {
+      await this.lockOrganization(authContext.organizationId, transaction);
       const account = await this.repository.findActiveOwnedAccount(
         authContext.organizationId,
         dto.id,
@@ -162,6 +167,7 @@ export class AccountsService {
    */
   delete(authContext: AuthContext, dto: DeleteAccountDto): Promise<void> {
     return this.transactions.run(async (transaction) => {
+      await this.lockOrganization(authContext.organizationId, transaction);
       const account = await this.repository.findActiveOwnedAccount(
         authContext.organizationId,
         dto.id,
@@ -193,6 +199,12 @@ export class AccountsService {
         transaction,
       );
     });
+  }
+
+  /** 在任何账户规则读取或写入前获取同一事务的记账组织锁。 */
+  private async lockOrganization(organizationId: string, executor: AppDbExecutor): Promise<void> {
+    const locked = await this.writeLockRepository.lockOrganization(organizationId, executor);
+    if (!locked) throw this.notFound();
   }
 
   /** 将数据库账户记录映射为不暴露组织和审计字段的客户端摘要。 */

@@ -47,7 +47,6 @@ describe("CategoriesService", () => {
     const root = categoryFixture();
     const transaction = { kind: "transaction" };
     const repository = {
-      lockOrganizationForCategoryWrite: vi.fn().mockResolvedValue(true),
       listActive: vi.fn().mockResolvedValue([root]),
       findActiveOwnedLedger: vi.fn().mockResolvedValue({ id: "ledger-1" }),
       findActiveOwnedCategory: vi.fn().mockResolvedValue(root),
@@ -63,7 +62,8 @@ describe("CategoriesService", () => {
     const transactions = {
       run: vi.fn().mockImplementation(async (operation) => operation(transaction)),
     };
-    const policy = new CategoriesPolicyService(repository as never);
+    const writeLockRepository = { lockOrganization: vi.fn().mockResolvedValue(true) };
+    const policy = new CategoriesPolicyService(repository as never, writeLockRepository as never);
     const service = new CategoriesService(
       repository as never,
       policy,
@@ -71,7 +71,15 @@ describe("CategoriesService", () => {
       transactions as never,
     );
 
-    return { auditService, repository, root, service, transaction, transactions };
+    return {
+      auditService,
+      repository,
+      root,
+      service,
+      transaction,
+      transactions,
+      writeLockRepository,
+    };
   }
 
   it("lists a two-level tree ordered by sortOrder and name after validating the owned ledger", async () => {
@@ -141,22 +149,22 @@ describe("CategoriesService", () => {
     invoke,
     firstRuleRead,
   }) => {
-    const { repository, service, transaction } = createHarness();
+    const { repository, service, transaction, writeLockRepository } = createHarness();
 
     await invoke(service);
 
-    expect(repository.lockOrganizationForCategoryWrite).toHaveBeenCalledWith(
+    expect(writeLockRepository.lockOrganization).toHaveBeenCalledWith(
       "organization-1",
       transaction,
     );
-    expect(repository.lockOrganizationForCategoryWrite.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(writeLockRepository.lockOrganization.mock.invocationCallOrder[0]).toBeLessThan(
       repository[firstRuleRead].mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
     );
   });
 
   it("returns not found and performs no rule reads when the category write scope cannot be locked", async () => {
-    const { repository, service } = createHarness();
-    repository.lockOrganizationForCategoryWrite.mockResolvedValue(false);
+    const { repository, service, writeLockRepository } = createHarness();
+    writeLockRepository.lockOrganization.mockResolvedValue(false);
 
     await expect(
       service.create(authContext, { ledgerId: "ledger-1", type: "expense", name: "餐饮" }),

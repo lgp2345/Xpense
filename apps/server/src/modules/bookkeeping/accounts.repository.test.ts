@@ -2,7 +2,11 @@ import { QueryBuilder } from "drizzle-orm/pg-core";
 import { describe, expect, it, vi } from "vitest";
 
 import { accountMovements, accounts, transactions } from "../../db/schema.js";
-import { buildActiveAccountSummaryQuery, buildActiveAccountsQuery } from "./accounts.queries.js";
+import {
+  buildActiveAccountSummaryQuery,
+  buildActiveAccountsForUpdateQuery,
+  buildActiveAccountsQuery,
+} from "./accounts.queries.js";
 import { AccountsRepository } from "./accounts.repository.js";
 
 function containsReference(
@@ -53,6 +57,49 @@ function expectActiveBalanceQuery(
 }
 
 describe("AccountsRepository", () => {
+  it("renders one stable active-account row-lock query for deduplicated IDs", () => {
+    const query = buildActiveAccountsForUpdateQuery(new QueryBuilder() as never, "organization-1", [
+      "account-b",
+      "account-a",
+      "account-b",
+    ]).toSQL();
+    const sql = normalizeSql(query.sql);
+    const structure = flattenSqlStructure(query.sql);
+
+    expect(structure).toContain(
+      'where "accounts"."organization_id" = $1 and "accounts"."id" in $2, $3 and "accounts"."deleted_at" is null',
+    );
+    expect(sql).toContain('order by "accounts"."id" asc');
+    expect(sql).toContain("for update");
+    expect(query.params).toEqual(["organization-1", "account-a", "account-b"]);
+  });
+
+  it("locks all requested active accounts through only the supplied transaction executor", async () => {
+    const rows = [
+      { id: "account-a", organizationId: "organization-1" },
+      { id: "account-b", organizationId: "organization-1" },
+    ];
+    const forUpdate = vi.fn().mockResolvedValue(rows);
+    const orderBy = vi.fn().mockReturnValue({ for: forUpdate });
+    const where = vi.fn().mockReturnValue({ orderBy });
+    const from = vi.fn().mockReturnValue({ where });
+    const executorSelect = vi.fn().mockReturnValue({ from });
+    const dbSelect = vi.fn();
+    const repository = new AccountsRepository({ select: dbSelect } as never);
+
+    await expect(
+      repository.findActiveOwnedAccountsForUpdate(
+        "organization-1",
+        ["account-b", "account-a", "account-b"],
+        { select: executorSelect } as never,
+      ),
+    ).resolves.toEqual(rows);
+
+    expect(executorSelect).toHaveBeenCalledOnce();
+    expect(dbSelect).not.toHaveBeenCalled();
+    expect(forUpdate).toHaveBeenCalledWith("update");
+  });
+
   it("renders the exact active-balance SQL contract for account lists", () => {
     const query = buildActiveAccountsQuery(new QueryBuilder() as never, "organization-1").toSQL();
 

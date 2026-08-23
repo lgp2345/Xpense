@@ -4,7 +4,7 @@ import { and, asc, eq, isNull, ne } from "drizzle-orm";
 
 import type { AppDb, AppDbExecutor } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
-import { categories, ledgers, organizations } from "../../db/schema.js";
+import { categories, ledgers } from "../../db/schema.js";
 import {
   buildAnyCategoryChildrenQuery,
   buildAnyCategoryTransactionReferenceQuery,
@@ -26,25 +26,6 @@ export type { CategoryRecord } from "./categories.repository.types.js";
 @Injectable()
 export class CategoriesRepository {
   constructor(@Inject(DB) private readonly db: AppDb) {}
-
-  /**
-   * 锁定当前组织行，序列化该组织内所有分类写规则的读取与写入。
-   * @param organizationId 可信认证组织 ID。
-   * @param executor 当前分类写事务执行器。
-   */
-  async lockOrganizationForCategoryWrite(
-    organizationId: string,
-    executor: AppDbExecutor,
-  ): Promise<boolean> {
-    const [organization] = await executor
-      .select({ id: organizations.id })
-      .from(organizations)
-      .where(eq(organizations.id, organizationId))
-      .for("update")
-      .limit(1);
-
-    return organization !== undefined;
-  }
 
   /** 查询账本内未软删除分类，并按同级展示字段排序。 */
   listActive(

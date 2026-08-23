@@ -1,7 +1,7 @@
 import { QueryBuilder } from "drizzle-orm/pg-core";
 import { describe, expect, it, vi } from "vitest";
 
-import { categories, ledgers, organizations, transactions } from "../../db/schema.js";
+import { categories, ledgers, transactions } from "../../db/schema.js";
 import {
   buildAnyCategoryChildrenQuery,
   buildAnyCategoryTransactionReferenceQuery,
@@ -21,27 +21,6 @@ function containsReference(
 }
 
 describe("CategoriesRepository", () => {
-  it("locks the organization row with FOR UPDATE through the supplied transaction", async () => {
-    const limit = vi.fn().mockResolvedValue([{ id: "organization-1" }]);
-    const forUpdate = vi.fn().mockReturnValue({ limit });
-    const where = vi.fn().mockReturnValue({ for: forUpdate });
-    const from = vi.fn().mockReturnValue({ where });
-    const select = vi.fn().mockReturnValue({ from });
-    const repository = new CategoriesRepository({} as never);
-
-    await expect(
-      repository.lockOrganizationForCategoryWrite("organization-1", { select } as never),
-    ).resolves.toBe(true);
-
-    expect(select).toHaveBeenCalledWith({ id: organizations.id });
-    expect(from).toHaveBeenCalledWith(organizations);
-    expect(forUpdate).toHaveBeenCalledWith("update");
-    expect(limit).toHaveBeenCalledWith(1);
-    const condition = where.mock.calls[0]?.[0];
-    expect(containsReference(condition, organizations.id)).toBe(true);
-    expect(containsReference(condition, "organization-1")).toBe(true);
-  });
-
   it("lists only active categories in the organization, ledger, and optional type scope", async () => {
     const orderBy = vi.fn().mockResolvedValue([]);
     const where = vi.fn().mockReturnValue({ orderBy });

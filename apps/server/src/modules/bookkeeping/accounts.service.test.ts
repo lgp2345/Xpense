@@ -46,8 +46,12 @@ describe("AccountsService", () => {
     const transactions = {
       run: vi.fn().mockImplementation(async (operation) => operation(transaction)),
     };
+    const writeLockRepository = {
+      lockOrganization: vi.fn().mockResolvedValue(true),
+    };
     const service = new AccountsService(
       repository as never,
+      writeLockRepository as never,
       openingBalanceService as never,
       auditService as never,
       transactions as never,
@@ -61,15 +65,78 @@ describe("AccountsService", () => {
       service,
       transaction,
       transactions,
+      writeLockRepository,
     };
   }
 
   it("lists only active accounts in the current organization", async () => {
-    const { repository, service } = createHarness();
+    const { repository, service, writeLockRepository } = createHarness();
 
     await service.list(authContext);
 
     expect(repository.listActive).toHaveBeenCalledWith("organization-1");
+    expect(writeLockRepository.lockOrganization).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      title: "create",
+      invoke: (service: AccountsService) =>
+        service.create(authContext, { name: "现金", type: "cash" }),
+      firstOperation: "create" as const,
+    },
+    {
+      title: "update",
+      invoke: (service: AccountsService) =>
+        service.update(authContext, { id: "account-1", name: "钱包" }),
+      firstOperation: "findActiveOwnedAccount" as const,
+    },
+    {
+      title: "delete",
+      invoke: (service: AccountsService) => service.delete(authContext, { id: "account-1" }),
+      firstOperation: "findActiveOwnedAccount" as const,
+    },
+  ])("locks the organization through the same transaction before $title account work", async ({
+    invoke,
+    firstOperation,
+  }) => {
+    const { repository, service, transaction, writeLockRepository } = createHarness();
+
+    await invoke(service);
+
+    expect(writeLockRepository.lockOrganization).toHaveBeenCalledWith(
+      "organization-1",
+      transaction,
+    );
+    expect(writeLockRepository.lockOrganization.mock.invocationCallOrder[0]).toBeLessThan(
+      repository[firstOperation].mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+  });
+
+  it.each([
+    [
+      "create",
+      (service: AccountsService) => service.create(authContext, { name: "现金", type: "cash" }),
+    ],
+    [
+      "update",
+      (service: AccountsService) => service.update(authContext, { id: "account-1", name: "钱包" }),
+    ],
+    ["delete", (service: AccountsService) => service.delete(authContext, { id: "account-1" })],
+  ] as const)("returns not found and performs no %s work when the organization lock fails", async (_title, invoke) => {
+    const { auditService, openingBalanceService, repository, service, writeLockRepository } =
+      createHarness();
+    writeLockRepository.lockOrganization.mockResolvedValue(false);
+
+    await expect(invoke(service)).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(repository.findActiveOwnedAccount).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(repository.softDelete).not.toHaveBeenCalled();
+    expect(repository.findActiveSummary).not.toHaveBeenCalled();
+    expect(openingBalanceService.create).not.toHaveBeenCalled();
+    expect(auditService.appendRequired).not.toHaveBeenCalled();
   });
 
   it("creates an excluded opening-balance transaction when initialBalanceMinor is non-zero", async () => {
