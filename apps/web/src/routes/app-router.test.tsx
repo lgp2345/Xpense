@@ -45,6 +45,22 @@ const authorizedMenus: AuthorizedMenuNode[] = [
     keepAlive: false,
     children: [],
   },
+  {
+    id: 3,
+    parentId: null,
+    type: "menu",
+    name: "交易记录",
+    sortOrder: 2,
+    icon: "ReceiptText",
+    isVisible: true,
+    routeKey: "Transactions",
+    path: "/transactions",
+    url: null,
+    permissionCode: "transactions:read",
+    isExternal: false,
+    keepAlive: true,
+    children: [],
+  },
 ];
 
 const injectedUserContext: CurrentUserResponse = {
@@ -80,6 +96,27 @@ function createTestSession(store: ReturnType<typeof createAuthStore>) {
 }
 
 describe("AppRouter startup", () => {
+  it("renders a registered bookkeeping route through the injected session", async () => {
+    const store = createAuthStore({ accessToken: "access-token" });
+    store.getState().setCurrentUserContext({
+      ...injectedUserContext,
+      permissions: ["transactions:read"],
+    });
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/transactions"] }),
+      session: createTestSession(store),
+    });
+
+    render(
+      <AppProviders>
+        <AppRouter restoreSession={vi.fn().mockResolvedValue(true)} router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "交易记录" })).toBeInTheDocument();
+    expect(screen.getByText("记账页面正在建设中")).toBeInTheDocument();
+  });
+
   it("waits for cookie session restoration before rendering protected content", async () => {
     const store = createAuthStore();
     const router = createAppRouter({

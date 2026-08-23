@@ -9,10 +9,13 @@ import {
   LayoutDashboard,
   type LucideIcon,
   MonitorSmartphone,
+  ReceiptText,
   ScrollText,
+  Shapes,
   Shield,
   ShieldCheck,
   Users,
+  WalletCards,
 } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
@@ -259,10 +262,13 @@ describe("menu navigation projection", () => {
     const iconByKey = {
       LayoutDashboard,
       MonitorSmartphone,
+      ReceiptText,
       ScrollText,
+      Shapes,
       Shield,
       ShieldCheck,
       Users,
+      WalletCards,
     } satisfies Record<MenuIconKey, LucideIcon>;
     const routeKeys: RouteKey[] = [
       "Dashboard",
@@ -271,6 +277,9 @@ describe("menu navigation projection", () => {
       "Sessions",
       "AuditLogs",
       "Menus",
+      "Transactions",
+      "Accounts",
+      "Categories",
     ];
     const iconTree = menuIconKeys.map((icon, index) =>
       createInternalMenu(index + 100, routeKeys[index] as RouteKey, icon),

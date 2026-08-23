@@ -12,10 +12,13 @@ import {
   LayoutDashboard,
   type LucideIcon,
   MonitorSmartphone,
+  ReceiptText,
   ScrollText,
+  Shapes,
   Shield,
   ShieldCheck,
   Users,
+  WalletCards,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -52,10 +55,13 @@ const NO_ICON_VALUE = "none";
 const ICONS: Record<MenuIconKey, LucideIcon> = {
   LayoutDashboard,
   MonitorSmartphone,
+  ReceiptText,
   ScrollText,
+  Shapes,
   Shield,
   ShieldCheck,
   Users,
+  WalletCards,
 };
 
 type MenuFormDialogProps = {

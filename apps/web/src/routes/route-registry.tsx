@@ -6,7 +6,12 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
-import { type AuthorizedMenuNode, ROUTE_DEFINITIONS, type RouteKey } from "@xpense/shared";
+import {
+  type AuthorizedMenuNode,
+  ROUTE_DEFINITIONS,
+  type RouteKey,
+  transactionTypes,
+} from "@xpense/shared";
 import { lazy, type ReactNode, Suspense } from "react";
 import { useStore } from "zustand";
 
@@ -17,6 +22,7 @@ import {
 import type { RegisteredPageInput } from "../components/layout/page-cache-host";
 import type { AuditLogSearch } from "../features/audit/audit-log-filters";
 import { ApiError } from "../services/api-client";
+import type { ListTransactionsQuery } from "../services/bookkeeping-api";
 import type { WebSessionDependency } from "../services/web-session";
 
 const DashboardPage = lazy(() =>
@@ -37,6 +43,21 @@ const AuditLogsPage = lazy(() =>
 const MenuManagementPage = lazy(() =>
   import("../features/menus/menu-management-page").then((module) => ({
     default: module.MenuManagementPage,
+  })),
+);
+const TransactionsPlaceholderPage = lazy(() =>
+  import("../features/bookkeeping/bookkeeping-route-placeholders").then((module) => ({
+    default: module.TransactionsPlaceholderPage,
+  })),
+);
+const AccountsPlaceholderPage = lazy(() =>
+  import("../features/bookkeeping/bookkeeping-route-placeholders").then((module) => ({
+    default: module.AccountsPlaceholderPage,
+  })),
+);
+const CategoriesPlaceholderPage = lazy(() =>
+  import("../features/bookkeeping/bookkeeping-route-placeholders").then((module) => ({
+    default: module.CategoriesPlaceholderPage,
   })),
 );
 
@@ -78,10 +99,23 @@ export const authenticatedRoute = createRoute({
 });
 
 const dashboardRoute = createRegisteredRoute("Dashboard");
+const accountsRoute = createRegisteredRoute("Accounts");
+const categoriesRoute = createRegisteredRoute("Categories");
 const membersRoute = createRegisteredRoute("Members");
 const rolesRoute = createRegisteredRoute("Roles");
 const sessionsRoute = createRegisteredRoute("Sessions");
 const menusRoute = createRegisteredRoute("Menus");
+const transactionsRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: ROUTE_DEFINITIONS.Transactions.path,
+  staticData: { routeKey: "Transactions" },
+  beforeLoad: ({ context, location }) =>
+    requireRegisteredRouteAccess(context, location, "Transactions"),
+  component: RegisteredRouteLeaf,
+  pendingComponent: RouteAccessPending,
+  pendingMs: 0,
+  validateSearch: validateTransactionSearch,
+});
 const auditLogsRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: ROUTE_DEFINITIONS.AuditLogs.path,
@@ -125,6 +159,21 @@ export const ROUTE_REGISTRY = {
     route: menusRoute,
     render: (input) => renderLazyPage(<MenusPageAdapter input={input} />),
   }),
+  Transactions: defineRouteRegistration({
+    label: "交易记录",
+    route: transactionsRoute,
+    render: (input) => renderLazyPage(<TransactionsPageAdapter input={input} />),
+  }),
+  Accounts: defineRouteRegistration({
+    label: "账户管理",
+    route: accountsRoute,
+    render: (input) => renderLazyPage(<AccountsPageAdapter input={input} />),
+  }),
+  Categories: defineRouteRegistration({
+    label: "分类管理",
+    route: categoriesRoute,
+    render: (input) => renderLazyPage(<CategoriesPageAdapter input={input} />),
+  }),
 } satisfies Record<RouteKey, WebRouteRegistrationConstraint>;
 
 const MENU_ROUTE_OPTIONS = (Object.keys(ROUTE_DEFINITIONS) as RouteKey[]).map((key) => ({
@@ -139,7 +188,9 @@ function defineRouteRegistration<TRoute extends AnyRoute>(
   return registration;
 }
 
-function createRegisteredRoute<const Key extends Exclude<RouteKey, "AuditLogs">>(routeKey: Key) {
+function createRegisteredRoute<const Key extends Exclude<RouteKey, "AuditLogs" | "Transactions">>(
+  routeKey: Key,
+) {
   return createRoute({
     getParentRoute: () => authenticatedRoute,
     path: ROUTE_DEFINITIONS[routeKey].path,
@@ -278,7 +329,56 @@ function renderRegisteredPage(input: CapturedRegisteredPageInput): ReactNode {
         search: input.search,
         session: input.session,
       });
+    case "Transactions":
+      return ROUTE_REGISTRY.Transactions.render({
+        navigate: input.navigate,
+        params: input.params,
+        search: validateTransactionSearch(input.search),
+        session: input.session,
+      });
+    case "Accounts":
+      return ROUTE_REGISTRY.Accounts.render({
+        navigate: input.navigate,
+        params: input.params,
+        search: input.search,
+        session: input.session,
+      });
+    case "Categories":
+      return ROUTE_REGISTRY.Categories.render({
+        navigate: input.navigate,
+        params: input.params,
+        search: input.search,
+        session: input.session,
+      });
   }
+}
+
+function TransactionsPageAdapter({
+  input,
+}: {
+  input: RegisteredPageInput<typeof transactionsRoute>;
+}) {
+  const permissions = useStore(input.session.authStore, (state) => state.permissions);
+
+  return (
+    <TransactionsPlaceholderPage
+      api={input.session.bookkeepingApi}
+      permissions={permissions}
+      search={input.search}
+    />
+  );
+}
+
+function AccountsPageAdapter({ input }: { input: RegisteredPageInput<typeof accountsRoute> }) {
+  const permissions = useStore(input.session.authStore, (state) => state.permissions);
+
+  return <AccountsPlaceholderPage api={input.session.bookkeepingApi} permissions={permissions} />;
+}
+
+function CategoriesPageAdapter({ input }: { input: RegisteredPageInput<typeof categoriesRoute> }) {
+  const permissions = useStore(input.session.authStore, (state) => state.permissions);
+
+  return <CategoriesPlaceholderPage api={input.session.bookkeepingApi} permissions={permissions} />;
 }
 
 function MembersPageAdapter({ input }: { input: RegisteredPageInput<typeof membersRoute> }) {
@@ -386,6 +486,57 @@ function validateAuditLogSearch(search: Record<string, unknown>): AuditLogSearch
   };
 }
 
+/** 将交易页面 URL 查询参数收敛为服务端支持的筛选字段。 */
+function validateTransactionSearch(search: Record<string, unknown>): ListTransactionsQuery {
+  const result: ListTransactionsQuery = {};
+  const ledgerId = readSearchUuid(search.ledgerId);
+  const accountId = readSearchUuid(search.accountId);
+  const categoryId = readSearchUuid(search.categoryId);
+  const type = readTransactionType(search.type);
+  const keyword = readTrimmedSearchString(search.keyword);
+  const from = readSearchDate(search.from);
+  const to = readSearchDate(search.to);
+  const page = readSearchPage(search.page);
+  const pageSize = readSearchPageSize(search.pageSize);
+
+  if (ledgerId) result.ledgerId = ledgerId;
+  if (accountId) result.accountId = accountId;
+  if (categoryId) result.categoryId = categoryId;
+  if (type) result.type = type;
+  if (keyword) result.keyword = keyword;
+  if (!from || !to || from <= to) {
+    if (from) result.from = from;
+    if (to) result.to = to;
+  }
+  if (page) result.page = page;
+  if (pageSize) result.pageSize = pageSize;
+
+  return result;
+}
+
+const uuidPattern =
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/i;
+
+/** 按服务端 UUID DTO 的相同边界读取资源 ID。 */
+function readSearchUuid(value: unknown): string | undefined {
+  const normalized = readTrimmedSearchString(value);
+  return normalized && uuidPattern.test(normalized) ? normalized : undefined;
+}
+
+/** 读取并修剪非空 URL 字符串。 */
+function readTrimmedSearchString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+/** 读取普通交易类型，排除内部期初余额类型。 */
+function readTransactionType(value: unknown): ListTransactionsQuery["type"] {
+  return typeof value === "string" && transactionTypes.some((type) => type === value)
+    ? (value as ListTransactionsQuery["type"])
+    : undefined;
+}
+
 function readSearchString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
@@ -406,4 +557,10 @@ function readSearchDate(value: unknown): string | undefined {
 function readSearchPage(value: unknown): number | undefined {
   const page = typeof value === "number" ? value : Number(value);
   return Number.isInteger(page) && page > 0 ? page : undefined;
+}
+
+/** 读取服务端允许的分页大小。 */
+function readSearchPageSize(value: unknown): number | undefined {
+  const pageSize = readSearchPage(value);
+  return pageSize !== undefined && pageSize <= 100 ? pageSize : undefined;
 }

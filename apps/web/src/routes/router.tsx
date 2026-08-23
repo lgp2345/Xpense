@@ -89,6 +89,9 @@ const routeTree = rootRoute.addChildren([
     ROUTE_REGISTRY.Sessions.route,
     ROUTE_REGISTRY.AuditLogs.route,
     ROUTE_REGISTRY.Menus.route,
+    ROUTE_REGISTRY.Transactions.route,
+    ROUTE_REGISTRY.Accounts.route,
+    ROUTE_REGISTRY.Categories.route,
   ]),
 ]);
 

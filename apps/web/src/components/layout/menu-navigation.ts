@@ -8,10 +8,13 @@ import {
   LayoutDashboard,
   type LucideIcon,
   MonitorSmartphone,
+  ReceiptText,
   ScrollText,
+  Shapes,
   Shield,
   ShieldCheck,
   Users,
+  WalletCards,
 } from "lucide-react";
 
 type InternalRoutePath = (typeof ROUTE_DEFINITIONS)[RouteKey]["path"];
@@ -76,10 +79,13 @@ type ProjectionGroup = {
 const ICONS: Record<MenuIconKey, LucideIcon> = {
   LayoutDashboard,
   MonitorSmartphone,
+  ReceiptText,
   ScrollText,
+  Shapes,
   Shield,
   ShieldCheck,
   Users,
+  WalletCards,
 };
 
 const projectionCache = new WeakMap<readonly AuthorizedMenuNode[], MenuProjection>();

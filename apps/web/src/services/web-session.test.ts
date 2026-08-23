@@ -184,6 +184,17 @@ describe("web session", () => {
       .onPost(/\/auth\/refresh$/)
       .reply(200, { code: "OK", message: "ok", data: { accessToken: "restored-access" } });
     mock.onGet(/\/user$/).reply(200, { code: "OK", message: "ok", data: currentUserContext });
+    mock.onGet(/\/ledgers\/list$/).reply((config) => {
+      const headers = config.headers as AxiosHeaders | Record<string, unknown> | undefined;
+      const authorization =
+        typeof headers?.get === "function"
+          ? headers.get("Authorization")
+          : (headers as Record<string, unknown> | undefined)?.Authorization;
+
+      return authorization === "Bearer restored-access"
+        ? [200, { code: "OK", message: "ok", data: [] }]
+        : [401, { code: "UNAUTHENTICATED", message: "认证缺失", data: null }];
+    });
 
     const session = createWebSession({
       authStore: store,
@@ -192,7 +203,10 @@ describe("web session", () => {
     });
 
     expect(session.authStore).toBe(store);
+    expect(session.bookkeepingApi).toBeDefined();
     await expect(session.restoreSession()).resolves.toBe(true);
+    await expect(session.bookkeepingApi.listLedgers()).resolves.toEqual([]);
+    expect(mock.history.get.filter(({ url }) => url?.endsWith("/ledgers/list"))).toHaveLength(1);
     expect(store.getState()).toMatchObject({
       accessToken: "restored-access",
       currentUser: currentUserContext.user,

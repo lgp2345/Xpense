@@ -10,6 +10,7 @@ import {
 } from "../stores/menu-store";
 import { ApiError, createApiClient } from "./api-client";
 import { type AuthApi, createAuthApi, type LoginRequest, type UserOrganization } from "./auth-api";
+import { type BookkeepingApi, createBookkeepingApi } from "./bookkeeping-api";
 import { createIamApi, type IamApi } from "./iam-api";
 
 export type SessionAuthApi = {
@@ -29,6 +30,7 @@ export type WebOrganizationAuthApi = {
 export type WebSessionDependency = {
   authApi: AuthApi;
   authStore: AuthStoreApi;
+  bookkeepingApi: BookkeepingApi;
   iamApi: IamApi;
   menuStore: MenuStoreApi;
   restoreSession: () => Promise<boolean>;
@@ -370,6 +372,7 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
     },
   });
   const authApi = createAuthApi(apiClient);
+  const bookkeepingApi = createBookkeepingApi(apiClient);
   const iamApi = createIamApi(apiClient);
   const menuBootstrap = { iamApi, menuStore: sessionMenuStore };
   bindMenuBootstrap(options.authStore, menuBootstrap);
@@ -377,6 +380,7 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
   return {
     authApi,
     authStore: options.authStore,
+    bookkeepingApi,
     iamApi,
     menuStore: sessionMenuStore,
     restoreSession: () => restoreWebSession(authApi, options.authStore, menuBootstrap),
@@ -389,6 +393,7 @@ export const webSession = createWebSession({
   menuStore: defaultMenuStore,
 });
 export const webAuthApi = webSession.authApi;
+export const webBookkeepingApi = webSession.bookkeepingApi;
 export const webIamApi = webSession.iamApi;
 
 export function restoreCurrentWebSession(): Promise<boolean> {

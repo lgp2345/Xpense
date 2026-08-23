@@ -8,6 +8,7 @@ import type * as TypeScript from "typescript";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import type { AuditLogSearch } from "../features/audit/audit-log-filters";
+import type { ListTransactionsQuery } from "../services/bookkeeping-api";
 import type { IamApi } from "../services/iam-api";
 import type { WebSessionDependency } from "../services/web-session";
 import { createAuthStore } from "../stores/auth-store";
@@ -16,6 +17,9 @@ import { ROUTE_REGISTRY } from "./route-registry";
 
 const require = createRequire(import.meta.url);
 const ts: typeof TypeScript = require("typescript");
+const ledgerId = "123e4567-e89b-42d3-a456-426614174000";
+const accountId = "223e4567-e89b-42d3-a456-426614174000";
+const categoryId = "323e4567-e89b-42d3-a456-426614174000";
 
 describe("ROUTE_REGISTRY", () => {
   it("registers every shared route key exactly once", () => {
@@ -70,6 +74,97 @@ describe("ROUTE_REGISTRY", () => {
       targetType: "role",
       to: "2026-08-12",
     });
+  });
+
+  it("normalizes transaction URL filters and drops invalid values", () => {
+    expectTypeOf<
+      typeof ROUTE_REGISTRY.Transactions.route.types.fullSearchSchema
+    >().toEqualTypeOf<ListTransactionsQuery>();
+    const validateSearch = ROUTE_REGISTRY.Transactions.route.options.validateSearch;
+
+    expect(typeof validateSearch).toBe("function");
+    if (typeof validateSearch !== "function") {
+      return;
+    }
+
+    expect(
+      validateSearch({
+        ledgerId,
+        accountId,
+        categoryId,
+        type: "expense",
+        keyword: "  房租  ",
+        from: "2026-08-01",
+        to: "2026-08-31",
+        page: "2",
+        pageSize: "50",
+      }),
+    ).toEqual({
+      ledgerId,
+      accountId,
+      categoryId,
+      type: "expense",
+      keyword: "房租",
+      from: "2026-08-01",
+      to: "2026-08-31",
+      page: 2,
+      pageSize: 50,
+    });
+    expect(
+      validateSearch({
+        type: "excluded_inflow",
+        ledgerId: "ledger-1",
+        accountId: "account-1",
+        categoryId: "category-1",
+        keyword: "   ",
+        from: "2026-02-30",
+        to: "not-a-date",
+        page: 0,
+        pageSize: 101,
+      }),
+    ).toEqual({});
+  });
+
+  it.each([
+    ["Accounts", "accounts:create"],
+    ["Categories", "categories:create"],
+    ["Transactions", "transactions:create"],
+  ] as const)("projects current write permissions into the %s page adapter", async (routeKey, permission) => {
+    const authStore = createAuthStore({
+      accessToken: "access-token",
+      currentUser: {
+        id: "user-1",
+        email: "owner@example.com",
+        isSuperAdmin: false,
+        status: "active",
+      },
+      currentOrganization: { id: "org-1", name: "个人账本" },
+      role: { id: "role-1", key: "viewer", name: "查看者" },
+      permissions: [],
+      session: { id: "session-1", clientType: "web_pc" },
+      status: "authenticated",
+    });
+    const input = {
+      navigate: vi.fn(),
+      params: {},
+      search: {},
+      session: {
+        authStore,
+        bookkeepingApi: {},
+      },
+    } as unknown as Parameters<(typeof ROUTE_REGISTRY)[typeof routeKey]["render"]>[0];
+    const { unmount } = render(ROUTE_REGISTRY[routeKey].render(input as never));
+
+    expect(await screen.findByText("当前为只读权限")).toBeInTheDocument();
+    unmount();
+
+    authStore.setState((state) => ({ ...state, permissions: [permission] }));
+    render(ROUTE_REGISTRY[routeKey].render(input as never));
+
+    expect(
+      await screen.findByRole("heading", { name: ROUTE_REGISTRY[routeKey].label }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("当前为只读权限")).not.toBeInTheDocument();
   });
 
   it("renders the lazy menu page and wires its configuration and authorized-menu refresh", async () => {
@@ -152,6 +247,7 @@ describe("ROUTE_REGISTRY", () => {
   it("keeps every page module behind a React.lazy dynamic import", () => {
     const expectedPageModules = new Set([
       "../features/audit/audit-logs-page",
+      "../features/bookkeeping/bookkeeping-route-placeholders",
       "../features/members/members-page",
       "../features/menus/menu-management-page",
       "../features/roles/roles-page",
