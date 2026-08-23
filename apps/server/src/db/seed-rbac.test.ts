@@ -1,7 +1,14 @@
 import { permissionKeys, systemRoleKeys } from "@xpense/shared";
 import { describe, expect, it } from "vitest";
 
-import { buildRbacSeedPlan, shouldInitializeMenuTemplate } from "./seed-rbac.js";
+import type { ServerEnv } from "../config/env.schema.js";
+import {
+  type BootstrapSeedResult,
+  buildRbacSeedPlan,
+  type SeedRbacWorkflowDependencies,
+  seedRbac,
+  shouldInitializeMenuTemplate,
+} from "./seed-rbac.js";
 
 describe("buildRbacSeedPlan", () => {
   it("includes every shared permission", () => {
@@ -51,3 +58,125 @@ describe("buildRbacSeedPlan", () => {
     expect(shouldInitializeMenuTemplate(false)).toBe(false);
   });
 });
+
+describe("seedRbac bookkeeping orchestration", () => {
+  it("passes the transaction executor and resolved bootstrap context to defaults", async () => {
+    const bootstrap: BootstrapSeedResult = {
+      organization: { id: "organization-1", created: true },
+      actorUserId: "user-1",
+    };
+    const harness = createSeedHarness(bootstrap);
+
+    await seedRbac(harness.db, {} as ServerEnv, harness.dependencies);
+
+    expect(harness.workflowCalls).toEqual([
+      {
+        step: "prepare-rbac",
+        executor: harness.transactionExecutor,
+        insideTransaction: true,
+      },
+      {
+        step: "resolve-bootstrap",
+        executor: harness.transactionExecutor,
+        insideTransaction: true,
+      },
+    ]);
+    expect(harness.defaultsCalls).toEqual([
+      {
+        executor: harness.transactionExecutor,
+        context: { organizationId: "organization-1", actorUserId: "user-1" },
+        insideTransaction: true,
+      },
+    ]);
+    expect(harness.menuCalls).toEqual([
+      {
+        executor: harness.transactionExecutor,
+        organizationId: "organization-1",
+        insideTransaction: true,
+      },
+    ]);
+  });
+
+  it("does not initialize defaults or menus when bootstrap data is absent", async () => {
+    const harness = createSeedHarness(undefined);
+
+    await seedRbac(harness.db, {} as ServerEnv, harness.dependencies);
+
+    expect(harness.defaultsCalls).toEqual([]);
+    expect(harness.menuCalls).toEqual([]);
+  });
+
+  it("reinitializes idempotent defaults but keeps menus unchanged for an existing organization", async () => {
+    const harness = createSeedHarness({
+      organization: { id: "organization-1", created: false },
+      actorUserId: "user-1",
+    });
+
+    await seedRbac(harness.db, {} as ServerEnv, harness.dependencies);
+
+    expect(harness.defaultsCalls).toHaveLength(1);
+    expect(harness.menuCalls).toEqual([]);
+  });
+});
+
+type FakeTransactionExecutor = { readonly kind: "transaction" };
+
+function createSeedHarness(bootstrap: BootstrapSeedResult | undefined) {
+  const transactionExecutor: FakeTransactionExecutor = { kind: "transaction" };
+  let insideTransaction = false;
+  const defaultsCalls: Array<{
+    executor: FakeTransactionExecutor;
+    context: { organizationId: string; actorUserId: string };
+    insideTransaction: boolean;
+  }> = [];
+  const menuCalls: Array<{
+    executor: FakeTransactionExecutor;
+    organizationId: string;
+    insideTransaction: boolean;
+  }> = [];
+  const workflowCalls: Array<{
+    step: "prepare-rbac" | "resolve-bootstrap";
+    executor: FakeTransactionExecutor;
+    insideTransaction: boolean;
+  }> = [];
+  const dependencies: SeedRbacWorkflowDependencies<FakeTransactionExecutor> = {
+    async prepareRbac(executor) {
+      workflowCalls.push({ step: "prepare-rbac", executor, insideTransaction });
+      return new Map([
+        ["owner", "owner-role-id"],
+        ["admin", "admin-role-id"],
+        ["member", "member-role-id"],
+        ["viewer", "viewer-role-id"],
+      ]);
+    },
+    async resolveBootstrap(executor) {
+      workflowCalls.push({ step: "resolve-bootstrap", executor, insideTransaction });
+      return bootstrap;
+    },
+    async initializeDefaults(executor, context) {
+      defaultsCalls.push({ executor, context, insideTransaction });
+    },
+    async initializeMenu(executor, organizationId) {
+      menuCalls.push({ executor, organizationId, insideTransaction });
+    },
+  };
+  const db = {
+    async transaction(callback: (executor: FakeTransactionExecutor) => Promise<void>) {
+      insideTransaction = true;
+      try {
+        await callback(transactionExecutor);
+      } finally {
+        insideTransaction = false;
+      }
+    },
+  };
+
+  return {
+    db,
+    dependencies,
+    transactionExecutor,
+    workflowCalls,
+    defaultsCalls,
+    menuCalls,
+  };
+}

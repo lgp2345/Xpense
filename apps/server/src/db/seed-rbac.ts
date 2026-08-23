@@ -12,6 +12,11 @@ import {
   type MenuTemplateInsert,
 } from "../modules/iam/menu-template.js";
 import {
+  type BookkeepingDefaultsContext,
+  initializeBookkeepingDefaults,
+} from "./bookkeeping-defaults.js";
+import { createBookkeepingDefaultsExecutor } from "./bookkeeping-defaults-executor.js";
+import {
   menus,
   organizationMemberships,
   organizations,
@@ -24,6 +29,12 @@ import {
 type SeedDb = ReturnType<typeof drizzle>;
 type SeedTransaction = Parameters<Parameters<SeedDb["transaction"]>[0]>[0];
 type SeedExecutor = SeedDb | SeedTransaction;
+
+/** bootstrap 种子流程解析出的组织与操作者。 */
+export type BootstrapSeedResult = {
+  organization: { id: string; created: boolean };
+  actorUserId: string;
+};
 
 export type PermissionSeed = {
   key: PermissionKey;
@@ -44,6 +55,22 @@ export type RoleSeed = {
 export type RbacSeedPlan = {
   permissions: PermissionSeed[];
   roles: RoleSeed[];
+};
+
+/** seedRbac 事务工作流中可替换的最小业务依赖。 */
+export type SeedRbacWorkflowDependencies<TExecutor> = {
+  /** 在当前事务中写入权限、角色及角色权限，并返回角色 ID 映射。 */
+  prepareRbac(executor: TExecutor, plan: RbacSeedPlan): Promise<Map<SystemRoleKey, string>>;
+  /** 在当前事务中解析或创建 bootstrap 组织与操作者。 */
+  resolveBootstrap(
+    executor: TExecutor,
+    env: ServerEnv,
+    roleIdByKey: Map<SystemRoleKey, string>,
+  ): Promise<BootstrapSeedResult | undefined>;
+  /** 在当前事务中幂等补齐 bootstrap 组织的默认记账数据。 */
+  initializeDefaults(executor: TExecutor, context: BookkeepingDefaultsContext): Promise<void>;
+  /** 在当前事务中为本次新建的 bootstrap 组织复制菜单模板。 */
+  initializeMenu(executor: TExecutor, organizationId: string): Promise<void>;
 };
 
 export function buildRbacSeedPlan(): RbacSeedPlan {
@@ -99,27 +126,39 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
   };
 }
 
-export async function seedRbac(db: SeedDb, env: ServerEnv): Promise<void> {
+/**
+ * 在单个数据库事务内初始化 RBAC、bootstrap 组织及其默认业务数据。
+ *
+ * @param db 能开启事务并将事务 executor 交给回调的数据库入口。
+ * @param env 已校验的服务端环境配置。
+ * @param dependencies 可选的事务工作流依赖；生产环境省略时使用真实数据库实现。
+ * @returns seed 完成后无返回值。
+ * @throws 任一工作流步骤失败时传播异常并由数据库回滚整个事务。
+ * @remarks defaults 与菜单均接收事务回调提供的 executor，不使用事务外数据库实例。
+ */
+export async function seedRbac<TExecutor = SeedTransaction>(
+  db: { transaction(callback: (executor: TExecutor) => Promise<void>): Promise<void> },
+  env: ServerEnv,
+  dependencies?: SeedRbacWorkflowDependencies<TExecutor>,
+): Promise<void> {
   const plan = buildRbacSeedPlan();
+  const workflow =
+    dependencies ??
+    (defaultSeedRbacWorkflowDependencies as unknown as SeedRbacWorkflowDependencies<TExecutor>);
 
   await db.transaction(async (tx) => {
-    const permissionIdByKey = await upsertPermissions(tx, plan.permissions);
-    const roleIdByKey = await upsertSystemRoles(tx, plan.roles);
+    const roleIdByKey = await workflow.prepareRbac(tx, plan);
+    const bootstrap = await workflow.resolveBootstrap(tx, env, roleIdByKey);
 
-    for (const role of plan.roles) {
-      const roleId = roleIdByKey.get(role.key);
-
-      if (!roleId) {
-        throw new Error(`Missing seeded role: ${role.key}`);
-      }
-
-      await replaceRolePermissions(tx, roleId, role.permissions, permissionIdByKey);
+    if (bootstrap) {
+      await workflow.initializeDefaults(tx, {
+        organizationId: bootstrap.organization.id,
+        actorUserId: bootstrap.actorUserId,
+      });
     }
 
-    const bootstrapOrganization = await seedBootstrapData(tx, env, roleIdByKey);
-
-    if (bootstrapOrganization && shouldInitializeMenuTemplate(bootstrapOrganization.created)) {
-      await copyMenuTemplate(bootstrapOrganization.id, createMenuTemplateExecutor(tx));
+    if (bootstrap && shouldInitializeMenuTemplate(bootstrap.organization.created)) {
+      await workflow.initializeMenu(tx, bootstrap.organization.id);
     }
   });
 }
@@ -127,6 +166,18 @@ export async function seedRbac(db: SeedDb, env: ServerEnv): Promise<void> {
 export function shouldInitializeMenuTemplate(organizationWasCreated: boolean): boolean {
   return organizationWasCreated;
 }
+
+/** seedRbac 在生产环境使用的真实事务工作流依赖。 */
+const defaultSeedRbacWorkflowDependencies: SeedRbacWorkflowDependencies<SeedTransaction> = {
+  prepareRbac: prepareRbacSeed,
+  resolveBootstrap: seedBootstrapData,
+  async initializeDefaults(executor, context) {
+    await initializeBookkeepingDefaults(createBookkeepingDefaultsExecutor(executor), context);
+  },
+  async initializeMenu(executor, organizationId) {
+    await copyMenuTemplate(organizationId, createMenuTemplateExecutor(executor));
+  },
+};
 
 export async function runSeedRbacFromProcessEnv(
   envInput: NodeJS.ProcessEnv = process.env,
@@ -140,6 +191,35 @@ export async function runSeedRbacFromProcessEnv(
   } finally {
     await client.end();
   }
+}
+
+/**
+ * 在当前事务中写入权限、系统角色及角色权限关系。
+ *
+ * @param db seedRbac 事务回调提供的数据库 executor。
+ * @param plan 当前稳定的权限与角色计划。
+ * @returns 从系统角色 key 到持久化角色 ID 的映射。
+ * @throws 权限或角色写入失败、角色或权限 ID 无法解析时传播异常。
+ * @remarks 本函数不自行开启或提交事务，全部写入沿用调用方传入的事务 executor。
+ */
+async function prepareRbacSeed(
+  db: SeedExecutor,
+  plan: RbacSeedPlan,
+): Promise<Map<SystemRoleKey, string>> {
+  const permissionIdByKey = await upsertPermissions(db, plan.permissions);
+  const roleIdByKey = await upsertSystemRoles(db, plan.roles);
+
+  for (const role of plan.roles) {
+    const roleId = roleIdByKey.get(role.key);
+
+    if (!roleId) {
+      throw new Error(`Missing seeded role: ${role.key}`);
+    }
+
+    await replaceRolePermissions(db, roleId, role.permissions, permissionIdByKey);
+  }
+
+  return roleIdByKey;
 }
 
 async function upsertPermissions(
@@ -254,7 +334,7 @@ async function seedBootstrapData(
   db: SeedExecutor,
   env: ServerEnv,
   roleIdByKey: Map<SystemRoleKey, string>,
-): Promise<{ id: string; created: boolean } | undefined> {
+): Promise<BootstrapSeedResult | undefined> {
   if (
     !env.BOOTSTRAP_SUPER_ADMIN_EMAIL ||
     !env.BOOTSTRAP_SUPER_ADMIN_PHONE ||
@@ -298,7 +378,10 @@ async function seedBootstrapData(
       },
     });
 
-  return bootstrapOrganization;
+  return {
+    organization: bootstrapOrganization,
+    actorUserId: superAdminUserId,
+  };
 }
 
 async function upsertBootstrapUser(
