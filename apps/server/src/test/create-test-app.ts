@@ -35,6 +35,14 @@ import {
 import { OrganizationsRepository } from "../modules/organizations/organizations.repository.js";
 import { UserRepository } from "../modules/user/user.repository.js";
 import { TEST_CAPTCHA, TEST_PHONES, type TestAuth, testIds } from "./auth-test-helpers.js";
+import {
+  type BookkeepingTestState,
+  bookkeepingRepositoryTokens,
+  bookkeepingTestRolePermissions,
+  createBookkeepingRepositoryFakes,
+  createBookkeepingTestState,
+  createBookkeepingTransactionService,
+} from "./bookkeeping-test-harness.js";
 
 type TestUser = {
   id: string;
@@ -72,6 +80,9 @@ export type TestState = {
   menus: Map<number, MenuRow>;
   sessions: Map<string, AuthRefreshSession>;
   auditLogs: AuditLogRecord[];
+  /** 测试专用：令下一次审计持久化失败一次，随后自动恢复。 */
+  failNextRequiredAuditAppend: boolean;
+  bookkeeping: BookkeepingTestState;
 };
 
 export type TestAppHarness = {
@@ -82,21 +93,33 @@ export type TestAppHarness = {
 
 export type TestAppOptions = {
   managerPermissions?: readonly PermissionKey[];
+  bookkeeping?: boolean;
 };
 
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestAppHarness> {
   ensureTestEnv();
 
   const state = createTestState(options);
+  const bookkeepingFakes = createBookkeepingRepositoryFakes(state.bookkeeping);
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
   })
     .overrideProvider(DB)
     .useValue({})
     .overrideProvider(DatabaseTransactionService)
-    .useValue({
-      run: (operation: (transaction: object) => Promise<unknown>) => operation({}),
-    })
+    .useValue(createBookkeepingTransactionService(state.bookkeeping, state.auditLogs))
+    .overrideProvider(bookkeepingRepositoryTokens.LedgersRepository)
+    .useValue(bookkeepingFakes.ledgersRepository)
+    .overrideProvider(bookkeepingRepositoryTokens.AccountsRepository)
+    .useValue(bookkeepingFakes.accountsRepository)
+    .overrideProvider(bookkeepingRepositoryTokens.CategoriesRepository)
+    .useValue(bookkeepingFakes.categoriesRepository)
+    .overrideProvider(bookkeepingRepositoryTokens.TransactionsRepository)
+    .useValue(bookkeepingFakes.transactionsRepository)
+    .overrideProvider(bookkeepingRepositoryTokens.StatisticsRepository)
+    .useValue(bookkeepingFakes.statisticsRepository)
+    .overrideProvider(bookkeepingRepositoryTokens.BookkeepingWriteLockRepository)
+    .useValue(bookkeepingFakes.writeLockRepository)
     .overrideProvider(PasswordService)
     .useValue(createPasswordService())
     .overrideProvider(CaptchaService)
@@ -187,32 +210,43 @@ function createTestState(options: TestAppOptions): TestState {
         "members:disable",
         "members:enable",
         "audit_logs:read",
+        ...(options.bookkeeping ? bookkeepingTestRolePermissions.owner : []),
       ]),
     ],
     [
       testIds.managerRole,
       createRole(
         testIds.managerRole,
-        "manager",
-        "Manager",
+        options.bookkeeping ? "member" : "manager",
+        options.bookkeeping ? "Member" : "Manager",
         options.managerPermissions
           ? [...options.managerPermissions]
-          : [
-              "roles:read",
-              "roles:create",
-              "roles:update",
-              "roles:permissions:update",
-              "menus:read",
-              "menus:create",
-              "menus:update",
-              "menus:delete",
-              "members:create",
-              "members:update",
-              "sessions:read",
-            ],
+          : options.bookkeeping
+            ? [...bookkeepingTestRolePermissions.member]
+            : [
+                "roles:read",
+                "roles:create",
+                "roles:update",
+                "roles:permissions:update",
+                "menus:read",
+                "menus:create",
+                "menus:update",
+                "menus:delete",
+                "members:create",
+                "members:update",
+                "sessions:read",
+              ],
       ),
     ],
-    [testIds.viewerRole, createRole(testIds.viewerRole, "viewer", "Viewer", ["transactions:read"])],
+    [
+      testIds.viewerRole,
+      createRole(
+        testIds.viewerRole,
+        "viewer",
+        "Viewer",
+        options.bookkeeping ? [...bookkeepingTestRolePermissions.viewer] : ["transactions:read"],
+      ),
+    ],
     [
       "22222222-2222-4222-8222-222222222299",
       {
@@ -279,6 +313,8 @@ function createTestState(options: TestAppOptions): TestState {
     menus,
     sessions,
     auditLogs: [],
+    failNextRequiredAuditAppend: false,
+    bookkeeping: createBookkeepingTestState(),
   };
 }
 
@@ -757,6 +793,10 @@ function createMenuRepository(state: TestState): Partial<MenuRepository> {
 function createAuditRepository(state: TestState): Partial<AuditRepository> {
   return {
     append: async (input: AppendAuditLogInput) => {
+      if (state.failNextRequiredAuditAppend) {
+        state.failNextRequiredAuditAppend = false;
+        throw new Error("Test required audit append failure");
+      }
       state.auditLogs.push({
         id: `audit-${state.auditLogs.length + 1}`,
         organizationId: input.organizationId ?? null,
