@@ -16,11 +16,14 @@ import { LedgersController } from "./ledgers.controller.js";
 import { LedgersRepository } from "./ledgers.repository.js";
 import { LedgersService } from "./ledgers.service.js";
 import { OpeningBalanceService } from "./opening-balance.service.js";
+import { StatisticsController } from "./statistics.controller.js";
+import { StatisticsRepository } from "./statistics.repository.js";
+import { StatisticsService } from "./statistics.service.js";
 import { TransactionsController } from "./transactions.controller.js";
 import { TransactionsRepository } from "./transactions.repository.js";
 import { TransactionsService } from "./transactions.service.js";
 
-/** 组合记账域的账本、账户、分类与交易接口及其依赖。 */
+/** 组合记账域的账本、账户、分类、交易与统计接口及其依赖。 */
 @Module({
   imports: [AuditModule, AuthModule, DbModule, IamModule],
   controllers: [
@@ -28,6 +31,7 @@ import { TransactionsService } from "./transactions.service.js";
     AccountsController,
     CategoriesController,
     TransactionsController,
+    StatisticsController,
   ],
   providers: [
     BookkeepingWriteLockRepository,
@@ -41,6 +45,8 @@ import { TransactionsService } from "./transactions.service.js";
     CategoriesService,
     TransactionsRepository,
     TransactionsService,
+    StatisticsRepository,
+    StatisticsService,
   ],
   exports: [AccountsRepository, CategoriesRepository],
 })
