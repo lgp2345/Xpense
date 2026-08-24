@@ -1,5 +1,6 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AccountSummary, PermissionKey } from "@xpense/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -28,11 +29,16 @@ import type {
   CreateAccountRequest,
   UpdateAccountRequest,
 } from "../../../services/bookkeeping-api";
+import {
+  bookkeepingQueryOptions,
+  invalidateAccountMutation,
+} from "../../../services/bookkeeping-query";
 import { webBookkeepingApi } from "../../../services/web-session";
 import { AccountFormDialog } from "./account-form-dialog";
 
 type AccountsPageProps = {
   api?: Pick<BookkeepingApi, "listAccounts" | "createAccount" | "updateAccount" | "deleteAccount">;
+  organizationId: string;
   permissions: readonly PermissionKey[];
 };
 
@@ -45,75 +51,62 @@ const accountTypeLabels: Record<AccountSummary["type"], string> = {
 };
 
 /** 账户管理页面；余额始终由服务端流水聚合结果展示。 */
-export function AccountsPage({ api = webBookkeepingApi, permissions }: AccountsPageProps) {
-  const [accounts, setAccounts] = useState<AccountSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isMutating, setIsMutating] = useState(false);
+export function AccountsPage({
+  api = webBookkeepingApi,
+  organizationId,
+  permissions,
+}: AccountsPageProps) {
+  const queryClient = useQueryClient();
+  const accountsQuery = useQuery(
+    bookkeepingQueryOptions.accounts(api as BookkeepingApi, organizationId),
+  );
+  const [lastSuccessfulMutation, setLastSuccessfulMutation] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  async function refreshAccounts() {
-    setAccounts(await api.listAccounts());
-  }
-
-  useEffect(() => {
-    let isActive = true;
-    void api
-      .listAccounts()
-      .then((items) => {
-        if (isActive) setAccounts(items);
-      })
-      .catch(() => {
-        if (isActive) setErrorMessage("加载账户失败，请稍后重试。");
-      })
-      .finally(() => {
-        if (isActive) setIsLoading(false);
-      });
-    return () => {
-      isActive = false;
-    };
-  }, [api]);
+  const createMutation = useMutation({
+    mutationFn: (input: CreateAccountRequest) => api.createAccount(input),
+    onSuccess: () => invalidateAccountMutation(queryClient, organizationId),
+  });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateAccountRequest }) =>
+      api.updateAccount(id, input),
+    onSuccess: () => invalidateAccountMutation(queryClient, organizationId),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.deleteAccount(id),
+    onSuccess: () => invalidateAccountMutation(queryClient, organizationId),
+  });
+  const accounts = accountsQuery.data ?? [];
 
   async function handleCreate(input: CreateAccountRequest) {
-    await api.createAccount(input);
+    await createMutation.mutateAsync(input);
     toast.success("账户创建成功");
-    try {
-      await refreshAccounts();
-    } catch {
-      setErrorMessage("账户已创建，但刷新列表失败，请重试。");
-    }
+    setLastSuccessfulMutation("账户已创建");
   }
 
   async function handleUpdate(id: string, input: UpdateAccountRequest) {
-    await api.updateAccount(id, input);
+    await updateMutation.mutateAsync({ id, input });
     toast.success("账户已更新");
-    try {
-      await refreshAccounts();
-    } catch {
-      setErrorMessage("账户已更新，但刷新列表失败，请重试。");
-    }
+    setLastSuccessfulMutation("账户已更新");
   }
 
   async function handleDelete(account: AccountSummary) {
-    setIsMutating(true);
     setErrorMessage(null);
     try {
-      await api.deleteAccount(account.id);
+      await deleteMutation.mutateAsync(account.id);
       toast.success("账户已删除");
     } catch {
       toast.error("删除账户失败，请确认账户没有被有效交易引用。");
       setErrorMessage("删除账户失败，请确认账户没有被有效交易引用。");
-      setIsMutating(false);
       return;
     }
-
-    try {
-      await refreshAccounts();
-    } catch {
-      setErrorMessage("账户已删除，但刷新列表失败，请重试。");
-    } finally {
-      setIsMutating(false);
-    }
+    setLastSuccessfulMutation("账户已删除");
   }
+
+  const queryErrorMessage = accountsQuery.isError
+    ? accountsQuery.data && lastSuccessfulMutation
+      ? `${lastSuccessfulMutation}，但刷新列表失败，请重试。`
+      : "加载账户失败，请稍后重试。"
+    : null;
 
   const canCreate = permissions.includes("accounts:create");
   const canUpdate = permissions.includes("accounts:update");
@@ -128,15 +121,15 @@ export function AccountsPage({ api = webBookkeepingApi, permissions }: AccountsP
         </div>
         {canCreate ? <AccountFormDialog onCreate={handleCreate} /> : null}
       </header>
-      {errorMessage ? (
+      {(errorMessage ?? queryErrorMessage) ? (
         <div
           className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           role="alert"
         >
-          {errorMessage}
+          {errorMessage ?? queryErrorMessage}
         </div>
       ) : null}
-      {isLoading ? (
+      {accountsQuery.isPending ? (
         <Card>
           <CardContent className="space-y-3 p-4" aria-live="polite">
             <Skeleton className="h-8 w-full" />
@@ -176,7 +169,7 @@ export function AccountsPage({ api = webBookkeepingApi, permissions }: AccountsP
                         {canDelete ? (
                           <DeleteAccountButton
                             account={item}
-                            disabled={isMutating}
+                            disabled={deleteMutation.isPending}
                             onDelete={handleDelete}
                           />
                         ) : null}

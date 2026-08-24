@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory } from "@tanstack/react-router";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -82,6 +83,7 @@ const globalUserContext: CurrentUserResponse = {
   organization: { id: "org-global", name: "全局账本" },
 };
 
+/** 创建绑定指定认证 store 的隔离 Web 会话。 */
 function createTestSession(store: ReturnType<typeof createAuthStore>) {
   const instance = axios.create();
   const mock = new MockAdapter(instance);
@@ -113,8 +115,10 @@ describe("AppRouter startup", () => {
       </AppProviders>,
     );
 
-    expect(await screen.findByRole("heading", { name: "交易记录" })).toBeInTheDocument();
-    expect(screen.getByText("记账页面正在建设中")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "交易记录" }, { timeout: 3_000 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("记账页面正在建设中")).not.toBeInTheDocument();
   });
 
   it("waits for cookie session restoration before rendering protected content", async () => {
@@ -209,6 +213,61 @@ describe("AppRouter startup", () => {
 
     expect(await screen.findByRole("heading", { name: "登录到你的账本" })).toBeInTheDocument();
     expect(router.state.location.search).toEqual({ redirect: "/members" });
+  });
+
+  it("clears bookkeeping cache after restoration, login, organization switch, and logout", async () => {
+    const store = createAuthStore();
+    const session = createTestSession(store);
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+      session,
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["bookkeeping", "org-stale", "transactions"], ["stale"]);
+    queryClient.setQueryData(["iam", "menus"], ["keep"]);
+
+    const restoreSession = vi.fn(async () => {
+      store.getState().setAccessToken("restored-token");
+      store.getState().setCurrentUserContext(injectedUserContext);
+      return true;
+    });
+
+    render(
+      <AppProviders queryClient={queryClient}>
+        <AppRouter restoreSession={restoreSession} router={router} />
+      </AppProviders>,
+    );
+
+    await screen.findByRole("heading", { name: "仪表盘" });
+    expect(queryClient.getQueryData(["bookkeeping", "org-stale", "transactions"])).toBeUndefined();
+    expect(queryClient.getQueryData(["iam", "menus"])).toEqual(["keep"]);
+
+    queryClient.setQueryData(["bookkeeping", "org-injected", "accounts"], ["old account"]);
+    act(() => {
+      store.getState().setCurrentUserContext({
+        ...injectedUserContext,
+        organization: { id: "org-family", name: "家庭账本" },
+      });
+    });
+    await waitFor(() =>
+      expect(queryClient.getQueryData(["bookkeeping", "org-injected", "accounts"])).toBeUndefined(),
+    );
+
+    queryClient.setQueryData(["bookkeeping", "org-family", "monthly"], ["private"]);
+    act(() => store.getState().clearAuth());
+    await waitFor(() =>
+      expect(queryClient.getQueryData(["bookkeeping", "org-family", "monthly"])).toBeUndefined(),
+    );
+
+    queryClient.setQueryData(["bookkeeping", "org-anonymous-stale", "categories"], ["private"]);
+    act(() => store.getState().setCurrentUserContext(injectedUserContext));
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryData(["bookkeeping", "org-anonymous-stale", "categories"]),
+      ).toBeUndefined(),
+    );
   });
 
   it("uses one injected session for the dashboard header, organizations, logout, and guard", async () => {

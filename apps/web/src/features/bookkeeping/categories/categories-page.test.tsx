@@ -1,6 +1,8 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, render as testingRender, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CategoryNode, LedgerSummary } from "@xpense/shared";
+import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { BookkeepingApi } from "../../../services/bookkeeping-api";
@@ -44,6 +46,7 @@ const incomeRoot: CategoryNode = {
   children: [],
 };
 
+/** 创建带分类默认响应且允许覆盖单个边界的测试 API。 */
 function createApi(overrides: Partial<BookkeepingApi> = {}) {
   return {
     listLedgers: vi.fn().mockResolvedValue([ledger]),
@@ -55,6 +58,7 @@ function createApi(overrides: Partial<BookkeepingApi> = {}) {
   } as unknown as BookkeepingApi;
 }
 
+/** 创建可由测试精确控制完成顺序的 Promise。 */
 function createDeferred<T>() {
   let resolve: (value: T) => void = () => undefined;
   const promise = new Promise<T>((promiseResolve) => {
@@ -63,12 +67,40 @@ function createDeferred<T>() {
   return { promise, resolve };
 }
 
+/** 为每个分类页面测试创建关闭重试的独立查询缓存。 */
+function render(ui: ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return testingRender(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
 describe("CategoriesPage", () => {
+  it("deduplicates ledger and category reads for the same organization", async () => {
+    const api = createApi();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <CategoriesPage api={api} organizationId="org-a" permissions={["categories:read"]} />
+        <CategoriesPage api={api} organizationId="org-a" permissions={["categories:read"]} />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findAllByText("餐饮")).toHaveLength(2);
+    expect(api.listLedgers).toHaveBeenCalledOnce();
+    expect(api.listCategories).toHaveBeenCalledOnce();
+  });
+
   it("loads the default ledger and renders two-level income and expense tabs", async () => {
     const user = userEvent.setup();
     const api = createApi();
 
-    render(<CategoriesPage api={api} permissions={["categories:read", "ledgers:read"]} />);
+    render(
+      <CategoriesPage
+        api={api}
+        organizationId="org-a"
+        permissions={["categories:read", "ledgers:read"]}
+      />,
+    );
 
     expect(await screen.findByText("餐饮")).toBeInTheDocument();
     expect(screen.getByText("早餐")).toBeInTheDocument();
@@ -110,7 +142,13 @@ describe("CategoriesPage", () => {
         .mockImplementationOnce(() => requestA.promise),
     });
 
-    render(<CategoriesPage api={api} permissions={["categories:read", "ledgers:read"]} />);
+    render(
+      <CategoriesPage
+        api={api}
+        organizationId="org-a"
+        permissions={["categories:read", "ledgers:read"]}
+      />,
+    );
     await screen.findByText("餐饮");
     await user.click(screen.getByRole("combobox", { name: "账本" }));
     await user.click(screen.getByRole("option", { name: "家庭账本" }));
@@ -138,6 +176,7 @@ describe("CategoriesPage", () => {
     render(
       <CategoriesPage
         api={api}
+        organizationId="org-a"
         permissions={["categories:read", "categories:create", "ledgers:read"]}
       />,
     );
@@ -169,6 +208,7 @@ describe("CategoriesPage", () => {
     render(
       <CategoriesPage
         api={api}
+        organizationId="org-a"
         permissions={["categories:read", "categories:create", "ledgers:read"]}
       />,
     );
@@ -193,6 +233,7 @@ describe("CategoriesPage", () => {
     render(
       <CategoriesPage
         api={createApi()}
+        organizationId="org-a"
         permissions={["categories:read", "categories:create", "ledgers:read"]}
       />,
     );
@@ -216,6 +257,7 @@ describe("CategoriesPage", () => {
     render(
       <CategoriesPage
         api={api}
+        organizationId="org-a"
         permissions={["categories:read", "categories:delete", "ledgers:read"]}
       />,
     );
@@ -242,6 +284,7 @@ describe("CategoriesPage", () => {
     render(
       <CategoriesPage
         api={api}
+        organizationId="org-a"
         permissions={["categories:read", "categories:delete", "ledgers:read"]}
       />,
     );
@@ -257,7 +300,13 @@ describe("CategoriesPage", () => {
   });
 
   it("hides category write actions from a viewer", async () => {
-    render(<CategoriesPage api={createApi()} permissions={["categories:read", "ledgers:read"]} />);
+    render(
+      <CategoriesPage
+        api={createApi()}
+        organizationId="org-a"
+        permissions={["categories:read", "ledgers:read"]}
+      />,
+    );
 
     await screen.findByText("餐饮");
     expect(screen.queryByRole("button", { name: "新增分类" })).not.toBeInTheDocument();

@@ -1,6 +1,8 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, render as testingRender, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AccountSummary } from "@xpense/shared";
+import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { BookkeepingApi } from "../../../services/bookkeeping-api";
@@ -19,6 +21,7 @@ const account: AccountSummary = {
   updatedAt: "2026-08-23T00:00:00.000Z",
 };
 
+/** 创建带账户默认响应且允许覆盖单个边界的测试 API。 */
 function createApi(overrides: Partial<BookkeepingApi> = {}) {
   return {
     listAccounts: vi.fn().mockResolvedValue([account]),
@@ -27,6 +30,12 @@ function createApi(overrides: Partial<BookkeepingApi> = {}) {
     deleteAccount: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   } as unknown as BookkeepingApi;
+}
+
+/** 为每个账户页面测试创建关闭重试的独立查询缓存。 */
+function render(ui: ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return testingRender(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
 describe("parseDecimalAmountToMinor", () => {
@@ -52,6 +61,21 @@ describe("parseDecimalAmountToMinor", () => {
 });
 
 describe("AccountsPage", () => {
+  it("deduplicates the same organization account read across mounted consumers", async () => {
+    const api = createApi();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AccountsPage api={api} organizationId="org-a" permissions={["accounts:read"]} />
+        <AccountsPage api={api} organizationId="org-a" permissions={["accounts:read"]} />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findAllByText("工资卡")).toHaveLength(2);
+    expect(api.listAccounts).toHaveBeenCalledOnce();
+  });
+
   it("shows loading state and renders derived CNY balances", async () => {
     let resolveAccounts: ((accounts: AccountSummary[]) => void) | undefined;
     const api = createApi({
@@ -63,7 +87,7 @@ describe("AccountsPage", () => {
       ),
     });
 
-    render(<AccountsPage api={api} permissions={["accounts:read"]} />);
+    render(<AccountsPage api={api} organizationId="org-a" permissions={["accounts:read"]} />);
 
     expect(screen.getByText("正在加载账户...")).toBeInTheDocument();
     resolveAccounts?.([account]);
@@ -89,7 +113,7 @@ describe("AccountsPage", () => {
       ]),
     });
 
-    render(<AccountsPage api={api} permissions={["accounts:read"]} />);
+    render(<AccountsPage api={api} organizationId="org-a" permissions={["accounts:read"]} />);
 
     expect(await screen.findByText("¥90,071,992,547,409.91")).toBeInTheDocument();
     expect(screen.getByText("-¥90,071,992,547,409.91")).toBeInTheDocument();
@@ -106,6 +130,7 @@ describe("AccountsPage", () => {
     render(
       <AccountsPage
         api={api}
+        organizationId="org-a"
         permissions={["accounts:read", "accounts:create", "accounts:update", "accounts:delete"]}
       />,
     );
@@ -135,7 +160,13 @@ describe("AccountsPage", () => {
       createAccount: vi.fn().mockRejectedValue(new Error("conflict")),
     });
 
-    render(<AccountsPage api={api} permissions={["accounts:read", "accounts:create"]} />);
+    render(
+      <AccountsPage
+        api={api}
+        organizationId="org-a"
+        permissions={["accounts:read", "accounts:create"]}
+      />,
+    );
     await screen.findByText("当前没有账户。");
     await user.click(screen.getByRole("button", { name: "新增账户" }));
     await user.type(screen.getByRole("textbox", { name: "账户名称" }), "重复账户");
@@ -160,6 +191,7 @@ describe("AccountsPage", () => {
     render(
       <AccountsPage
         api={api}
+        organizationId="org-a"
         permissions={["accounts:read", "accounts:update", "accounts:delete"]}
       />,
     );
@@ -198,7 +230,13 @@ describe("AccountsPage", () => {
         .mockRejectedValueOnce(new Error("offline")),
     });
 
-    render(<AccountsPage api={api} permissions={["accounts:read", "accounts:delete"]} />);
+    render(
+      <AccountsPage
+        api={api}
+        organizationId="org-a"
+        permissions={["accounts:read", "accounts:delete"]}
+      />,
+    );
     await screen.findByText("工资卡");
     await user.click(screen.getByRole("button", { name: "删除 工资卡" }));
     await user.click(screen.getByRole("button", { name: "确认删除" }));
@@ -211,7 +249,9 @@ describe("AccountsPage", () => {
   });
 
   it("hides every write action from a viewer", async () => {
-    render(<AccountsPage api={createApi()} permissions={["accounts:read"]} />);
+    render(
+      <AccountsPage api={createApi()} organizationId="org-a" permissions={["accounts:read"]} />,
+    );
 
     await screen.findByText("工资卡");
     expect(screen.queryByRole("button", { name: "新增账户" })).not.toBeInTheDocument();

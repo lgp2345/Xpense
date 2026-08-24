@@ -1,5 +1,6 @@
-import type { CategoryNode, CategoryType, LedgerSummary, PermissionKey } from "@xpense/shared";
-import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { CategoryNode, CategoryType, PermissionKey } from "@xpense/shared";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +18,10 @@ import type {
   CreateCategoryRequest,
   UpdateCategoryRequest,
 } from "../../../services/bookkeeping-api";
+import {
+  bookkeepingQueryOptions,
+  invalidateCategoryMutation,
+} from "../../../services/bookkeeping-query";
 import { webBookkeepingApi } from "../../../services/web-session";
 import { CategoryFormDialog } from "./category-form-dialog";
 import { CategoryTreeTable } from "./category-tree-table";
@@ -25,117 +30,85 @@ type CategoriesApi = Pick<
   BookkeepingApi,
   "listLedgers" | "listCategories" | "createCategory" | "updateCategory" | "deleteCategory"
 >;
-type CategoriesPageProps = { api?: CategoriesApi; permissions: readonly PermissionKey[] };
+type CategoriesPageProps = {
+  api?: CategoriesApi;
+  organizationId: string;
+  permissions: readonly PermissionKey[];
+};
 
 /** 两级分类管理页面。 */
-export function CategoriesPage({ api = webBookkeepingApi, permissions }: CategoriesPageProps) {
-  const [ledgers, setLedgers] = useState<LedgerSummary[]>([]);
-  const [ledgerId, setLedgerId] = useState("");
-  const [categories, setCategories] = useState<CategoryNode[]>([]);
+export function CategoriesPage({
+  api = webBookkeepingApi,
+  organizationId,
+  permissions,
+}: CategoriesPageProps) {
+  const queryClient = useQueryClient();
+  const ledgersQuery = useQuery(
+    bookkeepingQueryOptions.ledgers(api as BookkeepingApi, organizationId),
+  );
+  const [selectedLedgerId, setSelectedLedgerId] = useState("");
   const [type, setType] = useState<CategoryType>("expense");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isMutating, setIsMutating] = useState(false);
+  const [lastSuccessfulMutation, setLastSuccessfulMutation] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const categoryRequestId = useRef(0);
+  const ledgers = ledgersQuery.data ?? [];
+  const defaultLedger = ledgers.find((item) => item.isDefault) ?? ledgers[0];
+  const ledgerId = selectedLedgerId || defaultLedger?.id || "";
+  const categoriesQuery = useQuery({
+    ...bookkeepingQueryOptions.categories(api as BookkeepingApi, organizationId, { ledgerId }),
+    enabled: ledgerId.length > 0,
+  });
+  const categories = categoriesQuery.data ?? [];
+  const createMutation = useMutation({
+    mutationFn: (input: CreateCategoryRequest) => api.createCategory(input),
+    onSuccess: () => invalidateCategoryMutation(queryClient, organizationId),
+  });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateCategoryRequest }) =>
+      api.updateCategory(id, input),
+    onSuccess: () => invalidateCategoryMutation(queryClient, organizationId),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.deleteCategory(id),
+    onSuccess: () => invalidateCategoryMutation(queryClient, organizationId),
+  });
 
-  async function refreshCategories(activeLedgerId = ledgerId): Promise<boolean> {
-    const requestId = ++categoryRequestId.current;
-    try {
-      const items = await api.listCategories({ ledgerId: activeLedgerId });
-      if (requestId !== categoryRequestId.current) return false;
-      setCategories(items);
-      return true;
-    } catch (error) {
-      if (requestId !== categoryRequestId.current) return false;
-      throw error;
-    }
-  }
-
-  useEffect(() => {
-    let isActive = true;
-    const requestId = ++categoryRequestId.current;
-    void api
-      .listLedgers()
-      .then(async (items) => {
-        const activeLedger = items.find((item) => item.isDefault) ?? items[0];
-        const nextCategories = activeLedger
-          ? await api.listCategories({ ledgerId: activeLedger.id })
-          : [];
-        if (isActive && requestId === categoryRequestId.current) {
-          setLedgers(items);
-          setLedgerId(activeLedger?.id ?? "");
-          setCategories(nextCategories);
-        }
-      })
-      .catch(() => {
-        if (isActive && requestId === categoryRequestId.current) {
-          setErrorMessage("加载分类失败，请稍后重试。");
-        }
-      })
-      .finally(() => {
-        if (isActive && requestId === categoryRequestId.current) setIsLoading(false);
-      });
-    return () => {
-      isActive = false;
-    };
-  }, [api]);
-
-  async function handleLedgerChange(nextLedgerId: string) {
-    setLedgerId(nextLedgerId);
-    setIsLoading(true);
+  /** 切换账本时仅更新查询键，旧请求结果会留在原账本缓存中。 */
+  function handleLedgerChange(nextLedgerId: string) {
+    setSelectedLedgerId(nextLedgerId);
     setErrorMessage(null);
-    let applied = false;
-    try {
-      applied = await refreshCategories(nextLedgerId);
-    } catch {
-      setErrorMessage("加载分类失败，请稍后重试。");
-      applied = true;
-    } finally {
-      if (applied) setIsLoading(false);
-    }
   }
 
   async function handleCreate(input: CreateCategoryRequest) {
-    await api.createCategory(input);
+    await createMutation.mutateAsync(input);
     toast.success("分类创建成功");
-    await refreshAfterMutation("分类已创建，但刷新列表失败，请重试。");
+    setLastSuccessfulMutation("分类已创建");
   }
 
   async function handleUpdate(id: string, input: UpdateCategoryRequest) {
-    await api.updateCategory(id, input);
+    await updateMutation.mutateAsync({ id, input });
     toast.success("分类已更新");
-    await refreshAfterMutation("分类已更新，但刷新列表失败，请重试。");
-  }
-
-  async function refreshAfterMutation(message: string) {
-    try {
-      await refreshCategories();
-    } catch {
-      setErrorMessage(message);
-    }
+    setLastSuccessfulMutation("分类已更新");
   }
 
   async function handleDelete(category: CategoryNode) {
-    setIsMutating(true);
     setErrorMessage(null);
     try {
-      await api.deleteCategory(category.id);
+      await deleteMutation.mutateAsync(category.id);
       toast.success("分类已删除");
     } catch {
       toast.error("删除分类失败，请先处理其子分类或交易引用。");
       setErrorMessage("删除分类失败，请先处理其子分类或交易引用。");
-      setIsMutating(false);
       return;
     }
-
-    try {
-      await refreshCategories();
-    } catch {
-      setErrorMessage("分类已删除，但刷新列表失败，请重试。");
-    } finally {
-      setIsMutating(false);
-    }
+    setLastSuccessfulMutation("分类已删除");
   }
+
+  const queryErrorMessage =
+    ledgersQuery.isError || categoriesQuery.isError
+      ? categoriesQuery.data && lastSuccessfulMutation
+        ? `${lastSuccessfulMutation}，但刷新列表失败，请重试。`
+        : "加载分类失败，请稍后重试。"
+      : null;
 
   const visibleRoots = categories.filter((category) => category.type === type);
   const canCreate = permissions.includes("categories:create");
@@ -166,7 +139,7 @@ export function CategoriesPage({ api = webBookkeepingApi, permissions }: Categor
           </TabsList>
         </Tabs>
         {ledgers.length > 1 ? (
-          <Select value={ledgerId} onValueChange={(value) => void handleLedgerChange(value)}>
+          <Select value={ledgerId} onValueChange={handleLedgerChange}>
             <SelectTrigger aria-label="账本" className="w-48">
               <SelectValue />
             </SelectTrigger>
@@ -180,15 +153,15 @@ export function CategoriesPage({ api = webBookkeepingApi, permissions }: Categor
           </Select>
         ) : null}
       </div>
-      {errorMessage ? (
+      {(errorMessage ?? queryErrorMessage) ? (
         <div
           className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           role="alert"
         >
-          {errorMessage}
+          {errorMessage ?? queryErrorMessage}
         </div>
       ) : null}
-      {isLoading ? (
+      {ledgersQuery.isPending || (ledgerId.length > 0 && categoriesQuery.isPending) ? (
         <Card>
           <CardContent className="space-y-3 p-4" aria-live="polite">
             <Skeleton className="h-8 w-full" />
@@ -205,7 +178,7 @@ export function CategoriesPage({ api = webBookkeepingApi, permissions }: Categor
           canCreate={canCreate}
           canDelete={canDelete}
           canUpdate={canUpdate}
-          disabled={isMutating}
+          disabled={deleteMutation.isPending}
           ledgerId={ledgerId}
           roots={visibleRoots}
           type={type}

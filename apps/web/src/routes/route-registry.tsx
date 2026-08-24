@@ -45,9 +45,9 @@ const MenuManagementPage = lazy(() =>
     default: module.MenuManagementPage,
   })),
 );
-const TransactionsPlaceholderPage = lazy(() =>
-  import("../features/bookkeeping/bookkeeping-route-placeholders").then((module) => ({
-    default: module.TransactionsPlaceholderPage,
+const TransactionsPage = lazy(() =>
+  import("../features/bookkeeping/transactions/transactions-page").then((module) => ({
+    default: module.TransactionsPage,
   })),
 );
 const AccountsPage = lazy(() =>
@@ -132,7 +132,7 @@ export const ROUTE_REGISTRY = {
   Dashboard: defineRouteRegistration({
     label: "仪表盘",
     route: dashboardRoute,
-    render: (_input) => renderLazyPage(<DashboardPage />),
+    render: (input) => renderLazyPage(<DashboardPageAdapter input={input} />),
   }),
   Members: defineRouteRegistration({
     label: "成员管理",
@@ -359,26 +359,62 @@ function TransactionsPageAdapter({
   input: RegisteredPageInput<typeof transactionsRoute>;
 }) {
   const permissions = useStore(input.session.authStore, (state) => state.permissions);
+  const organizationId = useStore(
+    input.session.authStore,
+    (state) => state.currentOrganization?.id ?? "",
+  );
 
   return (
-    <TransactionsPlaceholderPage
+    <TransactionsPage
       api={input.session.bookkeepingApi}
+      organizationId={organizationId}
       permissions={permissions}
       search={input.search}
+      onSearchChange={(search) => void input.navigate({ search, replace: true })}
     />
   );
 }
 
+/** 将当前组织的真实记账服务注入 Dashboard。 */
+function DashboardPageAdapter({ input }: { input: RegisteredPageInput<typeof dashboardRoute> }) {
+  const organizationId = useStore(
+    input.session.authStore,
+    (state) => state.currentOrganization?.id ?? "",
+  );
+
+  return <DashboardPage api={input.session.bookkeepingApi} organizationId={organizationId} />;
+}
+
 function AccountsPageAdapter({ input }: { input: RegisteredPageInput<typeof accountsRoute> }) {
   const permissions = useStore(input.session.authStore, (state) => state.permissions);
+  const organizationId = useStore(
+    input.session.authStore,
+    (state) => state.currentOrganization?.id ?? "",
+  );
 
-  return <AccountsPage api={input.session.bookkeepingApi} permissions={permissions} />;
+  return (
+    <AccountsPage
+      api={input.session.bookkeepingApi}
+      organizationId={organizationId}
+      permissions={permissions}
+    />
+  );
 }
 
 function CategoriesPageAdapter({ input }: { input: RegisteredPageInput<typeof categoriesRoute> }) {
   const permissions = useStore(input.session.authStore, (state) => state.permissions);
+  const organizationId = useStore(
+    input.session.authStore,
+    (state) => state.currentOrganization?.id ?? "",
+  );
 
-  return <CategoriesPage api={input.session.bookkeepingApi} permissions={permissions} />;
+  return (
+    <CategoriesPage
+      api={input.session.bookkeepingApi}
+      organizationId={organizationId}
+      permissions={permissions}
+    />
+  );
 }
 
 function MembersPageAdapter({ input }: { input: RegisteredPageInput<typeof membersRoute> }) {

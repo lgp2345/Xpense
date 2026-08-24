@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createRoute,
   createRouter,
@@ -13,9 +14,11 @@ import { MenuResetPage } from "../features/menus/menu-reset-page";
 import { ForbiddenPage } from "../pages/forbidden-page";
 import { FoundationPage } from "../pages/foundation-page";
 import { LoginPage } from "../pages/login-page";
+import { clearBookkeepingQueries } from "../services/bookkeeping-query";
 import { type WebSessionDependency, webSession } from "../services/web-session";
 import type { AuthStoreApi } from "../stores/auth-store";
 import type { MenuStoreApi } from "../stores/menu-store";
+import { didBookkeepingScopeChange } from "./bookkeeping-cache-scope";
 import {
   authenticatedRoute,
   ROUTE_REGISTRY,
@@ -178,10 +181,13 @@ export function AppRouter({ router: activeRouter = router, restoreSession }: App
   } | null>(null);
   const activeSession = sessionsByRouter.get(activeRouter) ?? webSession;
   const activeRestoreSession = restoreSession ?? activeSession.restoreSession;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let isActive = true;
     let restore = restoreRef.current;
+
+    clearBookkeepingQueries(queryClient);
 
     if (
       !restore ||
@@ -205,10 +211,13 @@ export function AppRouter({ router: activeRouter = router, restoreSession }: App
     return () => {
       isActive = false;
     };
-  }, [activeRestoreSession, activeRouter]);
+  }, [activeRestoreSession, activeRouter, queryClient]);
 
   useEffect(() => {
     const unsubscribeAuth = activeSession.authStore.subscribe((state, previousState) => {
+      if (didBookkeepingScopeChange(state, previousState)) {
+        clearBookkeepingQueries(queryClient);
+      }
       if (didAuthenticatedRouteBoundaryChange(state, previousState)) {
         void activeRouter.invalidate();
       }
@@ -227,7 +236,7 @@ export function AppRouter({ router: activeRouter = router, restoreSession }: App
       unsubscribeAuth();
       unsubscribeMenus();
     };
-  }, [activeRouter, activeSession]);
+  }, [activeRouter, activeSession, queryClient]);
 
   if (!isInitialized) {
     return (

@@ -1,10 +1,3 @@
-export const dashboardMetrics = [
-  { label: "总收入", value: "¥45,231.89", change: "较上月 +20.1%" },
-  { label: "订阅数", value: "+2,350", change: "较上月 +180.1%" },
-  { label: "销售额", value: "¥12,234", change: "较上月 +19.0%" },
-  { label: "当前活跃", value: "+573", change: "过去一小时 +201" },
-] as const;
-
 export const overviewData = Object.freeze(
   [2400, 1398, 9800, 3908, 4800, 3800, 4300, 5200, 4100, 6100, 5400, 7200].map((total, index) =>
     Object.freeze({ month: `${index + 1}月`, total }),

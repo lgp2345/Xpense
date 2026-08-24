@@ -1,49 +1,66 @@
-import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen } from "@testing-library/react";
+import type { MonthlyStatistics } from "@xpense/shared";
+import { describe, expect, it, vi } from "vitest";
 
+import type { BookkeepingApi } from "../../services/bookkeeping-api";
 import { Dashboard } from "./dashboard";
-import { analyticsData, overviewData, recentSales } from "./dashboard-data";
+
+const statistics: MonthlyStatistics = {
+  currency: "CNY",
+  incomeMinor: 456_789,
+  expenseMinor: 123_456,
+  netMinor: 333_333,
+  expenseCategories: [
+    { categoryId: "food", categoryName: "餐饮", amountMinor: 80_000, percentage: 64.8 },
+    { categoryId: "rent", categoryName: "住房", amountMinor: 43_456, percentage: 35.2 },
+  ],
+};
+
+/** 创建只实现月度统计边界的 Dashboard 测试 API。 */
+function createApi(getMonthlyStatistics: BookkeepingApi["getMonthlyStatistics"]): BookkeepingApi {
+  return { getMonthlyStatistics } as BookkeepingApi;
+}
+
+/** 使用关闭重试的独立缓存渲染 Dashboard。 */
+function renderDashboard(api: BookkeepingApi) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <Dashboard api={api} organizationId="org-a" />
+    </QueryClientProvider>,
+  );
+}
 
 describe("Dashboard", () => {
-  it("renders translated fixed dashboard data without unused upstream controls", () => {
-    render(<Dashboard />);
+  it("loads the current month and renders real income, expense, net, and expense shares", async () => {
+    let resolve: (value: MonthlyStatistics) => void = () => undefined;
+    const getMonthlyStatistics = vi.fn(
+      () =>
+        new Promise<MonthlyStatistics>((promiseResolve) => {
+          resolve = promiseResolve;
+        }),
+    );
+    renderDashboard(createApi(getMonthlyStatistics));
 
-    expect(screen.getByText("总收入")).toBeVisible();
-    expect(screen.getByText("¥45,231.89")).toBeVisible();
-    expect(screen.getByText("近期销售")).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Download" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Reports" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Notifications" })).not.toBeInTheDocument();
+    expect(screen.getByText("正在加载本月总览...")).toBeInTheDocument();
+    const now = new Date();
+    expect(getMonthlyStatistics).toHaveBeenCalledWith({
+      month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+    });
+    resolve(statistics);
+
+    expect(await screen.findByText("¥4,567.89")).toBeInTheDocument();
+    expect(screen.getByText("¥1,234.56")).toBeInTheDocument();
+    expect(screen.getByText("¥3,333.33")).toBeInTheDocument();
+    expect(screen.getByText("餐饮")).toBeInTheDocument();
+    expect(screen.getByText("64.8%")).toBeInTheDocument();
+    expect(screen.queryByText(/预算|预测/)).not.toBeInTheDocument();
   });
 
-  it("exposes identical fixed overview chart data across renders", () => {
-    const firstRender = render(<Dashboard />);
-    const firstChart = within(firstRender.container).getByRole("img", { name: /月度收入趋势/ });
+  it("shows a clear monthly statistics error state", async () => {
+    renderDashboard(createApi(vi.fn().mockRejectedValue(new Error("offline"))));
 
-    const secondRender = render(<Dashboard />);
-    const secondChart = within(secondRender.container).getByRole("img", { name: /月度收入趋势/ });
-
-    expect(firstChart).toHaveAttribute("aria-label", secondChart.getAttribute("aria-label"));
-    expect(firstChart).toHaveAttribute("aria-label", expect.stringContaining("1月: 2400"));
-    expect(firstChart).toHaveAttribute("aria-label", expect.stringContaining("12月: 7200"));
-  });
-
-  it("exports immutable dashboard fixtures", () => {
-    expect(Object.isFrozen(overviewData)).toBe(true);
-    expect(Object.isFrozen(overviewData[0])).toBe(true);
-    expect(Object.isFrozen(recentSales)).toBe(true);
-    expect(Object.isFrozen(recentSales[0])).toBe(true);
-    expect(Object.isFrozen(analyticsData)).toBe(true);
-    expect(Object.isFrozen(analyticsData.traffic)).toBe(true);
-    expect(Object.isFrozen(analyticsData.traffic[0])).toBe(true);
-  });
-
-  it("switches to the analytics tab", async () => {
-    const user = userEvent.setup();
-    render(<Dashboard />);
-
-    await user.click(screen.getByRole("tab", { name: "分析" }));
-
-    expect(screen.getByRole("heading", { name: "访问趋势" })).toBeVisible();
+    expect(await screen.findByRole("alert")).toHaveTextContent("加载本月总览失败，请稍后重试。");
   });
 });
