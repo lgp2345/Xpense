@@ -27,22 +27,6 @@ export function TransactionsPlaceholderPage({
   );
 }
 
-/** Task 11 接入账户管理页前使用的可路由占位页面。 */
-export function AccountsPlaceholderPage({ api, permissions }: PlaceholderPageProps) {
-  void api;
-  return (
-    <BookkeepingPlaceholder canWrite={permissions.includes("accounts:create")} title="账户管理" />
-  );
-}
-
-/** Task 11 接入分类管理页前使用的可路由占位页面。 */
-export function CategoriesPlaceholderPage({ api, permissions }: PlaceholderPageProps) {
-  void api;
-  return (
-    <BookkeepingPlaceholder canWrite={permissions.includes("categories:create")} title="分类管理" />
-  );
-}
-
 /** 展示统一的短期记账路由占位内容。 */
 function BookkeepingPlaceholder({ canWrite, title }: { canWrite: boolean; title: string }) {
   return (

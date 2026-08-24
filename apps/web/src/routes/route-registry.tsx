@@ -50,14 +50,14 @@ const TransactionsPlaceholderPage = lazy(() =>
     default: module.TransactionsPlaceholderPage,
   })),
 );
-const AccountsPlaceholderPage = lazy(() =>
-  import("../features/bookkeeping/bookkeeping-route-placeholders").then((module) => ({
-    default: module.AccountsPlaceholderPage,
+const AccountsPage = lazy(() =>
+  import("../features/bookkeeping/accounts/accounts-page").then((module) => ({
+    default: module.AccountsPage,
   })),
 );
-const CategoriesPlaceholderPage = lazy(() =>
-  import("../features/bookkeeping/bookkeeping-route-placeholders").then((module) => ({
-    default: module.CategoriesPlaceholderPage,
+const CategoriesPage = lazy(() =>
+  import("../features/bookkeeping/categories/categories-page").then((module) => ({
+    default: module.CategoriesPage,
   })),
 );
 
@@ -372,13 +372,13 @@ function TransactionsPageAdapter({
 function AccountsPageAdapter({ input }: { input: RegisteredPageInput<typeof accountsRoute> }) {
   const permissions = useStore(input.session.authStore, (state) => state.permissions);
 
-  return <AccountsPlaceholderPage api={input.session.bookkeepingApi} permissions={permissions} />;
+  return <AccountsPage api={input.session.bookkeepingApi} permissions={permissions} />;
 }
 
 function CategoriesPageAdapter({ input }: { input: RegisteredPageInput<typeof categoriesRoute> }) {
   const permissions = useStore(input.session.authStore, (state) => state.permissions);
 
-  return <CategoriesPlaceholderPage api={input.session.bookkeepingApi} permissions={permissions} />;
+  return <CategoriesPage api={input.session.bookkeepingApi} permissions={permissions} />;
 }
 
 function MembersPageAdapter({ input }: { input: RegisteredPageInput<typeof membersRoute> }) {

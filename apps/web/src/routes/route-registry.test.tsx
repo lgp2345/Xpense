@@ -126,10 +126,10 @@ describe("ROUTE_REGISTRY", () => {
   });
 
   it.each([
-    ["Accounts", "accounts:create"],
-    ["Categories", "categories:create"],
-    ["Transactions", "transactions:create"],
-  ] as const)("projects current write permissions into the %s page adapter", async (routeKey, permission) => {
+    ["Accounts", "accounts:create", "新增账户"],
+    ["Categories", "categories:create", "新增分类"],
+    ["Transactions", "transactions:create", null],
+  ] as const)("projects current write permissions into the %s page adapter", async (routeKey, permission, writeAction) => {
     const authStore = createAuthStore({
       accessToken: "access-token",
       currentUser: {
@@ -150,21 +150,42 @@ describe("ROUTE_REGISTRY", () => {
       search: {},
       session: {
         authStore,
-        bookkeepingApi: {},
+        bookkeepingApi: {
+          listAccounts: vi.fn().mockResolvedValue([]),
+          listCategories: vi.fn().mockResolvedValue([]),
+          listLedgers: vi.fn().mockResolvedValue([
+            {
+              id: ledgerId,
+              name: "个人账本",
+              type: "personal",
+              isDefault: true,
+              createdAt: "2026-08-23T00:00:00.000Z",
+              updatedAt: "2026-08-23T00:00:00.000Z",
+            },
+          ]),
+        },
       },
     } as unknown as Parameters<(typeof ROUTE_REGISTRY)[typeof routeKey]["render"]>[0];
     const { unmount } = render(ROUTE_REGISTRY[routeKey].render(input as never));
 
-    expect(await screen.findByText("当前为只读权限")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: ROUTE_REGISTRY[routeKey].label }),
+    ).toBeInTheDocument();
+    if (writeAction) {
+      expect(screen.queryByRole("button", { name: writeAction })).not.toBeInTheDocument();
+    } else {
+      expect(screen.getByText("当前为只读权限")).toBeInTheDocument();
+    }
     unmount();
 
     authStore.setState((state) => ({ ...state, permissions: [permission] }));
     render(ROUTE_REGISTRY[routeKey].render(input as never));
 
-    expect(
-      await screen.findByRole("heading", { name: ROUTE_REGISTRY[routeKey].label }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("当前为只读权限")).not.toBeInTheDocument();
+    if (writeAction) {
+      expect(await screen.findByRole("button", { name: writeAction })).toBeInTheDocument();
+    } else {
+      expect(screen.queryByText("当前为只读权限")).not.toBeInTheDocument();
+    }
   });
 
   it("renders the lazy menu page and wires its configuration and authorized-menu refresh", async () => {
@@ -247,7 +268,9 @@ describe("ROUTE_REGISTRY", () => {
   it("keeps every page module behind a React.lazy dynamic import", () => {
     const expectedPageModules = new Set([
       "../features/audit/audit-logs-page",
+      "../features/bookkeeping/accounts/accounts-page",
       "../features/bookkeeping/bookkeeping-route-placeholders",
+      "../features/bookkeeping/categories/categories-page",
       "../features/members/members-page",
       "../features/menus/menu-management-page",
       "../features/roles/roles-page",
