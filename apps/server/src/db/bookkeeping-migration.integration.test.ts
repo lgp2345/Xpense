@@ -32,23 +32,23 @@ type BookkeepingMigrationArtifact = {
 };
 
 const ledgerCanonicalSql = `
-  deterministic_ledger_id := md5(
+  deterministic_identity_hash := md5(
     'xpense:bookkeeping-default:v1:organization:'
     || organization_row."id"::text
     || ':ledger:personal'
-  )::uuid;
+  );
 `;
 
 const accountCanonicalSql = `
-  default_account_id := md5(
+  deterministic_identity_hash := md5(
     'xpense:bookkeeping-default:v1:organization:'
     || organization_row."id"::text
     || ':account:cash'
-  )::uuid;
+  );
 `;
 
 const categoryCanonicalSql = `
-  default_category_id := md5(
+  deterministic_identity_hash := md5(
     'xpense:bookkeeping-default:v1:organization:'
     || organization_row."id"::text
     || ':ledger:'
@@ -57,7 +57,19 @@ const categoryCanonicalSql = `
     || category_row.category_type
     || ':'
     || category_row.category_key
-  )::uuid;
+  );
+`;
+
+const uuidV8CanonicalSql = `
+  substr(deterministic_identity_hash, 1, 12)
+  || '8'
+  || substr(deterministic_identity_hash, 14, 3)
+  || substr(
+    '89ab',
+    ((strpos('0123456789abcdef', substr(deterministic_identity_hash, 17, 1)) - 1) & 3) + 1,
+    1
+  )
+  || substr(deterministic_identity_hash, 18)
 `;
 
 /** 定位同时创建全部五张记账表的唯一 migration，避免依赖时间戳目录名或未来累计 snapshot。 */
@@ -207,6 +219,10 @@ describe("bookkeeping migration contract", () => {
 
     for (const canonicalSql of [ledgerCanonicalSql, accountCanonicalSql, categoryCanonicalSql]) {
       expect(countNormalizedSqlFragment(executableSql, canonicalSql)).toBe(1);
+    }
+    expect(countNormalizedSqlFragment(executableSql, uuidV8CanonicalSql)).toBe(3);
+    for (const target of ["deterministic_ledger_id", "default_account_id", "default_category_id"]) {
+      expect(countNormalizedSqlFragment(executableSql, `${target} := (`)).toBe(1);
     }
     for (const categoryTuple of defaultCategoryTuples) {
       expect(countNormalizedSqlFragment(executableSql, categoryTuple)).toBe(1);

@@ -145,6 +145,7 @@ DECLARE
   deterministic_ledger_id uuid;
   default_account_id uuid;
   default_category_id uuid;
+  deterministic_identity_hash text;
 BEGIN
   FOR organization_row IN
     SELECT "id", "created_by_user_id"
@@ -163,10 +164,21 @@ BEGIN
     LIMIT 1;
 
     IF default_ledger_id IS NULL THEN
-      deterministic_ledger_id := md5(
+      deterministic_identity_hash := md5(
         'xpense:bookkeeping-default:v1:organization:'
         || organization_row."id"::text
         || ':ledger:personal'
+      );
+      deterministic_ledger_id := (
+        substr(deterministic_identity_hash, 1, 12)
+        || '8'
+        || substr(deterministic_identity_hash, 14, 3)
+        || substr(
+          '89ab',
+          ((strpos('0123456789abcdef', substr(deterministic_identity_hash, 17, 1)) - 1) & 3) + 1,
+          1
+        )
+        || substr(deterministic_identity_hash, 18)
       )::uuid;
 
       INSERT INTO "ledgers" (
@@ -203,10 +215,21 @@ BEGIN
         organization_row."id";
     END IF;
 
-    default_account_id := md5(
+    deterministic_identity_hash := md5(
       'xpense:bookkeeping-default:v1:organization:'
       || organization_row."id"::text
       || ':account:cash'
+    );
+    default_account_id := (
+      substr(deterministic_identity_hash, 1, 12)
+      || '8'
+      || substr(deterministic_identity_hash, 14, 3)
+      || substr(
+        '89ab',
+        ((strpos('0123456789abcdef', substr(deterministic_identity_hash, 17, 1)) - 1) & 3) + 1,
+        1
+      )
+      || substr(deterministic_identity_hash, 18)
     )::uuid;
 
     IF NOT EXISTS (
@@ -258,7 +281,7 @@ BEGIN
         category_sort_order
       )
     LOOP
-      default_category_id := md5(
+      deterministic_identity_hash := md5(
         'xpense:bookkeeping-default:v1:organization:'
         || organization_row."id"::text
         || ':ledger:'
@@ -267,6 +290,17 @@ BEGIN
         || category_row.category_type
         || ':'
         || category_row.category_key
+      );
+      default_category_id := (
+        substr(deterministic_identity_hash, 1, 12)
+        || '8'
+        || substr(deterministic_identity_hash, 14, 3)
+        || substr(
+          '89ab',
+          ((strpos('0123456789abcdef', substr(deterministic_identity_hash, 17, 1)) - 1) & 3) + 1,
+          1
+        )
+        || substr(deterministic_identity_hash, 18)
       )::uuid;
 
       IF NOT EXISTS (

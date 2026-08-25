@@ -46,7 +46,7 @@ describe("initializeBookkeepingDefaults", () => {
     ]);
     expect(executor.insertedLedgers).toEqual([
       {
-        id: "653a20e7-e1d0-ba21-1f35-57059e9dd71d",
+        id: "653a20e7-e1d0-8a21-9f35-57059e9dd71d",
         organizationId,
         name: "个人账本",
         type: "personal",
@@ -56,7 +56,7 @@ describe("initializeBookkeepingDefaults", () => {
     ]);
     expect(executor.insertedAccounts).toEqual([
       {
-        id: "8fac6e23-21b1-d4d4-4e37-1c4cbc3bb389",
+        id: "8fac6e23-21b1-84d4-8e37-1c4cbc3bb389",
         organizationId,
         name: "现金",
         type: "cash",
@@ -72,10 +72,10 @@ describe("initializeBookkeepingDefaults", () => {
       executor.insertedCategories.filter((category) => category.type === "income"),
     ).toHaveLength(5);
     expect(executor.insertedCategories.find((category) => category.name === "餐饮")?.id).toBe(
-      "89984768-5938-51ae-f687-69b220f5ff8c",
+      "2601e1a3-2ec6-856b-ba9b-48dc82b0dc19",
     );
     expect(executor.insertedCategories.find((category) => category.name === "工资")?.id).toBe(
-      "8bb3f4e6-24fb-6ba5-5efb-491fbec7507e",
+      "833b81b1-4f27-816a-9ccf-a55db33e7c14",
     );
     expect(
       executor.insertedCategories.every((category) => category.organizationId === organizationId),
