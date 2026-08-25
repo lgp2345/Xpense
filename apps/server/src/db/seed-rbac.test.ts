@@ -22,6 +22,18 @@ const bookkeepingWritePermissionKeys = [
   "categories:delete",
 ] as const satisfies readonly PermissionKey[];
 const bookkeepingWritePermissions = new Set<PermissionKey>(bookkeepingWritePermissionKeys);
+const rentalReadPermissionKeys = [
+  "rental_properties:read",
+  "rental_spaces:read",
+] as const satisfies readonly PermissionKey[];
+const rentalWritePermissionKeys = [
+  "rental_properties:create",
+  "rental_properties:update",
+  "rental_properties:delete",
+  "rental_spaces:create",
+  "rental_spaces:update",
+  "rental_spaces:delete",
+] as const satisfies readonly PermissionKey[];
 
 describe("buildRbacSeedPlan", () => {
   it("includes every shared permission", () => {
@@ -63,7 +75,25 @@ describe("buildRbacSeedPlan", () => {
     }
   });
 
-  it("grants the confirmed bookkeeping permissions to member", () => {
+  it("grants rental writes to owner and admin while keeping member and viewer read-only", () => {
+    const plan = buildRbacSeedPlan();
+
+    for (const roleKey of ["owner", "admin"] as const) {
+      const role = plan.roles.find((candidate) => candidate.key === roleKey);
+
+      expect(role?.permissions).toEqual(
+        expect.arrayContaining([...rentalReadPermissionKeys, ...rentalWritePermissionKeys]),
+      );
+    }
+    for (const roleKey of ["member", "viewer"] as const) {
+      const role = plan.roles.find((candidate) => candidate.key === roleKey);
+
+      expect(role?.permissions).toEqual(expect.arrayContaining(rentalReadPermissionKeys));
+      expect(role?.permissions).not.toEqual(expect.arrayContaining(rentalWritePermissionKeys));
+    }
+  });
+
+  it("grants the confirmed bookkeeping and rental read permissions to member", () => {
     const member = buildRbacSeedPlan().roles.find((role) => role.key === "member");
 
     expect(member?.permissions.toSorted()).toEqual(
@@ -76,6 +106,8 @@ describe("buildRbacSeedPlan", () => {
         "transactions:create",
         "transactions:update",
         "statistics:read",
+        "rental_properties:read",
+        "rental_spaces:read",
       ].sort(),
     );
     expect(member?.permissions).toEqual(
@@ -84,7 +116,7 @@ describe("buildRbacSeedPlan", () => {
     expect(member?.permissions.some((permission) => permission.endsWith(":delete"))).toBe(false);
   });
 
-  it("grants viewer only dashboard and bookkeeping read permissions", () => {
+  it("grants viewer only dashboard, bookkeeping, and rental read permissions", () => {
     const viewer = buildRbacSeedPlan().roles.find((role) => role.key === "viewer");
 
     expect(viewer?.permissions.toSorted()).toEqual(
@@ -95,6 +127,8 @@ describe("buildRbacSeedPlan", () => {
         "categories:read",
         "transactions:read",
         "statistics:read",
+        "rental_properties:read",
+        "rental_spaces:read",
       ].sort(),
     );
     expect(
