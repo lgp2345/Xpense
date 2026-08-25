@@ -5,6 +5,7 @@ import {
   type RouteKey,
 } from "@xpense/shared";
 import {
+  Building2,
   LayoutDashboard,
   type LucideIcon,
   MonitorSmartphone,
@@ -77,6 +78,7 @@ type ProjectionGroup = {
 };
 
 const ICONS: Record<MenuIconKey, LucideIcon> = {
+  Building2,
   LayoutDashboard,
   MonitorSmartphone,
   ReceiptText,

@@ -17,6 +17,8 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       "Transactions",
       "Accounts",
       "Categories",
+      "RentalProperties",
+      "RentalPropertyDetail",
       "Members",
       "Roles",
       "Menus",
@@ -142,6 +144,65 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
     );
   });
 
+  it("defines the rental hierarchy with a hidden detail page and six action buttons", () => {
+    const rentalNodes = DEFAULT_MENU_TEMPLATE.filter(
+      (node) => node.templateKey === "rental" || node.templateKey.startsWith("rental-"),
+    ).map((node) => ({
+      key: node.templateKey,
+      parent: node.parentTemplateKey,
+      type: node.type,
+      route: node.routeKey,
+      permission: node.permissionCode,
+      visible: node.isVisible,
+      keepAlive: node.keepAlive,
+    }));
+
+    expect(rentalNodes).toEqual([
+      {
+        key: "rental",
+        parent: null,
+        type: "directory",
+        route: null,
+        permission: null,
+        visible: true,
+        keepAlive: null,
+      },
+      {
+        key: "rental-properties",
+        parent: "rental",
+        type: "menu",
+        route: "RentalProperties",
+        permission: "rental_properties:read",
+        visible: true,
+        keepAlive: true,
+      },
+      {
+        key: "rental-property-detail",
+        parent: "rental-properties",
+        type: "menu",
+        route: "RentalPropertyDetail",
+        permission: "rental_properties:read",
+        visible: false,
+        keepAlive: false,
+      },
+      ...[
+        "rental_properties:create",
+        "rental_properties:update",
+        "rental_properties:delete",
+        "rental_spaces:create",
+        "rental_spaces:update",
+        "rental_spaces:delete",
+      ].map((permission) =>
+        expect.objectContaining({
+          parent: "rental-properties",
+          type: "button",
+          route: null,
+          permission,
+        }),
+      ),
+    ]);
+  });
+
   it("gives every non-root node an existing parent that is inserted first", () => {
     const indexByTemplateKey = new Map(
       DEFAULT_MENU_TEMPLATE.map((node, index) => [node.templateKey, index]),
@@ -189,6 +250,12 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       "categories:create",
       "categories:update",
       "categories:delete",
+      "rental_properties:create",
+      "rental_properties:update",
+      "rental_properties:delete",
+      "rental_spaces:create",
+      "rental_spaces:update",
+      "rental_spaces:delete",
       "members:create",
       "members:update",
       "members:disable",

@@ -93,6 +93,19 @@ describe("buildRbacSeedPlan", () => {
     }
   });
 
+  it("grants member and viewer exactly the two rental read permissions", () => {
+    const plan = buildRbacSeedPlan();
+
+    for (const roleKey of ["member", "viewer"] as const) {
+      const role = plan.roles.find((candidate) => candidate.key === roleKey);
+
+      expect(role?.permissions.filter((permission) => permission.startsWith("rental_"))).toEqual([
+        "rental_properties:read",
+        "rental_spaces:read",
+      ]);
+    }
+  });
+
   it("grants the confirmed bookkeeping and rental read permissions to member", () => {
     const member = buildRbacSeedPlan().roles.find((role) => role.key === "member");
 

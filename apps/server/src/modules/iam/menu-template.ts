@@ -1,6 +1,7 @@
 import type { MenuIconKey, MenuType, PermissionKey, RouteKey } from "@xpense/shared";
 
 import { BOOKKEEPING_MENU_TEMPLATE } from "./bookkeeping-menu-template.js";
+import { RENTAL_MENU_TEMPLATE } from "./rental-menu-template.js";
 
 export type MenuTemplateNode = {
   templateKey: string;
@@ -41,6 +42,7 @@ export const DEFAULT_MENU_TEMPLATE: readonly MenuTemplateNode[] = [
     sortOrder: 0,
   },
   ...BOOKKEEPING_MENU_TEMPLATE,
+  ...RENTAL_MENU_TEMPLATE,
   {
     templateKey: "access-control",
     parentTemplateKey: null,

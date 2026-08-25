@@ -6,6 +6,7 @@ import {
   type RouteKey,
 } from "@xpense/shared";
 import {
+  Building2,
   LayoutDashboard,
   type LucideIcon,
   MonitorSmartphone,
@@ -260,6 +261,7 @@ describe("menu navigation projection", () => {
 
   it("resolves every MenuIconKey through the exhaustive icon record", () => {
     const iconByKey = {
+      Building2,
       LayoutDashboard,
       MonitorSmartphone,
       ReceiptText,
@@ -280,6 +282,7 @@ describe("menu navigation projection", () => {
       "Transactions",
       "Accounts",
       "Categories",
+      "RentalProperties",
     ];
     const iconTree = menuIconKeys.map((icon, index) =>
       createInternalMenu(index + 100, routeKeys[index] as RouteKey, icon),

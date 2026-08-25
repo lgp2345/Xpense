@@ -245,7 +245,7 @@ describe("navigation helpers", () => {
 });
 
 describe("buildAuthorizedMenuTree", () => {
-  it("只为 member 和 viewer 返回三个只读记账导航且不泄露按钮", () => {
+  it("只为 member 和 viewer 返回只读记账与租赁导航且不泄露按钮", () => {
     const rows = materializeDefaultTemplate();
     const plan = buildRbacSeedPlan();
 
@@ -280,6 +280,25 @@ describe("buildAuthorizedMenuTree", () => {
           .flatMap((node) => (node.permissionCode ? [node.permissionCode] : []))
           .every((permissionCode) => permissionCode.endsWith(":read")),
       ).toBe(true);
+
+      const rental = tree.find((node) => node.name === "租赁管理");
+      const resolvedRentalNodes = flattenAuthorizedMenuTree(rental ? [rental] : []);
+
+      expect(
+        resolvedRentalNodes.map((node) => ({
+          type: node.type,
+          routeKey: node.routeKey,
+          permissionCode: node.permissionCode,
+        })),
+      ).toEqual([
+        { type: "directory", routeKey: null, permissionCode: null },
+        {
+          type: "menu",
+          routeKey: "RentalProperties",
+          permissionCode: "rental_properties:read",
+        },
+      ]);
+      expect(resolvedRentalNodes.some((node) => node.type === "button")).toBe(false);
     }
   });
 
