@@ -88,8 +88,8 @@ describe("buildRbacSeedPlan", () => {
     for (const roleKey of ["member", "viewer"] as const) {
       const role = plan.roles.find((candidate) => candidate.key === roleKey);
 
-      expect(role?.permissions).toEqual(expect.arrayContaining(rentalReadPermissionKeys));
-      expect(role?.permissions).not.toEqual(expect.arrayContaining(rentalWritePermissionKeys));
+      expect(role?.permissions).toEqual(expect.arrayContaining([...rentalReadPermissionKeys]));
+      expect(role?.permissions).not.toEqual(expect.arrayContaining([...rentalWritePermissionKeys]));
     }
   });
 

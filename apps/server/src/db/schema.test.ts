@@ -688,7 +688,7 @@ describe("rental property and space database schema", () => {
       propertyIndexes.rental_properties_active_name_unique,
       "rental_properties_active_name_unique",
       ["organization_id", "name"],
-      '"rental_properties"."deleted_at" IS NULL',
+      '"rental_properties"."is_active" IS TRUE AND "rental_properties"."deleted_at" IS NULL',
     );
     const propertyLookupIndex = propertyIndexes.rental_properties_organization_deleted_idx;
     if (!propertyLookupIndex) {
@@ -702,25 +702,25 @@ describe("rental property and space database schema", () => {
       indexes.rental_spaces_active_root_name_unique,
       "rental_spaces_active_root_name_unique",
       ["organization_id", "property_id", "name"],
-      '"rental_spaces"."parent_id" IS NULL AND "rental_spaces"."deleted_at" IS NULL',
+      '"rental_spaces"."parent_id" IS NULL AND "rental_spaces"."is_active" IS TRUE AND "rental_spaces"."deleted_at" IS NULL',
     );
     expectPartialUniqueIndex(
       indexes.rental_spaces_active_child_name_unique,
       "rental_spaces_active_child_name_unique",
       ["organization_id", "property_id", "parent_id", "name"],
-      '"rental_spaces"."parent_id" IS NOT NULL AND "rental_spaces"."deleted_at" IS NULL',
+      '"rental_spaces"."parent_id" IS NOT NULL AND "rental_spaces"."is_active" IS TRUE AND "rental_spaces"."deleted_at" IS NULL',
     );
     expectPartialUniqueIndex(
       indexes.rental_spaces_active_root_code_unique,
       "rental_spaces_active_root_code_unique",
       ["organization_id", "property_id", "code"],
-      '"rental_spaces"."parent_id" IS NULL AND "rental_spaces"."code" IS NOT NULL AND "rental_spaces"."deleted_at" IS NULL',
+      '"rental_spaces"."parent_id" IS NULL AND "rental_spaces"."code" IS NOT NULL AND "rental_spaces"."is_active" IS TRUE AND "rental_spaces"."deleted_at" IS NULL',
     );
     expectPartialUniqueIndex(
       indexes.rental_spaces_active_child_code_unique,
       "rental_spaces_active_child_code_unique",
       ["organization_id", "property_id", "parent_id", "code"],
-      '"rental_spaces"."parent_id" IS NOT NULL AND "rental_spaces"."code" IS NOT NULL AND "rental_spaces"."deleted_at" IS NULL',
+      '"rental_spaces"."parent_id" IS NOT NULL AND "rental_spaces"."code" IS NOT NULL AND "rental_spaces"."is_active" IS TRUE AND "rental_spaces"."deleted_at" IS NULL',
     );
     expect(columnNames(indexes.rental_spaces_scope_parent_deleted_sort_idx.config.columns)).toEqual(
       ["organization_id", "property_id", "parent_id", "deleted_at", "sort_order"],
