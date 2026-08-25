@@ -59,6 +59,18 @@ const categoryPermissions = [
 // ── 统计 ──────────────────────────────────────────
 const statisticsPermissions = ["statistics:read"] as const;
 
+// ── 租赁 ──────────────────────────────────────────
+const rentalPermissions = [
+  "rental_properties:read",
+  "rental_properties:create",
+  "rental_properties:update",
+  "rental_properties:delete",
+  "rental_spaces:read",
+  "rental_spaces:create",
+  "rental_spaces:update",
+  "rental_spaces:delete",
+] as const;
+
 // ── 汇总（不修改此行逻辑）─────────────────────────
 export const permissionKeys = [
   ...dashboardPermissions,
@@ -72,6 +84,7 @@ export const permissionKeys = [
   ...categoryPermissions,
   ...transactionPermissions,
   ...statisticsPermissions,
+  ...rentalPermissions,
 ] as const;
 
 export type PermissionKey = (typeof permissionKeys)[number];

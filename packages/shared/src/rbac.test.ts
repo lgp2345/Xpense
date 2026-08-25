@@ -45,4 +45,34 @@ describe("RBAC shared constants", () => {
       ]),
     );
   });
+
+  it("grants rental writes to owner and admin while keeping member and viewer read-only", () => {
+    const rentalReadPermissions = ["rental_properties:read", "rental_spaces:read"];
+    const rentalWritePermissions = [
+      "rental_properties:create",
+      "rental_properties:update",
+      "rental_properties:delete",
+      "rental_spaces:create",
+      "rental_spaces:update",
+      "rental_spaces:delete",
+    ];
+    const rolePermissions = {
+      owner: [...rentalReadPermissions, ...rentalWritePermissions],
+      admin: [...rentalReadPermissions, ...rentalWritePermissions],
+      member: rentalReadPermissions,
+      viewer: rentalReadPermissions,
+    };
+
+    expect(permissionKeys).toEqual(
+      expect.arrayContaining([...rentalReadPermissions, ...rentalWritePermissions]),
+    );
+    for (const roleKey of ["owner", "admin"] as const) {
+      expect(rolePermissions[roleKey]).toEqual(
+        expect.arrayContaining([...rentalReadPermissions, ...rentalWritePermissions]),
+      );
+    }
+    for (const roleKey of ["member", "viewer"] as const) {
+      expect(rolePermissions[roleKey]).toEqual(rentalReadPermissions);
+    }
+  });
 });

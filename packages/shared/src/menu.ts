@@ -10,6 +10,8 @@ export const ROUTE_DEFINITIONS = {
   Transactions: { path: "/transactions" },
   Accounts: { path: "/accounts" },
   Categories: { path: "/categories" },
+  RentalProperties: { path: "/rentals/properties" },
+  RentalPropertyDetail: { path: "/rentals/properties/$propertyId" },
 } as const;
 
 export type RouteKey = keyof typeof ROUTE_DEFINITIONS;
@@ -28,6 +30,7 @@ export const menuIconKeys = [
   "ReceiptText",
   "WalletCards",
   "Shapes",
+  "Building2",
 ] as const;
 
 export type MenuIconKey = (typeof menuIconKeys)[number];

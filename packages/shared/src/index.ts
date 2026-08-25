@@ -39,3 +39,4 @@ export * from "./auth.js";
 export * from "./bookkeeping.js";
 export * from "./menu.js";
 export * from "./rbac.js";
+export * from "./rental.js";
