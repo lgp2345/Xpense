@@ -1,6 +1,8 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 import { describe, expect, it } from "vitest";
+
+import { stripSqlComments } from "./bookkeeping-migration-test-helpers.js";
 
 const migrationDirectory = new URL(
   "./migrations/20260810230000_organization_menus/",
@@ -57,6 +59,40 @@ function findEntity(
   }
 
   return entity;
+}
+
+/** 定位新增租赁菜单树的唯一 migration，避免测试绑定生成时间戳。 */
+async function readRentalMenuMigration(): Promise<string> {
+  const migrationsUrl = new URL("./migrations/", import.meta.url);
+  const entries = await readdir(migrationsUrl, { withFileTypes: true });
+  const candidates: string[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    try {
+      const source = await readFile(new URL(`${entry.name}/migration.sql`, migrationsUrl), "utf8");
+      const executableSql = stripSqlComments(source);
+      if (
+        executableSql.includes('CREATE TABLE "rental_properties"') &&
+        executableSql.includes("'RentalProperties'")
+      ) {
+        candidates.push(executableSql);
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+
+  if (candidates.length !== 1) {
+    throw new Error(`Expected one rental menu migration, found ${candidates.length}`);
+  }
+
+  return candidates[0] as string;
 }
 
 /**
@@ -211,5 +247,34 @@ describe("organization menu UUID-to-identity migration contract", () => {
     expect(parentForeignKey.columns).toEqual(["organization_id", "parent_id"]);
     expect(parentForeignKey.tableTo).toBe("menus");
     expect(parentForeignKey.columnsTo).toEqual(["organization_id", "id"]);
+  });
+});
+
+describe("rental menu bootstrap contract", () => {
+  it("only inserts missing rental nodes for every existing organization", async () => {
+    const source = await readRentalMenuMigration();
+
+    expect(source).toContain('FOR organization_row IN SELECT "id" FROM "organizations" LOOP');
+    expect(source).toContain("AND \"route_key\" = 'RentalProperties'");
+    expect(source).toContain("AND \"route_key\" = 'RentalPropertyDetail'");
+    expect(source).toContain('AND "permission_code" = button_row.permission_key');
+    expect(source).toContain("'directory',");
+    expect(source).toContain("'租赁管理',");
+    expect(source).toContain("'menu',");
+    expect(source).toContain("'房产管理',");
+    expect(source).toContain("'房产详情',");
+    expect(source).toContain("FALSE,\n        FALSE,\n        FALSE,");
+    for (const button of [
+      "('新增房产', 'rental_properties:create', 100)",
+      "('编辑房产', 'rental_properties:update', 110)",
+      "('删除房产', 'rental_properties:delete', 120)",
+      "('新增空间', 'rental_spaces:create', 130)",
+      "('编辑空间', 'rental_spaces:update', 140)",
+      "('删除空间', 'rental_spaces:delete', 150)",
+    ]) {
+      expect(source).toContain(button);
+    }
+    expect(source).not.toMatch(/\b(?:UPDATE|DELETE FROM) "menus"/);
+    expect(source).not.toMatch(/\b(?:DROP|TRUNCATE)\b/i);
   });
 });
