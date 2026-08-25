@@ -1,6 +1,6 @@
+import { rentalPropertyTypes, rentalSpaceTypes } from "@xpense/shared";
 import { getTableConfig, PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
-
 import {
   accountMovements,
   accounts,
@@ -16,6 +16,10 @@ import {
   organizations,
   permissions,
   refreshSessions,
+  rentalProperties,
+  rentalPropertyType,
+  rentalSpaces,
+  rentalSpaceType,
   rolePermissions,
   roles,
   transactions,
@@ -506,5 +510,220 @@ describe("bookkeeping database schema", () => {
     expect(
       movementConfig.foreignKeys.map((constraint) => columnNames(constraint.reference().columns)),
     ).toEqual(expect.not.arrayContaining([["transaction_id"], ["account_id"]]));
+  });
+});
+
+describe("rental property and space database schema", () => {
+  const columnNames = (columns: unknown[]) =>
+    columns.map((column) =>
+      typeof column === "object" && column !== null && "name" in column ? column.name : undefined,
+    );
+
+  it("exports rental tables and keeps enum vocabularies aligned with shared contracts", () => {
+    expect(rentalProperties).toBeDefined();
+    expect(rentalSpaces).toBeDefined();
+    expect(rentalPropertyType.enumValues).toEqual(rentalPropertyTypes);
+    expect(rentalSpaceType.enumValues).toEqual(rentalSpaceTypes);
+  });
+
+  it("stores required property and space fields with active and historical lifecycle state", () => {
+    expect(rentalProperties).toMatchObject({
+      id: expect.anything(),
+      organizationId: expect.anything(),
+      ledgerId: expect.anything(),
+      name: expect.anything(),
+      type: expect.anything(),
+      customTypeName: expect.anything(),
+      countryCode: expect.anything(),
+      province: expect.anything(),
+      city: expect.anything(),
+      district: expect.anything(),
+      addressLine: expect.anything(),
+      note: expect.anything(),
+      isActive: expect.anything(),
+      createdByUserId: expect.anything(),
+      deletedAt: expect.anything(),
+      deletedByUserId: expect.anything(),
+      createdAt: expect.anything(),
+      updatedAt: expect.anything(),
+    });
+    expect(rentalSpaces).toMatchObject({
+      id: expect.anything(),
+      organizationId: expect.anything(),
+      propertyId: expect.anything(),
+      parentId: expect.anything(),
+      name: expect.anything(),
+      code: expect.anything(),
+      type: expect.anything(),
+      customTypeName: expect.anything(),
+      isRentable: expect.anything(),
+      isActive: expect.anything(),
+      sortOrder: expect.anything(),
+      createdByUserId: expect.anything(),
+      deletedAt: expect.anything(),
+      deletedByUserId: expect.anything(),
+      createdAt: expect.anything(),
+      updatedAt: expect.anything(),
+    });
+    expect(rentalProperties.isActive.default).toBe(true);
+    expect(rentalSpaces.isRentable.default).toBe(false);
+    expect(rentalSpaces.isActive.default).toBe(true);
+    expect(rentalSpaces.sortOrder.default).toBe(0);
+  });
+
+  it("enforces organization-scoped one-to-one rental ledgers and property ownership", () => {
+    const propertyConfig = getTableConfig(rentalProperties);
+    const spaceConfig = getTableConfig(rentalSpaces);
+
+    expect(propertyConfig.uniqueConstraints.map((item) => item.getName())).toEqual(
+      expect.arrayContaining([
+        "rental_properties_organization_id_unique",
+        "rental_properties_organization_ledger_unique",
+      ]),
+    );
+    expect(spaceConfig.uniqueConstraints.map((item) => item.getName())).toContain(
+      "rental_spaces_organization_property_id_unique",
+    );
+
+    const propertyLedgerReference = propertyConfig.foreignKeys
+      .find((item) => item.getName() === "rental_properties_organization_ledger_fk")
+      ?.reference();
+    expect(columnNames(propertyLedgerReference?.columns ?? [])).toEqual([
+      "organization_id",
+      "ledger_id",
+    ]);
+    expect(columnNames(propertyLedgerReference?.foreignColumns ?? [])).toEqual([
+      "organization_id",
+      "id",
+    ]);
+    expect(propertyLedgerReference?.foreignTable).toBe(ledgers);
+
+    const spacePropertyReference = spaceConfig.foreignKeys
+      .find((item) => item.getName() === "rental_spaces_organization_property_fk")
+      ?.reference();
+    expect(columnNames(spacePropertyReference?.columns ?? [])).toEqual([
+      "organization_id",
+      "property_id",
+    ]);
+    expect(columnNames(spacePropertyReference?.foreignColumns ?? [])).toEqual([
+      "organization_id",
+      "id",
+    ]);
+    expect(spacePropertyReference?.foreignTable).toBe(rentalProperties);
+  });
+
+  it("keeps parent spaces within one property scope and exposes the composite self-reference", () => {
+    const spaceConfig = getTableConfig(rentalSpaces);
+    const parentReference = spaceConfig.foreignKeys
+      .find((item) => item.getName() === "rental_spaces_parent_scope_fk")
+      ?.reference();
+
+    expect(spaceConfig.foreignKeys.map((item) => item.getName())).toContain(
+      "rental_spaces_parent_scope_fk",
+    );
+    expect(columnNames(parentReference?.columns ?? [])).toEqual([
+      "organization_id",
+      "property_id",
+      "parent_id",
+    ]);
+    expect(columnNames(parentReference?.foreignColumns ?? [])).toEqual([
+      "organization_id",
+      "property_id",
+      "id",
+    ]);
+    expect(parentReference?.foreignTable).toBe(rentalSpaces);
+  });
+
+  it("requires custom names only for other types and validates two-letter country codes", () => {
+    const dialect = new PgDialect();
+    const propertyChecks = Object.fromEntries(
+      getTableConfig(rentalProperties).checks.map((item) => [
+        item.name,
+        dialect.sqlToQuery(item.value).sql,
+      ]),
+    );
+    const spaceChecks = Object.fromEntries(
+      getTableConfig(rentalSpaces).checks.map((item) => [
+        item.name,
+        dialect.sqlToQuery(item.value).sql,
+      ]),
+    );
+
+    expect(propertyChecks.rental_properties_custom_type_name_check).toContain("'other'");
+    expect(propertyChecks.rental_properties_custom_type_name_check).toContain(
+      '"rental_properties"."custom_type_name" IS NOT NULL',
+    );
+    expect(propertyChecks.rental_properties_country_code_check).toContain("char_length");
+    expect(propertyChecks.rental_properties_country_code_check).toContain(" = 2");
+    expect(spaceChecks.rental_spaces_custom_type_name_check).toContain("'other'");
+    expect(spaceChecks.rental_spaces_custom_type_name_check).toContain(
+      '"rental_spaces"."custom_type_name" IS NOT NULL',
+    );
+  });
+
+  it("keeps active sibling names and non-empty codes unique while supporting fast tree lookup", () => {
+    const dialect = new PgDialect();
+    const propertyConfig = getTableConfig(rentalProperties);
+    const spaceConfig = getTableConfig(rentalSpaces);
+    const propertyIndexes = Object.fromEntries(
+      propertyConfig.indexes.map((item) => [item.config.name, item]),
+    );
+    const indexes = Object.fromEntries(spaceConfig.indexes.map((item) => [item.config.name, item]));
+
+    const expectPartialUniqueIndex = (
+      item: (typeof propertyConfig.indexes)[number] | undefined,
+      name: string,
+      columns: string[],
+      predicate: string,
+    ) => {
+      if (!item?.config.where) {
+        throw new Error(`${name} must be a partial index`);
+      }
+      expect(item.config.unique).toBe(true);
+      expect(columnNames(item.config.columns)).toEqual(columns);
+      expect(dialect.sqlToQuery(item.config.where).sql).toBe(predicate);
+    };
+
+    expectPartialUniqueIndex(
+      propertyIndexes.rental_properties_active_name_unique,
+      "rental_properties_active_name_unique",
+      ["organization_id", "name"],
+      '"rental_properties"."deleted_at" IS NULL',
+    );
+    const propertyLookupIndex = propertyIndexes.rental_properties_organization_deleted_idx;
+    if (!propertyLookupIndex) {
+      throw new Error("rental property lookup index must be configured");
+    }
+    expect(columnNames(propertyLookupIndex.config.columns)).toEqual([
+      "organization_id",
+      "deleted_at",
+    ]);
+    expectPartialUniqueIndex(
+      indexes.rental_spaces_active_root_name_unique,
+      "rental_spaces_active_root_name_unique",
+      ["organization_id", "property_id", "name"],
+      '"rental_spaces"."parent_id" IS NULL AND "rental_spaces"."deleted_at" IS NULL',
+    );
+    expectPartialUniqueIndex(
+      indexes.rental_spaces_active_child_name_unique,
+      "rental_spaces_active_child_name_unique",
+      ["organization_id", "property_id", "parent_id", "name"],
+      '"rental_spaces"."parent_id" IS NOT NULL AND "rental_spaces"."deleted_at" IS NULL',
+    );
+    expectPartialUniqueIndex(
+      indexes.rental_spaces_active_root_code_unique,
+      "rental_spaces_active_root_code_unique",
+      ["organization_id", "property_id", "code"],
+      '"rental_spaces"."parent_id" IS NULL AND "rental_spaces"."code" IS NOT NULL AND "rental_spaces"."deleted_at" IS NULL',
+    );
+    expectPartialUniqueIndex(
+      indexes.rental_spaces_active_child_code_unique,
+      "rental_spaces_active_child_code_unique",
+      ["organization_id", "property_id", "parent_id", "code"],
+      '"rental_spaces"."parent_id" IS NOT NULL AND "rental_spaces"."code" IS NOT NULL AND "rental_spaces"."deleted_at" IS NULL',
+    );
+    expect(columnNames(indexes.rental_spaces_scope_parent_deleted_sort_idx.config.columns)).toEqual(
+      ["organization_id", "property_id", "parent_id", "deleted_at", "sort_order"],
+    );
   });
 });
