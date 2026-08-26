@@ -376,6 +376,145 @@ describe("rental property and space migration contract", () => {
             WHERE "name" = '保留的自定义菜单'
           `,
         ).toEqual([{ count: 1 }]);
+
+        const organizationId = "00000000-0000-0000-0000-000000000011";
+        const userId = "00000000-0000-0000-0000-000000000001";
+        const firstLedgerId = "00000000-0000-0000-0000-000000000021";
+        const secondLedgerId = "00000000-0000-0000-0000-000000000022";
+        const firstPropertyId = "00000000-0000-0000-0000-000000000041";
+        const secondPropertyId = "00000000-0000-0000-0000-000000000042";
+        const parentSpaceId = "00000000-0000-0000-0000-000000000051";
+        const activeSpaceId = "00000000-0000-0000-0000-000000000052";
+
+        await sql`
+          INSERT INTO "ledgers" ("id", "organization_id")
+          VALUES (${secondLedgerId}, ${organizationId})
+        `;
+        await sql`
+          INSERT INTO "rental_properties" (
+            "id", "organization_id", "ledger_id", "name", "type", "country_code",
+            "address_line", "created_by_user_id"
+          ) VALUES (
+            ${firstPropertyId}, ${organizationId}, ${firstLedgerId}, '房产甲',
+            'residential_unit', 'CN', '测试地址甲', ${userId}
+          )
+        `;
+        await expect(
+          sql.savepoint(
+            async (savepoint) =>
+              savepoint`
+              INSERT INTO "rental_properties" (
+                "id", "organization_id", "ledger_id", "name", "type", "country_code",
+                "address_line", "created_by_user_id"
+              ) VALUES (
+                '00000000-0000-0000-0000-000000000043', ${organizationId}, ${firstLedgerId}, '重复账本房产',
+                'residential_unit', 'CN', '测试地址重复', ${userId}
+              )
+            `,
+          ),
+        ).rejects.toMatchObject({
+          code: "23505",
+          constraint: "rental_properties_organization_ledger_unique",
+        });
+        await sql`
+          INSERT INTO "rental_properties" (
+            "id", "organization_id", "ledger_id", "name", "type", "country_code",
+            "address_line", "created_by_user_id"
+          ) VALUES (
+            ${secondPropertyId}, ${organizationId}, ${secondLedgerId}, '房产乙',
+            'residential_unit', 'CN', '测试地址乙', ${userId}
+          )
+        `;
+        await sql`
+          INSERT INTO "rental_spaces" (
+            "id", "organization_id", "property_id", "name", "code", "type", "created_by_user_id"
+          ) VALUES (
+            ${parentSpaceId}, ${organizationId}, ${firstPropertyId}, '一层', 'F1', 'floor', ${userId}
+          )
+        `;
+        await sql`
+          INSERT INTO "rental_spaces" (
+            "id", "organization_id", "property_id", "parent_id", "name", "code", "type",
+            "is_rentable", "created_by_user_id"
+          ) VALUES (
+            ${activeSpaceId}, ${organizationId}, ${firstPropertyId}, ${parentSpaceId}, '101', 'A101', 'unit',
+            TRUE, ${userId}
+          )
+        `;
+        await expect(
+          sql.savepoint(
+            async (savepoint) =>
+              savepoint`
+              INSERT INTO "rental_spaces" (
+                "id", "organization_id", "property_id", "parent_id", "name", "type", "created_by_user_id"
+              ) VALUES (
+                '00000000-0000-0000-0000-000000000053', ${organizationId}, ${secondPropertyId}, ${parentSpaceId},
+                '跨房产父空间', 'unit', ${userId}
+              )
+            `,
+          ),
+        ).rejects.toMatchObject({ code: "23503", constraint: "rental_spaces_parent_scope_fk" });
+        await expect(
+          sql.savepoint(
+            async (savepoint) =>
+              savepoint`
+              INSERT INTO "rental_spaces" (
+                "id", "organization_id", "property_id", "parent_id", "name", "code", "type",
+                "created_by_user_id"
+              ) VALUES (
+                '00000000-0000-0000-0000-000000000054', ${organizationId}, ${firstPropertyId}, ${parentSpaceId},
+                '101', 'A102', 'unit', ${userId}
+              )
+            `,
+          ),
+        ).rejects.toMatchObject({
+          code: "23505",
+          constraint: "rental_spaces_active_child_name_unique",
+        });
+        await expect(
+          sql.savepoint(
+            async (savepoint) =>
+              savepoint`
+              INSERT INTO "rental_spaces" (
+                "id", "organization_id", "property_id", "parent_id", "name", "code", "type",
+                "created_by_user_id"
+              ) VALUES (
+                '00000000-0000-0000-0000-000000000055', ${organizationId}, ${firstPropertyId}, ${parentSpaceId},
+                '102', 'A101', 'unit', ${userId}
+              )
+            `,
+          ),
+        ).rejects.toMatchObject({
+          code: "23505",
+          constraint: "rental_spaces_active_child_code_unique",
+        });
+        await sql`
+          INSERT INTO "rental_spaces" (
+            "id", "organization_id", "property_id", "parent_id", "name", "code", "type", "is_active",
+            "created_by_user_id"
+          ) VALUES (
+            '00000000-0000-0000-0000-000000000056', ${organizationId}, ${firstPropertyId}, ${parentSpaceId},
+            '101', 'A101', 'unit', FALSE, ${userId}
+          )
+        `;
+        await sql`
+          INSERT INTO "rental_spaces" (
+            "id", "organization_id", "property_id", "parent_id", "name", "code", "type", "deleted_at",
+            "created_by_user_id"
+          ) VALUES (
+            '00000000-0000-0000-0000-000000000057', ${organizationId}, ${firstPropertyId}, ${parentSpaceId},
+            '101', 'A101', 'unit', now(), ${userId}
+          )
+        `;
+        expect(
+          await sql`
+            SELECT count(*)::int AS count
+            FROM "rental_spaces"
+            WHERE "parent_id" = ${parentSpaceId}
+              AND "name" = '101'
+              AND "code" = 'A101'
+          `,
+        ).toEqual([{ count: 3 }]);
       });
     } finally {
       await client.unsafe(`DROP SCHEMA IF EXISTS ${quotedSchema} CASCADE`);
