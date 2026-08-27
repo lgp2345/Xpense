@@ -48,6 +48,34 @@ describe("rental DTO schemas", () => {
         addressLine: "南街 1 号",
       }).customTypeName,
     ).toBe("自建房屋");
+    expect(
+      createRentalPropertySchema.parse({
+        ledgerId,
+        name: "默认国家",
+        type: "warehouse",
+        addressLine: "工业路 1 号",
+      }).countryCode,
+    ).toBe("CN");
+    expect(() =>
+      createRentalPropertySchema.parse({
+        ledgerId: "not-a-uuid",
+        name: "仓库",
+        type: "warehouse",
+        countryCode: "CN",
+        addressLine: "工业路 1 号",
+      }),
+    ).toThrow();
+    expect(() =>
+      createRentalPropertySchema.parse({
+        ledgerId,
+        name: "仓库",
+        type: "warehouse",
+        countryCode: "CN",
+        addressLine: "工业路 1 号",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    ).toThrow();
     expect(() =>
       createRentalPropertySchema.parse({
         ledgerId,
@@ -134,6 +162,24 @@ describe("rental DTO schemas", () => {
         name: "101",
         type: "other",
         isRentable: true,
+      }),
+    ).toThrow();
+    expect(() =>
+      createRentalSpaceSchema.parse({
+        propertyId,
+        name: "101",
+        type: "room",
+        isRentable: true,
+        sortOrder: "1",
+      }),
+    ).toThrow();
+    expect(() =>
+      createRentalSpaceSchema.parse({
+        propertyId,
+        name: "101",
+        type: "room",
+        isRentable: true,
+        createdAt: "2026-01-01T00:00:00.000Z",
       }),
     ).toThrow();
     expect(

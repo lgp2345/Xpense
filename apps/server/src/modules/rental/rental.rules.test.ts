@@ -71,6 +71,7 @@ describe("rental rules", () => {
       { field: "name", indexes: [0, 1], value: "101" },
       { field: "code", indexes: [0, 2], value: "A" },
     ]);
+    expect(findBatchConflicts([{ name: "101", code: "  " }, { name: "102" }])).toEqual([]);
   });
 
   it("calculates effective activity from property, self and all ancestors", () => {
