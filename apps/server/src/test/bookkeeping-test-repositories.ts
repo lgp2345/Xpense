@@ -253,7 +253,13 @@ function createTransactionsRepository(
         : null,
     findActiveOwnedForUpdate: async (organizationId, id) => {
       const transaction = findActiveOrdinaryTransaction(state, organizationId, id);
-      return transaction ? { id: transaction.id, type: transaction.type as TransactionType } : null;
+      return transaction
+        ? {
+            id: transaction.id,
+            ledgerId: transaction.ledgerId,
+            type: transaction.type as TransactionType,
+          }
+        : null;
     },
     create: async (input: TransactionWriteInput, movements: TransactionMovement[]) => {
       const id = nextUuid("77777777-7777-4777-8777", state.nextTransactionId++);

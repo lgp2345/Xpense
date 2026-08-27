@@ -57,6 +57,7 @@ describe("TransactionsService", () => {
       }),
       findActiveOwnedForUpdate: vi.fn().mockResolvedValue({
         id: "transaction-1",
+        ledgerId: validInput.ledgerId,
         type: "expense",
       }),
       create: vi.fn().mockResolvedValue("transaction-1"),
@@ -261,6 +262,54 @@ describe("TransactionsService", () => {
     expect(repository.update).not.toHaveBeenCalled();
   });
 
+  it("rejects moving a current rental transaction into a personal ledger", async () => {
+    const { categoriesRepository, repository, service, transaction } = createHarness();
+    repository.findActiveOwnedForUpdate.mockResolvedValue({
+      id: "transaction-1",
+      ledgerId: "rental-ledger",
+      type: "expense",
+    });
+    categoriesRepository.findActiveOwnedLedger.mockImplementation(
+      async (_organizationId: string, id: string) =>
+        id === "rental-ledger" ? { id, type: "rental" } : { id, type: "personal" },
+    );
+
+    await expect(
+      service.update(authContext, { id: "transaction-1", ...validInput }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(categoriesRepository.findActiveOwnedLedger).toHaveBeenCalledWith(
+      "organization-1",
+      "rental-ledger",
+      transaction,
+    );
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects deleting a current rental transaction", async () => {
+    const { categoriesRepository, repository, service, transaction } = createHarness();
+    repository.findActiveOwnedForUpdate.mockResolvedValue({
+      id: "transaction-1",
+      ledgerId: "rental-ledger",
+      type: "expense",
+    });
+    categoriesRepository.findActiveOwnedLedger.mockResolvedValue({
+      id: "rental-ledger",
+      type: "rental",
+    });
+
+    await expect(service.delete(authContext, { id: "transaction-1" })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+
+    expect(categoriesRepository.findActiveOwnedLedger).toHaveBeenCalledWith(
+      "organization-1",
+      "rental-ledger",
+      transaction,
+    );
+    expect(repository.softDelete).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["income", undefined, undefined],
     ["expense", undefined, undefined],
@@ -403,10 +452,26 @@ describe("TransactionsService", () => {
       accountsRepository.findActiveOwnedAccountsForUpdate.mock.invocationCallOrder[0] ??
         Number.POSITIVE_INFINITY,
     );
+    expect(categoriesRepository.findActiveOwnedLedger).toHaveBeenNthCalledWith(
+      1,
+      "organization-1",
+      validInput.ledgerId,
+      transaction,
+    );
+    expect(categoriesRepository.findActiveOwnedLedger.mock.invocationCallOrder[0]).toBeLessThan(
+      accountsRepository.findActiveOwnedAccountsForUpdate.mock.invocationCallOrder[0] ??
+        Number.POSITIVE_INFINITY,
+    );
+    expect(categoriesRepository.findActiveOwnedLedger).toHaveBeenNthCalledWith(
+      2,
+      "organization-1",
+      validInput.ledgerId,
+      transaction,
+    );
     expect(
       accountsRepository.findActiveOwnedAccountsForUpdate.mock.invocationCallOrder[0],
     ).toBeLessThan(
-      categoriesRepository.findActiveOwnedLedger.mock.invocationCallOrder[0] ??
+      categoriesRepository.findActiveOwnedLedger.mock.invocationCallOrder[1] ??
         Number.POSITIVE_INFINITY,
     );
     expect(repository.findActiveOwnedForUpdate).toHaveBeenCalledWith(

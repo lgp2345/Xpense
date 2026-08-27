@@ -101,6 +101,7 @@ export class TransactionsService {
         transaction,
       );
       if (!current) throw this.notFound("交易不存在");
+      await this.requirePersonalLedger(authContext.organizationId, current.ledgerId, transaction);
       const context = await this.requireOrganizationContext(
         authContext.organizationId,
         transaction,
@@ -138,6 +139,7 @@ export class TransactionsService {
         transaction,
       );
       if (!current) throw this.notFound("交易不存在");
+      await this.requirePersonalLedger(authContext.organizationId, current.ledgerId, transaction);
 
       await this.repository.softDelete(
         {
@@ -213,13 +215,7 @@ export class TransactionsService {
       throw this.notFound("账户不存在");
     }
 
-    const ledger = await this.categoriesRepository.findActiveOwnedLedger(
-      authContext.organizationId,
-      dto.ledgerId,
-      executor,
-    );
-    if (!ledger) throw this.notFound("账本不存在");
-    if (ledger.type === "rental") throw this.badRequest("租赁账本不能使用普通交易管理");
+    await this.requirePersonalLedger(authContext.organizationId, dto.ledgerId, executor);
 
     await this.validateCategory(authContext.organizationId, dto, executor);
     let movements: TransactionMovement[];
@@ -270,6 +266,21 @@ export class TransactionsService {
     if (category.ledgerId !== dto.ledgerId || category.type !== dto.type) {
       throw this.badRequest("分类必须与交易账本和收支类型匹配");
     }
+  }
+
+  /** 确认账本属于当前组织后拒绝租赁账本，保留跨组织资源的未找到语义。 */
+  private async requirePersonalLedger(
+    organizationId: string,
+    ledgerId: string,
+    executor: AppDbExecutor,
+  ): Promise<void> {
+    const ledger = await this.categoriesRepository.findActiveOwnedLedger(
+      organizationId,
+      ledgerId,
+      executor,
+    );
+    if (!ledger) throw this.notFound("账本不存在");
+    if (ledger.type === "rental") throw this.badRequest("租赁账本不能使用普通交易管理");
   }
 
   /** 读取刚写入的交易响应；失败将令外层事务回滚。 */

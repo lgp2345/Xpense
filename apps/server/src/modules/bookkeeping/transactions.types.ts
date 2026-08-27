@@ -46,6 +46,7 @@ export type LockedOrganizationContext = {
 /** 锁定更新前读取的当前普通交易。 */
 export type LockedTransactionRecord = {
   id: string;
+  ledgerId: string;
   type: TransactionType;
 };
 

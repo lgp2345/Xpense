@@ -1,4 +1,4 @@
-import { ConflictException } from "@nestjs/common";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
 import { RentalLedgerBoundaryService } from "./rental-ledger-boundary.service.js";
@@ -16,6 +16,7 @@ describe("RentalLedgerBoundaryService", () => {
         createdAt: new Date("2026-08-26T00:00:00.000Z"),
         updatedAt: new Date("2026-08-26T00:00:00.000Z"),
       }),
+      findActiveRental: vi.fn().mockResolvedValue({ id: "rental-ledger-1" }),
       renameActiveRental: vi.fn().mockResolvedValue(true),
       hasAnyTransactionReference: vi.fn().mockResolvedValue(false),
       softDeleteActiveRental: vi.fn().mockResolvedValue(true),
@@ -72,6 +73,11 @@ describe("RentalLedgerBoundaryService", () => {
       "rental-ledger-1",
       transaction,
     );
+    expect(repository.findActiveRental).toHaveBeenCalledWith(
+      "organization-1",
+      "rental-ledger-1",
+      transaction,
+    );
   });
 
   it("soft deletes an active rental ledger with the actor fields in the caller transaction", async () => {
@@ -90,5 +96,46 @@ describe("RentalLedgerBoundaryService", () => {
       },
       transaction,
     );
+  });
+
+  it.each([
+    {
+      title: "rename",
+      configure: (repository: ReturnType<typeof createHarness>["repository"]) => {
+        repository.renameActiveRental.mockResolvedValue(false);
+      },
+      invoke: (service: RentalLedgerBoundaryService, transaction: object) =>
+        service.rename(
+          { organizationId: "organization-1", id: "missing-ledger", name: "不可见" },
+          transaction as never,
+        ),
+    },
+    {
+      title: "soft delete",
+      configure: (repository: ReturnType<typeof createHarness>["repository"]) => {
+        repository.softDeleteActiveRental.mockResolvedValue(false);
+      },
+      invoke: (service: RentalLedgerBoundaryService, transaction: object) =>
+        service.softDelete(
+          { organizationId: "organization-1", id: "missing-ledger", actorUserId: "user-1" },
+          transaction as never,
+        ),
+    },
+    {
+      title: "deletability check",
+      configure: (repository: ReturnType<typeof createHarness>["repository"]) => {
+        repository.findActiveRental.mockResolvedValue(null);
+      },
+      invoke: (service: RentalLedgerBoundaryService, transaction: object) =>
+        service.assertDeletable("organization-1", "missing-ledger", transaction as never),
+    },
+  ])("returns not found when the rental ledger is missing for $title", async ({
+    configure,
+    invoke,
+  }) => {
+    const { repository, service, transaction } = createHarness();
+    configure(repository);
+
+    await expect(invoke(service, transaction)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

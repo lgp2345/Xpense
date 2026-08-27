@@ -34,7 +34,7 @@ export class LedgersRepository {
   /** 在调用方事务中创建不可作为默认账本的租赁账本。 */
   async createRental(
     input: { organizationId: string; name: string; createdByUserId: string },
-    executor: AppDbExecutor = this.db,
+    executor: AppDbExecutor,
   ): Promise<LedgerRecord> {
     const [ledger] = await executor
       .insert(ledgers)
@@ -55,12 +55,30 @@ export class LedgersRepository {
   /** 只更新指定组织中尚未软删除的租赁账本。 */
   async renameActiveRental(
     input: { organizationId: string; id: string; name: string },
-    executor: AppDbExecutor = this.db,
-  ): Promise<void> {
-    await executor
+    executor: AppDbExecutor,
+  ): Promise<boolean> {
+    const [ledger] = await executor
       .update(ledgers)
       .set({ name: input.name, updatedAt: new Date() })
-      .where(this.activeRentalCondition(input.organizationId, input.id));
+      .where(this.activeRentalCondition(input.organizationId, input.id))
+      .returning({ id: ledgers.id });
+
+    return ledger !== undefined;
+  }
+
+  /** 查询当前组织中尚未软删除的租赁账本，供调用方稳定映射资源不存在。 */
+  async findActiveRental(
+    organizationId: string,
+    id: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<{ id: string } | null> {
+    const [ledger] = await executor
+      .select({ id: ledgers.id })
+      .from(ledgers)
+      .where(this.activeRentalCondition(organizationId, id))
+      .limit(1);
+
+    return ledger ?? null;
   }
 
   /** 检查租赁账本是否被任意历史交易引用，包含已软删除交易。 */
@@ -83,13 +101,16 @@ export class LedgersRepository {
   /** 只软删除指定组织中尚未软删除的租赁账本，并记录操作者。 */
   async softDeleteActiveRental(
     input: { organizationId: string; id: string; deletedByUserId: string },
-    executor: AppDbExecutor = this.db,
-  ): Promise<void> {
+    executor: AppDbExecutor,
+  ): Promise<boolean> {
     const now = new Date();
-    await executor
+    const [ledger] = await executor
       .update(ledgers)
       .set({ deletedAt: now, deletedByUserId: input.deletedByUserId, updatedAt: now })
-      .where(this.activeRentalCondition(input.organizationId, input.id));
+      .where(this.activeRentalCondition(input.organizationId, input.id))
+      .returning({ id: ledgers.id });
+
+    return ledger !== undefined;
   }
 
   /** 生成租赁账本专用的组织、活动状态和类型边界。 */

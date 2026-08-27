@@ -154,6 +154,28 @@ describe("CategoriesService", () => {
     expect(repository.softDelete).not.toHaveBeenCalled();
   });
 
+  it("rejects moving a current rental category into a personal ledger", async () => {
+    const { repository, service, transaction } = createHarness();
+    repository.findActiveOwnedCategory.mockResolvedValue(
+      categoryFixture({ ledgerId: "rental-ledger" }),
+    );
+    repository.findActiveOwnedLedger.mockImplementation(
+      async (_organizationId: string, id: string) =>
+        id === "rental-ledger" ? { id, type: "rental" } : { id, type: "personal" },
+    );
+
+    await expect(
+      service.update(authContext, { id: "category-root", ledgerId: "personal-ledger" }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(repository.findActiveOwnedLedger).toHaveBeenCalledWith(
+      "organization-1",
+      "rental-ledger",
+      transaction,
+    );
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
   it.each([
     {
       title: "create",

@@ -97,7 +97,7 @@ export class TransactionsRepository {
     executor: AppDbExecutor,
   ): Promise<LockedTransactionRecord | null> {
     const [transaction] = await executor
-      .select({ id: transactions.id, type: transactions.type })
+      .select({ id: transactions.id, ledgerId: transactions.ledgerId, type: transactions.type })
       .from(transactions)
       .where(
         and(

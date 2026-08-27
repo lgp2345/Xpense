@@ -45,7 +45,8 @@ describe("LedgersRepository", () => {
     ]);
     const insertValues = vi.fn().mockReturnValue({ returning });
     const insert = vi.fn().mockReturnValue({ values: insertValues });
-    const updateWhere = vi.fn().mockResolvedValue([]);
+    const updateReturning = vi.fn().mockResolvedValue([{ id: "rental-ledger-1" }]);
+    const updateWhere = vi.fn().mockReturnValue({ returning: updateReturning });
     const updateSet = vi.fn().mockReturnValue({ where: updateWhere });
     const update = vi.fn().mockReturnValue({ set: updateSet });
     const repository = new LedgersRepository({} as never);
@@ -57,14 +58,18 @@ describe("LedgersRepository", () => {
         transaction as never,
       ),
     ).resolves.toMatchObject({ type: "rental", isDefault: false });
-    await repository.renameActiveRental(
-      { organizationId: "organization-1", id: "rental-ledger-1", name: "阳光公寓二期" },
-      transaction as never,
-    );
-    await repository.softDeleteActiveRental(
-      { organizationId: "organization-1", id: "rental-ledger-1", deletedByUserId: "user-1" },
-      transaction as never,
-    );
+    await expect(
+      repository.renameActiveRental(
+        { organizationId: "organization-1", id: "rental-ledger-1", name: "阳光公寓二期" },
+        transaction as never,
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      repository.softDeleteActiveRental(
+        { organizationId: "organization-1", id: "rental-ledger-1", deletedByUserId: "user-1" },
+        transaction as never,
+      ),
+    ).resolves.toBe(true);
 
     expect(insertValues).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -89,6 +94,7 @@ describe("LedgersRepository", () => {
       2,
       expect.objectContaining({ deletedByUserId: "user-1", deletedAt: expect.any(Date) }),
     );
+    expect(updateReturning).toHaveBeenCalledTimes(2);
   });
 
   it("checks rental-ledger transaction references across active and soft-deleted history", async () => {

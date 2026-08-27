@@ -136,7 +136,9 @@ describe("TransactionsRepository", () => {
       .mockResolvedValue([{ baseCurrency: "CNY", timezone: "Asia/Shanghai" }]);
     const organizationWhere = vi.fn().mockReturnValue({ limit: organizationLimit });
     const organizationFrom = vi.fn().mockReturnValue({ where: organizationWhere });
-    const transactionLimit = vi.fn().mockResolvedValue([{ id: "transaction-1", type: "expense" }]);
+    const transactionLimit = vi
+      .fn()
+      .mockResolvedValue([{ id: "transaction-1", ledgerId: "ledger-1", type: "expense" }]);
     const forUpdate = vi.fn().mockReturnValue({ limit: transactionLimit });
     const transactionWhere = vi.fn().mockReturnValue({ for: forUpdate });
     const transactionFrom = vi.fn().mockReturnValue({ where: transactionWhere });
@@ -152,7 +154,7 @@ describe("TransactionsRepository", () => {
     ).resolves.toEqual({ baseCurrency: "CNY", timezone: "Asia/Shanghai" });
     await expect(
       repository.findActiveOwnedForUpdate("organization-1", "transaction-1", executor),
-    ).resolves.toEqual({ id: "transaction-1", type: "expense" });
+    ).resolves.toEqual({ id: "transaction-1", ledgerId: "ledger-1", type: "expense" });
 
     expect(forUpdate).toHaveBeenCalledWith("update");
     const condition = transactionWhere.mock.calls[0]?.[0];

@@ -112,6 +112,11 @@ export class CategoriesService {
       );
       if (!current) throw this.notFound("分类不存在");
 
+      await this.policy.requireActiveLedger(
+        authContext.organizationId,
+        current.ledgerId,
+        transaction,
+      );
       const next = mergeCategoryUpdate(current, dto);
       await this.policy.requireActiveLedger(authContext.organizationId, next.ledgerId, transaction);
       await this.policy.assertUpdateAllowed(current, next, transaction);
