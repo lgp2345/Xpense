@@ -12,6 +12,7 @@ import { AuthModule } from "./modules/auth/auth.module.js";
 import { BookkeepingModule } from "./modules/bookkeeping/bookkeeping.module.js";
 import { IamModule } from "./modules/iam/iam.module.js";
 import { OrganizationsModule } from "./modules/organizations/organizations.module.js";
+import { RentalModule } from "./modules/rental/rental.module.js";
 import { UserModule } from "./modules/user/user.module.js";
 
 @Module({
@@ -25,6 +26,7 @@ import { UserModule } from "./modules/user/user.module.js";
     UserModule,
     AuditModule,
     BookkeepingModule,
+    RentalModule,
   ],
   providers: [
     {

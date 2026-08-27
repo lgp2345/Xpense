@@ -88,7 +88,6 @@ export type RentalSpaceSearchPage = PageResult<RentalSpaceSearchResult>;
 
 /** 创建租赁房产请求。 */
 export type CreateRentalPropertyRequest = {
-  ledgerId: string;
   name: string;
   type: RentalPropertyType;
   customTypeName?: string;
@@ -100,8 +99,11 @@ export type CreateRentalPropertyRequest = {
   note?: string;
 };
 
-/** 更新租赁房产请求。 */
-export type UpdateRentalPropertyRequest = {
+type AtLeastOne<T, Key extends keyof T = keyof T> = Key extends keyof T
+  ? Required<Pick<T, Key>> & Partial<Omit<T, Key>>
+  : never;
+
+type RentalPropertyMutableFields = {
   name: string;
   type: RentalPropertyType;
   customTypeName?: string | null;
@@ -111,7 +113,20 @@ export type UpdateRentalPropertyRequest = {
   district?: string | null;
   addressLine: string;
   note?: string | null;
+};
+
+/** 更新租赁房产资料请求；状态由独立接口维护。 */
+export type UpdateRentalPropertyRequest = { id: string } & AtLeastOne<RentalPropertyMutableFields>;
+
+/** 设置租赁房产状态请求。 */
+export type SetRentalPropertyStatusRequest = {
+  id: string;
   isActive: boolean;
+};
+
+/** 删除租赁房产请求。 */
+export type DeleteRentalPropertyRequest = {
+  id: string;
 };
 
 /** 创建租赁空间请求。 */

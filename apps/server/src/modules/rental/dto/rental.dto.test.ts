@@ -23,7 +23,6 @@ describe("rental DTO schemas", () => {
   it("normalizes and validates property creation", () => {
     expect(
       createRentalPropertySchema.parse({
-        ledgerId,
         name: "  仓库  ",
         type: "warehouse",
         countryCode: " CN ",
@@ -31,7 +30,6 @@ describe("rental DTO schemas", () => {
         addressLine: " 工业路 1 号 ",
       }),
     ).toEqual({
-      ledgerId,
       name: "仓库",
       type: "warehouse",
       countryCode: "CN",
@@ -40,7 +38,6 @@ describe("rental DTO schemas", () => {
     });
     expect(
       createRentalPropertySchema.parse({
-        ledgerId,
         name: "自建房",
         type: "other",
         customTypeName: "  自建房屋  ",
@@ -50,7 +47,6 @@ describe("rental DTO schemas", () => {
     ).toBe("自建房屋");
     expect(
       createRentalPropertySchema.parse({
-        ledgerId,
         name: "默认国家",
         type: "warehouse",
         addressLine: "工业路 1 号",
@@ -58,16 +54,6 @@ describe("rental DTO schemas", () => {
     ).toBe("CN");
     expect(() =>
       createRentalPropertySchema.parse({
-        ledgerId: "not-a-uuid",
-        name: "仓库",
-        type: "warehouse",
-        countryCode: "CN",
-        addressLine: "工业路 1 号",
-      }),
-    ).toThrow();
-    expect(() =>
-      createRentalPropertySchema.parse({
-        ledgerId,
         name: "仓库",
         type: "warehouse",
         countryCode: "CN",
@@ -78,7 +64,6 @@ describe("rental DTO schemas", () => {
     ).toThrow();
     expect(() =>
       createRentalPropertySchema.parse({
-        ledgerId,
         name: "仓库",
         type: "other",
         countryCode: "CN",
@@ -87,7 +72,6 @@ describe("rental DTO schemas", () => {
     ).toThrow();
     expect(() =>
       createRentalPropertySchema.parse({
-        ledgerId,
         name: "仓库",
         type: "warehouse",
         customTypeName: "仓",
@@ -97,10 +81,18 @@ describe("rental DTO schemas", () => {
     ).toThrow();
     expect(() =>
       createRentalPropertySchema.parse({
-        ledgerId,
         name: "仓库",
         type: "warehouse",
         countryCode: "cn",
+        addressLine: "工业路 1 号",
+      }),
+    ).toThrow();
+    expect(() =>
+      createRentalPropertySchema.parse({
+        ledgerId,
+        name: "仓库",
+        type: "warehouse",
+        countryCode: "CN",
         addressLine: "工业路 1 号",
       }),
     ).toThrow();

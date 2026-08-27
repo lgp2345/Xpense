@@ -9,7 +9,6 @@ const customTypeNameSchema = z.string().trim().min(1).max(120);
 /** 创建租赁房产请求校验规则。 */
 export const createRentalPropertySchema = z
   .object({
-    ledgerId: z.string().uuid(),
     name: nameSchema,
     type: z.enum(rentalPropertyTypes),
     customTypeName: customTypeNameSchema.optional(),
