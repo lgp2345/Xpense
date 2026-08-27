@@ -56,6 +56,7 @@ function createHarness() {
       total: 1,
       page: 1,
       pageSize: 20,
+      internalPaginationState: "opaque-cursor",
     }),
     findActiveOwned: vi.fn().mockResolvedValue(detail),
     findActiveOwnedForUpdate: vi.fn().mockResolvedValue(current),

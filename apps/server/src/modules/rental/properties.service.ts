@@ -40,7 +40,12 @@ export class PropertiesService {
   async list(authContext: AuthContext, dto: ListPropertiesDto): Promise<RentalPropertyPage> {
     const page = await this.repository.list(authContext.organizationId, dto);
 
-    return { ...page, items: page.items.map(toPropertySummary) };
+    return {
+      items: page.items.map(toPropertySummary),
+      total: page.total,
+      page: page.page,
+      pageSize: page.pageSize,
+    };
   }
 
   /** 返回当前组织内未软删除的房产详情。 */
