@@ -16,6 +16,16 @@ type SpaceSelectExecutor = Pick<AppDbExecutor, "select">;
 /** 四层空间树最多允许从当前节点继续递归三次。 */
 const MAX_SPACE_RECURSIVE_DEPTH = 3;
 
+/** 将用户关键词转换为 PostgreSQL ILIKE 的字面量包含匹配 pattern。 */
+export function buildSpaceLiteralSearchPattern(keyword: string): string {
+  const escapedKeyword = keyword
+    .replaceAll("\\", "\\\\")
+    .replaceAll("%", "\\%")
+    .replaceAll("_", "\\_");
+
+  return `%${escapedKeyword}%`;
+}
+
 const childRowsFields = {
   id: sql<string>`"space_children_rows"."id"`,
   propertyId: sql<string>`"space_children_rows"."property_id"`,
@@ -386,7 +396,7 @@ export function buildSpaceSearchQuery(
   propertyId: string,
   input: SpaceSearchInput,
 ) {
-  const keyword = `%${input.keyword}%`;
+  const keyword = buildSpaceLiteralSearchPattern(input.keyword);
   const offset = (input.page - 1) * input.pageSize;
   const rows = sql`
     (
@@ -402,8 +412,8 @@ export function buildSpaceSearchQuery(
             AND "child"."deleted_at" IS NULL
         ) AS "has_children"
       FROM "space_tree" AS "tree"
-      WHERE "tree"."name" ILIKE ${keyword}
-        OR "tree"."code" ILIKE ${keyword}
+      WHERE "tree"."name" ILIKE ${keyword} ESCAPE '\\'
+        OR "tree"."code" ILIKE ${keyword} ESCAPE '\\'
       ORDER BY "tree"."path_order" ASC, "tree"."id" ASC
       LIMIT ${input.pageSize}
       OFFSET ${offset}
@@ -423,14 +433,14 @@ export function buildSpaceSearchCountQuery(
   propertyId: string,
   input: SpaceSearchInput,
 ) {
-  const keyword = `%${input.keyword}%`;
+  const keyword = buildSpaceLiteralSearchPattern(input.keyword);
   const rows = sql`
     (
       ${buildSpaceTreeCte(organizationId, propertyId)}
       SELECT COUNT(*) AS "total"
       FROM "space_tree" AS "tree"
-      WHERE "tree"."name" ILIKE ${keyword}
-        OR "tree"."code" ILIKE ${keyword}
+      WHERE "tree"."name" ILIKE ${keyword} ESCAPE '\\'
+        OR "tree"."code" ILIKE ${keyword} ESCAPE '\\'
     ) AS "space_search_count_rows"
   `;
 

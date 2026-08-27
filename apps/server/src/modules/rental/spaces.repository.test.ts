@@ -6,6 +6,7 @@ import {
   buildSpaceAncestorsQuery,
   buildSpaceChildrenCountQuery,
   buildSpaceChildrenQuery,
+  buildSpaceLiteralSearchPattern,
   buildSpaceSearchCountQuery,
   buildSpaceSearchQuery,
   buildSpaceSubtreeDepthQuery,
@@ -171,6 +172,45 @@ describe("SpacesRepository recursive queries", () => {
     expect(normalizeSql(countQuery.sql)).toContain("count(*)");
     expect(countQuery.params).toEqual(
       expect.arrayContaining(["organization-1", "property-1", "%A-101%"]),
+    );
+  });
+
+  it("treats percent, underscore, and backslash as literal search text in list and count", () => {
+    const input = { keyword: "50%_\\archive", page: 1, pageSize: 10 };
+    const expectedPattern = "%50\\%\\_\\\\archive%";
+    const query = buildSpaceSearchQuery(
+      new QueryBuilder() as never,
+      "organization-1",
+      "property-1",
+      input,
+    ).toSQL();
+    const countQuery = buildSpaceSearchCountQuery(
+      new QueryBuilder() as never,
+      "organization-1",
+      "property-1",
+      input,
+    ).toSQL();
+    const sql = normalizeSql(query.sql);
+    const countSql = normalizeSql(countQuery.sql);
+
+    expect(buildSpaceLiteralSearchPattern(input.keyword)).toBe(expectedPattern);
+    expect(query.params.filter((param) => param === expectedPattern)).toHaveLength(2);
+    expect(countQuery.params.filter((param) => param === expectedPattern)).toHaveLength(2);
+    expect(sql.match(/ escape /g)).toHaveLength(2);
+    expect(countSql.match(/ escape /g)).toHaveLength(2);
+    const predicateMarker = 'where "tree"."name" ilike ';
+    const listPredicateStart = sql.lastIndexOf(predicateMarker);
+    const countPredicateStart = countSql.lastIndexOf(predicateMarker);
+    const listPredicate = sql.slice(
+      listPredicateStart,
+      sql.indexOf(" order by", listPredicateStart),
+    );
+    const countPredicate = countSql.slice(
+      countPredicateStart,
+      countSql.indexOf(" ) as", countPredicateStart),
+    );
+    expect(listPredicate.replaceAll(/\$\d+/g, "$?")).toBe(
+      countPredicate.replaceAll(/\$\d+/g, "$?"),
     );
   });
 });
