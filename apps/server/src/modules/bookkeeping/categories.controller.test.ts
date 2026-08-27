@@ -13,9 +13,9 @@ import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import { BookkeepingModule } from "./bookkeeping.module.js";
 import { CategoriesController } from "./categories.controller.js";
-import { CategoriesRepository } from "./categories.repository.js";
 import { CategoriesService } from "./categories.service.js";
 import { CategoriesPolicyService } from "./categories-policy.service.js";
+import { RentalLedgerBoundaryService } from "./rental-ledger-boundary.service.js";
 
 describe("CategoriesController", () => {
   it("protects every category route with authentication, RBAC, and its exact permission", () => {
@@ -73,15 +73,19 @@ describe("CategoriesController", () => {
     expect(service.create).toHaveBeenCalledWith(authContext, dto);
   });
 
-  it("registers the category controller/providers and exports its transaction validator repository", () => {
+  it("registers category providers and exports only the rental-ledger boundary", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, BookkeepingModule)).toContain(
       CategoriesController,
     );
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, BookkeepingModule)).toEqual(
-      expect.arrayContaining([CategoriesRepository, CategoriesPolicyService, CategoriesService]),
+      expect.arrayContaining([
+        CategoriesPolicyService,
+        CategoriesService,
+        RentalLedgerBoundaryService,
+      ]),
     );
-    expect(Reflect.getMetadata(MODULE_METADATA.EXPORTS, BookkeepingModule)).toContain(
-      CategoriesRepository,
-    );
+    expect(Reflect.getMetadata(MODULE_METADATA.EXPORTS, BookkeepingModule)).toEqual([
+      RentalLedgerBoundaryService,
+    ]);
   });
 });

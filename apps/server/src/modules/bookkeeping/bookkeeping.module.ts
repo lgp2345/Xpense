@@ -16,6 +16,7 @@ import { LedgersController } from "./ledgers.controller.js";
 import { LedgersRepository } from "./ledgers.repository.js";
 import { LedgersService } from "./ledgers.service.js";
 import { OpeningBalanceService } from "./opening-balance.service.js";
+import { RentalLedgerBoundaryService } from "./rental-ledger-boundary.service.js";
 import { StatisticsController } from "./statistics.controller.js";
 import { StatisticsRepository } from "./statistics.repository.js";
 import { StatisticsService } from "./statistics.service.js";
@@ -37,6 +38,7 @@ import { TransactionsService } from "./transactions.service.js";
     BookkeepingWriteLockRepository,
     LedgersRepository,
     LedgersService,
+    RentalLedgerBoundaryService,
     AccountsRepository,
     AccountsService,
     OpeningBalanceService,
@@ -48,6 +50,6 @@ import { TransactionsService } from "./transactions.service.js";
     StatisticsRepository,
     StatisticsService,
   ],
-  exports: [AccountsRepository, CategoriesRepository],
+  exports: [RentalLedgerBoundaryService],
 })
 export class BookkeepingModule {}

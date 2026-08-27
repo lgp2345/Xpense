@@ -37,6 +37,7 @@ export class CategoriesPolicyService {
       ? await this.repository.findActiveOwnedLedger(organizationId, ledgerId, executor)
       : await this.repository.findActiveOwnedLedger(organizationId, ledgerId);
     if (!ledger) throw this.notFound("账本不存在");
+    if (ledger.type === "rental") throw this.badRequest("租赁账本不能使用普通分类管理");
   }
 
   /** 验证父分类属于同组织、同账本、同类型且自身为根分类。 */

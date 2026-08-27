@@ -52,9 +52,9 @@ export class CategoriesRepository {
     organizationId: string,
     id: string,
     executor: AppDbExecutor = this.db,
-  ): Promise<{ id: string } | null> {
+  ): Promise<{ id: string; type: "personal" | "rental" } | null> {
     const [ledger] = await executor
-      .select({ id: ledgers.id })
+      .select({ id: ledgers.id, type: ledgers.type })
       .from(ledgers)
       .where(
         and(

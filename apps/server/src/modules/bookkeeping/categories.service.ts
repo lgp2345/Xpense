@@ -176,6 +176,11 @@ export class CategoriesService {
         transaction,
       );
       if (!category) throw this.notFound("分类不存在");
+      await this.policy.requireActiveLedger(
+        authContext.organizationId,
+        category.ledgerId,
+        transaction,
+      );
       await this.policy.assertDeletable(category, transaction);
 
       await this.repository.softDelete(

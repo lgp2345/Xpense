@@ -48,7 +48,7 @@ describe("CategoriesService", () => {
     const transaction = { kind: "transaction" };
     const repository = {
       listActive: vi.fn().mockResolvedValue([root]),
-      findActiveOwnedLedger: vi.fn().mockResolvedValue({ id: "ledger-1" }),
+      findActiveOwnedLedger: vi.fn().mockResolvedValue({ id: "ledger-1", type: "personal" }),
       findActiveOwnedCategory: vi.fn().mockResolvedValue(root),
       findActiveSiblingByName: vi.fn().mockResolvedValue(null),
       hasActiveChildren: vi.fn().mockResolvedValue(false),
@@ -125,6 +125,33 @@ describe("CategoriesService", () => {
       NotFoundException,
     );
     expect(repository.listActive).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["list", (service: CategoriesService) => service.list(authContext, { ledgerId: "ledger-1" })],
+    [
+      "create",
+      (service: CategoriesService) =>
+        service.create(authContext, { ledgerId: "ledger-1", type: "expense", name: "租赁分类" }),
+    ],
+    [
+      "update",
+      (service: CategoriesService) =>
+        service.update(authContext, { id: "category-root", name: "租赁分类" }),
+    ],
+    [
+      "delete",
+      (service: CategoriesService) => service.delete(authContext, { id: "category-root" }),
+    ],
+  ])("rejects rental ledgers for category %s without changing ordinary bookkeeping", async (_title, invoke) => {
+    const { repository, service } = createHarness();
+    repository.findActiveOwnedLedger.mockResolvedValue({ id: "ledger-1", type: "rental" });
+
+    await expect(invoke(service)).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(repository.softDelete).not.toHaveBeenCalled();
   });
 
   it.each([

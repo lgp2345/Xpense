@@ -76,7 +76,9 @@ describe("TransactionsService", () => {
         ),
     };
     const categoriesRepository = {
-      findActiveOwnedLedger: vi.fn().mockResolvedValue({ id: validInput.ledgerId }),
+      findActiveOwnedLedger: vi
+        .fn()
+        .mockResolvedValue({ id: validInput.ledgerId, type: "personal" }),
       findActiveOwnedCategory: vi.fn().mockResolvedValue({
         id: validInput.categoryId,
         organizationId: "organization-1",
@@ -237,6 +239,26 @@ describe("TransactionsService", () => {
 
     await expect(service.create(authContext, validInput)).rejects.toBeInstanceOf(NotFoundException);
     expect(repository.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["create", (service: TransactionsService) => service.create(authContext, validInput)],
+    [
+      "update",
+      (service: TransactionsService) =>
+        service.update(authContext, { id: "transaction-1", ...validInput }),
+    ],
+  ])("rejects a rental ledger after confirming ownership for transaction %s", async (_title, invoke) => {
+    const { categoriesRepository, repository, service } = createHarness();
+    categoriesRepository.findActiveOwnedLedger.mockResolvedValue({
+      id: validInput.ledgerId,
+      type: "rental",
+    });
+
+    await expect(invoke(service)).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
   });
 
   it.each([

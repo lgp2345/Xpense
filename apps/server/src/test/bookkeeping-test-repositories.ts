@@ -174,8 +174,10 @@ function createCategoriesRepository(state: BookkeepingTestState): Partial<Catego
         )
         .toSorted(compareCategories)
         .map(toCategoryTreeRecord),
-    findActiveOwnedLedger: async (organizationId, id) =>
-      findActiveLedger(state, organizationId, id) ? { id } : null,
+    findActiveOwnedLedger: async (organizationId, id) => {
+      const ledger = findActiveLedger(state, organizationId, id);
+      return ledger ? { id: ledger.id, type: ledger.type } : null;
+    },
     findActiveOwnedCategory: async (organizationId, id) =>
       findActiveCategory(state, organizationId, id),
     findActiveSiblingByName: async (input: ActiveSiblingNameInput) => {

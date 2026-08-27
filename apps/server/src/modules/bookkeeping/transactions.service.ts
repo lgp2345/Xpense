@@ -219,6 +219,7 @@ export class TransactionsService {
       executor,
     );
     if (!ledger) throw this.notFound("账本不存在");
+    if (ledger.type === "rental") throw this.badRequest("租赁账本不能使用普通交易管理");
 
     await this.validateCategory(authContext.organizationId, dto, executor);
     let movements: TransactionMovement[];
