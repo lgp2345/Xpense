@@ -18,6 +18,10 @@ import { PropertiesRepository } from "./properties.repository.js";
 import { PropertiesService } from "./properties.service.js";
 import { PropertiesPolicyService } from "./properties-policy.service.js";
 import { RentalModule } from "./rental.module.js";
+import { SpacesController } from "./spaces.controller.js";
+import { SpacesRepository } from "./spaces.repository.js";
+import { SpacesService } from "./spaces.service.js";
+import { SpacesPolicyService } from "./spaces-policy.service.js";
 
 describe("rental property controller", () => {
   it("protects every route with authentication, RBAC, and exact permissions", () => {
@@ -100,6 +104,7 @@ describe("rental property controller", () => {
   it("registers the rental feature without exporting its repositories", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, RentalModule)).toEqual([
       PropertiesController,
+      SpacesController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([
@@ -113,5 +118,111 @@ describe("rental property controller", () => {
       PropertiesRepository,
     );
     expect(Reflect.getMetadata(MODULE_METADATA.IMPORTS, AppModule)).toContain(RentalModule);
+  });
+});
+
+describe("rental space controller", () => {
+  it("protects every route with authentication, RBAC, and exact permissions", () => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, SpacesController)).toEqual([AuthGuard, RbacGuard]);
+
+    const permissions = [
+      [SpacesController.prototype.listChildren, "rental_spaces:read"],
+      [SpacesController.prototype.search, "rental_spaces:read"],
+      [SpacesController.prototype.create, "rental_spaces:create"],
+      [SpacesController.prototype.batchCreate, "rental_spaces:create"],
+      [SpacesController.prototype.update, "rental_spaces:update"],
+      [SpacesController.prototype.move, "rental_spaces:update"],
+      [SpacesController.prototype.setStatus, "rental_spaces:update"],
+      [SpacesController.prototype.delete, "rental_spaces:delete"],
+    ] as const;
+
+    for (const [handler, permission] of permissions) {
+      expect(Reflect.getMetadata(REQUIRE_PERMISSION_KEY, handler)).toBe(permission);
+    }
+  });
+
+  it("publishes the exact space paths, methods, and write status codes", () => {
+    expect(Reflect.getMetadata(PATH_METADATA, SpacesController)).toBe("rental-spaces");
+
+    const routes = [
+      [SpacesController.prototype.listChildren, "children", RequestMethod.GET, undefined],
+      [SpacesController.prototype.search, "search", RequestMethod.GET, undefined],
+      [SpacesController.prototype.create, "create", RequestMethod.POST, 200],
+      [SpacesController.prototype.batchCreate, "batch-create", RequestMethod.POST, 200],
+      [SpacesController.prototype.update, "update", RequestMethod.POST, 200],
+      [SpacesController.prototype.move, "move", RequestMethod.POST, 200],
+      [SpacesController.prototype.setStatus, "set-status", RequestMethod.POST, 200],
+      [SpacesController.prototype.delete, "delete", RequestMethod.POST, 200],
+    ] as const;
+
+    for (const [handler, path, method, status] of routes) {
+      expect(Reflect.getMetadata(PATH_METADATA, handler)).toBe(path);
+      expect(Reflect.getMetadata(METHOD_METADATA, handler)).toBe(method);
+      expect(Reflect.getMetadata(HTTP_CODE_METADATA, handler)).toBe(status);
+    }
+  });
+
+  it("delegates only trusted auth context and validated space DTOs", async () => {
+    const authContext = { organizationId: "organization-1", userId: "user-1" };
+    const children = { propertyId: "property-1", parentId: null, page: 1, pageSize: 20 };
+    const search = { propertyId: "property-1", keyword: "101", page: 1, pageSize: 20 };
+    const create = {
+      propertyId: "property-1",
+      name: "101",
+      type: "room" as const,
+      isRentable: true,
+    };
+    const batch = {
+      propertyId: "property-1",
+      type: "room" as const,
+      isRentable: true,
+      items: [{ name: "101" }],
+    };
+    const update = { id: "space-1", name: "102" };
+    const move = { id: "space-1", parentId: null, sortOrder: 1 };
+    const status = { id: "space-1", isActive: false };
+    const remove = { id: "space-1" };
+    const service = {
+      listChildren: vi.fn().mockResolvedValue({ items: [] }),
+      search: vi.fn().mockResolvedValue({ items: [] }),
+      create: vi.fn().mockResolvedValue({ id: "space-1" }),
+      batchCreate: vi.fn().mockResolvedValue({ ids: ["space-1"] }),
+      update: vi.fn().mockResolvedValue({ id: "space-1" }),
+      move: vi.fn().mockResolvedValue({ id: "space-1" }),
+      setStatus: vi.fn().mockResolvedValue({ id: "space-1" }),
+      delete: vi.fn().mockResolvedValue(undefined),
+    };
+    const controller = new SpacesController(service as never);
+
+    await controller.listChildren(authContext as never, children as never);
+    await controller.search(authContext as never, search as never);
+    await controller.create(authContext as never, create as never);
+    await controller.batchCreate(authContext as never, batch as never);
+    await controller.update(authContext as never, update as never);
+    await controller.move(authContext as never, move as never);
+    await controller.setStatus(authContext as never, status as never);
+    await controller.delete(authContext as never, remove as never);
+
+    expect(service.listChildren).toHaveBeenCalledWith(authContext, children);
+    expect(service.search).toHaveBeenCalledWith(authContext, search);
+    expect(service.create).toHaveBeenCalledWith(authContext, create);
+    expect(service.batchCreate).toHaveBeenCalledWith(authContext, batch);
+    expect(service.update).toHaveBeenCalledWith(authContext, update);
+    expect(service.move).toHaveBeenCalledWith(authContext, move);
+    expect(service.setStatus).toHaveBeenCalledWith(authContext, status);
+    expect(service.delete).toHaveBeenCalledWith(authContext, remove);
+  });
+
+  it("registers space providers without exporting repositories", () => {
+    expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, RentalModule)).toEqual([
+      PropertiesController,
+      SpacesController,
+    ]);
+    expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
+      expect.arrayContaining([SpacesRepository, SpacesPolicyService, SpacesService]),
+    );
+    expect(Reflect.getMetadata(MODULE_METADATA.EXPORTS, RentalModule) ?? []).not.toContain(
+      SpacesRepository,
+    );
   });
 });

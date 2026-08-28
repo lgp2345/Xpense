@@ -95,6 +95,27 @@ export class SpacesRepository {
     return space ?? null;
   }
 
+  /** 按可信组织解析未软删除空间的房产归属，供无 propertyId 的写 DTO 建立锁顺序。 */
+  async findActiveOwnedById(
+    organizationId: string,
+    id: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<RentalSpaceRecord | null> {
+    const [space] = await executor
+      .select(spaceRecordFields)
+      .from(rentalSpaces)
+      .where(
+        and(
+          eq(rentalSpaces.organizationId, organizationId),
+          eq(rentalSpaces.id, id),
+          isNull(rentalSpaces.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    return space ?? null;
+  }
+
   /** 在调用方事务中锁定组织与房产范围内未软删除的空间。 */
   async findActiveOwnedForUpdate(
     organizationId: string,

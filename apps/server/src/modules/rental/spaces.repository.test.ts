@@ -348,6 +348,30 @@ describe("SpacesRepository", () => {
     }
   });
 
+  it("resolves an undeleted space property only inside the trusted organization", async () => {
+    const record = { id: "space-1", organizationId: "organization-1", propertyId: "property-1" };
+    const limit = vi.fn().mockResolvedValue([record]);
+    const where = vi.fn().mockReturnValue({ limit });
+    const from = vi.fn().mockReturnValue({ where });
+    const select = vi.fn().mockReturnValue({ from });
+    const repository = new SpacesRepository({} as never);
+
+    await expect(
+      repository.findActiveOwnedById("organization-1", "space-1", { select } as never),
+    ).resolves.toEqual(record);
+
+    const condition = where.mock.calls[0]?.[0];
+    for (const reference of [
+      rentalSpaces.organizationId,
+      "organization-1",
+      rentalSpaces.id,
+      "space-1",
+      rentalSpaces.deletedAt,
+    ]) {
+      expect(containsReference(condition, reference)).toBe(true);
+    }
+  });
+
   it("checks all normalized sibling names and codes in one active-scoped query", async () => {
     const orderBy = vi.fn().mockResolvedValue([{ id: "space-2", name: "101", code: "A-101" }]);
     const where = vi.fn().mockReturnValue({ orderBy });
