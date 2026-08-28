@@ -12,7 +12,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../../services/api-client";
 import type { ListRentalPropertiesQuery, RentalApi } from "../../../services/rental-api";
-import { rentalKeys, rentalQueryOptions } from "../../../services/rental-query";
+import { rentalKeys } from "../../../services/rental-query";
+import { PropertyDetailPage } from "../spaces/property-detail-page";
 import { PropertiesPage } from "./properties-page";
 
 const property: RentalPropertySummary = {
@@ -74,14 +75,17 @@ function renderPage({
   permissions = ["rental_properties:read"] as readonly PermissionKey[],
   onSearchChange,
   onNavigate = () => undefined,
+  queryClient: providedQueryClient,
 }: {
   api?: RentalApi;
   initialSearch?: ListRentalPropertiesQuery;
   permissions?: readonly PermissionKey[];
   onSearchChange?: (value: ListRentalPropertiesQuery) => void;
   onNavigate?: (propertyId: string) => void;
+  queryClient?: QueryClient;
 } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient =
+    providedQueryClient ?? new QueryClient({ defaultOptions: { queries: { retry: false } } });
   function Harness() {
     const [search, setSearch] = useState(initialSearch);
     return (
@@ -243,24 +247,31 @@ describe("PropertiesPage", () => {
     expect((await api.getProperty(property.id)).note).toBe("保留的原始备注");
   });
 
-  it("removes the exact property detail cache after deletion so a later read observes 404", async () => {
+  it("removes a fresh property detail cache after deletion so real detail navigation observes 404", async () => {
     const user = userEvent.setup();
     const api = createApi({
       getProperty: vi.fn().mockRejectedValue(new ApiError(404, "NOT_FOUND", "missing")),
     });
-    const { queryClient } = renderPage({
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
+    });
+    renderPage({
       api,
       permissions: ["rental_properties:read", "rental_properties:delete"],
+      queryClient,
     });
     queryClient.setQueryData(rentalKeys.property("org-a", property.id), propertyWithNote);
     await screen.findByText("阳光公寓");
     await user.click(screen.getByRole("button", { name: "删除 阳光公寓" }));
     await user.click(screen.getByRole("button", { name: "确认删除" }));
     await waitFor(() => expect(api.deleteProperty).toHaveBeenCalledWith(property.id));
-    expect(queryClient.getQueryData(rentalKeys.property("org-a", property.id))).toBeUndefined();
-    await expect(
-      queryClient.fetchQuery(rentalQueryOptions.property(api, "org-a", property.id)),
-    ).rejects.toMatchObject({ status: 404 });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PropertyDetailPage api={api} organizationId="org-a" propertyId={property.id} />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("房产不存在或已被删除。")).toBeInTheDocument();
+    expect(api.getProperty).toHaveBeenCalledWith(property.id);
   });
 
   it("creates, updates, toggles status, and deletes only after server success", async () => {
