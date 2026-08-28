@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { PermissionKey } from "@xpense/shared";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -6,15 +7,18 @@ import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
 import { rentalQueryOptions } from "../../../services/rental-query";
 import { propertyAddress, propertyTypeLabel } from "../properties/property-table";
+import { SpaceTreeTable } from "./space-tree-table";
 
 /** 可独立使用的房产详情页头部；空间树会在后续任务附加到此页面。 */
 export function PropertyDetailPage({
   api,
   organizationId,
+  permissions = [],
   propertyId,
 }: {
-  api: Pick<RentalApi, "getProperty">;
+  api: Pick<RentalApi, "getProperty" | "listChildren" | "searchSpaces">;
   organizationId: string;
+  permissions?: readonly PermissionKey[];
   propertyId: string;
 }) {
   const query = useQuery(rentalQueryOptions.property(api as RentalApi, organizationId, propertyId));
@@ -82,6 +86,18 @@ export function PropertyDetailPage({
           ) : null}
         </CardContent>
       </Card>
+      {!property.isActive ? (
+        <p className="rounded-lg border border-muted-foreground/20 bg-muted p-3 text-sm text-muted-foreground">
+          此房产已停用，所属空间因上级停用而不可用。
+        </p>
+      ) : null}
+      <SpaceTreeTable
+        api={api}
+        key={`${organizationId}:${propertyId}`}
+        organizationId={organizationId}
+        permissions={permissions}
+        propertyId={propertyId}
+      />
     </main>
   );
 }

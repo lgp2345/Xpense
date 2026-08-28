@@ -506,6 +506,7 @@ function PropertyDetailPageAdapter({
 }: {
   input: RegisteredPageInput<typeof rentalPropertyDetailRoute>;
 }) {
+  const permissions = useStore(input.session.authStore, (state) => state.permissions);
   const organizationId = useStore(
     input.session.authStore,
     (state) => state.currentOrganization?.id ?? "",
@@ -515,6 +516,7 @@ function PropertyDetailPageAdapter({
     <PropertyDetailPage
       api={input.session.rentalApi}
       organizationId={organizationId}
+      permissions={permissions}
       propertyId={input.params.propertyId}
     />
   );
