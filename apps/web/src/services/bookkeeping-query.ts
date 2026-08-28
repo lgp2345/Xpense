@@ -31,8 +31,12 @@ export function normalizeTransactionQuery(
 /** 集中生成全部组织隔离的记账查询键。 */
 export const bookkeepingKeys = {
   organization: (organizationId: string) => [...bookkeepingQueryRoot, organizationId] as const,
-  ledgers: (organizationId: string) =>
+  ledgersRoot: (organizationId: string) =>
     [...bookkeepingKeys.organization(organizationId), "ledgers"] as const,
+  ledgers: (organizationId: string) =>
+    [...bookkeepingKeys.ledgersRoot(organizationId), "raw"] as const,
+  personalLedgers: (organizationId: string) =>
+    [...bookkeepingKeys.ledgersRoot(organizationId), "personal"] as const,
   accounts: (organizationId: string) =>
     [...bookkeepingKeys.organization(organizationId), "accounts"] as const,
   categoriesRoot: (organizationId: string) =>
@@ -60,6 +64,11 @@ export const bookkeepingQueryOptions = {
   ledgers: (api: BookkeepingApi, organizationId: string) =>
     queryOptions({
       queryKey: bookkeepingKeys.ledgers(organizationId),
+      queryFn: () => api.listLedgers(),
+    }),
+  personalLedgers: (api: BookkeepingApi, organizationId: string) =>
+    queryOptions({
+      queryKey: bookkeepingKeys.personalLedgers(organizationId),
       queryFn: () => api.listPersonalLedgers(),
     }),
   accounts: (api: BookkeepingApi, organizationId: string) =>

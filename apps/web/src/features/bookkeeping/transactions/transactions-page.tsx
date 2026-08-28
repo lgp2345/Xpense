@@ -39,7 +39,7 @@ export function TransactionsPage({
   const queryClient = useQueryClient();
   const [ledgersQuery, accountsQuery] = useQueries({
     queries: [
-      bookkeepingQueryOptions.ledgers(api, organizationId),
+      bookkeepingQueryOptions.personalLedgers(api, organizationId),
       bookkeepingQueryOptions.accounts(api, organizationId),
     ],
   });

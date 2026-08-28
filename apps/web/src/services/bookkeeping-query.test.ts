@@ -34,15 +34,24 @@ function createApi(overrides: Partial<BookkeepingApi> = {}): BookkeepingApi {
 }
 
 describe("bookkeeping query cache", () => {
-  it("uses the personal-ledger selection boundary for ordinary bookkeeping ledger queries", async () => {
-    const api = createApi();
+  it("keeps raw and personal ledger queries in distinct cache entries", async () => {
+    const api = createApi({
+      listLedgers: vi.fn().mockResolvedValue([{ id: "rental-1", type: "rental" }]),
+      listPersonalLedgers: vi.fn().mockResolvedValue([{ id: "personal-1", type: "personal" }]),
+    });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const options = bookkeepingQueryOptions.ledgers(api, "org-a");
+    const raw = bookkeepingQueryOptions.ledgers(api, "org-a");
+    const personal = bookkeepingQueryOptions.personalLedgers(api, "org-a");
 
-    await client.fetchQuery(options);
+    await Promise.all([client.fetchQuery(raw), client.fetchQuery(personal)]);
 
+    expect(api.listLedgers).toHaveBeenCalledOnce();
     expect(api.listPersonalLedgers).toHaveBeenCalledOnce();
-    expect(api.listLedgers).not.toHaveBeenCalled();
+    expect(raw.queryKey).not.toEqual(personal.queryKey);
+    expect(client.getQueryData(raw.queryKey)).toEqual([{ id: "rental-1", type: "rental" }]);
+    expect(client.getQueryData(personal.queryKey)).toEqual([
+      { id: "personal-1", type: "personal" },
+    ]);
   });
 
   it("deduplicates equal normalized transaction reads and isolates every key by organization", async () => {

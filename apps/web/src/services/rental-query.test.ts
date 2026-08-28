@@ -5,6 +5,7 @@ import type { RentalApi } from "./rental-api";
 import {
   clearRentalQueries,
   invalidatePropertyMutation,
+  invalidatePropertyStatusMutation,
   invalidateSpaceMutation,
   rentalKeys,
   rentalQueryOptions,
@@ -75,7 +76,8 @@ describe("rental query cache", () => {
     const organizationId = "org-a";
     const propertyId = "property-1";
     const keys = {
-      bookkeepingLedgers: bookkeepingKeys.ledgers(organizationId),
+      rawBookkeepingLedgers: bookkeepingKeys.ledgers(organizationId),
+      personalBookkeepingLedgers: bookkeepingKeys.personalLedgers(organizationId),
       children: rentalKeys.children(organizationId, {
         propertyId,
         parentId: null,
@@ -104,7 +106,8 @@ describe("rental query cache", () => {
     await invalidatePropertyMutation(client, organizationId, propertyId);
     expect(client.getQueryState(keys.properties)?.isInvalidated).toBe(true);
     expect(client.getQueryState(keys.detail)?.isInvalidated).toBe(true);
-    expect(client.getQueryState(keys.bookkeepingLedgers)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(keys.rawBookkeepingLedgers)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(keys.personalBookkeepingLedgers)?.isInvalidated).toBe(false);
     expect(client.getQueryState(keys.otherDetail)?.isInvalidated).toBe(false);
     expect(client.getQueryState(keys.children)?.isInvalidated).toBe(false);
 
@@ -112,14 +115,25 @@ describe("rental query cache", () => {
     for (const key of Object.values(keys)) client.setQueryData(key, []);
     await invalidateSpaceMutation(client, organizationId, propertyId, "space-1");
     expect(client.getQueryState(keys.properties)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(keys.detail)?.isInvalidated).toBe(true);
     expect(client.getQueryState(keys.children)?.isInvalidated).toBe(true);
     expect(client.getQueryState(keys.search)?.isInvalidated).toBe(true);
     expect(client.getQueryState(keys.space)?.isInvalidated).toBe(true);
     expect(client.getQueryState(keys.otherChildren)?.isInvalidated).toBe(false);
     expect(client.getQueryState(keys.otherDetail)?.isInvalidated).toBe(false);
 
+    client.getQueryCache().clear();
+    for (const key of Object.values(keys)) client.setQueryData(key, []);
+    await invalidatePropertyStatusMutation(client, organizationId, propertyId);
+    expect(client.getQueryState(keys.properties)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(keys.detail)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(keys.children)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(keys.search)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(keys.otherChildren)?.isInvalidated).toBe(false);
+    expect(client.getQueryState(keys.otherDetail)?.isInvalidated).toBe(false);
+
     clearRentalQueries(client);
     expect(client.getQueryState(keys.properties)).toBeUndefined();
-    expect(client.getQueryState(keys.bookkeepingLedgers)).toBeDefined();
+    expect(client.getQueryState(keys.rawBookkeepingLedgers)).toBeDefined();
   });
 });

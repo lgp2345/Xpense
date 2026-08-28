@@ -159,6 +159,7 @@ export async function invalidateSpaceMutation(
 ): Promise<void> {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: rentalKeys.propertiesListRoot(organizationId) }),
+    queryClient.invalidateQueries({ queryKey: rentalKeys.property(organizationId, propertyId) }),
     queryClient.invalidateQueries({
       queryKey: rentalKeys.childrenRoot(organizationId, propertyId),
     }),
@@ -170,5 +171,21 @@ export async function invalidateSpaceMutation(
           }),
         ]
       : []),
+  ]);
+}
+
+/** 房产启停会改变所属空间的有效启用状态，因此刷新该房产整个空间作用域。 */
+export async function invalidatePropertyStatusMutation(
+  queryClient: QueryClient,
+  organizationId: string,
+  propertyId: string,
+): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: rentalKeys.propertiesListRoot(organizationId) }),
+    queryClient.invalidateQueries({ queryKey: rentalKeys.property(organizationId, propertyId) }),
+    queryClient.invalidateQueries({
+      queryKey: rentalKeys.childrenRoot(organizationId, propertyId),
+    }),
+    queryClient.invalidateQueries({ queryKey: rentalKeys.searchRoot(organizationId, propertyId) }),
   ]);
 }

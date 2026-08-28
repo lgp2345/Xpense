@@ -44,7 +44,7 @@ export function CategoriesPage({
 }: CategoriesPageProps) {
   const queryClient = useQueryClient();
   const ledgersQuery = useQuery(
-    bookkeepingQueryOptions.ledgers(api as BookkeepingApi, organizationId),
+    bookkeepingQueryOptions.personalLedgers(api as BookkeepingApi, organizationId),
   );
   const [selectedLedgerId, setSelectedLedgerId] = useState("");
   const [type, setType] = useState<CategoryType>("expense");
