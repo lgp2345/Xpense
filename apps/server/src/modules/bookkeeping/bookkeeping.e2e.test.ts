@@ -65,6 +65,53 @@ describe("Bookkeeping e2e", () => {
     return { authorization: `Bearer ${accessToken}` };
   }
 
+  it("rejects ordinary category and transaction writes against a property rental ledger", async () => {
+    harness = await createTestApp({ bookkeeping: true, rental: true });
+    const { app } = harness;
+    const headers = await authorization(app, "13800000001");
+    const property = expectOk<{ ledgerId: string }>(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-properties/create",
+        headers,
+        payload: {
+          name: "记账边界房产",
+          type: "warehouse",
+          countryCode: "CN",
+          addressLine: "工业路 1 号",
+        },
+      }),
+    );
+
+    expectApiError(
+      await app.inject({
+        method: "POST",
+        url: "/api/categories/create",
+        headers,
+        payload: { ledgerId: property.ledgerId, type: "expense", name: "禁止普通分类" },
+      }),
+      400,
+      "VALIDATION_FAILED",
+    );
+    expectApiError(
+      await app.inject({
+        method: "POST",
+        url: "/api/transactions/create",
+        headers,
+        payload: {
+          ledgerId: property.ledgerId,
+          type: "expense",
+          accountId: bookkeepingTestIds.account,
+          categoryId: bookkeepingTestIds.expenseCategory,
+          amountMinor: 100,
+          occurredAt,
+        },
+      }),
+      400,
+      "VALIDATION_FAILED",
+    );
+  });
+
   it("owner exercises every bookkeeping interface and creates income, expense and transfer", async () => {
     const { app, state } = await createHarness();
     const headers = await authorization(app, "13800000001");

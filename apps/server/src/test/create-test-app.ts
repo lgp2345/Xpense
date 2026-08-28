@@ -33,6 +33,8 @@ import {
   type MenuSortOrderUpdate,
 } from "../modules/iam/menu.repository.js";
 import { OrganizationsRepository } from "../modules/organizations/organizations.repository.js";
+import { PropertiesRepository } from "../modules/rental/properties.repository.js";
+import { SpacesRepository } from "../modules/rental/spaces.repository.js";
 import { UserRepository } from "../modules/user/user.repository.js";
 import { TEST_CAPTCHA, TEST_PHONES, type TestAuth, testIds } from "./auth-test-helpers.js";
 import {
@@ -43,6 +45,16 @@ import {
   createBookkeepingTestState,
   createBookkeepingTransactionService,
 } from "./bookkeeping-test-harness.js";
+import {
+  cloneBookkeepingTestState,
+  restoreBookkeepingTestState,
+} from "./bookkeeping-test-state.js";
+import {
+  createRentalRepositoryFakes,
+  createRentalTestState,
+  createRentalTransactionService,
+  type RentalTestState,
+} from "./rental-test-harness.js";
 
 type TestUser = {
   id: string;
@@ -72,6 +84,28 @@ type TestRole = IamRole & {
   permissions: PermissionKey[];
 };
 
+const rentalTestRolePermissions = {
+  owner: [
+    "rental_properties:read",
+    "rental_properties:create",
+    "rental_properties:update",
+    "rental_properties:delete",
+    "rental_spaces:read",
+    "rental_spaces:create",
+    "rental_spaces:update",
+    "rental_spaces:delete",
+  ],
+  member: ["rental_properties:read", "rental_spaces:read"],
+  viewer: ["rental_properties:read", "rental_spaces:read"],
+} as const satisfies Record<"member" | "owner" | "viewer", readonly PermissionKey[]>;
+
+const testAdmin = {
+  user: "11111111-1111-4111-8111-111111111106",
+  member: "33333333-3333-4333-8333-333333333306",
+  role: "22222222-2222-4222-8222-222222222206",
+  phone: "13800000007",
+} as const;
+
 export type TestState = {
   users: Map<string, TestUser>;
   organizations: Map<string, TestOrganization>;
@@ -83,6 +117,7 @@ export type TestState = {
   /** 测试专用：令下一次审计持久化失败一次，随后自动恢复。 */
   failNextRequiredAuditAppend: boolean;
   bookkeeping: BookkeepingTestState;
+  rental: RentalTestState;
 };
 
 export type TestAppHarness = {
@@ -94,6 +129,7 @@ export type TestAppHarness = {
 export type TestAppOptions = {
   managerPermissions?: readonly PermissionKey[];
   bookkeeping?: boolean;
+  rental?: boolean;
 };
 
 export async function createTestApp(options: TestAppOptions = {}): Promise<TestAppHarness> {
@@ -101,13 +137,22 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
 
   const state = createTestState(options);
   const bookkeepingFakes = createBookkeepingRepositoryFakes(state.bookkeeping);
-  const moduleRef = await Test.createTestingModule({
+  const transactionService = options.rental
+    ? createRentalTransactionService(
+        state.rental,
+        state.bookkeeping,
+        state.auditLogs,
+        cloneBookkeepingTestState,
+        restoreBookkeepingTestState,
+      )
+    : createBookkeepingTransactionService(state.bookkeeping, state.auditLogs);
+  let moduleBuilder = Test.createTestingModule({
     imports: [AppModule],
   })
     .overrideProvider(DB)
     .useValue({})
     .overrideProvider(DatabaseTransactionService)
-    .useValue(createBookkeepingTransactionService(state.bookkeeping, state.auditLogs))
+    .useValue(transactionService)
     .overrideProvider(bookkeepingRepositoryTokens.LedgersRepository)
     .useValue(bookkeepingFakes.ledgersRepository)
     .overrideProvider(bookkeepingRepositoryTokens.AccountsRepository)
@@ -137,8 +182,19 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .overrideProvider(MenuRepository)
     .useValue(createMenuRepository(state))
     .overrideProvider(AuditRepository)
-    .useValue(createAuditRepository(state))
-    .compile();
+    .useValue(createAuditRepository(state));
+
+  if (options.rental) {
+    const rentalFakes = createRentalRepositoryFakes(state.rental, state.bookkeeping);
+    rentalFakes.extendLedgersRepository(bookkeepingFakes.ledgersRepository);
+    moduleBuilder = moduleBuilder
+      .overrideProvider(PropertiesRepository)
+      .useValue(rentalFakes.propertiesRepository)
+      .overrideProvider(SpacesRepository)
+      .useValue(rentalFakes.spacesRepository);
+  }
+
+  const moduleRef = await moduleBuilder.compile();
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   const config = app.get(ServerConfigService);
@@ -196,6 +252,7 @@ function createTestState(options: TestAppOptions): TestState {
         true,
       ),
     ],
+    [testAdmin.user, createUser(testAdmin.user, "admin@example.com", testAdmin.phone, false)],
   ]);
   const organizations = new Map<string, TestOrganization>([
     [testIds.organization, { id: testIds.organization, name: "Acme", status: "active" }],
@@ -211,31 +268,37 @@ function createTestState(options: TestAppOptions): TestState {
         "members:enable",
         "audit_logs:read",
         ...(options.bookkeeping ? bookkeepingTestRolePermissions.owner : []),
+        ...(options.rental ? rentalTestRolePermissions.owner : []),
       ]),
     ],
     [
       testIds.managerRole,
       createRole(
         testIds.managerRole,
-        options.bookkeeping ? "member" : "manager",
-        options.bookkeeping ? "Member" : "Manager",
+        options.bookkeeping || options.rental ? "member" : "manager",
+        options.bookkeeping || options.rental ? "Member" : "Manager",
         options.managerPermissions
           ? [...options.managerPermissions]
           : options.bookkeeping
-            ? [...bookkeepingTestRolePermissions.member]
-            : [
-                "roles:read",
-                "roles:create",
-                "roles:update",
-                "roles:permissions:update",
-                "menus:read",
-                "menus:create",
-                "menus:update",
-                "menus:delete",
-                "members:create",
-                "members:update",
-                "sessions:read",
-              ],
+            ? [
+                ...bookkeepingTestRolePermissions.member,
+                ...(options.rental ? rentalTestRolePermissions.member : []),
+              ]
+            : options.rental
+              ? [...rentalTestRolePermissions.member]
+              : [
+                  "roles:read",
+                  "roles:create",
+                  "roles:update",
+                  "roles:permissions:update",
+                  "menus:read",
+                  "menus:create",
+                  "menus:update",
+                  "menus:delete",
+                  "members:create",
+                  "members:update",
+                  "sessions:read",
+                ],
       ),
     ],
     [
@@ -244,8 +307,20 @@ function createTestState(options: TestAppOptions): TestState {
         testIds.viewerRole,
         "viewer",
         "Viewer",
-        options.bookkeeping ? [...bookkeepingTestRolePermissions.viewer] : ["transactions:read"],
+        options.bookkeeping || options.rental
+          ? [
+              ...(options.bookkeeping ? bookkeepingTestRolePermissions.viewer : []),
+              ...(options.rental ? rentalTestRolePermissions.viewer : []),
+            ]
+          : ["transactions:read"],
       ),
+    ],
+    [
+      testAdmin.role,
+      createRole(testAdmin.role, "admin", "Admin", [
+        ...(options.bookkeeping ? bookkeepingTestRolePermissions.owner : []),
+        ...(options.rental ? rentalTestRolePermissions.owner : []),
+      ]),
     ],
     [
       "22222222-2222-4222-8222-222222222299",
@@ -268,6 +343,7 @@ function createTestState(options: TestAppOptions): TestState {
       createMember(testIds.viewerMember, testIds.viewerUser, testIds.viewerRole),
     ],
     [testIds.superMember, createMember(testIds.superMember, testIds.superUser, testIds.viewerRole)],
+    [testAdmin.member, createMember(testAdmin.member, testAdmin.user, testAdmin.role)],
   ]);
   const menus = new Map<number, MenuRow>([
     [1, createMenu(1, "directory", "访问控制", null, null, null, 0)],
@@ -315,6 +391,7 @@ function createTestState(options: TestAppOptions): TestState {
     auditLogs: [],
     failNextRequiredAuditAppend: false,
     bookkeeping: createBookkeepingTestState(),
+    rental: createRentalTestState(),
   };
 }
 
