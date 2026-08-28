@@ -51,6 +51,10 @@ export function SpaceTreeTable({
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [draftKeyword, setDraftKeyword] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [locationResult, setLocationResult] = useState<RentalSpaceSearchResult | null>(null);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "success" | "failure">(
+    "idle",
+  );
   const rootQuery = useQuery({
     ...rentalQueryOptions.children(api as RentalApi, organizationId, {
       propertyId,
@@ -122,24 +126,34 @@ export function SpaceTreeTable({
     if (!childPage(treeRef.current, nodeId)) await loadPage(nodeId, 1);
   }
 
-  async function ensureVisible(parentId: string | null, id: string): Promise<void> {
+  async function ensureVisible(parentId: string | null, id: string): Promise<boolean> {
     while (!childPage(treeRef.current, parentId)?.items.includes(id)) {
       const loaded = childPage(treeRef.current, parentId);
       const nextPage = loaded ? loaded.page + 1 : 1;
-      if (loaded && loaded.items.length >= loaded.total) return;
-      if (!(await loadPage(parentId, nextPage))) return;
+      if (loaded && loaded.items.length >= loaded.total) return false;
+      if (!(await loadPage(parentId, nextPage))) return false;
     }
+    return true;
   }
 
   async function selectSearchResult(result: RentalSpaceSearchResult) {
+    setLocationResult(result);
+    setLocationStatus("loading");
     let parentId: string | null = null;
     for (const ancestorId of searchAncestorIds(result)) {
-      await ensureVisible(parentId, ancestorId);
+      if (!(await ensureVisible(parentId, ancestorId))) {
+        setLocationStatus("failure");
+        return;
+      }
       updateTree((current) => expandSpace(current, ancestorId));
       parentId = ancestorId;
     }
-    await ensureVisible(parentId, result.id);
+    if (!(await ensureVisible(parentId, result.id))) {
+      setLocationStatus("failure");
+      return;
+    }
     setFocusId(result.id);
+    setLocationStatus("success");
   }
 
   const root = childPage(tree, null);
@@ -174,6 +188,27 @@ export function SpaceTreeTable({
           keyword={keyword}
           onSelect={(result) => void selectSearchResult(result)}
         />
+        {locationStatus !== "idle" && locationResult ? (
+          <div aria-live="polite" className="text-sm text-muted-foreground" role="status">
+            {locationStatus === "loading" ? `正在定位空间 ${locationResult.name}...` : null}
+            {locationStatus === "success" ? `已定位到 ${locationResult.name}` : null}
+            {locationStatus === "failure" ? (
+              <>
+                定位空间失败，请重试。
+                <Button
+                  aria-label={`重试定位 ${locationResult.name}`}
+                  className="ml-2"
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() => void selectSearchResult(locationResult)}
+                >
+                  重试
+                </Button>
+              </>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       {rootQuery.isPending ? (
         <Card>
@@ -224,6 +259,44 @@ export function SpaceTreeTable({
                   rowRefs={rowRefs}
                   state={tree}
                 />
+                {errors.root ? (
+                  <TableRow>
+                    <TableCell className="text-destructive" colSpan={4}>
+                      加载更多根空间失败
+                      <Button
+                        aria-label="重试加载更多根空间"
+                        className="ml-2"
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const page = childPage(treeRef.current, null);
+                          if (page) void loadPage(null, page.page + 1);
+                        }}
+                      >
+                        重试
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+                {hasMoreChildren(tree, null) ? (
+                  <TableRow>
+                    <TableCell colSpan={4}>
+                      <Button
+                        aria-label="加载更多根空间"
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const page = childPage(treeRef.current, null);
+                          if (page) void loadPage(null, page.page + 1);
+                        }}
+                      >
+                        加载更多
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : null}
               </TableBody>
             </Table>
           </CardContent>
@@ -242,7 +315,7 @@ function TreeRows({
   state,
 }: {
   errors: Record<string, boolean>;
-  onLoadMore: (parentId: string) => void;
+  onLoadMore: (parentId: string | null) => void;
   onRetry: (parentId: string) => void;
   onToggle: (nodeId: string) => void;
   rowRefs: React.MutableRefObject<Record<string, HTMLTableRowElement | null>>;

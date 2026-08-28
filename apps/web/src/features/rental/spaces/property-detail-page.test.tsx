@@ -187,6 +187,195 @@ describe("PropertyDetailPage", () => {
       page: 1,
       pageSize: 50,
     });
+    expect(screen.getByRole("status")).toHaveTextContent("已定位到 B-101");
+  });
+
+  it("loads more root siblings without expanding any branch", async () => {
+    const user = userEvent.setup();
+    const buildingB = { ...building, id: "building-b", name: "B 座" };
+    const listChildren = vi
+      .fn()
+      .mockResolvedValueOnce({ items: [building], total: 2, page: 1, pageSize: 50 })
+      .mockResolvedValueOnce({ items: [buildingB], total: 2, page: 2, pageSize: 50 });
+    renderPage({
+      getProperty: vi.fn().mockResolvedValue(detail),
+      listChildren,
+      searchSpaces: vi.fn(),
+    });
+
+    expect(await screen.findByText("A 座")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "加载更多根空间" }));
+    expect(await screen.findByText("B 座")).toBeInTheDocument();
+    expect(listChildren).toHaveBeenCalledWith({
+      propertyId: detail.id,
+      parentId: null,
+      page: 2,
+      pageSize: 50,
+    });
+  });
+
+  it("keeps root load failures recoverable before rendering the tree", async () => {
+    const user = userEvent.setup();
+    const listChildren = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ items: [building], total: 1, page: 1, pageSize: 50 });
+    renderPage({
+      getProperty: vi.fn().mockResolvedValue(detail),
+      listChildren,
+      searchSpaces: vi.fn(),
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("加载空间失败");
+    await user.click(screen.getByRole("button", { name: "重试" }));
+    expect(await screen.findByText("A 座")).toBeInTheDocument();
+  });
+
+  it("pages through only the required root branch before locating a search target", async () => {
+    const user = userEvent.setup();
+    const buildingB = { ...building, id: "building-b", name: "B 座" };
+    const target = { ...inactiveRoom, id: "room-b-101", parentId: "building-b", name: "B-101" };
+    const listChildren = vi
+      .fn()
+      .mockImplementation(({ parentId, page }: { parentId?: string | null; page: number }) => {
+        if (parentId === null && page === 1)
+          return Promise.resolve({ items: [building], total: 2, page: 1, pageSize: 50 });
+        if (parentId === null && page === 2)
+          return Promise.resolve({ items: [buildingB], total: 2, page: 2, pageSize: 50 });
+        if (parentId === "building-b")
+          return Promise.resolve({ items: [target], total: 1, page: 1, pageSize: 50 });
+        return Promise.resolve({ items: [], total: 0, page: 1, pageSize: 50 });
+      });
+    renderPage({
+      getProperty: vi.fn().mockResolvedValue(detail),
+      listChildren,
+      searchSpaces: vi.fn().mockResolvedValue({
+        items: [
+          {
+            ...target,
+            path: [
+              { id: "building-b", name: "B 座" },
+              { id: target.id, name: target.name },
+            ],
+          },
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      }),
+    });
+
+    await screen.findByText("A 座");
+    await user.type(screen.getByLabelText("搜索空间"), "B-101");
+    await user.click(await screen.findByRole("button", { name: /B-101/ }));
+    await waitFor(() => expect(screen.getByRole("row", { name: /B-101/ })).toHaveFocus());
+    expect(listChildren).toHaveBeenCalledWith({
+      propertyId: detail.id,
+      parentId: null,
+      page: 2,
+      pageSize: 50,
+    });
+    expect(listChildren).not.toHaveBeenCalledWith({
+      propertyId: detail.id,
+      parentId: "building-a",
+      page: 1,
+      pageSize: 50,
+    });
+  });
+
+  it("stops failed ancestor pagination, announces the failure, and retries only when requested", async () => {
+    const user = userEvent.setup();
+    const buildingB = { ...building, id: "building-b", name: "B 座" };
+    const target = { ...inactiveRoom, id: "room-b-101", parentId: "building-b", name: "B-101" };
+    const listChildren = vi
+      .fn()
+      .mockResolvedValueOnce({ items: [building], total: 2, page: 1, pageSize: 50 })
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ items: [buildingB], total: 2, page: 2, pageSize: 50 })
+      .mockResolvedValueOnce({ items: [target], total: 1, page: 1, pageSize: 50 });
+    renderPage({
+      getProperty: vi.fn().mockResolvedValue(detail),
+      listChildren,
+      searchSpaces: vi.fn().mockResolvedValue({
+        items: [
+          {
+            ...target,
+            path: [
+              { id: "building-b", name: "B 座" },
+              { id: target.id, name: target.name },
+            ],
+          },
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      }),
+    });
+
+    await screen.findByText("A 座");
+    await user.type(screen.getByLabelText("搜索空间"), "B-101");
+    await user.click(await screen.findByRole("button", { name: /B-101/ }));
+    expect(await screen.findByRole("status")).toHaveTextContent("定位空间失败");
+    expect(listChildren).not.toHaveBeenCalledWith({
+      propertyId: detail.id,
+      parentId: "building-b",
+      page: 1,
+      pageSize: 50,
+    });
+    await user.click(screen.getByRole("button", { name: "重试定位 B-101" }));
+    await waitFor(() => expect(screen.getByRole("row", { name: /B-101/ })).toHaveFocus());
+  });
+
+  it("announces in-progress search positioning before the target page resolves", async () => {
+    const user = userEvent.setup();
+    const target = { ...inactiveRoom, id: "room-b-101", parentId: "building-b", name: "B-101" };
+    let resolveTarget:
+      | ((value: {
+          items: (typeof target)[];
+          total: number;
+          page: number;
+          pageSize: number;
+        }) => void)
+      | undefined;
+    const listChildren = vi
+      .fn()
+      .mockImplementation(({ parentId }: { parentId?: string | null }) => {
+        if (parentId === null)
+          return Promise.resolve({
+            items: [{ ...building, id: "building-b", name: "B 座" }],
+            total: 1,
+            page: 1,
+            pageSize: 50,
+          });
+        return new Promise((resolve) => {
+          resolveTarget = resolve;
+        });
+      });
+    renderPage({
+      getProperty: vi.fn().mockResolvedValue(detail),
+      listChildren,
+      searchSpaces: vi.fn().mockResolvedValue({
+        items: [
+          {
+            ...target,
+            path: [
+              { id: "building-b", name: "B 座" },
+              { id: target.id, name: target.name },
+            ],
+          },
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      }),
+    });
+
+    await screen.findByText("B 座");
+    await user.type(screen.getByLabelText("搜索空间"), "B-101");
+    await user.click(await screen.findByRole("button", { name: /B-101/ }));
+    expect(await screen.findByRole("status")).toHaveTextContent("正在定位空间 B-101");
+    resolveTarget?.({ items: [target], total: 1, page: 1, pageSize: 50 });
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("已定位到 B-101"));
   });
 
   it("only exposes the future space-maintenance entry to members with write permission", async () => {
