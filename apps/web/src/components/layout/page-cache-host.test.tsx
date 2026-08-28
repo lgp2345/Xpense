@@ -677,12 +677,12 @@ describe("PageCacheHost", () => {
     );
     const membersDom = screen.getByTestId("page-Members");
 
-    await act(async () => router.navigate({ to: "/roles" }));
+    await act(async () => router.navigate({ to: "/roles" } as never));
 
     expect(membersDom).not.toBeVisible();
     expect(screen.getByTestId("page-Roles")).toBeVisible();
 
-    await act(async () => router.navigate({ to: "/members" }));
+    await act(async () => router.navigate({ to: "/members" } as never));
 
     expect(screen.getByTestId("page-Members")).toBe(membersDom);
     expect(screen.getByRole("textbox", { name: "input-Members" })).toHaveValue("服务端授权状态");

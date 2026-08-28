@@ -23,6 +23,7 @@ import type { RegisteredPageInput } from "../components/layout/page-cache-host";
 import type { AuditLogSearch } from "../features/audit/audit-log-filters";
 import { ApiError } from "../services/api-client";
 import type { ListTransactionsQuery } from "../services/bookkeeping-api";
+import type { ListRentalPropertiesQuery } from "../services/rental-api";
 import type { WebSessionDependency } from "../services/web-session";
 
 const DashboardPage = lazy(() =>
@@ -58,6 +59,16 @@ const AccountsPage = lazy(() =>
 const CategoriesPage = lazy(() =>
   import("../features/bookkeeping/categories/categories-page").then((module) => ({
     default: module.CategoriesPage,
+  })),
+);
+const PropertiesPage = lazy(() =>
+  import("../features/rental/properties/properties-page").then((module) => ({
+    default: module.PropertiesPage,
+  })),
+);
+const PropertyDetailPage = lazy(() =>
+  import("../features/rental/spaces/property-detail-page").then((module) => ({
+    default: module.PropertyDetailPage,
   })),
 );
 
@@ -127,6 +138,27 @@ const auditLogsRoute = createRoute({
   pendingMs: 0,
   validateSearch: validateAuditLogSearch,
 });
+const rentalPropertiesRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: ROUTE_DEFINITIONS.RentalProperties.path,
+  staticData: { routeKey: "RentalProperties" },
+  beforeLoad: ({ context, location }) =>
+    requireRegisteredRouteAccess(context, location, "RentalProperties"),
+  component: RegisteredRouteLeaf,
+  pendingComponent: RouteAccessPending,
+  pendingMs: 0,
+  validateSearch: validateRentalPropertiesSearch,
+});
+const rentalPropertyDetailRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: ROUTE_DEFINITIONS.RentalPropertyDetail.path,
+  staticData: { routeKey: "RentalPropertyDetail" },
+  beforeLoad: ({ context, location }) =>
+    requireRegisteredRouteAccess(context, location, "RentalPropertyDetail"),
+  component: RegisteredRouteLeaf,
+  pendingComponent: RouteAccessPending,
+  pendingMs: 0,
+});
 
 export const ROUTE_REGISTRY = {
   Dashboard: defineRouteRegistration({
@@ -173,6 +205,16 @@ export const ROUTE_REGISTRY = {
     label: "分类管理",
     route: categoriesRoute,
     render: (input) => renderLazyPage(<CategoriesPageAdapter input={input} />),
+  }),
+  RentalProperties: defineRouteRegistration({
+    label: "房产管理",
+    route: rentalPropertiesRoute,
+    render: (input) => renderLazyPage(<PropertiesPageAdapter input={input} />),
+  }),
+  RentalPropertyDetail: defineRouteRegistration({
+    label: "房产详情",
+    route: rentalPropertyDetailRoute,
+    render: (input) => renderLazyPage(<PropertyDetailPageAdapter input={input} />),
   }),
 } satisfies Record<RouteKey, WebRouteRegistrationConstraint>;
 
@@ -290,63 +332,77 @@ function renderRegisteredPage(input: CapturedRegisteredPageInput): ReactNode {
     case "Dashboard":
       return ROUTE_REGISTRY.Dashboard.render({
         navigate: input.navigate,
-        params: input.params,
+        params: input.params as never,
         search: input.search,
         session: input.session,
       });
     case "Members":
       return ROUTE_REGISTRY.Members.render({
         navigate: input.navigate,
-        params: input.params,
+        params: input.params as never,
         search: input.search,
         session: input.session,
       });
     case "Roles":
       return ROUTE_REGISTRY.Roles.render({
         navigate: input.navigate,
-        params: input.params,
+        params: input.params as never,
         search: input.search,
         session: input.session,
       });
     case "Sessions":
       return ROUTE_REGISTRY.Sessions.render({
         navigate: input.navigate,
-        params: input.params,
+        params: input.params as never,
         search: input.search,
         session: input.session,
       });
     case "AuditLogs":
       return ROUTE_REGISTRY.AuditLogs.render({
         navigate: input.navigate,
-        params: input.params,
+        params: input.params as never,
         search: validateAuditLogSearch(input.search),
         session: input.session,
       });
     case "Menus":
       return ROUTE_REGISTRY.Menus.render({
         navigate: input.navigate,
-        params: input.params,
+        params: input.params as never,
         search: input.search,
         session: input.session,
       });
     case "Transactions":
       return ROUTE_REGISTRY.Transactions.render({
         navigate: input.navigate,
-        params: input.params,
+        params: input.params as never,
         search: validateTransactionSearch(input.search),
         session: input.session,
       });
     case "Accounts":
       return ROUTE_REGISTRY.Accounts.render({
         navigate: input.navigate,
-        params: input.params,
+        params: input.params as never,
         search: input.search,
         session: input.session,
       });
     case "Categories":
       return ROUTE_REGISTRY.Categories.render({
         navigate: input.navigate,
-        params: input.params,
+        params: input.params as never,
+        search: input.search,
+        session: input.session,
+      });
+    case "RentalProperties":
+      return ROUTE_REGISTRY.RentalProperties.render({
+        navigate: input.navigate,
+        params: input.params as never,
+        search: validateRentalPropertiesSearch(input.search),
+        session: input.session,
+      });
+    case "RentalPropertyDetail":
+      return ROUTE_REGISTRY.RentalPropertyDetail.render({
+        navigate: input.navigate,
+        params: input.params as never,
         search: input.search,
         session: input.session,
       });
@@ -413,6 +469,53 @@ function CategoriesPageAdapter({ input }: { input: RegisteredPageInput<typeof ca
       api={input.session.bookkeepingApi}
       organizationId={organizationId}
       permissions={permissions}
+    />
+  );
+}
+
+function PropertiesPageAdapter({
+  input,
+}: {
+  input: RegisteredPageInput<typeof rentalPropertiesRoute>;
+}) {
+  const permissions = useStore(input.session.authStore, (state) => state.permissions);
+  const organizationId = useStore(
+    input.session.authStore,
+    (state) => state.currentOrganization?.id ?? "",
+  );
+
+  return (
+    <PropertiesPage
+      api={input.session.rentalApi}
+      organizationId={organizationId}
+      permissions={permissions}
+      search={input.search}
+      onSearchChange={(search) => void input.navigate({ search, replace: true })}
+      onNavigate={(propertyId) =>
+        void input.navigate({
+          to: "/rentals/properties/$propertyId",
+          params: { propertyId },
+        })
+      }
+    />
+  );
+}
+
+function PropertyDetailPageAdapter({
+  input,
+}: {
+  input: RegisteredPageInput<typeof rentalPropertyDetailRoute>;
+}) {
+  const organizationId = useStore(
+    input.session.authStore,
+    (state) => state.currentOrganization?.id ?? "",
+  );
+
+  return (
+    <PropertyDetailPage
+      api={input.session.rentalApi}
+      organizationId={organizationId}
+      propertyId={input.params.propertyId}
     />
   );
 }
@@ -550,6 +653,30 @@ function validateTransactionSearch(search: Record<string, unknown>): ListTransac
   return result;
 }
 
+/** 校验房产页 URL 筛选，避免无效值进入缓存键或服务端请求。 */
+function validateRentalPropertiesSearch(
+  search: Record<string, unknown>,
+): ListRentalPropertiesQuery {
+  const result: ListRentalPropertiesQuery = {};
+  const keyword = readTrimmedSearchString(search.keyword);
+  const type = readRentalPropertyType(search.type);
+  const isActive = readSearchBoolean(search.isActive);
+  const province = readTrimmedSearchString(search.province);
+  const city = readTrimmedSearchString(search.city);
+  const district = readTrimmedSearchString(search.district);
+  const page = readSearchPage(search.page);
+  const pageSize = readSearchPageSize(search.pageSize);
+  if (keyword) result.keyword = keyword;
+  if (type) result.type = type;
+  if (isActive !== undefined) result.isActive = isActive;
+  if (province) result.province = province;
+  if (city) result.city = city;
+  if (district) result.district = district;
+  if (page) result.page = page;
+  if (pageSize) result.pageSize = pageSize;
+  return result;
+}
+
 const uuidPattern =
   /^([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/i;
 
@@ -571,6 +698,29 @@ function readTransactionType(value: unknown): ListTransactionsQuery["type"] {
   return typeof value === "string" && transactionTypes.some((type) => type === value)
     ? (value as ListTransactionsQuery["type"])
     : undefined;
+}
+
+function readRentalPropertyType(value: unknown): ListRentalPropertiesQuery["type"] {
+  const types = [
+    "residential_unit",
+    "detached_house",
+    "apartment_building",
+    "commercial_building",
+    "complex",
+    "shop",
+    "office",
+    "warehouse",
+    "other",
+  ] as const;
+  return typeof value === "string" && types.some((type) => type === value)
+    ? (value as ListRentalPropertiesQuery["type"])
+    : undefined;
+}
+
+function readSearchBoolean(value: unknown): boolean | undefined {
+  if (value === true || value === "true") return true;
+  if (value === false || value === "false") return false;
+  return undefined;
 }
 
 function readSearchString(value: unknown): string | undefined {

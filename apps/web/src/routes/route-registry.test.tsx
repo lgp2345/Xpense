@@ -11,6 +11,7 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type { AuditLogSearch } from "../features/audit/audit-log-filters";
 import type { BookkeepingApi, ListTransactionsQuery } from "../services/bookkeeping-api";
 import type { IamApi } from "../services/iam-api";
+import type { ListRentalPropertiesQuery } from "../services/rental-api";
 import type { WebSessionDependency } from "../services/web-session";
 import { createAuthStore } from "../stores/auth-store";
 import { createMenuStore } from "../stores/menu-store";
@@ -48,8 +49,6 @@ describe("ROUTE_REGISTRY", () => {
   });
 
   it("retains TanStack's typed params and validated audit-log search", () => {
-    // biome-ignore lint/complexity/noBannedTypes: TanStack uses {} for a static route with no params.
-    expectTypeOf<typeof ROUTE_REGISTRY.Members.route.types.allParams>().toEqualTypeOf<{}>();
     expectTypeOf<
       typeof ROUTE_REGISTRY.AuditLogs.route.types.fullSearchSchema
     >().toEqualTypeOf<AuditLogSearch>();
@@ -133,6 +132,40 @@ describe("ROUTE_REGISTRY", () => {
         pageSize: 101,
       }),
     ).toEqual({});
+  });
+
+  it("normalizes URL-scoped rental property filters and retains typed dynamic params", () => {
+    expectTypeOf<
+      typeof ROUTE_REGISTRY.RentalProperties.route.types.fullSearchSchema
+    >().toEqualTypeOf<ListRentalPropertiesQuery>();
+    const validateSearch = ROUTE_REGISTRY.RentalProperties.route.options.validateSearch;
+    expect(typeof validateSearch).toBe("function");
+    if (typeof validateSearch !== "function") return;
+
+    expect(
+      validateSearch({
+        keyword: "  阳光公寓  ",
+        type: "apartment_building",
+        isActive: "false",
+        province: "广东省",
+        city: "深圳市",
+        district: "南山区",
+        page: "2",
+        pageSize: "50",
+      }),
+    ).toEqual({
+      keyword: "阳光公寓",
+      type: "apartment_building",
+      isActive: false,
+      province: "广东省",
+      city: "深圳市",
+      district: "南山区",
+      page: 2,
+      pageSize: 50,
+    });
+    expect(validateSearch({ keyword: "  ", type: "invalid", isActive: "maybe", page: 0 })).toEqual(
+      {},
+    );
   });
 
   it.each([

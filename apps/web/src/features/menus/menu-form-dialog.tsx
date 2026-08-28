@@ -9,6 +9,7 @@ import {
   type RouteKey,
 } from "@xpense/shared";
 import {
+  Building2,
   LayoutDashboard,
   type LucideIcon,
   MonitorSmartphone,
@@ -53,6 +54,7 @@ const ROOT_PARENT_VALUE = "root";
 const NO_ICON_VALUE = "none";
 
 const ICONS: Record<MenuIconKey, LucideIcon> = {
+  Building2,
   LayoutDashboard,
   MonitorSmartphone,
   ReceiptText,

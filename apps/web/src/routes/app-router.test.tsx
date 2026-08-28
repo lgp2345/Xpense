@@ -62,6 +62,22 @@ const authorizedMenus: AuthorizedMenuNode[] = [
     keepAlive: true,
     children: [],
   },
+  {
+    id: 4,
+    parentId: null,
+    type: "menu",
+    name: "房产管理",
+    sortOrder: 3,
+    icon: "Building2",
+    isVisible: true,
+    routeKey: "RentalProperties",
+    path: "/rentals/properties",
+    url: null,
+    permissionCode: "rental_properties:read",
+    isExternal: false,
+    keepAlive: true,
+    children: [],
+  },
 ];
 
 const injectedUserContext: CurrentUserResponse = {
@@ -88,6 +104,11 @@ function createTestSession(store: ReturnType<typeof createAuthStore>) {
   const instance = axios.create();
   const mock = new MockAdapter(instance);
   mock.onGet(/\/menus$/).reply(200, { code: "OK", message: "ok", data: authorizedMenus });
+  mock.onGet(/\/rental-properties\/list/).reply(200, {
+    code: "OK",
+    message: "ok",
+    data: { items: [], total: 0, page: 1, pageSize: 20 },
+  });
   mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
 
   return createWebSession({
@@ -98,6 +119,25 @@ function createTestSession(store: ReturnType<typeof createAuthStore>) {
 }
 
 describe("AppRouter startup", () => {
+  it("renders the registered rental property route through the injected session", async () => {
+    const store = createAuthStore({ accessToken: "access-token" });
+    store.getState().setCurrentUserContext({
+      ...injectedUserContext,
+      permissions: ["rental_properties:read"],
+    });
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/rentals/properties"] }),
+      session: createTestSession(store),
+    });
+    render(
+      <AppProviders>
+        <AppRouter restoreSession={vi.fn().mockResolvedValue(true)} router={router} />
+      </AppProviders>,
+    );
+    expect(await screen.findByRole("heading", { name: "房产管理" })).toBeInTheDocument();
+    expect(await screen.findByText("当前没有房产。")).toBeInTheDocument();
+  });
+
   it("renders a registered bookkeeping route through the injected session", async () => {
     const store = createAuthStore({ accessToken: "access-token" });
     store.getState().setCurrentUserContext({
