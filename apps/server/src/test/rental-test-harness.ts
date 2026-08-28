@@ -241,10 +241,15 @@ function createSpacesRepository(state: RentalTestState): Partial<SpacesRepositor
             (space.name.toLocaleLowerCase().includes(keyword) ||
               space.code?.toLocaleLowerCase().includes(keyword)),
         )
-        .toSorted(
-          (left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name),
-        )
-        .map((space) => ({ ...toSpaceNode(state, space), path: listAncestors(state, space) }));
+        .flatMap((space) => {
+          const path = resolveReachablePath(state, organizationId, propertyId, space);
+          return path === null ? [] : [{ space, path }];
+        })
+        .toSorted((left, right) => compareSpacePaths(left.path, right.path))
+        .map(({ space, path }) => ({
+          ...toSpaceNode(state, space),
+          path: path.map(({ id, name }) => ({ id, name })),
+        }));
       const offset = (input.page - 1) * input.pageSize;
       return { items: items.slice(offset, offset + input.pageSize), total: items.length, ...input };
     },
@@ -477,6 +482,56 @@ function listAncestors(state: RentalTestState, space: RentalSpaceRecord) {
   return path;
 }
 
+/** 模拟递归 CTE：仅返回可从未删除根节点连续抵达的最多四层路径。 */
+function resolveReachablePath(
+  state: RentalTestState,
+  organizationId: string,
+  propertyId: string,
+  space: RentalSpaceRecord,
+): RentalSpaceRecord[] | null {
+  const path: RentalSpaceRecord[] = [];
+  let current: RentalSpaceRecord | undefined = space;
+  const visited = new Set<string>();
+  while (current && !visited.has(current.id)) {
+    if (
+      current.organizationId !== organizationId ||
+      current.propertyId !== propertyId ||
+      current.deletedAt !== null ||
+      path.length === 4
+    ) {
+      return null;
+    }
+    visited.add(current.id);
+    path.unshift(current);
+    current = current.parentId === null ? undefined : state.spaces.get(current.parentId);
+  }
+  return current === undefined && path[0]?.parentId === null ? path : null;
+}
+
+/** 复现 SQL 的 path_order：每一层以 sortOrder、名称、ID 决定分支顺序。 */
+function compareSpacePaths(
+  left: readonly RentalSpaceRecord[],
+  right: readonly RentalSpaceRecord[],
+): number {
+  const sharedLength = Math.min(left.length, right.length);
+  for (let index = 0; index < sharedLength; index += 1) {
+    const leftSpace = left[index];
+    const rightSpace = right[index];
+    if (!leftSpace || !rightSpace) break;
+    const order = compareSpaceOrder(leftSpace, rightSpace);
+    if (order !== 0) return order;
+  }
+  return left.length - right.length;
+}
+
+function compareSpaceOrder(left: RentalSpaceRecord, right: RentalSpaceRecord): number {
+  return (
+    left.sortOrder - right.sortOrder ||
+    left.name.localeCompare(right.name) ||
+    left.id.localeCompare(right.id)
+  );
+}
+
 function subtreeDepth(
   state: RentalTestState,
   organizationId: string,
@@ -517,6 +572,7 @@ function createPropertyRecord(input: {
   createdByUserId: string;
   createdAt: Date;
   type?: RentalPropertyRecord["type"];
+  customTypeName?: string | null;
   countryCode?: string;
   province?: string | null;
   city?: string | null;
@@ -530,7 +586,7 @@ function createPropertyRecord(input: {
     ledgerId: input.ledgerId,
     name: input.name,
     type: input.type ?? "apartment_building",
-    customTypeName: null,
+    customTypeName: input.customTypeName ?? null,
     countryCode: input.countryCode ?? "CN",
     province: input.province ?? null,
     city: input.city ?? null,

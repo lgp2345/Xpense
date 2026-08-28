@@ -116,6 +116,8 @@ export type TestState = {
   auditLogs: AuditLogRecord[];
   /** 测试专用：令下一次审计持久化失败一次，随后自动恢复。 */
   failNextRequiredAuditAppend: boolean;
+  /** 测试专用：先写入审计日志再抛错，用于验证同事务审计回滚。 */
+  failNextRequiredAuditAppendAfterPersist: boolean;
   bookkeeping: BookkeepingTestState;
   rental: RentalTestState;
 };
@@ -252,8 +254,13 @@ function createTestState(options: TestAppOptions): TestState {
         true,
       ),
     ],
-    [testAdmin.user, createUser(testAdmin.user, "admin@example.com", testAdmin.phone, false)],
   ]);
+  if (options.rental) {
+    users.set(
+      testAdmin.user,
+      createUser(testAdmin.user, "admin@example.com", testAdmin.phone, false),
+    );
+  }
   const organizations = new Map<string, TestOrganization>([
     [testIds.organization, { id: testIds.organization, name: "Acme", status: "active" }],
     [testIds.otherOrganization, { id: testIds.otherOrganization, name: "Other", status: "active" }],
@@ -316,13 +323,6 @@ function createTestState(options: TestAppOptions): TestState {
       ),
     ],
     [
-      testAdmin.role,
-      createRole(testAdmin.role, "admin", "Admin", [
-        ...(options.bookkeeping ? bookkeepingTestRolePermissions.owner : []),
-        ...(options.rental ? rentalTestRolePermissions.owner : []),
-      ]),
-    ],
-    [
       "22222222-2222-4222-8222-222222222299",
       {
         ...createRole("22222222-2222-4222-8222-222222222299", "other-manager", "Other manager", [
@@ -332,6 +332,15 @@ function createTestState(options: TestAppOptions): TestState {
       },
     ],
   ]);
+  if (options.rental) {
+    roles.set(
+      testAdmin.role,
+      createRole(testAdmin.role, "admin", "Admin", [
+        ...(options.bookkeeping ? bookkeepingTestRolePermissions.owner : []),
+        ...rentalTestRolePermissions.owner,
+      ]),
+    );
+  }
   const members = new Map<string, TestMember>([
     [testIds.ownerMember, createMember(testIds.ownerMember, testIds.ownerUser, testIds.ownerRole)],
     [
@@ -343,8 +352,10 @@ function createTestState(options: TestAppOptions): TestState {
       createMember(testIds.viewerMember, testIds.viewerUser, testIds.viewerRole),
     ],
     [testIds.superMember, createMember(testIds.superMember, testIds.superUser, testIds.viewerRole)],
-    [testAdmin.member, createMember(testAdmin.member, testAdmin.user, testAdmin.role)],
   ]);
+  if (options.rental) {
+    members.set(testAdmin.member, createMember(testAdmin.member, testAdmin.user, testAdmin.role));
+  }
   const menus = new Map<number, MenuRow>([
     [1, createMenu(1, "directory", "访问控制", null, null, null, 0)],
     [2, createMenu(2, "menu", "菜单管理", 1, "Menus", "menus:read", 10)],
@@ -390,6 +401,7 @@ function createTestState(options: TestAppOptions): TestState {
     sessions,
     auditLogs: [],
     failNextRequiredAuditAppend: false,
+    failNextRequiredAuditAppendAfterPersist: false,
     bookkeeping: createBookkeepingTestState(),
     rental: createRentalTestState(),
   };
@@ -886,6 +898,10 @@ function createAuditRepository(state: TestState): Partial<AuditRepository> {
         requestId: input.requestId ?? null,
         createdAt: new Date(),
       });
+      if (state.failNextRequiredAuditAppendAfterPersist) {
+        state.failNextRequiredAuditAppendAfterPersist = false;
+        throw new Error("Test required audit append post-persist failure");
+      }
     },
     listCurrentOrganizationLogs: async (input) =>
       state.auditLogs.filter(

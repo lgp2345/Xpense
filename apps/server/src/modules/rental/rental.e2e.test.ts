@@ -13,7 +13,8 @@ type InjectResponse = { payload: string; statusCode: number };
 
 const propertyPayload = {
   name: "阳光公寓",
-  type: "apartment_building",
+  type: "other",
+  customTypeName: "长租公寓",
   countryCode: "CN",
   province: "广东",
   city: "深圳",
@@ -34,6 +35,12 @@ function expectOk<T>(response: InjectResponse, statusCode = 200): T {
 function expectApiError(response: InjectResponse, statusCode: number, code: string): void {
   expect(response.statusCode).toBe(statusCode);
   expect(parseJson(response)).toEqual({ code, message: expect.any(String), data: null });
+}
+
+/** 断言没有业务数据的成功响应。 */
+function expectEmptyOk(response: InjectResponse): void {
+  expect(response.statusCode).toBe(200);
+  expect(parseJson(response)).toEqual({ code: "OK", message: "ok", data: null });
 }
 
 describe("Rental HTTP e2e", () => {
@@ -78,6 +85,7 @@ describe("Rental HTTP e2e", () => {
       type: "rental",
       isDefault: false,
     });
+    expect(state.rental.properties.get(property.id)?.customTypeName).toBe("长租公寓");
 
     const root = expectOk<{ id: string }>(
       await app.inject({
@@ -213,7 +221,7 @@ describe("Rental HTTP e2e", () => {
     );
   });
 
-  it("rejects duplicate batches atomically and reports deletion conflicts", async () => {
+  it("rejects duplicate batches before writing and restores a batch after audit persistence fails", async () => {
     const { app, state } = await createHarness();
     const headers = await authorization(app, "13800000001");
     const property = await createProperty(headers);
@@ -255,6 +263,34 @@ describe("Rental HTTP e2e", () => {
         },
       }),
     );
+    const spaceEntriesBeforeAuditFailure = [...state.rental.spaces.entries()].map(([id, space]) => [
+      id,
+      { ...space },
+    ]);
+    const nextSpaceIdBeforeAuditFailure = state.rental.nextSpaceId;
+    const auditEntriesBeforeAuditFailure = state.auditLogs.map((audit) => ({ ...audit }));
+    state.failNextRequiredAuditAppendAfterPersist = true;
+    expectApiError(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-spaces/batch-create",
+        headers,
+        payload: {
+          propertyId: property.id,
+          parentId: parent.id,
+          type: "room",
+          isRentable: true,
+          items: [{ name: "201" }, { name: "202" }],
+        },
+      }),
+      500,
+      "INTERNAL_ERROR",
+    );
+    expect([...state.rental.spaces.entries()]).toEqual(spaceEntriesBeforeAuditFailure);
+    expect(state.rental.nextSpaceId).toBe(nextSpaceIdBeforeAuditFailure);
+    expect(state.auditLogs).toEqual(auditEntriesBeforeAuditFailure);
+    expect(state.failNextRequiredAuditAppendAfterPersist).toBe(false);
+
     const batch = expectOk<{ ids: string[] }>(
       await app.inject({
         method: "POST",
@@ -270,6 +306,49 @@ describe("Rental HTTP e2e", () => {
       }),
     );
     expect(batch.ids).toHaveLength(2);
+  });
+
+  it("updates, moves and deletes spaces before soft-deleting the renamed property and rental ledger", async () => {
+    const { app, state } = await createHarness();
+    const headers = await authorization(app, "13800000001");
+    const property = await createProperty(headers);
+    const renamed = expectOk<RentalPropertyDetail>(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-properties/update",
+        headers,
+        payload: { id: property.id, name: "阳光公寓二期" },
+      }),
+    );
+    expect(renamed.name).toBe("阳光公寓二期");
+    expect(state.bookkeeping.ledgers.get(property.ledgerId)?.name).toBe("阳光公寓二期");
+
+    const left = expectOk<{ id: string }>(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-spaces/create",
+        headers,
+        payload: {
+          propertyId: property.id,
+          name: "左楼",
+          type: "building",
+          isRentable: false,
+        },
+      }),
+    );
+    const right = expectOk<{ id: string }>(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-spaces/create",
+        headers,
+        payload: {
+          propertyId: property.id,
+          name: "右楼",
+          type: "building",
+          isRentable: false,
+        },
+      }),
+    );
     const child = expectOk<{ id: string }>(
       await app.inject({
         method: "POST",
@@ -277,34 +356,69 @@ describe("Rental HTTP e2e", () => {
         headers,
         payload: {
           propertyId: property.id,
-          parentId: parent.id,
+          parentId: left.id,
           name: "101",
           type: "room",
           isRentable: true,
         },
       }),
     );
-    expectApiError(
+    expectOk<{ id: string }>(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-spaces/update",
+        headers,
+        payload: { id: child.id, name: "101A", code: "A-101" },
+      }),
+    );
+    expect(state.rental.spaces.get(child.id)).toMatchObject({ name: "101A", code: "A-101" });
+    expectOk<{ id: string }>(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-spaces/move",
+        headers,
+        payload: { id: child.id, parentId: right.id, sortOrder: 20 },
+      }),
+    );
+    expect(state.rental.spaces.get(child.id)).toMatchObject({ parentId: right.id, sortOrder: 20 });
+    expectEmptyOk(
       await app.inject({
         method: "POST",
         url: "/api/rental-spaces/delete",
         headers,
-        payload: { id: parent.id },
+        payload: { id: child.id },
       }),
-      409,
-      "CONFLICT",
     );
-    expect(state.rental.spaces.get(child.id)?.deletedAt).toBeNull();
-    expectApiError(
+    expect(state.rental.spaces.get(child.id)?.deletedAt).toBeInstanceOf(Date);
+    expectEmptyOk(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-spaces/delete",
+        headers,
+        payload: { id: left.id },
+      }),
+    );
+    expectEmptyOk(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-spaces/delete",
+        headers,
+        payload: { id: right.id },
+      }),
+    );
+    expectEmptyOk(
       await app.inject({
         method: "POST",
         url: "/api/rental-properties/delete",
         headers,
         payload: { id: property.id },
       }),
-      409,
-      "CONFLICT",
     );
+    expect(state.rental.properties.get(property.id)?.deletedAt).toBeInstanceOf(Date);
+    expect(state.bookkeeping.ledgers.get(property.ledgerId)).toMatchObject({
+      name: "阳光公寓二期",
+      deletedAt: expect.any(Date),
+    });
   });
 
   it("keeps member and viewer rental access read-only while allowing administrator writes", async () => {
@@ -365,6 +479,122 @@ describe("Rental HTTP e2e", () => {
     }
   });
 
+  it("searches only root-reachable active paths in deterministic branch order and pages them", async () => {
+    const { app, state } = await createHarness();
+    const headers = await authorization(app, "13800000001");
+    const property = await createProperty(headers);
+    const rootA = expectOk<{ id: string }>(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-spaces/create",
+        headers,
+        payload: {
+          propertyId: property.id,
+          name: "A 楼",
+          type: "building",
+          isRentable: false,
+          sortOrder: 10,
+        },
+      }),
+    );
+    const rootB = expectOk<{ id: string }>(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-spaces/create",
+        headers,
+        payload: {
+          propertyId: property.id,
+          name: "B 楼",
+          type: "building",
+          isRentable: false,
+          sortOrder: 20,
+        },
+      }),
+    );
+    const rootC = expectOk<{ id: string }>(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-spaces/create",
+        headers,
+        payload: {
+          propertyId: property.id,
+          name: "C 楼",
+          type: "building",
+          isRentable: false,
+          sortOrder: 30,
+        },
+      }),
+    );
+    const createMatch = async (parentId: string, name: string, sortOrder: number) =>
+      expectOk<{ id: string }>(
+        await app.inject({
+          method: "POST",
+          url: "/api/rental-spaces/create",
+          headers,
+          payload: {
+            propertyId: property.id,
+            parentId,
+            name,
+            type: "room",
+            isRentable: true,
+            sortOrder,
+          },
+        }),
+      );
+    const aSecond = await createMatch(rootA.id, "匹配 A2", 20);
+    const aFirst = await createMatch(rootA.id, "匹配 A1", 10);
+    const bFirst = await createMatch(rootB.id, "匹配 B1", 10);
+    const orphan = await createMatch(rootB.id, "匹配历史孤儿", 20);
+    const cFirst = await createMatch(rootC.id, "匹配 C1", 10);
+    const deletedRoot = state.rental.spaces.get(rootB.id);
+    if (!deletedRoot) throw new Error("Expected test root to exist");
+    state.rental.spaces.set(rootB.id, { ...deletedRoot, deletedAt: new Date() });
+
+    const firstPage = expectOk<RentalSpaceSearchPage>(
+      await app.inject({
+        method: "GET",
+        url: `/api/rental-spaces/search?propertyId=${property.id}&keyword=%E5%8C%B9%E9%85%8D&page=1&pageSize=2`,
+        headers,
+      }),
+    );
+    expect(firstPage).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+    expect(firstPage.items).toEqual([
+      expect.objectContaining({
+        id: aFirst.id,
+        path: [
+          { id: rootA.id, name: "A 楼" },
+          { id: aFirst.id, name: "匹配 A1" },
+        ],
+      }),
+      expect.objectContaining({
+        id: aSecond.id,
+        path: [
+          { id: rootA.id, name: "A 楼" },
+          { id: aSecond.id, name: "匹配 A2" },
+        ],
+      }),
+    ]);
+    expect(firstPage.items.map((item) => item.id)).not.toContain(bFirst.id);
+    expect(firstPage.items.map((item) => item.id)).not.toContain(orphan.id);
+    const secondPage = expectOk<RentalSpaceSearchPage>(
+      await app.inject({
+        method: "GET",
+        url: `/api/rental-spaces/search?propertyId=${property.id}&keyword=%E5%8C%B9%E9%85%8D&page=2&pageSize=2`,
+        headers,
+      }),
+    );
+    expect(secondPage).toMatchObject({ total: 3, page: 2, pageSize: 2 });
+    expect(secondPage.items).toEqual([
+      expect.objectContaining({
+        id: cFirst.id,
+        path: [
+          { id: rootC.id, name: "C 楼" },
+          { id: cFirst.id, name: "匹配 C1" },
+        ],
+      }),
+    ]);
+  });
+
   it("restores generated ledger, property, spaces and audit state when required audit fails", async () => {
     const { app, state } = await createHarness();
     const headers = await authorization(app, "13800000001");
@@ -372,7 +602,7 @@ describe("Rental HTTP e2e", () => {
     const propertyCount = state.rental.properties.size;
     const spaceCount = state.rental.spaces.size;
     const auditCount = state.auditLogs.length;
-    state.failNextRequiredAuditAppend = true;
+    state.failNextRequiredAuditAppendAfterPersist = true;
 
     expectApiError(
       await app.inject({
@@ -388,6 +618,6 @@ describe("Rental HTTP e2e", () => {
     expect(state.rental.properties).toHaveLength(propertyCount);
     expect(state.rental.spaces).toHaveLength(spaceCount);
     expect(state.auditLogs).toHaveLength(auditCount);
-    expect(state.failNextRequiredAuditAppend).toBe(false);
+    expect(state.failNextRequiredAuditAppendAfterPersist).toBe(false);
   });
 });
