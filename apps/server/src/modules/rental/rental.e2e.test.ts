@@ -381,6 +381,26 @@ describe("Rental HTTP e2e", () => {
       }),
     );
     expect(state.rental.spaces.get(child.id)).toMatchObject({ parentId: right.id, sortOrder: 20 });
+    expectApiError(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-spaces/delete",
+        headers,
+        payload: { id: right.id },
+      }),
+      409,
+      "CONFLICT",
+    );
+    expectApiError(
+      await app.inject({
+        method: "POST",
+        url: "/api/rental-properties/delete",
+        headers,
+        payload: { id: property.id },
+      }),
+      409,
+      "CONFLICT",
+    );
     expectEmptyOk(
       await app.inject({
         method: "POST",
