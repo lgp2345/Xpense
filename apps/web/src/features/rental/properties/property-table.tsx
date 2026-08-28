@@ -1,4 +1,4 @@
-import type { RentalPropertyDetail, RentalPropertySummary } from "@xpense/shared";
+import type { RentalPropertySummary } from "@xpense/shared";
 
 import {
   AlertDialog,
@@ -102,7 +102,7 @@ export function PropertyTable({
                     <div className="flex justify-end gap-2">
                       {canUpdate ? (
                         <>
-                          <PropertyFormDialog property={toDetail(property)} onUpdate={onUpdate} />
+                          <PropertyFormDialog property={property} onUpdate={onUpdate} />
                           <Button
                             aria-label={`${property.isActive ? "停用" : "启用"} ${property.name}`}
                             size="sm"
@@ -188,7 +188,4 @@ export function spaceSummary(
 }
 function StatusBadge({ active }: { active: boolean }) {
   return <Badge variant={active ? "default" : "secondary"}>{active ? "启用" : "停用"}</Badge>;
-}
-function toDetail(property: RentalPropertySummary): RentalPropertyDetail {
-  return { ...property, note: null, createdAt: property.updatedAt };
 }

@@ -1,4 +1,4 @@
-import type { RentalPropertyDetail, RentalPropertySummary } from "@xpense/shared";
+import type { RentalPropertySummary } from "@xpense/shared";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -63,7 +63,7 @@ export function PropertyCards({
               <div className="flex flex-wrap gap-2">
                 {canUpdate ? (
                   <>
-                    <PropertyFormDialog property={toDetail(property)} onUpdate={onUpdate} />
+                    <PropertyFormDialog property={property} onUpdate={onUpdate} />
                     <button
                       type="button"
                       aria-label={`${property.isActive ? "停用" : "启用"} ${property.name}`}
@@ -88,7 +88,4 @@ export function PropertyCards({
       ))}
     </div>
   );
-}
-function toDetail(property: RentalPropertySummary): RentalPropertyDetail {
-  return { ...property, note: null, createdAt: property.updatedAt };
 }

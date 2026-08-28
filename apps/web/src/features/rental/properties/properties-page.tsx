@@ -15,6 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ApiError } from "../../../services/api-client";
 import type { ListRentalPropertiesQuery, RentalApi } from "../../../services/rental-api";
 import {
+  invalidateDeletedPropertyMutation,
   invalidatePropertyMutation,
   invalidatePropertyStatusMutation,
   normalizeRentalPropertiesQuery,
@@ -65,7 +66,8 @@ export function PropertiesPage({
   });
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteProperty(id),
-    onSuccess: () => invalidatePropertyMutation(queryClient, organizationId),
+    onSuccess: (_, propertyId) =>
+      invalidateDeletedPropertyMutation(queryClient, organizationId, propertyId),
   });
   const items = propertiesQuery.data?.items ?? [];
   const canCreate = permissions.includes("rental_properties:create");

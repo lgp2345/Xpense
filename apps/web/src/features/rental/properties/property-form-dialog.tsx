@@ -2,6 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import type {
   CreateRentalPropertyRequest,
   RentalPropertyDetail,
+  RentalPropertySummary,
   UpdateRentalPropertyRequest,
 } from "@xpense/shared";
 import { useState } from "react";
@@ -46,7 +47,7 @@ const propertyTypeOptions = [
 ] as const;
 
 type PropertyFormDialogProps = {
-  property?: RentalPropertyDetail;
+  property?: RentalPropertySummary | RentalPropertyDetail;
   onCreate?: (input: CreateRentalPropertyRequest) => Promise<void>;
   onUpdate?: (input: UpdateRentalPropertyRequest) => Promise<void>;
 };
@@ -202,8 +203,14 @@ function usePropertyForm({
       if (!parsed.success) return;
       setSubmitError(null);
       try {
-        if (property && onUpdate) await onUpdate(toUpdatePropertyRequest(property.id, parsed.data));
-        else if (onCreate) await onCreate(toCreatePropertyRequest(parsed.data));
+        if (property && onUpdate) {
+          const input = toUpdatePropertyRequest(
+            property.id,
+            parsed.data,
+            propertyFormDefaults(property),
+          );
+          if (input) await onUpdate(input);
+        } else if (onCreate) await onCreate(toCreatePropertyRequest(parsed.data));
         setOpen(false);
         form.reset();
       } catch {

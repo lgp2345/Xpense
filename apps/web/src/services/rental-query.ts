@@ -150,6 +150,20 @@ export async function invalidatePropertyMutation(
   ]);
 }
 
+/** 删除房产后移除其详情与空间作用域，避免后续导航复用已删除的缓存。 */
+export async function invalidateDeletedPropertyMutation(
+  queryClient: QueryClient,
+  organizationId: string,
+  propertyId: string,
+): Promise<void> {
+  queryClient.removeQueries({ queryKey: rentalKeys.property(organizationId, propertyId) });
+  queryClient.removeQueries({ queryKey: rentalKeys.spacesRoot(organizationId, propertyId) });
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: rentalKeys.propertiesListRoot(organizationId) }),
+    queryClient.invalidateQueries({ queryKey: bookkeepingKeys.ledgers(organizationId) }),
+  ]);
+}
+
 /** 空间写成功后只刷新该房产的树、搜索、计数和受影响节点详情。 */
 export async function invalidateSpaceMutation(
   queryClient: QueryClient,

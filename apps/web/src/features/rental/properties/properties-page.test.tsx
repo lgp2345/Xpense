@@ -1,12 +1,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { PermissionKey, RentalPropertyPage, RentalPropertySummary } from "@xpense/shared";
+import type {
+  PermissionKey,
+  RentalPropertyDetail,
+  RentalPropertyPage,
+  RentalPropertySummary,
+} from "@xpense/shared";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../../services/api-client";
 import type { ListRentalPropertiesQuery, RentalApi } from "../../../services/rental-api";
+import { rentalKeys, rentalQueryOptions } from "../../../services/rental-query";
 import { PropertiesPage } from "./properties-page";
 
 const property: RentalPropertySummary = {
@@ -29,6 +35,12 @@ const property: RentalPropertySummary = {
 function page(items: RentalPropertySummary[] = [property]): RentalPropertyPage {
   return { items, total: items.length, page: 1, pageSize: 20 };
 }
+
+const propertyWithNote: RentalPropertyDetail = {
+  ...property,
+  note: "保留的原始备注",
+  createdAt: "2026-08-01T00:00:00.000Z",
+};
 
 function createApi(overrides: Partial<RentalApi> = {}): RentalApi {
   return {
@@ -86,11 +98,14 @@ function renderPage({
       />
     );
   }
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <Harness />
-    </QueryClientProvider>,
-  );
+  return {
+    queryClient,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <Harness />
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 describe("PropertiesPage", () => {
@@ -148,7 +163,7 @@ describe("PropertiesPage", () => {
     expect(screen.getByText("共 12 个空间，可出租 10 个")).toBeInTheDocument();
   });
 
-  it("renders accessible summary cards on a narrow screen", async () => {
+  it("renders viewer-safe, user-visible summary cards on a narrow screen", async () => {
     const originalMatchMedia = window.matchMedia;
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
@@ -164,8 +179,88 @@ describe("PropertiesPage", () => {
       }),
     });
     renderPage();
-    expect(await screen.findByTestId("property-cards")).toBeInTheDocument();
+    const cards = await screen.findByTestId("property-cards");
+    expect(cards).toHaveTextContent("阳光公寓");
+    expect(cards).toHaveTextContent("公寓楼");
+    expect(cards).toHaveTextContent("广东省 深圳市 南山区 科技园路 88 号");
+    expect(cards).toHaveTextContent("共 12 个空间，可出租 10 个");
+    expect(cards).toHaveTextContent("启用");
+    expect(screen.getByRole("link", { name: "阳光公寓" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "编辑 阳光公寓" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "停用 阳光公寓" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "删除 阳光公寓" })).not.toBeInTheDocument();
     Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
+  });
+
+  it("shows editable mobile card actions only to authorized users", async () => {
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (query: string): MediaQueryList => ({
+        matches: query === "(max-width: 767px)",
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      }),
+    });
+    renderPage({
+      permissions: [
+        "rental_properties:read",
+        "rental_properties:update",
+        "rental_properties:delete",
+      ],
+    });
+    await screen.findByTestId("property-cards");
+    expect(screen.getByRole("button", { name: "编辑 阳光公寓" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "停用 阳光公寓" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "删除 阳光公寓" })).toBeInTheDocument();
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
+  });
+
+  it("preserves an existing note when an edit changes only the name", async () => {
+    const user = userEvent.setup();
+    let stored = propertyWithNote;
+    const api = createApi({
+      updateProperty: vi.fn(async (input) => {
+        stored = { ...stored, ...input };
+        return stored;
+      }),
+      getProperty: vi.fn(async () => stored),
+    });
+    renderPage({ api, permissions: ["rental_properties:read", "rental_properties:update"] });
+    await screen.findByText("阳光公寓");
+    await user.click(screen.getByRole("button", { name: "编辑 阳光公寓" }));
+    const name = screen.getByRole("textbox", { name: "房产名称" });
+    await user.clear(name);
+    await user.type(name, "阳光公寓二期");
+    await user.click(screen.getByRole("button", { name: "保存房产" }));
+    await waitFor(() => expect(api.updateProperty).toHaveBeenCalledOnce());
+    expect(api.updateProperty).toHaveBeenCalledWith({ id: property.id, name: "阳光公寓二期" });
+    expect((await api.getProperty(property.id)).note).toBe("保留的原始备注");
+  });
+
+  it("removes the exact property detail cache after deletion so a later read observes 404", async () => {
+    const user = userEvent.setup();
+    const api = createApi({
+      getProperty: vi.fn().mockRejectedValue(new ApiError(404, "NOT_FOUND", "missing")),
+    });
+    const { queryClient } = renderPage({
+      api,
+      permissions: ["rental_properties:read", "rental_properties:delete"],
+    });
+    queryClient.setQueryData(rentalKeys.property("org-a", property.id), propertyWithNote);
+    await screen.findByText("阳光公寓");
+    await user.click(screen.getByRole("button", { name: "删除 阳光公寓" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+    await waitFor(() => expect(api.deleteProperty).toHaveBeenCalledWith(property.id));
+    expect(queryClient.getQueryData(rentalKeys.property("org-a", property.id))).toBeUndefined();
+    await expect(
+      queryClient.fetchQuery(rentalQueryOptions.property(api, "org-a", property.id)),
+    ).rejects.toMatchObject({ status: 404 });
   });
 
   it("creates, updates, toggles status, and deletes only after server success", async () => {
