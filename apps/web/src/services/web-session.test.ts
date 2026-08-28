@@ -184,6 +184,7 @@ describe("web session", () => {
       .onPost(/\/auth\/refresh$/)
       .reply(200, { code: "OK", message: "ok", data: { accessToken: "restored-access" } });
     mock.onGet(/\/user$/).reply(200, { code: "OK", message: "ok", data: currentUserContext });
+    mock.onGet(/\/rental-properties\/list$/).reply(200, { code: "OK", message: "ok", data: [] });
     mock.onGet(/\/ledgers\/list$/).reply((config) => {
       const headers = config.headers as AxiosHeaders | Record<string, unknown> | undefined;
       const authorization =
@@ -204,9 +205,14 @@ describe("web session", () => {
 
     expect(session.authStore).toBe(store);
     expect(session.bookkeepingApi).toBeDefined();
+    expect(session.rentalApi).toBeDefined();
     await expect(session.restoreSession()).resolves.toBe(true);
     await expect(session.bookkeepingApi.listLedgers()).resolves.toEqual([]);
+    await expect(session.rentalApi.listProperties()).resolves.toEqual([]);
     expect(mock.history.get.filter(({ url }) => url?.endsWith("/ledgers/list"))).toHaveLength(1);
+    expect(
+      mock.history.get.filter(({ url }) => url?.endsWith("/rental-properties/list")),
+    ).toHaveLength(1);
     expect(store.getState()).toMatchObject({
       accessToken: "restored-access",
       currentUser: currentUserContext.user,

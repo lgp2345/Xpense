@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -12,9 +13,10 @@ import MockAdapter from "axios-mock-adapter";
 import { describe, expect, it, vi } from "vitest";
 
 import { AppProviders } from "../components/app-providers";
+import { rentalKeys } from "../services/rental-query";
 import { createWebSession, type WebSessionDependency } from "../services/web-session";
 import { createAuthStore } from "../stores/auth-store";
-import { createAppRouter } from "./router";
+import { AppRouter, createAppRouter } from "./router";
 
 const routePermissions = {
   Dashboard: "dashboard:read",
@@ -129,6 +131,38 @@ function renderRouter(router: ReturnType<typeof createAppRouter>) {
 }
 
 describe("router auth and menu guards", () => {
+  it("removes rental cache data when an authenticated organization changes or logs out", async () => {
+    const harness = await createReadySession([], createAuthenticatedStore());
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/foundation"] }),
+      session: harness.session,
+    });
+    const queryClient = new QueryClient();
+    const propertyKey = rentalKeys.properties("org-1", { page: 1, pageSize: 20 });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AppRouter router={router} restoreSession={async () => true} />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("最小工程闭环");
+    queryClient.setQueryData(propertyKey, []);
+
+    harness.store.setState((state) => ({
+      ...state,
+      currentOrganization: { id: "org-2", name: "家庭账本" },
+    }));
+    await waitFor(() => expect(queryClient.getQueryState(propertyKey)).toBeUndefined());
+
+    queryClient.setQueryData(rentalKeys.properties("org-2", { page: 1, pageSize: 20 }), []);
+    harness.store.getState().clearAuth();
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryState(rentalKeys.properties("org-2", { page: 1, pageSize: 20 })),
+      ).toBeUndefined(),
+    );
+  });
+
   it("redirects unauthenticated registered routes to login before rendering", async () => {
     const instance = axios.create();
     const mock = new MockAdapter(instance);

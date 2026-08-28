@@ -28,7 +28,7 @@ import { CategoryTreeTable } from "./category-tree-table";
 
 type CategoriesApi = Pick<
   BookkeepingApi,
-  "listLedgers" | "listCategories" | "createCategory" | "updateCategory" | "deleteCategory"
+  "listPersonalLedgers" | "listCategories" | "createCategory" | "updateCategory" | "deleteCategory"
 >;
 type CategoriesPageProps = {
   api?: CategoriesApi;

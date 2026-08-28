@@ -12,6 +12,7 @@ import { ApiError, createApiClient } from "./api-client";
 import { type AuthApi, createAuthApi, type LoginRequest, type UserOrganization } from "./auth-api";
 import { type BookkeepingApi, createBookkeepingApi } from "./bookkeeping-api";
 import { createIamApi, type IamApi } from "./iam-api";
+import { createRentalApi, type RentalApi } from "./rental-api";
 
 export type SessionAuthApi = {
   getCurrentUser: () => Promise<CurrentUserResponse>;
@@ -33,6 +34,7 @@ export type WebSessionDependency = {
   bookkeepingApi: BookkeepingApi;
   iamApi: IamApi;
   menuStore: MenuStoreApi;
+  rentalApi: RentalApi;
   restoreSession: () => Promise<boolean>;
 };
 
@@ -374,6 +376,7 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
   const authApi = createAuthApi(apiClient);
   const bookkeepingApi = createBookkeepingApi(apiClient);
   const iamApi = createIamApi(apiClient);
+  const rentalApi = createRentalApi(apiClient);
   const menuBootstrap = { iamApi, menuStore: sessionMenuStore };
   bindMenuBootstrap(options.authStore, menuBootstrap);
 
@@ -383,6 +386,7 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
     bookkeepingApi,
     iamApi,
     menuStore: sessionMenuStore,
+    rentalApi,
     restoreSession: () => restoreWebSession(authApi, options.authStore, menuBootstrap),
   };
 }
@@ -395,6 +399,7 @@ export const webSession = createWebSession({
 export const webAuthApi = webSession.authApi;
 export const webBookkeepingApi = webSession.bookkeepingApi;
 export const webIamApi = webSession.iamApi;
+export const webRentalApi = webSession.rentalApi;
 
 export function restoreCurrentWebSession(): Promise<boolean> {
   return webSession.restoreSession();

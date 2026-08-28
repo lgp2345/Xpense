@@ -82,6 +82,10 @@ export type MonthlyStatisticsQuery = {
 export function createBookkeepingApi(client: ApiClient) {
   return {
     listLedgers: () => client.get<LedgerSummary[]>("/ledgers/list"),
+    listPersonalLedgers: async () => {
+      const ledgers = await client.get<LedgerSummary[]>("/ledgers/list");
+      return ledgers.filter((ledger) => ledger.type === "personal");
+    },
     listAccounts: () => client.get<AccountSummary[]>("/accounts/list"),
     createAccount: (input: CreateAccountRequest) =>
       client.post<AccountSummary>("/accounts/create", input),

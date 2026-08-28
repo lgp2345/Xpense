@@ -108,6 +108,7 @@ function page(items: TransactionRecord[] = [transaction]): TransactionPage {
 function createApi(overrides: Partial<BookkeepingApi> = {}): BookkeepingApi {
   return {
     listLedgers: vi.fn().mockResolvedValue([ledger]),
+    listPersonalLedgers: vi.fn().mockResolvedValue([ledger]),
     listAccounts: vi.fn().mockResolvedValue([account, destinationAccount]),
     listCategories: vi.fn().mockResolvedValue([expenseCategory, incomeCategory]),
     listTransactions: vi.fn().mockResolvedValue(page()),
@@ -181,6 +182,19 @@ function renderPage({
 }
 
 describe("TransactionsPage", () => {
+  it("loads transaction ledger choices through the personal-ledger boundary", async () => {
+    const api = createApi({
+      listLedgers: vi.fn().mockRejectedValue(new Error("raw ledgers")),
+      listTransactions: vi.fn().mockResolvedValue(page([])),
+    });
+
+    renderPage({ api });
+
+    expect(await screen.findByText("没有符合条件的交易。")).toBeInTheDocument();
+    expect(api.listPersonalLedgers).toHaveBeenCalledOnce();
+    expect(api.listLedgers).not.toHaveBeenCalled();
+  });
+
   it("shows transaction timestamps in browser-local time across a UTC+8 date boundary", () => {
     expect(formatTransactionDate("2026-08-23T16:30:00.000Z", -480)).toBe("2026-08-24 00:30");
   });
@@ -192,7 +206,7 @@ describe("TransactionsPage", () => {
     const categories = deferred<CategoryNode[]>();
     const api = createApi({
       listTransactions: vi.fn(() => transactions.promise),
-      listLedgers: vi.fn(() => ledgers.promise),
+      listPersonalLedgers: vi.fn(() => ledgers.promise),
       listAccounts: vi.fn(() => accounts.promise),
       listCategories: vi.fn(() => categories.promise),
     });
@@ -201,7 +215,7 @@ describe("TransactionsPage", () => {
 
     expect(screen.getByText("正在加载交易...")).toBeInTheDocument();
     expect(api.listTransactions).toHaveBeenCalledOnce();
-    expect(api.listLedgers).toHaveBeenCalledOnce();
+    expect(api.listPersonalLedgers).toHaveBeenCalledOnce();
     expect(api.listAccounts).toHaveBeenCalledOnce();
     expect(api.listCategories).toHaveBeenCalledOnce();
 
@@ -229,7 +243,7 @@ describe("TransactionsPage", () => {
   });
 
   it.each([
-    ["账本", "listLedgers", [ledger]],
+    ["账本", "listPersonalLedgers", [ledger]],
     ["账户", "listAccounts", [account, destinationAccount]],
     ["分类", "listCategories", [expenseCategory, incomeCategory]],
   ] as const)("shows and retries a rejected %s dependency", async (label, method, successValue) => {
@@ -339,7 +353,7 @@ describe("TransactionsPage", () => {
   it("loads categories for the ledger selected in the create form", async () => {
     const user = userEvent.setup();
     const api = createApi({
-      listLedgers: vi.fn().mockResolvedValue([ledger, familyLedger]),
+      listPersonalLedgers: vi.fn().mockResolvedValue([ledger, familyLedger]),
       listCategories: vi.fn(async ({ ledgerId: requestedLedgerId }) =>
         requestedLedgerId === familyLedger.id
           ? [familyExpenseCategory]
@@ -402,7 +416,7 @@ describe("TransactionsPage", () => {
   it("loads the edited transaction ledger categories instead of the default ledger categories", async () => {
     const user = userEvent.setup();
     const api = createApi({
-      listLedgers: vi.fn().mockResolvedValue([ledger, familyLedger]),
+      listPersonalLedgers: vi.fn().mockResolvedValue([ledger, familyLedger]),
       listCategories: vi.fn(async ({ ledgerId: requestedLedgerId }) =>
         requestedLedgerId === familyLedger.id
           ? [familyExpenseCategory]
@@ -425,7 +439,7 @@ describe("TransactionsPage", () => {
   it("reopens an edited transaction with the ledger and category returned by the refreshed list", async () => {
     const user = userEvent.setup();
     const api = createApi({
-      listLedgers: vi.fn().mockResolvedValue([ledger, familyLedger]),
+      listPersonalLedgers: vi.fn().mockResolvedValue([ledger, familyLedger]),
       listCategories: vi.fn(async ({ ledgerId: requestedLedgerId }) =>
         requestedLedgerId === familyLedger.id
           ? [familyExpenseCategory]

@@ -191,6 +191,16 @@ describe("ROUTE_REGISTRY", () => {
               updatedAt: "2026-08-23T00:00:00.000Z",
             },
           ]),
+          listPersonalLedgers: vi.fn().mockResolvedValue([
+            {
+              id: ledgerId,
+              name: "个人账本",
+              type: "personal",
+              isDefault: true,
+              createdAt: "2026-08-23T00:00:00.000Z",
+              updatedAt: "2026-08-23T00:00:00.000Z",
+            },
+          ]),
         },
       },
     } as unknown as Parameters<(typeof ROUTE_REGISTRY)[typeof routeKey]["render"]>[0];
@@ -328,6 +338,16 @@ describe("ROUTE_REGISTRY", () => {
         bookkeepingApi: {
           listCategories,
           listLedgers: vi.fn().mockResolvedValue([
+            {
+              id: ledgerId,
+              name: "个人账本",
+              type: "personal",
+              isDefault: true,
+              createdAt: "2026-08-23T00:00:00.000Z",
+              updatedAt: "2026-08-23T00:00:00.000Z",
+            },
+          ]),
+          listPersonalLedgers: vi.fn().mockResolvedValue([
             {
               id: ledgerId,
               name: "个人账本",

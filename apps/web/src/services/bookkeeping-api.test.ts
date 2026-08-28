@@ -72,8 +72,10 @@ describe("createBookkeepingApi", () => {
       name: "房租",
       parentId: null,
     };
+    client.get.mockResolvedValue([]);
 
     await api.listLedgers();
+    await api.listPersonalLedgers();
     await api.listAccounts();
     await api.createAccount(account);
     await api.updateAccount("account-1", { name: "工资卡", icon: null });
@@ -85,7 +87,8 @@ describe("createBookkeepingApi", () => {
     await api.getMonthlyStatistics({ month: "2026-08", ledgerId: "ledger-1" });
 
     expect(client.get).toHaveBeenNthCalledWith(1, "/ledgers/list");
-    expect(client.get).toHaveBeenNthCalledWith(2, "/accounts/list");
+    expect(client.get).toHaveBeenNthCalledWith(2, "/ledgers/list");
+    expect(client.get).toHaveBeenNthCalledWith(3, "/accounts/list");
     expect(client.post).toHaveBeenNthCalledWith(1, "/accounts/create", account);
     expect(client.post).toHaveBeenNthCalledWith(2, "/accounts/update", {
       id: "account-1",
@@ -94,7 +97,7 @@ describe("createBookkeepingApi", () => {
     });
     expect(client.post).toHaveBeenNthCalledWith(3, "/accounts/delete", { id: "account-1" });
     expect(client.get).toHaveBeenNthCalledWith(
-      3,
+      4,
       "/categories/list?ledgerId=ledger-1&type=expense",
     );
     expect(client.post).toHaveBeenNthCalledWith(4, "/categories/create", category);
@@ -105,8 +108,20 @@ describe("createBookkeepingApi", () => {
     });
     expect(client.post).toHaveBeenNthCalledWith(6, "/categories/delete", { id: "category-1" });
     expect(client.get).toHaveBeenNthCalledWith(
-      4,
+      5,
       "/statistics/monthly?month=2026-08&ledgerId=ledger-1",
     );
+  });
+
+  it("excludes rental ledgers from the ordinary bookkeeping selection boundary", async () => {
+    const { api, client } = createHarness();
+    client.get.mockResolvedValueOnce([
+      { id: "personal-1", type: "personal", isDefault: true },
+      { id: "rental-1", type: "rental", isDefault: false },
+    ]);
+
+    await expect(api.listPersonalLedgers()).resolves.toEqual([
+      { id: "personal-1", type: "personal", isDefault: true },
+    ]);
   });
 });

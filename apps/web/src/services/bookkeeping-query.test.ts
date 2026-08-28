@@ -14,6 +14,7 @@ import {
 function createApi(overrides: Partial<BookkeepingApi> = {}): BookkeepingApi {
   return {
     listLedgers: vi.fn().mockResolvedValue([]),
+    listPersonalLedgers: vi.fn().mockResolvedValue([]),
     listAccounts: vi.fn().mockResolvedValue([]),
     listCategories: vi.fn().mockResolvedValue([]),
     listTransactions: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
@@ -33,6 +34,17 @@ function createApi(overrides: Partial<BookkeepingApi> = {}): BookkeepingApi {
 }
 
 describe("bookkeeping query cache", () => {
+  it("uses the personal-ledger selection boundary for ordinary bookkeeping ledger queries", async () => {
+    const api = createApi();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const options = bookkeepingQueryOptions.ledgers(api, "org-a");
+
+    await client.fetchQuery(options);
+
+    expect(api.listPersonalLedgers).toHaveBeenCalledOnce();
+    expect(api.listLedgers).not.toHaveBeenCalled();
+  });
+
   it("deduplicates equal normalized transaction reads and isolates every key by organization", async () => {
     const api = createApi();
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -60,6 +72,7 @@ describe("bookkeeping query cache", () => {
       page: 1,
       pageSize: 20,
     });
+    expect(api.listPersonalLedgers).toHaveBeenCalledTimes(0);
     expect(first.queryKey).toEqual(equal.queryKey);
     expect(otherOrganization.queryKey).not.toEqual(first.queryKey);
     expect(first.queryKey.slice(0, 2)).toEqual(["bookkeeping", "org-a"]);

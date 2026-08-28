@@ -15,10 +15,12 @@ import { ForbiddenPage } from "../pages/forbidden-page";
 import { FoundationPage } from "../pages/foundation-page";
 import { LoginPage } from "../pages/login-page";
 import { clearBookkeepingQueries } from "../services/bookkeeping-query";
+import { clearRentalQueries } from "../services/rental-query";
 import { type WebSessionDependency, webSession } from "../services/web-session";
 import type { AuthStoreApi } from "../stores/auth-store";
 import type { MenuStoreApi } from "../stores/menu-store";
 import { didBookkeepingScopeChange } from "./bookkeeping-cache-scope";
+import { didRentalScopeChange } from "./rental-cache-scope";
 import {
   authenticatedRoute,
   ROUTE_REGISTRY,
@@ -188,6 +190,7 @@ export function AppRouter({ router: activeRouter = router, restoreSession }: App
     let restore = restoreRef.current;
 
     clearBookkeepingQueries(queryClient);
+    clearRentalQueries(queryClient);
 
     if (
       !restore ||
@@ -217,6 +220,9 @@ export function AppRouter({ router: activeRouter = router, restoreSession }: App
     const unsubscribeAuth = activeSession.authStore.subscribe((state, previousState) => {
       if (didBookkeepingScopeChange(state, previousState)) {
         clearBookkeepingQueries(queryClient);
+      }
+      if (didRentalScopeChange(state, previousState)) {
+        clearRentalQueries(queryClient);
       }
       if (didAuthenticatedRouteBoundaryChange(state, previousState)) {
         void activeRouter.invalidate();

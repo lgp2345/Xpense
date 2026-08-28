@@ -50,6 +50,7 @@ const incomeRoot: CategoryNode = {
 function createApi(overrides: Partial<BookkeepingApi> = {}) {
   return {
     listLedgers: vi.fn().mockResolvedValue([ledger]),
+    listPersonalLedgers: vi.fn().mockResolvedValue([ledger]),
     listCategories: vi.fn().mockResolvedValue([expenseRoot, incomeRoot]),
     createCategory: vi.fn().mockResolvedValue(child),
     updateCategory: vi.fn().mockResolvedValue(expenseRoot),
@@ -74,6 +75,22 @@ function render(ui: ReactElement) {
 }
 
 describe("CategoriesPage", () => {
+  it("loads ledger choices through the personal-ledger boundary", async () => {
+    const api = createApi({ listLedgers: vi.fn().mockRejectedValue(new Error("raw ledgers")) });
+
+    render(
+      <CategoriesPage
+        api={api}
+        organizationId="org-a"
+        permissions={["categories:read", "ledgers:read"]}
+      />,
+    );
+
+    expect(await screen.findByText("餐饮")).toBeInTheDocument();
+    expect(api.listPersonalLedgers).toHaveBeenCalledOnce();
+    expect(api.listLedgers).not.toHaveBeenCalled();
+  });
+
   it("deduplicates ledger and category reads for the same organization", async () => {
     const api = createApi();
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -86,7 +103,7 @@ describe("CategoriesPage", () => {
     );
 
     expect(await screen.findAllByText("餐饮")).toHaveLength(2);
-    expect(api.listLedgers).toHaveBeenCalledOnce();
+    expect(api.listPersonalLedgers).toHaveBeenCalledOnce();
     expect(api.listCategories).toHaveBeenCalledOnce();
   });
 
@@ -134,7 +151,7 @@ describe("CategoriesPage", () => {
     const requestB = createDeferred<CategoryNode[]>();
     const requestA = createDeferred<CategoryNode[]>();
     const api = createApi({
-      listLedgers: vi.fn().mockResolvedValue([ledger, ledgerB]),
+      listPersonalLedgers: vi.fn().mockResolvedValue([ledger, ledgerB]),
       listCategories: vi
         .fn()
         .mockResolvedValueOnce([expenseRoot])

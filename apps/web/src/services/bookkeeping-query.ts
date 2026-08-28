@@ -60,7 +60,7 @@ export const bookkeepingQueryOptions = {
   ledgers: (api: BookkeepingApi, organizationId: string) =>
     queryOptions({
       queryKey: bookkeepingKeys.ledgers(organizationId),
-      queryFn: () => api.listLedgers(),
+      queryFn: () => api.listPersonalLedgers(),
     }),
   accounts: (api: BookkeepingApi, organizationId: string) =>
     queryOptions({
