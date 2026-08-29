@@ -58,7 +58,7 @@ const inactiveRoom = {
 };
 
 function renderPage(
-  api: Pick<RentalApi, "getProperty"> & Partial<Pick<RentalApi, "listChildren" | "searchSpaces">>,
+  api: Pick<RentalApi, "getProperty"> & Partial<RentalApi>,
   permissions: string[] = [],
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -67,12 +67,23 @@ function renderPage(
       <PropertyDetailPage
         api={{
           ...api,
+          listProperties: api.listProperties ?? vi.fn(),
+          createProperty: api.createProperty ?? vi.fn(),
+          updateProperty: api.updateProperty ?? vi.fn(),
+          setPropertyStatus: api.setPropertyStatus ?? vi.fn(),
+          deleteProperty: api.deleteProperty ?? vi.fn(),
           listChildren:
             api.listChildren ??
             vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 50 }),
           searchSpaces:
             api.searchSpaces ??
             vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
+          createSpace: api.createSpace ?? vi.fn(),
+          batchCreateSpaces: api.batchCreateSpaces ?? vi.fn(),
+          updateSpace: api.updateSpace ?? vi.fn(),
+          moveSpace: api.moveSpace ?? vi.fn(),
+          setSpaceStatus: api.setSpaceStatus ?? vi.fn(),
+          deleteSpace: api.deleteSpace ?? vi.fn(),
         }}
         organizationId="org-a"
         permissions={permissions as never}
@@ -378,7 +389,7 @@ describe("PropertyDetailPage", () => {
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("已定位到 B-101"));
   });
 
-  it("only exposes the future space-maintenance entry to members with write permission", async () => {
+  it("hides all write actions without permission and blocks create and batch actions for an inactive property", async () => {
     const api = {
       getProperty: vi.fn().mockResolvedValue(detail),
       listChildren: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 50 }),
@@ -386,9 +397,66 @@ describe("PropertyDetailPage", () => {
     };
     const first = renderPage(api);
     await screen.findByRole("heading", { name: "阳光公寓" });
-    expect(screen.queryByText("已具备空间维护权限")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "新增空间" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "批量新增" })).not.toBeInTheDocument();
     first.unmount();
     renderPage(api, ["rental_spaces:create"]);
-    expect(await screen.findByText("已具备空间维护权限")).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "阳光公寓" });
+    expect(screen.queryByRole("button", { name: "新增空间" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "批量新增" })).not.toBeInTheDocument();
+  });
+
+  it("keeps first-stage space forms free of rent fields and preserves batch text after atomic failure", async () => {
+    const user = userEvent.setup();
+    const activeDetail = { ...detail, isActive: true };
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(activeDetail),
+        listChildren: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 50 }),
+        searchSpaces: vi.fn(),
+        batchCreateSpaces: vi.fn().mockRejectedValue(new Error("conflict")),
+      },
+      ["rental_spaces:create"],
+    );
+    await user.click(await screen.findByRole("button", { name: "新增空间" }));
+    expect(screen.queryByLabelText("面积")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("租金")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("押金")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("计费周期")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "取消" }));
+    await user.click(screen.getByRole("button", { name: "批量新增" }));
+    const lines = screen.getByRole("textbox", { name: "空间列表" });
+    await user.type(lines, "101,一号房\n102,一号房");
+    expect(screen.getByText("第 2 行：名称与第 1 行重复")).toBeInTheDocument();
+    await user.clear(lines);
+    await user.type(lines, "101,一号房");
+    await user.click(screen.getByRole("button", { name: "原子创建 1 个空间" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("批量创建失败，未创建任何空间");
+    expect(screen.getByRole("textbox", { name: "空间列表" })).toHaveValue("101,一号房");
+  });
+
+  it("confirms deletion and explains a 409 conflict without removing the space", async () => {
+    const user = userEvent.setup();
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(detail),
+        listChildren: vi
+          .fn()
+          .mockResolvedValue({ items: [building], total: 1, page: 1, pageSize: 50 }),
+        searchSpaces: vi.fn(),
+        deleteSpace: vi.fn().mockRejectedValue(new ApiError(409, "CONFLICT", "linked")),
+      },
+      ["rental_spaces:delete"],
+    );
+    expect(await screen.findByText("A 座")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "删除 A 座" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(
+      "删除前请确保该空间没有子空间或租赁关联",
+    );
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "该空间仍有子空间或租赁关联，请先处理关联后再删除。",
+    );
+    expect(screen.getByText("A 座")).toBeInTheDocument();
   });
 });

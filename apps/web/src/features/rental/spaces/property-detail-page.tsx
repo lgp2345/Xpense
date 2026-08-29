@@ -16,7 +16,7 @@ export function PropertyDetailPage({
   permissions = [],
   propertyId,
 }: {
-  api: Pick<RentalApi, "getProperty" | "listChildren" | "searchSpaces">;
+  api: RentalApi;
   organizationId: string;
   permissions?: readonly PermissionKey[];
   propertyId: string;
@@ -96,6 +96,7 @@ export function PropertyDetailPage({
         key={`${organizationId}:${propertyId}`}
         organizationId={organizationId}
         permissions={permissions}
+        propertyActive={property.isActive}
         propertyId={propertyId}
       />
     </main>

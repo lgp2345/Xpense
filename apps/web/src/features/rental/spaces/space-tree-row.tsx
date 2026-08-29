@@ -10,12 +10,14 @@ export function SpaceTreeRow({
   depth,
   expanded,
   node,
+  actions,
   onToggle,
   rowRef,
 }: {
   depth: number;
   expanded: boolean;
   node: RentalSpaceNode;
+  actions?: React.ReactNode;
   onToggle: () => void;
   rowRef?: RefCallback<HTMLTableRowElement>;
 }) {
@@ -23,12 +25,12 @@ export function SpaceTreeRow({
     ? "有效"
     : node.isActive
       ? "因上级停用而不可用"
-      : "已停用";
+      : "自身停用";
   return (
     <TableRow ref={rowRef} id={`space-row-${node.id}`} tabIndex={-1}>
       <TableCell>
         <div
-          className="flex min-w-48 items-center gap-1"
+          className="flex min-w-0 items-center gap-1"
           style={{ paddingInlineStart: `${depth * 1.25}rem` }}
         >
           {node.hasChildren ? (
@@ -46,22 +48,30 @@ export function SpaceTreeRow({
           ) : (
             <span aria-hidden="true" className="inline-block size-7" />
           )}
-          <span className="font-medium">{node.name}</span>
-          {node.code ? <span className="text-xs text-muted-foreground">{node.code}</span> : null}
+          <span className="min-w-0 break-words font-medium">{node.name}</span>
+          {node.code ? (
+            <span className="break-all text-xs text-muted-foreground">{node.code}</span>
+          ) : null}
         </div>
       </TableCell>
-      <TableCell>{node.type}</TableCell>
-      <TableCell>
+      <TableCell className="hidden sm:table-cell">{node.customTypeName ?? node.type}</TableCell>
+      <TableCell className="hidden sm:table-cell">
         <div className="flex flex-wrap gap-1">
           <Badge variant={node.isEffectivelyActive ? "default" : "secondary"}>{status}</Badge>
+          {node.isActive ? (
+            <Badge variant="outline">自身启用</Badge>
+          ) : (
+            <Badge variant="secondary">自身停用</Badge>
+          )}
           {node.hasChildren ? <Badge variant="outline">包含子空间</Badge> : null}
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell className="hidden sm:table-cell">
         <Badge variant={node.isRentable ? "outline" : "secondary"}>
           {node.isRentable ? "可出租" : "不可出租"}
         </Badge>
       </TableCell>
+      {actions ? <TableCell>{actions}</TableCell> : null}
     </TableRow>
   );
 }

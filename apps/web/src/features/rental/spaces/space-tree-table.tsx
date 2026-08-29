@@ -1,6 +1,13 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { PermissionKey, RentalSpaceSearchResult } from "@xpense/shared";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  BatchCreateRentalSpacesRequest,
+  CreateRentalSpaceRequest,
+  PermissionKey,
+  RentalSpaceNode,
+  RentalSpaceSearchResult,
+} from "@xpense/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,8 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
-import { rentalQueryOptions } from "../../../services/rental-query";
+import { invalidateSpaceMutation, rentalQueryOptions } from "../../../services/rental-query";
+import { SpaceActions } from "./space-actions";
+import { SpaceBatchDialog } from "./space-batch-dialog";
+import { SpaceFormDialog } from "./space-form-dialog";
 import { SpaceSearchResults } from "./space-search-results";
 import { SpaceTreeRow } from "./space-tree-row";
 import {
@@ -36,11 +47,13 @@ export function SpaceTreeTable({
   api,
   organizationId,
   permissions,
+  propertyActive,
   propertyId,
 }: {
-  api: Pick<RentalApi, "listChildren" | "searchSpaces">;
+  api: RentalApi;
   organizationId: string;
   permissions: readonly PermissionKey[];
+  propertyActive: boolean;
   propertyId: string;
 }) {
   const queryClient = useQueryClient();
@@ -55,6 +68,7 @@ export function SpaceTreeTable({
   const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "success" | "failure">(
     "idle",
   );
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const rootQuery = useQuery({
     ...rentalQueryOptions.children(api as RentalApi, organizationId, {
       propertyId,
@@ -73,6 +87,40 @@ export function SpaceTreeTable({
     }),
     enabled: keyword.length > 0,
     retry: false,
+  });
+  const createMutation = useMutation({
+    mutationFn: (input: CreateRentalSpaceRequest) => api.createSpace(input),
+    onSuccess: (_, input) => invalidateSpaceMutation(queryClient, organizationId, input.propertyId),
+  });
+  const batchMutation = useMutation({
+    mutationFn: (input: BatchCreateRentalSpacesRequest) => api.batchCreateSpaces(input),
+    onSuccess: (_, input) => invalidateSpaceMutation(queryClient, organizationId, input.propertyId),
+  });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Parameters<RentalApi["updateSpace"]>[1] }) =>
+      api.updateSpace(id, input),
+    onSuccess: (_, { id }) => invalidateSpaceMutation(queryClient, organizationId, propertyId, id),
+  });
+  const moveMutation = useMutation({
+    mutationFn: ({
+      id,
+      parentId,
+      sortOrder,
+    }: {
+      id: string;
+      parentId: string | null;
+      sortOrder: number;
+    }) => api.moveSpace(id, { parentId, sortOrder }),
+    onSuccess: (_, { id }) => invalidateSpaceMutation(queryClient, organizationId, propertyId, id),
+  });
+  const statusMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      api.setSpaceStatus(id, isActive),
+    onSuccess: (_, { id }) => invalidateSpaceMutation(queryClient, organizationId, propertyId, id),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.deleteSpace(id),
+    onSuccess: (_, id) => invalidateSpaceMutation(queryClient, organizationId, propertyId, id),
   });
 
   const updateTree = useCallback((updater: (current: SpaceTreeState) => SpaceTreeState) => {
@@ -157,7 +205,76 @@ export function SpaceTreeTable({
   }
 
   const root = childPage(tree, null);
-  const canCreate = permissions.includes("rental_spaces:create");
+  const canCreate = propertyActive && permissions.includes("rental_spaces:create");
+  const canActions = permissions.some((permission) =>
+    ["rental_spaces:create", "rental_spaces:update", "rental_spaces:delete"].includes(permission),
+  );
+  const actionError = (error: unknown, action: string) => {
+    const message =
+      action === "删除" && error instanceof ApiError && error.status === 409
+        ? "该空间仍有子空间或租赁关联，请先处理关联后再删除。"
+        : `${action}空间失败，请稍后重试。`;
+    setMutationError(message);
+    return message;
+  };
+  async function handleCreate(input: CreateRentalSpaceRequest) {
+    setMutationError(null);
+    try {
+      await createMutation.mutateAsync(input);
+      toast.success("空间创建成功");
+    } catch (error) {
+      actionError(error, "创建");
+      throw error;
+    }
+  }
+  async function handleBatchCreate(input: BatchCreateRentalSpacesRequest) {
+    setMutationError(null);
+    try {
+      await batchMutation.mutateAsync(input);
+      toast.success(`已创建 ${input.items.length} 个空间`);
+    } catch (error) {
+      actionError(error, "批量创建");
+      throw error;
+    }
+  }
+  async function handleUpdate(id: string, input: Parameters<RentalApi["updateSpace"]>[1]) {
+    setMutationError(null);
+    try {
+      await updateMutation.mutateAsync({ id, input });
+      toast.success("空间已更新");
+    } catch (error) {
+      actionError(error, "保存");
+      throw error;
+    }
+  }
+  async function handleMove(space: RentalSpaceNode, parentId: string | null, sortOrder: number) {
+    setMutationError(null);
+    try {
+      await moveMutation.mutateAsync({ id: space.id, parentId, sortOrder });
+      toast.success("空间已移动");
+    } catch (error) {
+      actionError(error, "移动");
+      throw error;
+    }
+  }
+  async function handleStatus(space: RentalSpaceNode, isActive: boolean) {
+    setMutationError(null);
+    try {
+      await statusMutation.mutateAsync({ id: space.id, isActive });
+      toast.success(isActive ? "空间已启用" : "空间已停用");
+    } catch (error) {
+      actionError(error, "更新状态");
+    }
+  }
+  async function handleDelete(space: RentalSpaceNode) {
+    setMutationError(null);
+    try {
+      await deleteMutation.mutateAsync(space.id);
+      toast.success("空间已删除");
+    } catch (error) {
+      actionError(error, "删除");
+    }
+  }
   return (
     <section aria-labelledby="space-tree-heading" className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -168,9 +285,20 @@ export function SpaceTreeTable({
           <p className="text-sm text-muted-foreground">展开节点后才加载直属子空间。</p>
         </div>
         {canCreate ? (
-          <span className="text-sm text-muted-foreground">已具备空间维护权限</span>
+          <div className="flex flex-wrap gap-2">
+            <SpaceFormDialog propertyId={propertyId} onCreate={handleCreate} />
+            <SpaceBatchDialog propertyId={propertyId} onCreate={handleBatchCreate} />
+          </div>
         ) : null}
       </div>
+      {mutationError ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+        >
+          {mutationError}
+        </div>
+      ) : null}
       <div className="space-y-2">
         <label className="sr-only" htmlFor="space-search">
           搜索空间
@@ -242,9 +370,10 @@ export function SpaceTreeTable({
               <TableHeader>
                 <TableRow>
                   <TableHead>空间</TableHead>
-                  <TableHead>类型</TableHead>
-                  <TableHead>有效状态</TableHead>
-                  <TableHead>出租</TableHead>
+                  <TableHead className="hidden sm:table-cell">类型</TableHead>
+                  <TableHead className="hidden sm:table-cell">有效状态</TableHead>
+                  <TableHead className="hidden sm:table-cell">出租</TableHead>
+                  {canActions ? <TableHead className="text-right">操作</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -256,12 +385,28 @@ export function SpaceTreeTable({
                   }}
                   onRetry={(parentId) => void loadPage(parentId, 1)}
                   onToggle={(nodeId) => void toggle(nodeId)}
+                  renderActions={(node) => (
+                    <SpaceActions
+                      api={api}
+                      deleting={deleteMutation.isPending}
+                      organizationId={organizationId}
+                      permissions={permissions}
+                      propertyActive={propertyActive}
+                      propertyId={propertyId}
+                      space={node}
+                      onCreate={handleCreate}
+                      onDelete={handleDelete}
+                      onMove={handleMove}
+                      onSetStatus={handleStatus}
+                      onUpdate={handleUpdate}
+                    />
+                  )}
                   rowRefs={rowRefs}
                   state={tree}
                 />
                 {errors.root ? (
                   <TableRow>
-                    <TableCell className="text-destructive" colSpan={4}>
+                    <TableCell className="text-destructive" colSpan={5}>
                       加载更多根空间失败
                       <Button
                         aria-label="重试加载更多根空间"
@@ -281,7 +426,7 @@ export function SpaceTreeTable({
                 ) : null}
                 {hasMoreChildren(tree, null) ? (
                   <TableRow>
-                    <TableCell colSpan={4}>
+                    <TableCell colSpan={5}>
                       <Button
                         aria-label="加载更多根空间"
                         size="sm"
@@ -311,6 +456,7 @@ function TreeRows({
   onLoadMore,
   onRetry,
   onToggle,
+  renderActions,
   rowRefs,
   state,
 }: {
@@ -318,6 +464,7 @@ function TreeRows({
   onLoadMore: (parentId: string | null) => void;
   onRetry: (parentId: string) => void;
   onToggle: (nodeId: string) => void;
+  renderActions: (node: RentalSpaceNode) => React.ReactNode;
   rowRefs: React.MutableRefObject<Record<string, HTMLTableRowElement | null>>;
   state: SpaceTreeState;
 }) {
@@ -331,7 +478,7 @@ function TreeRows({
       const failure = errors[id]
         ? [
             <TableRow key={`${id}-error`}>
-              <TableCell className="text-destructive" colSpan={4}>
+              <TableCell className="text-destructive" colSpan={5}>
                 加载子空间失败
                 <Button
                   aria-label={`重试加载 ${node.name} 的子空间`}
@@ -351,7 +498,7 @@ function TreeRows({
         expanded && hasMoreChildren(state, id)
           ? [
               <TableRow key={`${id}-more`}>
-                <TableCell colSpan={4}>
+                <TableCell colSpan={5}>
                   <Button size="sm" type="button" variant="outline" onClick={() => onLoadMore(id)}>
                     加载更多
                   </Button>
@@ -365,6 +512,7 @@ function TreeRows({
           depth={depth}
           expanded={expanded}
           node={node}
+          actions={renderActions(node)}
           onToggle={() => onToggle(id)}
           rowRef={(element) => {
             rowRefs.current[id] = element;
