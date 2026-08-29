@@ -1,4 +1,4 @@
-import { QueryBuilder } from "drizzle-orm/pg-core";
+import { PgDialect, QueryBuilder } from "drizzle-orm/pg-core";
 import { describe, expect, it, vi } from "vitest";
 
 import { rentalSpaces } from "../../db/schema.js";
@@ -372,7 +372,7 @@ describe("SpacesRepository", () => {
     }
   });
 
-  it("checks all normalized sibling names and codes in one active-scoped query", async () => {
+  it("checks all normalized sibling names and codes among every undeleted sibling", async () => {
     const orderBy = vi.fn().mockResolvedValue([{ id: "space-2", name: "101", code: "A-101" }]);
     const where = vi.fn().mockReturnValue({ orderBy });
     const from = vi.fn().mockReturnValue({ where });
@@ -408,12 +408,13 @@ describe("SpacesRepository", () => {
       rentalSpaces.code,
       "A-101",
       "A-102",
-      rentalSpaces.isActive,
       rentalSpaces.deletedAt,
       "space-current",
     ]) {
       expect(containsReference(condition, reference)).toBe(true);
     }
+    const conflictSql = new PgDialect().sqlToQuery(condition).sql;
+    expect(conflictSql).not.toContain('"rental_spaces"."is_active"');
   });
 
   it("distinguishes undeleted children from historical children", async () => {
@@ -461,7 +462,9 @@ describe("SpacesRepository", () => {
         customTypeName: null,
         isRentable: false,
         sortOrder: 1,
+        note: null,
         createdByUserId: "user-1",
+        updatedByUserId: "user-1",
       },
       {
         organizationId: "organization-1",
@@ -473,7 +476,9 @@ describe("SpacesRepository", () => {
         customTypeName: null,
         isRentable: false,
         sortOrder: 2,
+        note: null,
         createdByUserId: "user-1",
+        updatedByUserId: "user-1",
       },
     ];
 
@@ -509,7 +514,9 @@ describe("SpacesRepository", () => {
       customTypeName: null,
       isRentable: true,
       sortOrder: 1,
+      note: null,
       createdByUserId: "user-1",
+      updatedByUserId: "user-1",
     };
 
     await expect(repository.create(createInput, executor)).resolves.toMatchObject({
@@ -526,6 +533,7 @@ describe("SpacesRepository", () => {
           id: "space-1",
           parentId: null,
           sortOrder: 2,
+          updatedByUserId: "user-1",
         },
         executor,
       ),
@@ -537,6 +545,7 @@ describe("SpacesRepository", () => {
           propertyId: "property-1",
           id: "space-1",
           isActive: false,
+          updatedByUserId: "user-1",
         },
         executor,
       ),
@@ -547,6 +556,7 @@ describe("SpacesRepository", () => {
         propertyId: "property-1",
         id: "space-1",
         deletedByUserId: "user-1",
+        updatedByUserId: "user-1",
       },
       executor,
     );

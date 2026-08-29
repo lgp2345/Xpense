@@ -1,4 +1,10 @@
-import type { PermissionKey, RentalSpaceNode } from "@xpense/shared";
+import type {
+  BatchCreateRentalSpacesRequest,
+  CreateRentalSpaceRequest,
+  PermissionKey,
+  RentalSpaceNode,
+  UpdateRentalSpaceRequest,
+} from "@xpense/shared";
 
 import {
   AlertDialog,
@@ -20,7 +26,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import type { RentalApi, UpdateRentalSpaceInput } from "../../../services/rental-api";
+import type { RentalApi } from "../../../services/rental-api";
+import { SpaceBatchDialog } from "./space-batch-dialog";
 import { SpaceFormDialog } from "./space-form-dialog";
 import { SpaceMoveDialog } from "./space-move-dialog";
 
@@ -32,13 +39,13 @@ type SpaceActionsProps = {
   propertyActive: boolean;
   propertyId: string;
   space: RentalSpaceNode;
-  onCreate: (
-    input: Parameters<NonNullable<React.ComponentProps<typeof SpaceFormDialog>["onCreate"]>>[0],
-  ) => Promise<void>;
+  depth: number;
+  onCreate: (input: CreateRentalSpaceRequest) => Promise<void>;
+  onBatchCreate: (input: BatchCreateRentalSpacesRequest) => Promise<void>;
   onDelete: (space: RentalSpaceNode) => Promise<void>;
   onMove: (space: RentalSpaceNode, parentId: string | null, sortOrder: number) => Promise<void>;
   onSetStatus: (space: RentalSpaceNode, isActive: boolean) => Promise<void>;
-  onUpdate: (id: string, input: UpdateRentalSpaceInput) => Promise<void>;
+  onUpdate: (input: UpdateRentalSpaceRequest) => Promise<void>;
 };
 
 /** 按权限和房产状态显示空间写操作；窄屏把次要资料移入详情抽屉。 */
@@ -50,18 +57,23 @@ export function SpaceActions({
   propertyActive,
   propertyId,
   space,
+  depth,
   onCreate,
+  onBatchCreate,
   onDelete,
   onMove,
   onSetStatus,
   onUpdate,
 }: SpaceActionsProps) {
-  const canCreate = propertyActive && permissions.includes("rental_spaces:create");
+  const canCreate = propertyActive && depth < 3 && permissions.includes("rental_spaces:create");
   const canUpdate = permissions.includes("rental_spaces:update");
   const canDelete = permissions.includes("rental_spaces:delete");
   return (
     <div className="flex flex-wrap justify-end gap-2">
       <SpaceDetailsSheet space={space} />
+      {canCreate ? (
+        <SpaceBatchDialog propertyId={propertyId} parentId={space.id} onCreate={onBatchCreate} />
+      ) : null}
       {canCreate ? (
         <SpaceFormDialog
           parentId={space.id}
@@ -110,8 +122,15 @@ function SpaceDetailsSheet({ space }: { space: RentalSpaceNode }) {
         <div className="grid gap-2 px-4 text-sm">
           <p>类型：{space.customTypeName ?? space.type}</p>
           <p>状态：{space.isActive ? "自身启用" : "自身停用"}</p>
-          <p>{space.isActive && !space.isEffectivelyActive ? "因上级停用而不可用" : "当前可用"}</p>
+          <p>
+            {!space.isActive
+              ? "自身停用"
+              : !space.isEffectivelyActive
+                ? "因上级停用而不可用"
+                : "当前可用"}
+          </p>
           <p>{space.isRentable ? "可出租" : "不可出租"}</p>
+          {space.note ? <p>备注：{space.note}</p> : null}
         </div>
       </SheetContent>
     </Sheet>

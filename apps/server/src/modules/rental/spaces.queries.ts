@@ -36,6 +36,7 @@ const childRowsFields = {
   customTypeName: sql<string | null>`"space_children_rows"."custom_type_name"`,
   isRentable: sql<boolean>`"space_children_rows"."is_rentable"`,
   isActive: sql<boolean>`"space_children_rows"."is_active"`,
+  note: sql<string | null>`"space_children_rows"."note"`,
   isEffectivelyActive: sql<boolean>`"space_children_rows"."is_effectively_active"`,
   sortOrder: sql<number>`"space_children_rows"."sort_order"`.mapWith(Number),
   hasChildren: sql<boolean>`"space_children_rows"."has_children"`,
@@ -51,6 +52,7 @@ const searchRowsFields = {
   customTypeName: sql<string | null>`"space_search_rows"."custom_type_name"`,
   isRentable: sql<boolean>`"space_search_rows"."is_rentable"`,
   isActive: sql<boolean>`"space_search_rows"."is_active"`,
+  note: sql<string | null>`"space_search_rows"."note"`,
   isEffectivelyActive: sql<boolean>`"space_search_rows"."is_effectively_active"`,
   sortOrder: sql<number>`"space_search_rows"."sort_order"`.mapWith(Number),
   hasChildren: sql<boolean>`"space_search_rows"."has_children"`,
@@ -89,7 +91,7 @@ export function buildActiveSpaceForUpdateQuery(
     .limit(1);
 }
 
-/** 构建同父节点活动空间的名称、编码批量冲突条件。 */
+/** 构建同父节点未删除空间的名称、编码批量冲突条件。 */
 export function buildSpaceSiblingConflictCondition(input: FindSpaceSiblingConflictsInput): SQL {
   const valueConditions: SQL[] = [];
   if (input.names.length > 0) valueConditions.push(inArray(rentalSpaces.name, [...input.names]));
@@ -105,7 +107,6 @@ export function buildSpaceSiblingConflictCondition(input: FindSpaceSiblingConfli
     input.parentId === null
       ? isNull(rentalSpaces.parentId)
       : eq(rentalSpaces.parentId, input.parentId),
-    eq(rentalSpaces.isActive, true),
     isNull(rentalSpaces.deletedAt),
     valueCondition,
   ];
@@ -169,7 +170,8 @@ export function buildSpaceChildrenQuery(
           "space"."custom_type_name",
           "space"."is_rentable",
           "space"."is_active",
-          "space"."sort_order"
+          "space"."sort_order",
+          "space"."note"
         FROM ${rentalSpaces} AS "space"
         WHERE "space"."organization_id" = ${organizationId}
           AND "space"."property_id" = ${propertyId}

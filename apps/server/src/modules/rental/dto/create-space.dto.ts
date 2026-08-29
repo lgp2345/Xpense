@@ -6,6 +6,7 @@ const nameSchema = z.string().trim().min(1).max(120);
 const codeSchema = z.string().trim().min(1).max(120);
 const customTypeNameSchema = z.string().trim().min(1).max(120);
 const sortOrderSchema = z.number().int().min(-2_147_483_648).max(2_147_483_647);
+const noteSchema = z.string().trim().min(1).max(2000);
 
 /** 创建租赁空间请求校验规则。 */
 export const createRentalSpaceSchema = z
@@ -18,6 +19,7 @@ export const createRentalSpaceSchema = z
     customTypeName: customTypeNameSchema.optional(),
     isRentable: z.boolean(),
     sortOrder: sortOrderSchema.optional(),
+    note: noteSchema.optional(),
   })
   .strict()
   .superRefine((value, context) => {

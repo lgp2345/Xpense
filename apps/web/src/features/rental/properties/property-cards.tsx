@@ -1,4 +1,4 @@
-import type { RentalPropertySummary } from "@xpense/shared";
+import type { RentalPropertyDetail, RentalPropertySummary } from "@xpense/shared";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import {
 } from "./property-table";
 
 type PropertyCardsProps = {
+  getProperty?: (id: string) => Promise<RentalPropertyDetail>;
   canDelete: boolean;
   canUpdate: boolean;
   deleting: boolean;
@@ -25,6 +26,7 @@ type PropertyCardsProps = {
 
 /** 小屏房产摘要卡片，与表格使用相同的权限和写入操作。 */
 export function PropertyCards({
+  getProperty,
   canDelete,
   canUpdate,
   deleting,
@@ -63,7 +65,11 @@ export function PropertyCards({
               <div className="flex flex-wrap gap-2">
                 {canUpdate ? (
                   <>
-                    <PropertyFormDialog property={property} onUpdate={onUpdate} />
+                    <PropertyFormDialog
+                      property={property}
+                      loadDetail={getProperty ? () => getProperty(property.id) : undefined}
+                      onUpdate={onUpdate}
+                    />
                     <button
                       type="button"
                       aria-label={`${property.isActive ? "停用" : "启用"} ${property.name}`}

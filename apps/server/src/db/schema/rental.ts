@@ -54,6 +54,9 @@ export const rentalProperties = snakeCase.table(
     createdByUserId: uuid()
       .notNull()
       .references(() => users.id),
+    updatedByUserId: uuid()
+      .notNull()
+      .references(() => users.id),
     /** 软删除时间；保留账务与租赁历史对房产的引用。 */
     deletedAt: timestamp({ withTimezone: true }),
     deletedByUserId: uuid().references(() => users.id),
@@ -74,7 +77,7 @@ export const rentalProperties = snakeCase.table(
     check("rental_properties_country_code_check", sql`char_length(${table.countryCode}) = 2`),
     uniqueIndex("rental_properties_active_name_unique")
       .on(table.organizationId, table.name)
-      .where(sql`${table.isActive} IS TRUE AND ${table.deletedAt} IS NULL`),
+      .where(sql`${table.deletedAt} IS NULL`),
     index("rental_properties_organization_deleted_idx").on(table.organizationId, table.deletedAt),
   ],
 );
@@ -100,7 +103,11 @@ export const rentalSpaces = snakeCase.table(
     /** 停用空间保留其树位置和历史关联，但不可继续使用。 */
     isActive: boolean().notNull().default(true),
     sortOrder: integer().notNull().default(0),
+    note: text(),
     createdByUserId: uuid()
+      .notNull()
+      .references(() => users.id),
+    updatedByUserId: uuid()
       .notNull()
       .references(() => users.id),
     /** 软删除时间；保留历史账务或租约对空间的关联。 */
@@ -130,19 +137,19 @@ export const rentalSpaces = snakeCase.table(
     ),
     uniqueIndex("rental_spaces_active_root_name_unique")
       .on(table.organizationId, table.propertyId, table.name)
-      .where(sql`${table.parentId} IS NULL AND ${table.isActive} IS TRUE AND ${table.deletedAt} IS NULL`),
+      .where(sql`${table.parentId} IS NULL AND ${table.deletedAt} IS NULL`),
     uniqueIndex("rental_spaces_active_child_name_unique")
       .on(table.organizationId, table.propertyId, table.parentId, table.name)
-      .where(sql`${table.parentId} IS NOT NULL AND ${table.isActive} IS TRUE AND ${table.deletedAt} IS NULL`),
+      .where(sql`${table.parentId} IS NOT NULL AND ${table.deletedAt} IS NULL`),
     uniqueIndex("rental_spaces_active_root_code_unique")
       .on(table.organizationId, table.propertyId, table.code)
       .where(
-        sql`${table.parentId} IS NULL AND ${table.code} IS NOT NULL AND ${table.isActive} IS TRUE AND ${table.deletedAt} IS NULL`,
+        sql`${table.parentId} IS NULL AND ${table.code} IS NOT NULL AND ${table.deletedAt} IS NULL`,
       ),
     uniqueIndex("rental_spaces_active_child_code_unique")
       .on(table.organizationId, table.propertyId, table.parentId, table.code)
       .where(
-        sql`${table.parentId} IS NOT NULL AND ${table.code} IS NOT NULL AND ${table.isActive} IS TRUE AND ${table.deletedAt} IS NULL`,
+        sql`${table.parentId} IS NOT NULL AND ${table.code} IS NOT NULL AND ${table.deletedAt} IS NULL`,
       ),
     index("rental_spaces_scope_parent_deleted_sort_idx").on(
       table.organizationId,

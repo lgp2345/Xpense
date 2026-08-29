@@ -21,6 +21,7 @@ export type RentalSpaceUpdateValues = {
   customTypeName: string | null;
   isRentable: boolean;
   isActive: boolean;
+  note: string | null;
   sortOrder: number;
 };
 

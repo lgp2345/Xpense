@@ -142,8 +142,9 @@ export function SpaceMoveDialog({
           const node = candidateTree.nodesById[id];
           if (!node) return null;
           const isSource = node.id === space.id;
+          const isDescendant = isCandidateDescendant(candidateTree, node.id, space.id);
           const depthAllowed = targetParentLevel + 1 + sourceSubtreeRelativeDepth <= 4;
-          const canSelect = !isSource && node.isEffectivelyActive && depthAllowed;
+          const canSelect = !isSource && !isDescendant && depthAllowed;
           const isExpanded = candidateTree.expandedIds.includes(node.id);
           const loading = loadingParents.includes(node.id);
           return (
@@ -163,11 +164,11 @@ export function SpaceMoveDialog({
                   <span className="text-sm text-muted-foreground">
                     {node.name}
                     {isSource ? "（当前空间，不可作为目标）" : null}
-                    {!isSource && !node.isEffectivelyActive ? "（不可用）" : null}
-                    {!isSource && node.isEffectivelyActive && !depthAllowed ? "（层级超限）" : null}
+                    {isDescendant ? "（当前空间的后代，不可作为目标）" : null}
+                    {!isSource && !isDescendant && !depthAllowed ? "（层级超限）" : null}
                   </span>
                 )}
-                {node.hasChildren && !isSource && canSelect ? (
+                {node.hasChildren && (isSource || canSelect) ? (
                   <Button
                     aria-label={`${isExpanded ? "折叠" : "展开"}候选 ${node.name}`}
                     disabled={loading}
@@ -315,4 +316,19 @@ export function SpaceMoveDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function isCandidateDescendant(
+  tree: SpaceTreeState,
+  candidateId: string,
+  sourceId: string,
+): boolean {
+  let parentId = tree.nodesById[candidateId]?.parentId ?? null;
+  const seen = new Set<string>();
+  while (parentId !== null && !seen.has(parentId)) {
+    if (parentId === sourceId) return true;
+    seen.add(parentId);
+    parentId = tree.nodesById[parentId]?.parentId ?? null;
+  }
+  return false;
 }

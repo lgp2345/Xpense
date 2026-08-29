@@ -18,6 +18,7 @@ export const propertyRecordFields = {
   note: rentalProperties.note,
   isActive: rentalProperties.isActive,
   createdByUserId: rentalProperties.createdByUserId,
+  updatedByUserId: rentalProperties.updatedByUserId,
   deletedAt: rentalProperties.deletedAt,
   deletedByUserId: rentalProperties.deletedByUserId,
   createdAt: rentalProperties.createdAt,

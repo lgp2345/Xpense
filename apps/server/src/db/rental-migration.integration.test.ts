@@ -118,8 +118,14 @@ function readRentalMenuBootstrap(source: string): string {
   return bootstrap;
 }
 
+function readIndexPredicate(source: string, index: string): string | null {
+  return (
+    source.match(new RegExp(`CREATE UNIQUE INDEX "${index}"[^;]* WHERE ([^;]+);`))?.[1] ?? null
+  );
+}
+
 describe("rental property and space migration contract", () => {
-  it("contains the generated rental tables, enums, scope constraints and active sibling indexes", async () => {
+  it("contains the generated rental tables, enums, scope constraints and undeleted identity indexes", async () => {
     const { migration, snapshot } = await readRentalMigration();
     const executableSql = stripSqlComments(migration);
 
@@ -147,6 +153,22 @@ describe("rental property and space migration contract", () => {
     ]) {
       expect(executableSql).toContain(`"${constraint}"`);
     }
+
+    expect(readIndexPredicate(executableSql, "rental_properties_active_name_unique")).toBe(
+      '"deleted_at" IS NULL',
+    );
+    expect(readIndexPredicate(executableSql, "rental_spaces_active_root_name_unique")).toBe(
+      '"parent_id" IS NULL AND "deleted_at" IS NULL',
+    );
+    expect(readIndexPredicate(executableSql, "rental_spaces_active_child_name_unique")).toBe(
+      '"parent_id" IS NOT NULL AND "deleted_at" IS NULL',
+    );
+    expect(readIndexPredicate(executableSql, "rental_spaces_active_root_code_unique")).toBe(
+      '"parent_id" IS NULL AND "code" IS NOT NULL AND "deleted_at" IS NULL',
+    );
+    expect(readIndexPredicate(executableSql, "rental_spaces_active_child_code_unique")).toBe(
+      '"parent_id" IS NOT NULL AND "code" IS NOT NULL AND "deleted_at" IS NULL',
+    );
   });
 
   it("documents every rental enum, table and column in Chinese", async () => {
@@ -381,6 +403,7 @@ describe("rental property and space migration contract", () => {
         const userId = "00000000-0000-0000-0000-000000000001";
         const firstLedgerId = "00000000-0000-0000-0000-000000000021";
         const secondLedgerId = "00000000-0000-0000-0000-000000000022";
+        const thirdLedgerId = "00000000-0000-0000-0000-000000000023";
         const firstPropertyId = "00000000-0000-0000-0000-000000000041";
         const secondPropertyId = "00000000-0000-0000-0000-000000000042";
         const parentSpaceId = "00000000-0000-0000-0000-000000000051";
@@ -388,7 +411,7 @@ describe("rental property and space migration contract", () => {
 
         await sql`
           INSERT INTO "ledgers" ("id", "organization_id")
-          VALUES (${secondLedgerId}, ${organizationId})
+          VALUES (${secondLedgerId}, ${organizationId}), (${thirdLedgerId}, ${organizationId})
         `;
         await sql`
           INSERT INTO "rental_properties" (
@@ -416,6 +439,23 @@ describe("rental property and space migration contract", () => {
           code: "23505",
           constraint: "rental_properties_organization_ledger_unique",
         });
+        await expect(
+          sql.savepoint(
+            async (savepoint) =>
+              savepoint`
+              INSERT INTO "rental_properties" (
+                "id", "organization_id", "ledger_id", "name", "type", "country_code",
+                "address_line", "is_active", "created_by_user_id"
+              ) VALUES (
+                '00000000-0000-0000-0000-000000000044', ${organizationId}, ${thirdLedgerId}, '房产甲',
+                'residential_unit', 'CN', '测试地址停用', FALSE, ${userId}
+              )
+            `,
+          ),
+        ).rejects.toMatchObject({
+          code: "23505",
+          constraint: "rental_properties_active_name_unique",
+        });
         await sql`
           INSERT INTO "rental_properties" (
             "id", "organization_id", "ledger_id", "name", "type", "country_code",
@@ -432,6 +472,40 @@ describe("rental property and space migration contract", () => {
             ${parentSpaceId}, ${organizationId}, ${firstPropertyId}, '一层', 'F1', 'floor', ${userId}
           )
         `;
+        await expect(
+          sql.savepoint(
+            async (savepoint) =>
+              savepoint`
+              INSERT INTO "rental_spaces" (
+                "id", "organization_id", "property_id", "name", "code", "type", "is_active",
+                "created_by_user_id"
+              ) VALUES (
+                '00000000-0000-0000-0000-000000000058', ${organizationId}, ${firstPropertyId},
+                '一层', 'F2', 'floor', FALSE, ${userId}
+              )
+            `,
+          ),
+        ).rejects.toMatchObject({
+          code: "23505",
+          constraint: "rental_spaces_active_root_name_unique",
+        });
+        await expect(
+          sql.savepoint(
+            async (savepoint) =>
+              savepoint`
+              INSERT INTO "rental_spaces" (
+                "id", "organization_id", "property_id", "name", "code", "type", "is_active",
+                "created_by_user_id"
+              ) VALUES (
+                '00000000-0000-0000-0000-000000000059', ${organizationId}, ${firstPropertyId},
+                '二层', 'F1', 'floor', FALSE, ${userId}
+              )
+            `,
+          ),
+        ).rejects.toMatchObject({
+          code: "23505",
+          constraint: "rental_spaces_active_root_code_unique",
+        });
         await sql`
           INSERT INTO "rental_spaces" (
             "id", "organization_id", "property_id", "parent_id", "name", "code", "type",
@@ -460,10 +534,10 @@ describe("rental property and space migration contract", () => {
               savepoint`
               INSERT INTO "rental_spaces" (
                 "id", "organization_id", "property_id", "parent_id", "name", "code", "type",
-                "created_by_user_id"
+                "is_active", "created_by_user_id"
               ) VALUES (
                 '00000000-0000-0000-0000-000000000054', ${organizationId}, ${firstPropertyId}, ${parentSpaceId},
-                '101', 'A102', 'unit', ${userId}
+                '101', 'A102', 'unit', FALSE, ${userId}
               )
             `,
           ),
@@ -477,10 +551,10 @@ describe("rental property and space migration contract", () => {
               savepoint`
               INSERT INTO "rental_spaces" (
                 "id", "organization_id", "property_id", "parent_id", "name", "code", "type",
-                "created_by_user_id"
+                "is_active", "created_by_user_id"
               ) VALUES (
                 '00000000-0000-0000-0000-000000000055', ${organizationId}, ${firstPropertyId}, ${parentSpaceId},
-                '102', 'A101', 'unit', ${userId}
+                '102', 'A101', 'unit', FALSE, ${userId}
               )
             `,
           ),
@@ -488,15 +562,6 @@ describe("rental property and space migration contract", () => {
           code: "23505",
           constraint: "rental_spaces_active_child_code_unique",
         });
-        await sql`
-          INSERT INTO "rental_spaces" (
-            "id", "organization_id", "property_id", "parent_id", "name", "code", "type", "is_active",
-            "created_by_user_id"
-          ) VALUES (
-            '00000000-0000-0000-0000-000000000056', ${organizationId}, ${firstPropertyId}, ${parentSpaceId},
-            '101', 'A101', 'unit', FALSE, ${userId}
-          )
-        `;
         await sql`
           INSERT INTO "rental_spaces" (
             "id", "organization_id", "property_id", "parent_id", "name", "code", "type", "deleted_at",
@@ -514,7 +579,7 @@ describe("rental property and space migration contract", () => {
               AND "name" = '101'
               AND "code" = 'A101'
           `,
-        ).toEqual([{ count: 3 }]);
+        ).toEqual([{ count: 2 }]);
       });
     } finally {
       await client.unsafe(`DROP SCHEMA IF EXISTS ${quotedSchema} CASCADE`);

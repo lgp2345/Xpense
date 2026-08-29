@@ -80,7 +80,7 @@ export class PropertiesRepository {
     return property ?? null;
   }
 
-  /** 查询同组织内仍活动且未软删除的同名房产。 */
+  /** 查询同组织内未软删除的同名房产。 */
   async findActiveNameConflict(
     input: ActivePropertyNameConflictInput,
     executor: AppDbExecutor = this.db,
@@ -128,6 +128,7 @@ export class PropertiesRepository {
         addressLine: input.addressLine,
         note: input.note,
         isActive: input.isActive,
+        updatedByUserId: input.updatedByUserId,
         updatedAt: new Date(),
       })
       .where(this.activeOwnedCondition(input.organizationId, input.id))
@@ -144,7 +145,11 @@ export class PropertiesRepository {
   ): Promise<RentalPropertyRecord> {
     const [property] = await executor
       .update(rentalProperties)
-      .set({ isActive: input.isActive, updatedAt: new Date() })
+      .set({
+        isActive: input.isActive,
+        updatedByUserId: input.updatedByUserId,
+        updatedAt: new Date(),
+      })
       .where(this.activeOwnedCondition(input.organizationId, input.id))
       .returning(propertyRecordFields);
     if (!property) throw new Error("Failed to set rental property status");
@@ -178,7 +183,12 @@ export class PropertiesRepository {
     const now = new Date();
     await executor
       .update(rentalProperties)
-      .set({ deletedAt: now, deletedByUserId: input.deletedByUserId, updatedAt: now })
+      .set({
+        deletedAt: now,
+        deletedByUserId: input.deletedByUserId,
+        updatedByUserId: input.updatedByUserId,
+        updatedAt: now,
+      })
       .where(this.activeOwnedCondition(input.organizationId, input.id));
   }
 

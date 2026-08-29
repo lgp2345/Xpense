@@ -247,6 +247,8 @@ export class SpacesRepository {
         isRentable: input.isRentable,
         isActive: input.isActive,
         sortOrder: input.sortOrder,
+        note: input.note,
+        updatedByUserId: input.updatedByUserId,
         updatedAt: new Date(),
       })
       .where(buildActiveOwnedSpaceCondition(input.organizationId, input.propertyId, input.id))
@@ -260,7 +262,12 @@ export class SpacesRepository {
   async move(input: MoveRentalSpaceInput, executor: AppDbExecutor): Promise<RentalSpaceRecord> {
     const [space] = await executor
       .update(rentalSpaces)
-      .set({ parentId: input.parentId, sortOrder: input.sortOrder, updatedAt: new Date() })
+      .set({
+        parentId: input.parentId,
+        sortOrder: input.sortOrder,
+        updatedByUserId: input.updatedByUserId,
+        updatedAt: new Date(),
+      })
       .where(buildActiveOwnedSpaceCondition(input.organizationId, input.propertyId, input.id))
       .returning(spaceRecordFields);
     if (!space) throw new Error("Failed to move active rental space");
@@ -275,7 +282,11 @@ export class SpacesRepository {
   ): Promise<RentalSpaceRecord> {
     const [space] = await executor
       .update(rentalSpaces)
-      .set({ isActive: input.isActive, updatedAt: new Date() })
+      .set({
+        isActive: input.isActive,
+        updatedByUserId: input.updatedByUserId,
+        updatedAt: new Date(),
+      })
       .where(buildActiveOwnedSpaceCondition(input.organizationId, input.propertyId, input.id))
       .returning(spaceRecordFields);
     if (!space) throw new Error("Failed to set rental space status");
@@ -288,7 +299,12 @@ export class SpacesRepository {
     const now = new Date();
     await executor
       .update(rentalSpaces)
-      .set({ deletedAt: now, deletedByUserId: input.deletedByUserId, updatedAt: now })
+      .set({
+        deletedAt: now,
+        deletedByUserId: input.deletedByUserId,
+        updatedByUserId: input.updatedByUserId,
+        updatedAt: now,
+      })
       .where(buildActiveOwnedSpaceCondition(input.organizationId, input.propertyId, input.id));
   }
 }

@@ -1,8 +1,11 @@
-import type { CreateRentalSpaceRequest, RentalSpaceNode, RentalSpaceType } from "@xpense/shared";
+import type {
+  CreateRentalSpaceRequest,
+  RentalSpaceNode,
+  RentalSpaceType,
+  UpdateRentalSpaceRequest,
+} from "@xpense/shared";
 import { rentalSpaceTypes } from "@xpense/shared";
 import { z } from "zod";
-
-import type { UpdateRentalSpaceInput } from "../../../services/rental-api";
 
 /** 第一阶段空间资料；不包含面积、租金、押金、计费周期或占用状态。 */
 export const spaceFormSchema = z
@@ -13,6 +16,7 @@ export const spaceFormSchema = z
     customTypeName: z.string().trim().max(120, "自定义类型不能超过 120 个字符"),
     isRentable: z.boolean(),
     sortOrder: z.number().int("排序必须是整数").min(-2_147_483_648).max(2_147_483_647),
+    note: z.string().trim().max(2000, "备注不能超过 2000 个字符"),
   })
   .superRefine((value, context) => {
     if (value.type === "other" && value.customTypeName.length === 0) {
@@ -30,6 +34,7 @@ export function spaceFormDefaults(space?: RentalSpaceNode): SpaceFormValues {
     customTypeName: space?.customTypeName ?? "",
     isRentable: space?.isRentable ?? true,
     sortOrder: space?.sortOrder ?? 0,
+    note: space?.note ?? "",
   };
 }
 
@@ -47,14 +52,15 @@ export function toCreateSpaceRequest(
     ...(values.type === "other" ? { customTypeName: values.customTypeName.trim() } : {}),
     isRentable: values.isRentable,
     sortOrder: values.sortOrder,
+    ...(values.note.trim() ? { note: values.note.trim() } : {}),
   };
 }
 
 export function toUpdateSpaceRequest(
   initialValues: SpaceFormValues,
   values: SpaceFormValues,
-): UpdateRentalSpaceInput | null {
-  const input: UpdateRentalSpaceInput = {};
+): Omit<UpdateRentalSpaceRequest, "id"> | null {
+  const input: Partial<Omit<UpdateRentalSpaceRequest, "id">> = {};
   const name = values.name.trim();
   const code = values.code.trim() || null;
   const customTypeName = values.customTypeName.trim() || null;
@@ -69,6 +75,8 @@ export function toUpdateSpaceRequest(
   }
   if (values.isRentable !== initialValues.isRentable) input.isRentable = values.isRentable;
   if (values.sortOrder !== initialValues.sortOrder) input.sortOrder = values.sortOrder;
+  const note = values.note.trim() || null;
+  if (note !== (initialValues.note.trim() || null)) input.note = note;
   return Object.keys(input).length > 0 ? input : null;
 }
 

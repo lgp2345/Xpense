@@ -70,6 +70,7 @@ export type RentalSpaceNode = {
   customTypeName: string | null;
   isRentable: boolean;
   isActive: boolean;
+  note: string | null;
   isEffectivelyActive: boolean;
   sortOrder: number;
   hasChildren: boolean;
@@ -139,6 +140,7 @@ export type CreateRentalSpaceRequest = {
   customTypeName?: string;
   isRentable: boolean;
   sortOrder?: number;
+  note?: string;
 };
 
 /** 批量创建租赁空间的单项输入。 */
@@ -155,19 +157,20 @@ export type BatchCreateRentalSpacesRequest = {
   type: RentalSpaceType;
   customTypeName?: string;
   isRentable: boolean;
+  note?: string;
   items: BatchCreateRentalSpaceItem[];
 };
 
 /** 更新租赁空间请求。 */
-export type UpdateRentalSpaceRequest = {
+export type UpdateRentalSpaceRequest = { id: string } & Partial<{
   name: string;
   code?: string | null;
   type: RentalSpaceType;
   customTypeName?: string | null;
-  isRentable: boolean;
-  isActive: boolean;
-  sortOrder: number;
-};
+  isRentable?: boolean;
+  sortOrder?: number;
+  note?: string | null;
+}>;
 
 /** 移动租赁空间请求。 */
 export type MoveRentalSpaceRequest = {

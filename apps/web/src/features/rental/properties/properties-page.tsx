@@ -143,6 +143,7 @@ export function PropertiesPage({
           canDelete={canDelete}
           canUpdate={canUpdate}
           deleting={deleteMutation.isPending}
+          getProperty={api.getProperty}
           items={items}
           onDelete={handleDelete}
           onNavigate={onNavigate}
@@ -154,6 +155,7 @@ export function PropertiesPage({
           canDelete={canDelete}
           canUpdate={canUpdate}
           deleting={deleteMutation.isPending}
+          getProperty={api.getProperty}
           items={items}
           onDelete={handleDelete}
           onNavigate={onNavigate}

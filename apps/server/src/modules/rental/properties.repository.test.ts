@@ -1,4 +1,4 @@
-import { QueryBuilder } from "drizzle-orm/pg-core";
+import { PgDialect, QueryBuilder } from "drizzle-orm/pg-core";
 import { describe, expect, it, vi } from "vitest";
 
 import { rentalProperties, rentalSpaces } from "../../db/schema.js";
@@ -127,7 +127,7 @@ describe("PropertiesRepository", () => {
     }
   });
 
-  it("finds active owned records and active name conflicts through the supplied executor", async () => {
+  it("finds undeleted owned records and name conflicts regardless of status", async () => {
     const ownedLimit = vi.fn().mockResolvedValue([{ id: "property-1" }]);
     const ownedWhere = vi.fn().mockReturnValue({ limit: ownedLimit });
     const ownedFrom = vi.fn().mockReturnValue({ where: ownedWhere });
@@ -155,9 +155,8 @@ describe("PropertiesRepository", () => {
       expect(containsReference(condition, "organization-1")).toBe(true);
       expect(containsReference(condition, rentalProperties.deletedAt)).toBe(true);
     }
-    expect(containsReference(conflictWhere.mock.calls[0]?.[0], rentalProperties.isActive)).toBe(
-      true,
-    );
+    const conflictSql = new PgDialect().sqlToQuery(conflictWhere.mock.calls[0]?.[0]).sql;
+    expect(conflictSql).not.toContain('"rental_properties"."is_active"');
     expect(containsReference(conflictWhere.mock.calls[0]?.[0], "阳光公寓")).toBe(true);
     expect(containsReference(conflictWhere.mock.calls[0]?.[0], "property-1")).toBe(true);
   });
@@ -187,6 +186,7 @@ describe("PropertiesRepository", () => {
       addressLine: "世纪大道 1 号",
       note: null,
       createdByUserId: "user-1",
+      updatedByUserId: "user-1",
     };
 
     await expect(repository.create(createInput, executor)).resolves.toMatchObject({
@@ -197,7 +197,12 @@ describe("PropertiesRepository", () => {
     ).resolves.toMatchObject({ name: "阳光公寓二期" });
     await expect(
       repository.setStatus(
-        { organizationId: "organization-1", id: "property-1", isActive: false },
+        {
+          organizationId: "organization-1",
+          id: "property-1",
+          isActive: false,
+          updatedByUserId: "user-1",
+        },
         executor,
       ),
     ).resolves.toMatchObject({ isActive: false });
@@ -222,7 +227,12 @@ describe("PropertiesRepository", () => {
       repository.hasActiveSpace("organization-1", "property-1", { select } as never),
     ).resolves.toBe(true);
     await repository.softDelete(
-      { organizationId: "organization-1", id: "property-1", deletedByUserId: "user-1" },
+      {
+        organizationId: "organization-1",
+        id: "property-1",
+        deletedByUserId: "user-1",
+        updatedByUserId: "user-1",
+      },
       { update } as never,
     );
 

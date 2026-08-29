@@ -17,6 +17,7 @@ describe("spaceFormSchema", () => {
         customTypeName: "",
         isRentable: false,
         sortOrder: 0,
+        note: "",
       }).success,
     ).toBe(false);
     expect(
@@ -27,6 +28,7 @@ describe("spaceFormSchema", () => {
         customTypeName: "储物间",
         isRentable: false,
         sortOrder: 0,
+        note: "",
       }).success,
     ).toBe(true);
   });
@@ -40,6 +42,7 @@ describe("spaceFormSchema", () => {
         customTypeName: "",
         isRentable: true,
         sortOrder: 2,
+        note: "",
       }),
     ).toEqual({
       propertyId: "property-a",
@@ -61,6 +64,7 @@ describe("spaceFormSchema", () => {
       type: "room",
       customTypeName: null,
       isRentable: true,
+      note: null,
       isActive: true,
       isEffectivelyActive: true,
       sortOrder: 0,

@@ -107,6 +107,7 @@ export class SpacesService {
             ...input,
             organizationId: authContext.organizationId,
             createdByUserId: authContext.userId,
+            updatedByUserId: authContext.userId,
           },
           transaction,
         );
@@ -170,7 +171,9 @@ export class SpacesService {
         customTypeName: input.customTypeName,
         isRentable: input.isRentable,
         sortOrder: item.sortOrder,
+        note: input.note,
         createdByUserId: authContext.userId,
+        updatedByUserId: authContext.userId,
       }));
 
       let spaces: RentalSpaceRecord[];
@@ -210,8 +213,9 @@ export class SpacesService {
         transaction,
       );
       const next = this.policy.mergeUpdate(current, changes);
+      next.updatedByUserId = authContext.userId;
       const siblingIdentityChanged = next.name !== current.name || next.code !== current.code;
-      if (current.isActive && siblingIdentityChanged) {
+      if (siblingIdentityChanged) {
         await this.policy.assertSiblingAvailable(
           siblingInput(
             authContext.organizationId,
@@ -285,18 +289,16 @@ export class SpacesService {
         transaction,
       );
       this.policy.assertTargetDepth(targetParentLevel, subtreeRelativeDepth);
-      if (current.isActive) {
-        await this.policy.assertSiblingAvailable(
-          siblingInput(
-            authContext.organizationId,
-            current.propertyId,
-            parentId,
-            [current],
-            current.id,
-          ),
-          transaction,
-        );
-      }
+      await this.policy.assertSiblingAvailable(
+        siblingInput(
+          authContext.organizationId,
+          current.propertyId,
+          parentId,
+          [current],
+          current.id,
+        ),
+        transaction,
+      );
 
       try {
         await this.repository.move(
@@ -306,6 +308,7 @@ export class SpacesService {
             propertyId: current.propertyId,
             parentId,
             sortOrder: dto.sortOrder,
+            updatedByUserId: authContext.userId,
           },
           transaction,
         );
@@ -360,6 +363,7 @@ export class SpacesService {
             organizationId: authContext.organizationId,
             propertyId: current.propertyId,
             isActive: dto.isActive,
+            updatedByUserId: authContext.userId,
           },
           transaction,
         );
@@ -398,6 +402,7 @@ export class SpacesService {
           organizationId: authContext.organizationId,
           propertyId: current.propertyId,
           deletedByUserId: authContext.userId,
+          updatedByUserId: authContext.userId,
         },
         transaction,
       );
@@ -469,6 +474,7 @@ function normalizeCreateDto(dto: CreateSpaceDto) {
     customTypeName: normalizeOptionalText(dto.customTypeName),
     isRentable: dto.isRentable,
     sortOrder: dto.sortOrder ?? 0,
+    note: normalizeOptionalText(dto.note),
   };
 }
 
@@ -479,6 +485,7 @@ function normalizeBatchDto(dto: BatchCreateSpacesDto) {
     type: dto.type,
     customTypeName: normalizeOptionalText(dto.customTypeName),
     isRentable: dto.isRentable,
+    note: normalizeOptionalText(dto.note),
     items: dto.items.map((item) => ({
       name: item.name.trim(),
       code: normalizeOptionalText(item.code),
@@ -499,6 +506,7 @@ function normalizeUpdateDto(dto: UpdateSpaceDto): {
   if (rawChanges.customTypeName !== undefined) {
     changes.customTypeName = normalizeOptionalText(rawChanges.customTypeName);
   }
+  if (rawChanges.note !== undefined) changes.note = normalizeOptionalText(rawChanges.note);
   return { id, changes, changedFields: Object.keys(rawChanges) };
 }
 
@@ -564,6 +572,7 @@ function toSpaceNode(space: RentalSpaceNodeRecord): RentalSpaceNode {
     customTypeName: space.customTypeName,
     isRentable: space.isRentable,
     isActive: space.isActive,
+    note: space.note,
     isEffectivelyActive: space.isEffectivelyActive,
     sortOrder: space.sortOrder,
     hasChildren: space.hasChildren,

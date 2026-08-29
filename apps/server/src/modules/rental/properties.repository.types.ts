@@ -30,6 +30,7 @@ export type RentalPropertyRecord = {
   note: string | null;
   isActive: boolean;
   createdByUserId: string;
+  updatedByUserId: string;
   deletedAt: Date | null;
   deletedByUserId: string | null;
   createdAt: Date;
@@ -83,6 +84,7 @@ export type UpdateRentalPropertyInput = RentalPropertyUpdateValues & {
   id: string;
   organizationId: string;
   isActive: boolean;
+  updatedByUserId: string;
 };
 
 /** 设置房产状态的可信持久化输入。 */
@@ -90,9 +92,10 @@ export type SetRentalPropertyStatusInput = {
   organizationId: string;
   id: string;
   isActive: boolean;
+  updatedByUserId: string;
 };
 
-/** 查询活动房产同名冲突的输入。 */
+/** 查询未软删除房产同名冲突的输入。 */
 export type ActivePropertyNameConflictInput = {
   organizationId: string;
   name: string;
@@ -104,4 +107,5 @@ export type SoftDeleteRentalPropertyInput = {
   organizationId: string;
   id: string;
   deletedByUserId: string;
+  updatedByUserId: string;
 };

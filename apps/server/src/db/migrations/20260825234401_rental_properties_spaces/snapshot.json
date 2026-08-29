@@ -2,114 +2,70 @@
   "version": "8",
   "dialect": "postgres",
   "id": "f9227018-5275-417c-99d1-cc15933331d9",
-  "prevIds": [
-    "49219d37-8591-46be-8e27-10d3fab73dd5"
-  ],
+  "prevIds": ["49219d37-8591-46be-8e27-10d3fab73dd5"],
   "ddl": [
     {
-      "values": [
-        "cash",
-        "bank",
-        "e_wallet",
-        "credit_card",
-        "other"
-      ],
+      "values": ["cash", "bank", "e_wallet", "credit_card", "other"],
       "name": "account_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "income",
-        "expense"
-      ],
+      "values": ["income", "expense"],
       "name": "category_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "personal",
-        "rental"
-      ],
+      "values": ["personal", "rental"],
       "name": "ledger_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "income",
-        "expense",
-        "transfer",
-        "excluded_inflow",
-        "excluded_outflow"
-      ],
+      "values": ["income", "expense", "transfer", "excluded_inflow", "excluded_outflow"],
       "name": "transaction_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "succeeded",
-        "failed"
-      ],
+      "values": ["succeeded", "failed"],
       "name": "audit_result",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "web_pc",
-        "web_mobile",
-        "app_ios",
-        "app_android"
-      ],
+      "values": ["web_pc", "web_mobile", "app_ios", "app_android"],
       "name": "client_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "active",
-        "disabled"
-      ],
+      "values": ["active", "disabled"],
       "name": "membership_status",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "directory",
-        "menu",
-        "button"
-      ],
+      "values": ["directory", "menu", "button"],
       "name": "menu_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "active",
-        "disabled"
-      ],
+      "values": ["active", "disabled"],
       "name": "organization_status",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "active",
-        "revoked"
-      ],
+      "values": ["active", "revoked"],
       "name": "refresh_session_status",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "active",
-        "disabled"
-      ],
+      "values": ["active", "disabled"],
       "name": "user_status",
       "entityType": "enums",
       "schema": "public"
@@ -2254,6 +2210,19 @@
       "table": "rental_properties"
     },
     {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by_user_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "rental_properties"
+    },
+    {
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": false,
@@ -2444,6 +2413,19 @@
       "generated": null,
       "identity": null,
       "name": "sort_order",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "rental_spaces"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "note",
       "entityType": "columns",
       "schema": "public",
       "table": "rental_spaces"
@@ -3302,7 +3284,7 @@
         }
       ],
       "isUnique": true,
-      "where": "\"is_active\" IS TRUE AND \"deleted_at\" IS NULL",
+      "where": "\"deleted_at\" IS NULL",
       "with": "",
       "method": "btree",
       "concurrently": false,
@@ -3365,7 +3347,7 @@
         }
       ],
       "isUnique": true,
-      "where": "\"parent_id\" IS NULL AND \"is_active\" IS TRUE AND \"deleted_at\" IS NULL",
+      "where": "\"parent_id\" IS NULL AND \"deleted_at\" IS NULL",
       "with": "",
       "method": "btree",
       "concurrently": false,
@@ -3407,7 +3389,7 @@
         }
       ],
       "isUnique": true,
-      "where": "\"parent_id\" IS NOT NULL AND \"is_active\" IS TRUE AND \"deleted_at\" IS NULL",
+      "where": "\"parent_id\" IS NOT NULL AND \"deleted_at\" IS NULL",
       "with": "",
       "method": "btree",
       "concurrently": false,
@@ -3442,7 +3424,7 @@
         }
       ],
       "isUnique": true,
-      "where": "\"parent_id\" IS NULL AND \"code\" IS NOT NULL AND \"is_active\" IS TRUE AND \"deleted_at\" IS NULL",
+      "where": "\"parent_id\" IS NULL AND \"code\" IS NOT NULL AND \"deleted_at\" IS NULL",
       "with": "",
       "method": "btree",
       "concurrently": false,
@@ -3484,7 +3466,7 @@
         }
       ],
       "isUnique": true,
-      "where": "\"parent_id\" IS NOT NULL AND \"code\" IS NOT NULL AND \"is_active\" IS TRUE AND \"deleted_at\" IS NULL",
+      "where": "\"parent_id\" IS NOT NULL AND \"code\" IS NOT NULL AND \"deleted_at\" IS NULL",
       "with": "",
       "method": "btree",
       "concurrently": false,
@@ -3544,14 +3526,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "account_movements_organization_id_organizations_id_fkey",
@@ -3561,16 +3539,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "transaction_id"
-      ],
+      "columns": ["organization_id", "transaction_id"],
       "schemaTo": "public",
       "tableTo": "transactions",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "account_movements_organization_transaction_fk",
@@ -3580,16 +3552,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "account_id"
-      ],
+      "columns": ["organization_id", "account_id"],
       "schemaTo": "public",
       "tableTo": "accounts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "account_movements_organization_account_fk",
@@ -3599,14 +3565,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "accounts_organization_id_organizations_id_fkey",
@@ -3616,14 +3578,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "accounts_created_by_user_id_users_id_fkey",
@@ -3633,14 +3591,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "accounts_deleted_by_user_id_users_id_fkey",
@@ -3650,14 +3604,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_organization_id_organizations_id_fkey",
@@ -3667,14 +3617,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_created_by_user_id_users_id_fkey",
@@ -3684,14 +3630,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_deleted_by_user_id_users_id_fkey",
@@ -3701,16 +3643,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id"
-      ],
+      "columns": ["organization_id", "ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_organization_ledger_fk",
@@ -3720,20 +3656,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id",
-        "type",
-        "parent_id"
-      ],
+      "columns": ["organization_id", "ledger_id", "type", "parent_id"],
       "schemaTo": "public",
       "tableTo": "categories",
-      "columnsTo": [
-        "organization_id",
-        "ledger_id",
-        "type",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "ledger_id", "type", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_parent_scope_fk",
@@ -3743,14 +3669,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "ledgers_organization_id_organizations_id_fkey",
@@ -3760,14 +3682,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "ledgers_created_by_user_id_users_id_fkey",
@@ -3777,14 +3695,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "ledgers_deleted_by_user_id_users_id_fkey",
@@ -3794,14 +3708,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_organization_id_organizations_id_fkey",
@@ -3811,14 +3721,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_created_by_user_id_users_id_fkey",
@@ -3828,14 +3734,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by_user_id"
-      ],
+      "columns": ["updated_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_updated_by_user_id_users_id_fkey",
@@ -3845,14 +3747,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_deleted_by_user_id_users_id_fkey",
@@ -3862,16 +3760,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id"
-      ],
+      "columns": ["organization_id", "ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_organization_ledger_fk",
@@ -3881,18 +3773,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id",
-        "category_id"
-      ],
+      "columns": ["organization_id", "ledger_id", "category_id"],
       "schemaTo": "public",
       "tableTo": "categories",
-      "columnsTo": [
-        "organization_id",
-        "ledger_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "ledger_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_category_scope_fk",
@@ -3902,14 +3786,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "audit_logs_organization_id_organizations_id_fk",
@@ -3919,14 +3799,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "actor_user_id"
-      ],
+      "columns": ["actor_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "audit_logs_actor_user_id_users_id_fk",
@@ -3936,14 +3812,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "menus_organization_id_organizations_id_fkey",
@@ -3953,14 +3825,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "permission_code"
-      ],
+      "columns": ["permission_code"],
       "schemaTo": "public",
       "tableTo": "permissions",
-      "columnsTo": [
-        "key"
-      ],
+      "columnsTo": ["key"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "menus_permission_code_permissions_key_fkey",
@@ -3970,16 +3838,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "parent_id"
-      ],
+      "columns": ["organization_id", "parent_id"],
       "schemaTo": "public",
       "tableTo": "menus",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "menus_organization_parent_fk",
@@ -3989,14 +3851,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "organization_memberships_organization_id_organizations_id_fk",
@@ -4006,14 +3864,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "organization_memberships_user_id_users_id_fk",
@@ -4023,14 +3877,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "role_id"
-      ],
+      "columns": ["role_id"],
       "schemaTo": "public",
       "tableTo": "roles",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "organization_memberships_role_id_roles_id_fk",
@@ -4040,14 +3890,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "organizations_created_by_user_id_users_id_fk",
@@ -4057,14 +3903,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "refresh_sessions_user_id_users_id_fk",
@@ -4074,14 +3916,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "current_organization_id"
-      ],
+      "columns": ["current_organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "refresh_sessions_current_organization_id_organizations_id_fk",
@@ -4091,14 +3929,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "role_id"
-      ],
+      "columns": ["role_id"],
       "schemaTo": "public",
       "tableTo": "roles",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "role_permissions_role_id_roles_id_fk",
@@ -4108,14 +3942,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "permission_id"
-      ],
+      "columns": ["permission_id"],
       "schemaTo": "public",
       "tableTo": "permissions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "role_permissions_permission_id_permissions_id_fk",
@@ -4125,14 +3955,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "roles_organization_id_organizations_id_fk",
@@ -4142,14 +3968,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_properties_organization_id_organizations_id_fkey",
@@ -4159,14 +3981,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_properties_created_by_user_id_users_id_fkey",
@@ -4176,14 +3994,23 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["updated_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "rental_properties_updated_by_user_id_users_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "rental_properties"
+    },
+    {
+      "nameExplicit": false,
+      "columns": ["deleted_by_user_id"],
+      "schemaTo": "public",
+      "tableTo": "users",
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_properties_deleted_by_user_id_users_id_fkey",
@@ -4193,16 +4020,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id"
-      ],
+      "columns": ["organization_id", "ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_properties_organization_ledger_fk",
@@ -4212,14 +4033,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_spaces_organization_id_organizations_id_fkey",
@@ -4229,14 +4046,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_spaces_created_by_user_id_users_id_fkey",
@@ -4246,14 +4059,23 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["updated_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "rental_spaces_updated_by_user_id_users_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "rental_spaces"
+    },
+    {
+      "nameExplicit": false,
+      "columns": ["deleted_by_user_id"],
+      "schemaTo": "public",
+      "tableTo": "users",
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_spaces_deleted_by_user_id_users_id_fkey",
@@ -4263,16 +4085,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "property_id"
-      ],
+      "columns": ["organization_id", "property_id"],
       "schemaTo": "public",
       "tableTo": "rental_properties",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_spaces_organization_property_fk",
@@ -4282,18 +4098,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "property_id",
-        "parent_id"
-      ],
+      "columns": ["organization_id", "property_id", "parent_id"],
       "schemaTo": "public",
       "tableTo": "rental_spaces",
-      "columnsTo": [
-        "organization_id",
-        "property_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "property_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_spaces_parent_scope_fk",
@@ -4302,10 +4110,7 @@
       "table": "rental_spaces"
     },
     {
-      "columns": [
-        "role_id",
-        "permission_id"
-      ],
+      "columns": ["role_id", "permission_id"],
       "nameExplicit": false,
       "name": "role_permissions_role_id_permission_id_pk",
       "entityType": "pks",
@@ -4313,9 +4118,7 @@
       "table": "role_permissions"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "account_movements_pkey",
       "schema": "public",
@@ -4323,9 +4126,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "accounts_pkey",
       "schema": "public",
@@ -4333,9 +4134,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "categories_pkey",
       "schema": "public",
@@ -4343,9 +4142,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "ledgers_pkey",
       "schema": "public",
@@ -4353,9 +4150,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "transactions_pkey",
       "schema": "public",
@@ -4363,9 +4158,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "audit_logs_pkey",
       "schema": "public",
@@ -4373,9 +4166,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "menus_pkey",
       "schema": "public",
@@ -4383,9 +4174,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "organization_memberships_pkey",
       "schema": "public",
@@ -4393,9 +4182,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "organizations_pkey",
       "schema": "public",
@@ -4403,9 +4190,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "permissions_pkey",
       "schema": "public",
@@ -4413,9 +4198,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "refresh_sessions_pkey",
       "schema": "public",
@@ -4423,9 +4206,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "roles_pkey",
       "schema": "public",
@@ -4433,9 +4214,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "users_pkey",
       "schema": "public",
@@ -4443,9 +4222,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_properties_pkey",
       "schema": "public",
@@ -4453,9 +4230,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_spaces_pkey",
       "schema": "public",
@@ -4464,10 +4239,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "accounts_organization_id_unique",
       "entityType": "uniques",
@@ -4476,11 +4248,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id",
-        "id"
-      ],
+      "columns": ["organization_id", "ledger_id", "id"],
       "nullsNotDistinct": false,
       "name": "categories_organization_ledger_id_unique",
       "entityType": "uniques",
@@ -4489,12 +4257,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id",
-        "type",
-        "id"
-      ],
+      "columns": ["organization_id", "ledger_id", "type", "id"],
       "nullsNotDistinct": false,
       "name": "categories_parent_scope_unique",
       "entityType": "uniques",
@@ -4503,10 +4266,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "ledgers_organization_id_unique",
       "entityType": "uniques",
@@ -4515,10 +4275,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "transactions_organization_id_unique",
       "entityType": "uniques",
@@ -4527,10 +4284,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "menus_organization_id_unique",
       "entityType": "uniques",
@@ -4539,10 +4293,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_properties_organization_id_unique",
       "entityType": "uniques",
@@ -4551,10 +4302,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id"
-      ],
+      "columns": ["organization_id", "ledger_id"],
       "nullsNotDistinct": false,
       "name": "rental_properties_organization_ledger_unique",
       "entityType": "uniques",
@@ -4563,11 +4311,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "property_id",
-        "id"
-      ],
+      "columns": ["organization_id", "property_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_spaces_organization_property_id_unique",
       "entityType": "uniques",

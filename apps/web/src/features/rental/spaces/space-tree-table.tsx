@@ -5,6 +5,7 @@ import type {
   PermissionKey,
   RentalSpaceNode,
   RentalSpaceSearchResult,
+  UpdateRentalSpaceRequest,
 } from "@xpense/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -65,6 +66,9 @@ export function SpaceTreeTable({
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [draftKeyword, setDraftKeyword] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [searchItems, setSearchItems] = useState<RentalSpaceSearchResult[]>([]);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchLoadingMore, setSearchLoadingMore] = useState(false);
   const [locationResult, setLocationResult] = useState<RentalSpaceSearchResult | null>(null);
   const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "success" | "failure">(
     "idle",
@@ -89,6 +93,41 @@ export function SpaceTreeTable({
     enabled: keyword.length > 0,
     retry: false,
   });
+  useEffect(() => {
+    if (!keyword || !searchQuery.data) {
+      setSearchItems([]);
+      setSearchPage(1);
+      return;
+    }
+    setSearchItems(searchQuery.data.items);
+    setSearchPage(searchQuery.data.page);
+  }, [keyword, searchQuery.data]);
+
+  async function loadMoreSearchResults() {
+    if (!searchQuery.data || searchLoadingMore || searchItems.length >= searchQuery.data.total)
+      return;
+    setSearchLoadingMore(true);
+    try {
+      const nextPage = searchPage + 1;
+      const page = await queryClient.fetchQuery({
+        ...rentalQueryOptions.search(api, organizationId, {
+          propertyId,
+          keyword,
+          page: nextPage,
+          pageSize: 20,
+        }),
+        retry: false,
+      });
+      setSearchItems((current) => {
+        const byId = new Map(current.map((item) => [item.id, item]));
+        for (const item of page.items) byId.set(item.id, item);
+        return [...byId.values()];
+      });
+      setSearchPage(nextPage);
+    } finally {
+      setSearchLoadingMore(false);
+    }
+  }
   const createMutation = useMutation({
     mutationFn: (input: CreateRentalSpaceRequest) => api.createSpace(input),
     onSuccess: (_, input) => invalidateSpaceMutation(queryClient, organizationId, input.propertyId),
@@ -98,8 +137,7 @@ export function SpaceTreeTable({
     onSuccess: (_, input) => invalidateSpaceMutation(queryClient, organizationId, input.propertyId),
   });
   const updateMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: Parameters<RentalApi["updateSpace"]>[1] }) =>
-      api.updateSpace(id, input),
+    mutationFn: (input: UpdateRentalSpaceRequest) => api.updateSpace(input),
     onSuccess: (_, { id }) => invalidateSpaceMutation(queryClient, organizationId, propertyId, id),
   });
   const moveMutation = useMutation({
@@ -222,7 +260,7 @@ export function SpaceTreeTable({
     setMutationError(null);
     try {
       await createMutation.mutateAsync(input);
-      await refreshLoadedTree();
+      await refreshAfterMutation("创建");
       toast.success("空间创建成功");
     } catch (error) {
       actionError(error, "创建");
@@ -233,18 +271,18 @@ export function SpaceTreeTable({
     setMutationError(null);
     try {
       await batchMutation.mutateAsync(input);
-      await refreshLoadedTree();
+      await refreshAfterMutation("批量创建");
       toast.success(`已创建 ${input.items.length} 个空间`);
     } catch (error) {
       actionError(error, "批量创建");
       throw error;
     }
   }
-  async function handleUpdate(id: string, input: Parameters<RentalApi["updateSpace"]>[1]) {
+  async function handleUpdate(input: UpdateRentalSpaceRequest) {
     setMutationError(null);
     try {
-      await updateMutation.mutateAsync({ id, input });
-      await refreshLoadedTree();
+      await updateMutation.mutateAsync(input);
+      await refreshAfterMutation("保存");
       toast.success("空间已更新");
     } catch (error) {
       actionError(error, "保存");
@@ -255,7 +293,7 @@ export function SpaceTreeTable({
     setMutationError(null);
     try {
       await moveMutation.mutateAsync({ id: space.id, parentId, sortOrder });
-      await refreshLoadedTree();
+      await refreshAfterMutation("移动");
       toast.success("空间已移动");
     } catch (error) {
       actionError(error, "移动");
@@ -266,7 +304,7 @@ export function SpaceTreeTable({
     setMutationError(null);
     try {
       await statusMutation.mutateAsync({ id: space.id, isActive });
-      await refreshLoadedTree();
+      await refreshAfterMutation("更新状态");
       toast.success(isActive ? "空间已启用" : "空间已停用");
     } catch (error) {
       actionError(error, "更新状态");
@@ -276,10 +314,17 @@ export function SpaceTreeTable({
     setMutationError(null);
     try {
       await deleteMutation.mutateAsync(space.id);
-      await refreshLoadedTree();
+      await refreshAfterMutation("删除");
       toast.success("空间已删除");
     } catch (error) {
       actionError(error, "删除");
+    }
+  }
+  async function refreshAfterMutation(action: string): Promise<void> {
+    try {
+      await refreshLoadedTree();
+    } catch {
+      setMutationError(`${action}已成功，但树刷新失败，请稍后重试。`);
     }
   }
   async function refreshLoadedTree() {
@@ -353,8 +398,11 @@ export function SpaceTreeTable({
         <SpaceSearchResults
           error={searchQuery.isError}
           isPending={searchQuery.isFetching}
-          items={searchQuery.data?.items ?? []}
+          hasMore={Boolean(searchQuery.data && searchItems.length < searchQuery.data.total)}
+          isLoadingMore={searchLoadingMore}
+          items={searchItems}
           keyword={keyword}
+          onLoadMore={() => void loadMoreSearchResults()}
           onSelect={(result) => void selectSearchResult(result)}
         />
         {locationStatus !== "idle" && locationResult ? (
@@ -426,7 +474,7 @@ export function SpaceTreeTable({
                   }}
                   onRetry={(parentId) => void loadPage(parentId, 1)}
                   onToggle={(nodeId) => void toggle(nodeId)}
-                  renderActions={(node) => (
+                  renderActions={(node, depth) => (
                     <SpaceActions
                       api={api}
                       deleting={deleteMutation.isPending}
@@ -435,7 +483,9 @@ export function SpaceTreeTable({
                       propertyActive={propertyActive}
                       propertyId={propertyId}
                       space={node}
+                      depth={depth}
                       onCreate={handleCreate}
+                      onBatchCreate={handleBatchCreate}
                       onDelete={handleDelete}
                       onMove={handleMove}
                       onSetStatus={handleStatus}
@@ -505,7 +555,7 @@ function TreeRows({
   onLoadMore: (parentId: string | null) => void;
   onRetry: (parentId: string) => void;
   onToggle: (nodeId: string) => void;
-  renderActions: (node: RentalSpaceNode) => React.ReactNode;
+  renderActions: (node: RentalSpaceNode, depth: number) => React.ReactNode;
   rowRefs: React.MutableRefObject<Record<string, HTMLTableRowElement | null>>;
   state: SpaceTreeState;
 }) {
@@ -553,7 +603,7 @@ function TreeRows({
           depth={depth}
           expanded={expanded}
           node={node}
-          actions={renderActions(node)}
+          actions={renderActions(node, depth)}
           onToggle={() => onToggle(id)}
           rowRef={(element) => {
             rowRefs.current[id] = element;

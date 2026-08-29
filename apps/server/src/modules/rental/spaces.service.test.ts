@@ -50,7 +50,9 @@ function spaceRecord(overrides: Record<string, unknown> = {}) {
     isRentable: false,
     isActive: true,
     sortOrder: 0,
+    note: null,
     createdByUserId: "user-1",
+    updatedByUserId: "user-1",
     deletedAt: null,
     deletedByUserId: null,
     createdAt: new Date("2026-08-20T00:00:00.000Z"),
@@ -300,7 +302,9 @@ describe("SpacesService", () => {
         customTypeName: null,
         isRentable: false,
         sortOrder: 0,
+        note: null,
         createdByUserId: "user-1",
+        updatedByUserId: "user-1",
       },
       rootHarness.transaction,
     );
@@ -606,6 +610,7 @@ describe("SpacesService", () => {
         propertyId: "property-1",
         parentId: "target",
         sortOrder: 9,
+        updatedByUserId: "user-1",
       },
       transaction,
     );
@@ -619,7 +624,7 @@ describe("SpacesService", () => {
     );
   });
 
-  it("updates merged profile fields and checks conflicts only for active spaces", async () => {
+  it("updates merged profile fields and checks conflicts for inactive spaces too", async () => {
     const { auditService, repository, service, transaction } = createHarness();
     await service.update(authContext, {
       id: "space-1",
@@ -661,7 +666,14 @@ describe("SpacesService", () => {
       spaceRecord({ isActive: false }),
     );
     await inactive.service.update(authContext, { id: "space-1", name: "停用节点" });
-    expect(inactive.repository.findSiblingConflicts).not.toHaveBeenCalled();
+    expect(inactive.repository.findSiblingConflicts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: null,
+        names: ["停用节点"],
+        excludeId: "space-1",
+      }),
+      inactive.transaction,
+    );
   });
 
   it("sets only the selected node status and checks conflicts when reactivating", async () => {
@@ -687,6 +699,7 @@ describe("SpacesService", () => {
         organizationId: "organization-1",
         propertyId: "property-1",
         isActive: true,
+        updatedByUserId: "user-1",
       },
       transaction,
     );

@@ -5,6 +5,7 @@ import type {
   DeleteRentalPropertyRequest,
   SetRentalPropertyStatusRequest,
   UpdateRentalPropertyRequest,
+  UpdateRentalSpaceRequest,
 } from "./rental.js";
 import { rentalPropertyTypes, rentalSpaceTypes } from "./rental.js";
 
@@ -66,5 +67,16 @@ describe("rental contracts", () => {
     expect(remove).toEqual({ id: "property-1" });
     expect(noStatusField).toEqual({});
     expect([emptyUpdate, statusInUpdate]).toHaveLength(2);
+  });
+
+  it("keeps space profile updates partial and excludes status", () => {
+    const update = { id: "space-1", note: null } satisfies UpdateRentalSpaceRequest;
+    const partialUpdate = { id: "space-1" } satisfies UpdateRentalSpaceRequest;
+    // @ts-expect-error 空间启停必须使用独立状态请求。
+    const statusInUpdate: UpdateRentalSpaceRequest = { id: "space-1", isActive: false };
+
+    expect(update).toEqual({ id: "space-1", note: null });
+    expect(partialUpdate).toEqual({ id: "space-1" });
+    expect(statusInUpdate).toEqual({ id: "space-1", isActive: false });
   });
 });

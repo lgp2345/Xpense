@@ -28,6 +28,7 @@ function node(
     type: "room",
     customTypeName: null,
     isRentable: true,
+    note: null,
     isActive: true,
     isEffectivelyActive: true,
     sortOrder: 0,

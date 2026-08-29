@@ -1,5 +1,9 @@
 import { useForm } from "@tanstack/react-form";
-import type { CreateRentalSpaceRequest, RentalSpaceNode } from "@xpense/shared";
+import type {
+  CreateRentalSpaceRequest,
+  RentalSpaceNode,
+  UpdateRentalSpaceRequest,
+} from "@xpense/shared";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { UpdateRentalSpaceInput } from "../../../services/rental-api";
 import {
   type SpaceFormValues,
   spaceFormDefaults,
@@ -37,7 +40,7 @@ type SpaceFormDialogProps = {
   space?: RentalSpaceNode;
   trigger?: React.ReactNode;
   onCreate?: (input: CreateRentalSpaceRequest) => Promise<void>;
-  onUpdate?: (id: string, input: UpdateRentalSpaceInput) => Promise<void>;
+  onUpdate?: (input: UpdateRentalSpaceRequest) => Promise<void>;
 };
 
 /** 创建或编辑第一阶段空间资料；失败时保留当前录入内容。 */
@@ -101,6 +104,7 @@ export function SpaceFormDialog({
         >
           <TextField form={form} label="名称" name="name" />
           <TextField form={form} label="编号" name="code" />
+          <TextField form={form} label="备注" name="note" />
           <form.Field name="type">
             {(field) => (
               <div className="grid gap-2">
@@ -202,7 +206,7 @@ function useSpaceForm({
       try {
         if (space && onUpdate) {
           const input = toUpdateSpaceRequest(initialValues, parsed.data);
-          if (input) await onUpdate(space.id, input);
+          if (input) await onUpdate({ id: space.id, ...input });
         } else if (onCreate) {
           await onCreate(toCreateSpaceRequest(propertyId, parentId, parsed.data));
         }
@@ -224,7 +228,7 @@ function TextField({
 }: {
   form: FormApi;
   label: string;
-  name: "name" | "code" | "customTypeName";
+  name: "name" | "code" | "customTypeName" | "note";
 }) {
   return (
     <form.Field name={name}>

@@ -206,6 +206,7 @@ function createPropertiesRepository(state: RentalTestState): Partial<PropertiesR
         ...current,
         deletedAt: new Date(),
         deletedByUserId: input.deletedByUserId,
+        updatedByUserId: input.updatedByUserId,
         updatedAt: new Date(),
       });
     },
@@ -290,7 +291,6 @@ function createSpacesRepository(state: RentalTestState): Partial<SpacesRepositor
             space.propertyId === input.propertyId &&
             space.parentId === input.parentId &&
             space.deletedAt === null &&
-            space.isActive &&
             space.id !== input.excludeId &&
             (input.names.includes(space.name) ||
               (space.code !== null && input.codes.includes(space.code))),
@@ -326,6 +326,7 @@ function createSpacesRepository(state: RentalTestState): Partial<SpacesRepositor
         ...current,
         deletedAt: new Date(),
         deletedByUserId: input.deletedByUserId,
+        updatedByUserId: input.updatedByUserId,
         updatedAt: new Date(),
       });
     },
@@ -459,6 +460,7 @@ function toSpaceNode(state: RentalTestState, space: RentalSpaceRecord) {
     customTypeName: space.customTypeName,
     isRentable: space.isRentable,
     isActive: space.isActive,
+    note: space.note,
     isEffectivelyActive:
       Boolean(property?.isActive) &&
       space.isActive &&
@@ -595,6 +597,7 @@ function createPropertyRecord(input: {
     note: input.note ?? null,
     isActive: true,
     createdByUserId: input.createdByUserId,
+    updatedByUserId: input.createdByUserId,
     deletedAt: null,
     deletedByUserId: null,
     createdAt: input.createdAt,
@@ -614,6 +617,7 @@ function createSpaceRecord(input: {
   type?: RentalSpaceRecord["type"];
   customTypeName?: string | null;
   isRentable?: boolean;
+  note?: string | null;
   sortOrder?: number;
 }): RentalSpaceRecord {
   return {
@@ -628,7 +632,9 @@ function createSpaceRecord(input: {
     isRentable: input.isRentable ?? false,
     isActive: true,
     sortOrder: input.sortOrder ?? 0,
+    note: input.note ?? null,
     createdByUserId: input.createdByUserId,
+    updatedByUserId: input.createdByUserId,
     deletedAt: null,
     deletedByUserId: null,
     createdAt: input.createdAt,

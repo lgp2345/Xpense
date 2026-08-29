@@ -91,6 +91,7 @@ export class PropertiesService {
             addressLine: dto.addressLine,
             note: dto.note ?? null,
             createdByUserId: authContext.userId,
+            updatedByUserId: authContext.userId,
           },
           transaction,
         );
@@ -126,8 +127,9 @@ export class PropertiesService {
       );
       const { id: _id, ...changes } = dto;
       const next = this.policy.mergeUpdate(current, changes);
+      next.updatedByUserId = authContext.userId;
       const nameChanged = next.name !== current.name;
-      if (nameChanged && current.isActive) {
+      if (nameChanged) {
         await this.policy.assertActiveNameAvailable(
           authContext.organizationId,
           next.name,
@@ -188,7 +190,12 @@ export class PropertiesService {
 
       try {
         await this.repository.setStatus(
-          { organizationId: authContext.organizationId, id: current.id, isActive: dto.isActive },
+          {
+            organizationId: authContext.organizationId,
+            id: current.id,
+            isActive: dto.isActive,
+            updatedByUserId: authContext.userId,
+          },
           transaction,
         );
       } catch (error) {
@@ -231,6 +238,7 @@ export class PropertiesService {
           organizationId: authContext.organizationId,
           id: current.id,
           deletedByUserId: authContext.userId,
+          updatedByUserId: authContext.userId,
         },
         transaction,
       );

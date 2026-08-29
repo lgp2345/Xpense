@@ -6,13 +6,19 @@ export function SpaceSearchResults({
   error,
   items,
   isPending,
+  hasMore,
+  isLoadingMore,
   keyword,
+  onLoadMore,
   onSelect,
 }: {
   error: boolean;
   isPending: boolean;
+  hasMore: boolean;
+  isLoadingMore: boolean;
   items: RentalSpaceSearchResult[];
   keyword: string;
+  onLoadMore: () => void;
   onSelect: (result: RentalSpaceSearchResult) => void;
 }) {
   if (!keyword) return null;
@@ -44,6 +50,13 @@ export function SpaceSearchResults({
           </Button>
         </li>
       ))}
+      {hasMore ? (
+        <li>
+          <Button disabled={isLoadingMore} type="button" variant="outline" onClick={onLoadMore}>
+            {isLoadingMore ? "正在加载..." : "加载更多"}
+          </Button>
+        </li>
+      ) : null}
     </ul>
   );
 }

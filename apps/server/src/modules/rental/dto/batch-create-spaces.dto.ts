@@ -6,6 +6,7 @@ const itemNameSchema = z.string().trim().min(1).max(120);
 const itemCodeSchema = z.string().trim().min(1).max(120);
 const customTypeNameSchema = z.string().trim().min(1).max(120);
 const sortOrderSchema = z.number().int().min(-2_147_483_648).max(2_147_483_647);
+const noteSchema = z.string().trim().min(1).max(2000);
 
 const batchItemSchema = z
   .object({
@@ -23,6 +24,7 @@ export const batchCreateRentalSpacesSchema = z
     type: z.enum(rentalSpaceTypes),
     customTypeName: customTypeNameSchema.optional(),
     isRentable: z.boolean(),
+    note: noteSchema.optional(),
     items: z.array(batchItemSchema).min(1).max(500),
   })
   .strict()

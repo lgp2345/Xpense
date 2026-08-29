@@ -44,7 +44,7 @@ export class PropertiesPolicyService {
     return property;
   }
 
-  /** 拒绝同组织中仍启用且未软删除的同名房产。 */
+  /** 拒绝同组织中仍未软删除的同名房产。 */
   async assertActiveNameAvailable(
     organizationId: string,
     name: string,
@@ -55,7 +55,7 @@ export class PropertiesPolicyService {
       { organizationId, name, excludeId },
       executor,
     );
-    if (conflict) throw this.conflict("启用中的租赁房产名称已存在");
+    if (conflict) throw this.conflict("租赁房产名称已存在");
   }
 
   /** 合并部分更新并把跨字段类型错误转换为稳定校验异常。 */
@@ -79,6 +79,7 @@ export class PropertiesPolicyService {
         addressLine: merged.addressLine,
         note: merged.note,
         isActive: current.isActive,
+        updatedByUserId: current.updatedByUserId,
       };
     } catch (error) {
       if (error instanceof Error) throw this.badRequest(error.message);
@@ -96,10 +97,10 @@ export class PropertiesPolicyService {
     }
   }
 
-  /** 将并发写入触发的活动房产同名约束转换为稳定冲突异常。 */
+  /** 将并发写入触发的未删除房产同名约束转换为稳定冲突异常。 */
   rethrowNameConflict(error: unknown): never {
     if (isPropertyNameUniqueViolation(error)) {
-      throw this.conflict("启用中的租赁房产名称已存在");
+      throw this.conflict("租赁房产名称已存在");
     }
     throw error;
   }
@@ -120,7 +121,7 @@ export class PropertiesPolicyService {
   }
 }
 
-/** 识别房产活动名称唯一约束，包括数据库驱动包装的 cause 链。 */
+/** 识别房产未删除名称唯一约束，包括数据库驱动包装的 cause 链。 */
 function isPropertyNameUniqueViolation(error: unknown, visited = new Set<object>()): boolean {
   if (error === null || typeof error !== "object" || visited.has(error)) return false;
   visited.add(error);

@@ -547,6 +547,35 @@ describe("PropertyDetailPage", () => {
     expect(await screen.findByText(created.name)).toBeInTheDocument();
   });
 
+  it("keeps a successful create successful when the follow-up tree refresh fails", async () => {
+    const user = userEvent.setup();
+    const activeDetail = { ...detail, isActive: true };
+    let calls = 0;
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(activeDetail),
+        listChildren: vi.fn().mockImplementation(() => {
+          calls += 1;
+          return calls === 1
+            ? Promise.resolve({ items: [building], total: 1, page: 1, pageSize: 50 })
+            : Promise.reject(new Error("refresh unavailable"));
+        }),
+        searchSpaces: vi.fn(),
+        createSpace: vi.fn().mockResolvedValue({ id: "created" }),
+      },
+      ["rental_spaces:create"],
+    );
+    await user.click(await screen.findByRole("button", { name: "新增空间" }));
+    await user.type(screen.getByRole("textbox", { name: "名称" }), "新空间");
+    await user.click(screen.getByRole("button", { name: "创建空间" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(
+      screen
+        .getAllByRole("alert")
+        .some((alert) => alert.textContent?.includes("创建已成功，但树刷新失败")),
+    ).toBe(true);
+  });
+
   it("requires explicit confirmation before changing status and explains the descendant impact", async () => {
     const user = userEvent.setup();
     const activeDetail = { ...detail, isActive: true };
@@ -686,6 +715,44 @@ describe("PropertyDetailPage", () => {
     });
     await user.click(screen.getByRole("button", { name: "选择 B 单元" }));
     expect(screen.getByRole("button", { name: "确认移动" })).toBeEnabled();
+  });
+
+  it("shows the source descendants as disabled move targets after lazy expansion", async () => {
+    const user = userEvent.setup();
+    const activeDetail = { ...detail, isActive: true };
+    const source = {
+      ...inactiveRoom,
+      hasChildren: true,
+      parentId: null,
+      isEffectivelyActive: true,
+    };
+    const sourceChild = {
+      ...source,
+      id: "room-101-child",
+      parentId: source.id,
+      name: "101 子空间",
+      hasChildren: false,
+    };
+    const listChildren = vi
+      .fn()
+      .mockImplementation(({ parentId, page }: { parentId: string | null; page: number }) => {
+        const items =
+          parentId === null ? [source, building] : parentId === source.id ? [sourceChild] : [];
+        return Promise.resolve({ items, total: items.length, page, pageSize: 50 });
+      });
+    renderPage(
+      { getProperty: vi.fn().mockResolvedValue(activeDetail), listChildren, searchSpaces: vi.fn() },
+      ["rental_spaces:update"],
+    );
+    await screen.findByText("A 座");
+    await screen.findByText("101");
+    await user.click(screen.getByRole("button", { name: "移动 101" }));
+    await user.click(screen.getByRole("button", { name: "展开候选 101" }));
+    expect(await screen.findByText("101（当前空间，不可作为目标）")).toBeInTheDocument();
+    expect(
+      await screen.findByText("101 子空间（当前空间的后代，不可作为目标）"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "选择 101 子空间" })).not.toBeInTheDocument();
   });
 
   it("does not offer a fourth-level target parent when moving a leaf", async () => {

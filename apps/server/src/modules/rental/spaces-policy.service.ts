@@ -144,7 +144,7 @@ export class SpacesPolicyService {
     }
   }
 
-  /** 拒绝同父节点下启用且未删除的同名或同编码空间。 */
+  /** 拒绝同父节点下未删除的同名或同编码空间。 */
   async assertSiblingAvailable(
     input: {
       organizationId: string;
@@ -157,7 +157,7 @@ export class SpacesPolicyService {
     executor: AppDbExecutor,
   ): Promise<void> {
     if ((await this.repository.findSiblingConflicts(input, executor)).length > 0) {
-      throw this.conflict("同级启用空间的名称或编号已存在");
+      throw this.conflict("同级空间的名称或编号已存在");
     }
   }
 
@@ -204,7 +204,9 @@ export class SpacesPolicyService {
         customTypeName: merged.customTypeName,
         isRentable: merged.isRentable,
         isActive: current.isActive,
+        note: merged.note,
         sortOrder: merged.sortOrder,
+        updatedByUserId: current.updatedByUserId,
       };
     } catch (error) {
       if (error instanceof Error) throw this.badRequest(error.message);
@@ -226,10 +228,10 @@ export class SpacesPolicyService {
     }
   }
 
-  /** 将四个活动同级唯一约束映射为稳定 409。 */
+  /** 将四个未删除同级唯一约束映射为稳定 409。 */
   rethrowSiblingConflict(error: unknown): never {
     if (isSpaceSiblingUniqueViolation(error)) {
-      throw this.conflict("同级启用空间的名称或编号已存在");
+      throw this.conflict("同级空间的名称或编号已存在");
     }
     throw error;
   }
@@ -247,7 +249,7 @@ export class SpacesPolicyService {
   }
 }
 
-/** 识别空间活动同级唯一约束，包括数据库驱动包装的 cause 链。 */
+/** 识别空间未删除同级唯一约束，包括数据库驱动包装的 cause 链。 */
 function isSpaceSiblingUniqueViolation(error: unknown, visited = new Set<object>()): boolean {
   if (error === null || typeof error !== "object" || visited.has(error)) return false;
   visited.add(error);

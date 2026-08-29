@@ -15,6 +15,7 @@ CREATE TABLE "rental_properties" (
 	"note" text,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_by_user_id" uuid NOT NULL,
+	"updated_by_user_id" uuid NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"deleted_by_user_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -37,7 +38,9 @@ CREATE TABLE "rental_spaces" (
 	"is_rentable" boolean DEFAULT false NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"sort_order" integer DEFAULT 0 NOT NULL,
+	"note" text,
 	"created_by_user_id" uuid NOT NULL,
+	"updated_by_user_id" uuid NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"deleted_by_user_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -46,19 +49,21 @@ CREATE TABLE "rental_spaces" (
 	CONSTRAINT "rental_spaces_custom_type_name_check" CHECK (("type" = 'other' AND "custom_type_name" IS NOT NULL) OR ("type" <> 'other' AND "custom_type_name" IS NULL))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX "rental_properties_active_name_unique" ON "rental_properties" ("organization_id","name") WHERE "is_active" IS TRUE AND "deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "rental_properties_active_name_unique" ON "rental_properties" ("organization_id","name") WHERE "deleted_at" IS NULL;--> statement-breakpoint
 CREATE INDEX "rental_properties_organization_deleted_idx" ON "rental_properties" ("organization_id","deleted_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "rental_spaces_active_root_name_unique" ON "rental_spaces" ("organization_id","property_id","name") WHERE "parent_id" IS NULL AND "is_active" IS TRUE AND "deleted_at" IS NULL;--> statement-breakpoint
-CREATE UNIQUE INDEX "rental_spaces_active_child_name_unique" ON "rental_spaces" ("organization_id","property_id","parent_id","name") WHERE "parent_id" IS NOT NULL AND "is_active" IS TRUE AND "deleted_at" IS NULL;--> statement-breakpoint
-CREATE UNIQUE INDEX "rental_spaces_active_root_code_unique" ON "rental_spaces" ("organization_id","property_id","code") WHERE "parent_id" IS NULL AND "code" IS NOT NULL AND "is_active" IS TRUE AND "deleted_at" IS NULL;--> statement-breakpoint
-CREATE UNIQUE INDEX "rental_spaces_active_child_code_unique" ON "rental_spaces" ("organization_id","property_id","parent_id","code") WHERE "parent_id" IS NOT NULL AND "code" IS NOT NULL AND "is_active" IS TRUE AND "deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "rental_spaces_active_root_name_unique" ON "rental_spaces" ("organization_id","property_id","name") WHERE "parent_id" IS NULL AND "deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "rental_spaces_active_child_name_unique" ON "rental_spaces" ("organization_id","property_id","parent_id","name") WHERE "parent_id" IS NOT NULL AND "deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "rental_spaces_active_root_code_unique" ON "rental_spaces" ("organization_id","property_id","code") WHERE "parent_id" IS NULL AND "code" IS NOT NULL AND "deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "rental_spaces_active_child_code_unique" ON "rental_spaces" ("organization_id","property_id","parent_id","code") WHERE "parent_id" IS NOT NULL AND "code" IS NOT NULL AND "deleted_at" IS NULL;--> statement-breakpoint
 CREATE INDEX "rental_spaces_scope_parent_deleted_sort_idx" ON "rental_spaces" ("organization_id","property_id","parent_id","deleted_at","sort_order");--> statement-breakpoint
 ALTER TABLE "rental_properties" ADD CONSTRAINT "rental_properties_organization_id_organizations_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id");--> statement-breakpoint
 ALTER TABLE "rental_properties" ADD CONSTRAINT "rental_properties_created_by_user_id_users_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "users"("id");--> statement-breakpoint
+ALTER TABLE "rental_properties" ADD CONSTRAINT "rental_properties_updated_by_user_id_users_id_fkey" FOREIGN KEY ("updated_by_user_id") REFERENCES "users"("id");--> statement-breakpoint
 ALTER TABLE "rental_properties" ADD CONSTRAINT "rental_properties_deleted_by_user_id_users_id_fkey" FOREIGN KEY ("deleted_by_user_id") REFERENCES "users"("id");--> statement-breakpoint
 ALTER TABLE "rental_properties" ADD CONSTRAINT "rental_properties_organization_ledger_fk" FOREIGN KEY ("organization_id","ledger_id") REFERENCES "ledgers"("organization_id","id");--> statement-breakpoint
 ALTER TABLE "rental_spaces" ADD CONSTRAINT "rental_spaces_organization_id_organizations_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id");--> statement-breakpoint
 ALTER TABLE "rental_spaces" ADD CONSTRAINT "rental_spaces_created_by_user_id_users_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "users"("id");--> statement-breakpoint
+ALTER TABLE "rental_spaces" ADD CONSTRAINT "rental_spaces_updated_by_user_id_users_id_fkey" FOREIGN KEY ("updated_by_user_id") REFERENCES "users"("id");--> statement-breakpoint
 ALTER TABLE "rental_spaces" ADD CONSTRAINT "rental_spaces_deleted_by_user_id_users_id_fkey" FOREIGN KEY ("deleted_by_user_id") REFERENCES "users"("id");--> statement-breakpoint
 ALTER TABLE "rental_spaces" ADD CONSTRAINT "rental_spaces_organization_property_fk" FOREIGN KEY ("organization_id","property_id") REFERENCES "rental_properties"("organization_id","id");--> statement-breakpoint
 ALTER TABLE "rental_spaces" ADD CONSTRAINT "rental_spaces_parent_scope_fk" FOREIGN KEY ("organization_id","property_id","parent_id") REFERENCES "rental_spaces"("organization_id","property_id","id");--> statement-breakpoint
@@ -307,6 +312,7 @@ COMMENT ON COLUMN "rental_properties"."address_line" IS '房产详细地址';
 COMMENT ON COLUMN "rental_properties"."note" IS '房产备注，可能包含业务描述';
 COMMENT ON COLUMN "rental_properties"."is_active" IS '是否可用于当前租赁业务，停用后保留历史关联';
 COMMENT ON COLUMN "rental_properties"."created_by_user_id" IS '创建房产的用户 ID';
+COMMENT ON COLUMN "rental_properties"."updated_by_user_id" IS '最后更新房产的用户 ID';
 COMMENT ON COLUMN "rental_properties"."deleted_at" IS '房产软删除时间，为空表示未删除';
 COMMENT ON COLUMN "rental_properties"."deleted_by_user_id" IS '执行房产软删除的用户 ID';
 COMMENT ON COLUMN "rental_properties"."created_at" IS '房产创建时间，使用带时区时间戳';
@@ -324,7 +330,9 @@ COMMENT ON COLUMN "rental_spaces"."custom_type_name" IS '当空间类型为 othe
 COMMENT ON COLUMN "rental_spaces"."is_rentable" IS '是否可出租；仅标记业务能力，未来合同可据此选择空间';
 COMMENT ON COLUMN "rental_spaces"."is_active" IS '是否可用于当前租赁业务，停用后保留树位置和历史关联';
 COMMENT ON COLUMN "rental_spaces"."sort_order" IS '同级空间的升序排序值';
+COMMENT ON COLUMN "rental_spaces"."note" IS '空间备注，可能包含业务描述';
 COMMENT ON COLUMN "rental_spaces"."created_by_user_id" IS '创建空间的用户 ID';
+COMMENT ON COLUMN "rental_spaces"."updated_by_user_id" IS '最后更新空间的用户 ID';
 COMMENT ON COLUMN "rental_spaces"."deleted_at" IS '空间软删除时间，为空表示未删除';
 COMMENT ON COLUMN "rental_spaces"."deleted_by_user_id" IS '执行空间软删除的用户 ID';
 COMMENT ON COLUMN "rental_spaces"."created_at" IS '空间创建时间，使用带时区时间戳';

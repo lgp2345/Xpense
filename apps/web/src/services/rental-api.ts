@@ -9,8 +9,8 @@ import type {
   RentalSpaceChildrenPage,
   RentalSpaceSearchPage,
   SetRentalPropertyStatusRequest,
-  UpdateRentalSpaceRequest as SharedUpdateRentalSpaceRequest,
   UpdateRentalPropertyRequest,
+  UpdateRentalSpaceRequest,
 } from "@xpense/shared";
 
 import type { ApiClient } from "./api-client";
@@ -44,12 +44,6 @@ export type SearchRentalSpacesQuery = {
 };
 
 /** 服务端空间更新 DTO 支持部分字段更新。 */
-export type UpdateRentalSpaceInput = Partial<
-  Pick<
-    SharedUpdateRentalSpaceRequest,
-    "name" | "code" | "type" | "customTypeName" | "isRentable" | "sortOrder"
-  >
->;
 
 /** 空间单项写操作的服务端返回。 */
 export type RentalSpaceMutationResult = { id: string };
@@ -79,8 +73,8 @@ export function createRentalApi(client: ApiClient) {
       client.post<RentalSpaceMutationResult>("/rental-spaces/create", input),
     batchCreateSpaces: (input: BatchCreateRentalSpacesRequest) =>
       client.post<RentalSpaceBatchMutationResult>("/rental-spaces/batch-create", input),
-    updateSpace: (id: string, input: UpdateRentalSpaceInput) =>
-      client.post<RentalSpaceMutationResult>("/rental-spaces/update", { id, ...input }),
+    updateSpace: (input: UpdateRentalSpaceRequest) =>
+      client.post<RentalSpaceMutationResult>("/rental-spaces/update", input),
     moveSpace: (id: string, input: MoveRentalSpaceRequest) =>
       client.post<RentalSpaceMutationResult>("/rental-spaces/move", { id, ...input }),
     setSpaceStatus: (id: string, isActive: boolean) =>

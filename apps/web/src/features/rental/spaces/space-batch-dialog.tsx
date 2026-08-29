@@ -36,6 +36,7 @@ export function SpaceBatchDialog({ propertyId, parentId, onCreate }: SpaceBatchD
   const [type, setType] = useState<RentalSpaceType>("room");
   const [customTypeName, setCustomTypeName] = useState("");
   const [isRentable, setIsRentable] = useState(true);
+  const [note, setNote] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const parsed = parseSpaceBatch(text);
   const validType = type !== "other" || customTypeName.trim().length > 0;
@@ -50,11 +51,13 @@ export function SpaceBatchDialog({ propertyId, parentId, onCreate }: SpaceBatchD
         type,
         ...(type === "other" ? { customTypeName: customTypeName.trim() } : {}),
         isRentable,
+        ...(note.trim() ? { note: note.trim() } : {}),
         items: parsed.items,
       });
       setOpen(false);
       setText("");
       setCustomTypeName("");
+      setNote("");
     } catch {
       setSubmitError("批量创建失败，未创建任何空间。请保留并修正当前输入后重试。");
     }
@@ -121,6 +124,10 @@ export function SpaceBatchDialog({ propertyId, parentId, onCreate }: SpaceBatchD
               onCheckedChange={(checked) => setIsRentable(checked === true)}
             />
             <Label htmlFor="batch-rentable">可出租</Label>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="batch-note">备注</Label>
+            <Input id="batch-note" value={note} onChange={(event) => setNote(event.target.value)} />
           </div>
           <div className="rounded-md border p-3 text-sm" aria-live="polite">
             <p>有效空间：{parsed.items.length} 个</p>

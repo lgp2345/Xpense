@@ -1,4 +1,4 @@
-import type { RentalPropertySummary } from "@xpense/shared";
+import type { RentalPropertyDetail, RentalPropertySummary } from "@xpense/shared";
 
 import {
   AlertDialog,
@@ -37,6 +37,7 @@ const typeLabels = {
 } as const;
 
 type PropertyTableProps = {
+  getProperty?: (id: string) => Promise<RentalPropertyDetail>;
   canDelete: boolean;
   canUpdate: boolean;
   deleting: boolean;
@@ -51,6 +52,7 @@ type PropertyTableProps = {
 
 /** 大屏房产表格，保留账本标识在数据层而不展示给终端用户。 */
 export function PropertyTable({
+  getProperty,
   canDelete,
   canUpdate,
   deleting,
@@ -102,7 +104,11 @@ export function PropertyTable({
                     <div className="flex justify-end gap-2">
                       {canUpdate ? (
                         <>
-                          <PropertyFormDialog property={property} onUpdate={onUpdate} />
+                          <PropertyFormDialog
+                            property={property}
+                            loadDetail={getProperty ? () => getProperty(property.id) : undefined}
+                            onUpdate={onUpdate}
+                          />
                           <Button
                             aria-label={`${property.isActive ? "停用" : "启用"} ${property.name}`}
                             size="sm"

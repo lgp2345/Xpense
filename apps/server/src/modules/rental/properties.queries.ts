@@ -88,7 +88,7 @@ export function buildActivePropertyForUpdateQuery(
     .limit(1);
 }
 
-/** 构建活动房产名称冲突条件，并可排除当前房产。 */
+/** 构建未删除房产名称冲突条件，并可排除当前房产。 */
 export function buildActivePropertyNameConflictCondition(
   organizationId: string,
   name: string,
@@ -97,14 +97,13 @@ export function buildActivePropertyNameConflictCondition(
   const conditions: SQL[] = [
     eq(rentalProperties.organizationId, organizationId),
     eq(rentalProperties.name, name),
-    eq(rentalProperties.isActive, true),
     isNull(rentalProperties.deletedAt),
   ];
   if (excludeId !== undefined) conditions.push(ne(rentalProperties.id, excludeId));
 
   const condition = and(...conditions);
   if (condition === undefined) {
-    throw new Error("Active property name conflict conditions must not be empty");
+    throw new Error("Property name conflict conditions must not be empty");
   }
 
   return condition;

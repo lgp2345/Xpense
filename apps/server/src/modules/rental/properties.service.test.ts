@@ -29,6 +29,7 @@ function propertyRecord(overrides: Record<string, unknown> = {}) {
     note: "朝南",
     isActive: true,
     createdByUserId: "user-1",
+    updatedByUserId: "user-1",
     deletedAt: null,
     deletedByUserId: null,
     createdAt: new Date("2026-08-20T00:00:00.000Z"),
@@ -242,6 +243,7 @@ describe("PropertiesService", () => {
         addressLine: "科技园 1 号",
         note: "朝南",
         createdByUserId: "user-1",
+        updatedByUserId: "user-1",
       },
       transaction,
     );
@@ -380,6 +382,22 @@ describe("PropertiesService", () => {
     expect(repository.update).not.toHaveBeenCalled();
   });
 
+  it("checks an inactive property's new name against every undeleted property", async () => {
+    const { repository, service, transaction } = createHarness();
+    repository.findActiveOwnedForUpdate.mockResolvedValue(propertyRecord({ isActive: false }));
+
+    await service.update(authContext, { id: "property-1", name: "停用房产新名称" });
+
+    expect(repository.findActiveNameConflict).toHaveBeenCalledWith(
+      {
+        organizationId: "organization-1",
+        name: "停用房产新名称",
+        excludeId: "property-1",
+      },
+      transaction,
+    );
+  });
+
   it("changes only property status, checks active-name conflicts, and audits the status action", async () => {
     const { auditService, ledgerBoundary, repository, service, transaction } = createHarness();
     repository.findActiveOwnedForUpdate.mockResolvedValue(propertyRecord({ isActive: false }));
@@ -391,7 +409,12 @@ describe("PropertiesService", () => {
       transaction,
     );
     expect(repository.setStatus).toHaveBeenCalledWith(
-      { organizationId: "organization-1", id: "property-1", isActive: true },
+      {
+        organizationId: "organization-1",
+        id: "property-1",
+        isActive: true,
+        updatedByUserId: "user-1",
+      },
       transaction,
     );
     expect(ledgerBoundary.rename).not.toHaveBeenCalled();
@@ -534,6 +557,7 @@ describe("PropertiesService", () => {
         organizationId: "organization-1",
         id: "property-1",
         deletedByUserId: "user-1",
+        updatedByUserId: "user-1",
       },
       transaction,
     );

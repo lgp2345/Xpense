@@ -29,7 +29,9 @@ export type RentalSpaceRecord = {
   isRentable: boolean;
   isActive: boolean;
   sortOrder: number;
+  note: string | null;
   createdByUserId: string;
+  updatedByUserId: string;
   deletedAt: Date | null;
   deletedByUserId: string | null;
   createdAt: Date;
@@ -48,6 +50,7 @@ export type RentalSpaceNodeRecord = Pick<
   | "customTypeName"
   | "isRentable"
   | "isActive"
+  | "note"
   | "sortOrder"
 > & {
   isEffectivelyActive: boolean;
@@ -92,6 +95,7 @@ export type UpdateRentalSpaceInput = RentalSpaceUpdateValues & {
   id: string;
   organizationId: string;
   propertyId: string;
+  updatedByUserId: string;
 };
 
 /** 移动空间的可信持久化输入。 */
@@ -101,6 +105,7 @@ export type MoveRentalSpaceInput = {
   propertyId: string;
   parentId: string | null;
   sortOrder: number;
+  updatedByUserId: string;
 };
 
 /** 设置空间状态的可信持久化输入。 */
@@ -109,9 +114,10 @@ export type SetRentalSpaceStatusInput = {
   organizationId: string;
   propertyId: string;
   isActive: boolean;
+  updatedByUserId: string;
 };
 
-/** 查询同父节点下活动空间的批量名称、编码冲突。 */
+/** 查询同父节点下未软删除空间的批量名称、编码冲突。 */
 export type FindSpaceSiblingConflictsInput = {
   organizationId: string;
   propertyId: string;
@@ -130,4 +136,5 @@ export type SoftDeleteRentalSpaceInput = {
   organizationId: string;
   propertyId: string;
   deletedByUserId: string;
+  updatedByUserId: string;
 };

@@ -5,7 +5,7 @@ import type {
   RentalPropertySummary,
   UpdateRentalPropertyRequest,
 } from "@xpense/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,16 +48,50 @@ const propertyTypeOptions = [
 
 type PropertyFormDialogProps = {
   property?: RentalPropertySummary | RentalPropertyDetail;
+  loadDetail?: () => Promise<RentalPropertyDetail>;
   onCreate?: (input: CreateRentalPropertyRequest) => Promise<void>;
   onUpdate?: (input: UpdateRentalPropertyRequest) => Promise<void>;
 };
 
 /** 创建或编辑房产；提交成功后关闭，失败时保留用户输入。 */
-export function PropertyFormDialog({ property, onCreate, onUpdate }: PropertyFormDialogProps) {
+export function PropertyFormDialog({
+  property,
+  loadDetail,
+  onCreate,
+  onUpdate,
+}: PropertyFormDialogProps) {
   const [open, setOpen] = useState(false);
+  const [loadedProperty, setLoadedProperty] = useState<RentalPropertyDetail | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const isEditing = property !== undefined;
-  const form = usePropertyForm({ property, onCreate, onUpdate, setOpen, setSubmitError });
+  const editingProperty = loadedProperty ?? property;
+  const form = usePropertyForm({
+    property: editingProperty,
+    onCreate,
+    onUpdate,
+    setOpen,
+    setSubmitError,
+  });
+
+  useEffect(() => {
+    if (!open || !property || "note" in property || !loadDetail || loadedProperty) return;
+    void Promise.resolve(loadDetail())
+      .then((detail) => {
+        if (detail) setLoadedProperty(detail);
+      })
+      .catch(() => setSubmitError("加载房产详情失败，请重试。"));
+  }, [loadDetail, loadedProperty, open, property]);
+
+  useEffect(() => {
+    if (!loadedProperty) return;
+    const values = propertyFormDefaults(loadedProperty);
+    for (const [name, value] of Object.entries(values) as [
+      keyof PropertyFormValues,
+      string | boolean,
+    ][]) {
+      form.setFieldValue(name, value as never);
+    }
+  }, [form, loadedProperty]);
 
   return (
     <Dialog
@@ -66,6 +100,7 @@ export function PropertyFormDialog({ property, onCreate, onUpdate }: PropertyFor
         setOpen(next);
         if (!next) {
           setSubmitError(null);
+          setLoadedProperty(null);
           form.reset();
         }
       }}
