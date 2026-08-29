@@ -570,7 +570,7 @@ describe("PropertyDetailPage", () => {
     await waitFor(() => expect(setSpaceStatus).toHaveBeenCalledWith(building.id, false));
   });
 
-  it("loads paginated nested move targets and keeps the current nested parent selectable", async () => {
+  it("opens move targets from only the root page and loads more roots on request", async () => {
     const user = userEvent.setup();
     const activeDetail = { ...detail, isActive: true };
     const source = { ...inactiveRoom, isEffectivelyActive: true };
@@ -616,16 +616,123 @@ describe("PropertyDetailPage", () => {
     await user.click(screen.getByRole("button", { name: "展开 A 座" }));
     await screen.findByText("101");
     await user.click(screen.getByRole("button", { name: "移动 101" }));
-    await waitFor(() =>
-      expect(listChildren).toHaveBeenCalledWith({
-        propertyId: detail.id,
-        parentId: null,
-        page: 2,
-        pageSize: 50,
-      }),
+    expect(await screen.findByRole("button", { name: "加载更多可移动根空间" })).toBeInTheDocument();
+    expect(listChildren).not.toHaveBeenCalledWith({
+      propertyId: detail.id,
+      parentId: targetBranch.id,
+      page: 1,
+      pageSize: 50,
+    });
+    await user.click(screen.getByRole("button", { name: "加载更多可移动根空间" }));
+    expect(listChildren).toHaveBeenLastCalledWith({
+      propertyId: detail.id,
+      parentId: null,
+      page: 2,
+      pageSize: 50,
+    });
+    expect(await screen.findByRole("button", { name: "选择 第 51 个" })).toBeInTheDocument();
+    expect(listChildren).toHaveBeenCalledWith({
+      propertyId: detail.id,
+      parentId: null,
+      page: 2,
+      pageSize: 50,
+    });
+  });
+
+  it("loads only the expanded move candidate branch and requires a nested source to select a target", async () => {
+    const user = userEvent.setup();
+    const activeDetail = { ...detail, isActive: true };
+    const source = { ...inactiveRoom, isEffectivelyActive: true };
+    const targetBranch = { ...building, id: "building-b", name: "B 座" };
+    const nestedTarget = {
+      ...source,
+      id: "unit-b",
+      parentId: targetBranch.id,
+      name: "B 单元",
+      type: "unit" as const,
+    };
+    const listChildren = vi
+      .fn()
+      .mockImplementation(({ parentId, page }: { parentId: string | null; page: number }) => {
+        if (parentId === null)
+          return Promise.resolve({ items: [building, targetBranch], total: 2, page, pageSize: 50 });
+        if (parentId === building.id)
+          return Promise.resolve({ items: [source], total: 1, page, pageSize: 50 });
+        if (parentId === targetBranch.id)
+          return Promise.resolve({ items: [nestedTarget], total: 1, page, pageSize: 50 });
+        return Promise.resolve({ items: [], total: 0, page, pageSize: 50 });
+      });
+    renderPage(
+      { getProperty: vi.fn().mockResolvedValue(activeDetail), listChildren, searchSpaces: vi.fn() },
+      ["rental_spaces:update"],
     );
-    await user.click(screen.getByRole("combobox", { name: "移动目标" }));
-    expect(await screen.findByRole("option", { name: "B 座 / B 单元" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "A 座" })).toBeInTheDocument();
+    await screen.findByText("A 座");
+    await user.click(screen.getByRole("button", { name: "展开 A 座" }));
+    await user.click(await screen.findByRole("button", { name: "移动 101" }));
+    expect(await screen.findByText("请选择目标父级")).toBeInTheDocument();
+    expect(listChildren).not.toHaveBeenCalledWith({
+      propertyId: detail.id,
+      parentId: targetBranch.id,
+      page: 1,
+      pageSize: 50,
+    });
+    await user.click(screen.getByRole("button", { name: "展开候选 B 座" }));
+    expect(await screen.findByRole("button", { name: "选择 B 单元" })).toBeInTheDocument();
+    expect(listChildren).toHaveBeenCalledWith({
+      propertyId: detail.id,
+      parentId: targetBranch.id,
+      page: 1,
+      pageSize: 50,
+    });
+    await user.click(screen.getByRole("button", { name: "选择 B 单元" }));
+    expect(screen.getByRole("button", { name: "确认移动" })).toBeEnabled();
+  });
+
+  it("does not offer a fourth-level target parent when moving a leaf", async () => {
+    const user = userEvent.setup();
+    const activeDetail = { ...detail, isActive: true };
+    const source = { ...inactiveRoom, id: "source", parentId: null, isEffectivelyActive: true };
+    const levelOne = { ...building, id: "l1", name: "L1" };
+    const levelTwo = { ...building, id: "l2", parentId: levelOne.id, name: "L2" };
+    const levelThree = { ...building, id: "l3", parentId: levelTwo.id, name: "L3" };
+    const levelFour = {
+      ...building,
+      id: "l4",
+      parentId: levelThree.id,
+      name: "L4",
+      hasChildren: false,
+    };
+    const listChildren = vi
+      .fn()
+      .mockImplementation(({ parentId, page }: { parentId: string | null; page: number }) => {
+        const items =
+          parentId === null
+            ? [source, levelOne]
+            : parentId === levelOne.id
+              ? [levelTwo]
+              : parentId === levelTwo.id
+                ? [levelThree]
+                : parentId === levelThree.id
+                  ? [levelFour]
+                  : [];
+        return Promise.resolve({ items, total: items.length, page, pageSize: 50 });
+      });
+    renderPage(
+      { getProperty: vi.fn().mockResolvedValue(activeDetail), listChildren, searchSpaces: vi.fn() },
+      ["rental_spaces:update"],
+    );
+    await screen.findByText("101");
+    await user.click(screen.getByRole("button", { name: "移动 101" }));
+    await user.click(screen.getByRole("button", { name: "展开候选 L1" }));
+    await user.click(await screen.findByRole("button", { name: "展开候选 L2" }));
+    await user.click(await screen.findByRole("button", { name: "展开候选 L3" }));
+    expect(listChildren).toHaveBeenLastCalledWith({
+      propertyId: detail.id,
+      parentId: levelThree.id,
+      page: 1,
+      pageSize: 50,
+    });
+    expect(await screen.findByText("L4（层级超限）")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "选择 L4" })).not.toBeInTheDocument();
   });
 });
