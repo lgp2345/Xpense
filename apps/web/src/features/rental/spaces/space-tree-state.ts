@@ -52,6 +52,35 @@ export function mergeChildPage(
   };
 }
 
+/** 用服务端最新分页替换已加载分支，并清除不再从根节点可达的旧数据。 */
+export function replaceChildPage(
+  state: SpaceTreeState,
+  parentId: string | null,
+  page: RentalSpaceChildrenPage,
+): SpaceTreeState {
+  const parentKey = toParentKey(parentId);
+  const nodesById = { ...state.nodesById };
+  for (const item of page.items) nodesById[item.id] = item;
+  const byParent = {
+    ...state.byParent,
+    [parentKey]: {
+      items: page.items.map((item) => item.id),
+      page: page.page,
+      pageSize: page.pageSize,
+      total: page.total,
+    },
+  };
+  const reachable = collectReachableIds(byParent);
+  const reachableByParent = Object.fromEntries(
+    Object.entries(byParent).filter(([key]) => key === ROOT_PARENT_KEY || reachable.has(key)),
+  );
+  return {
+    byParent: reachableByParent,
+    expandedIds: state.expandedIds.filter((id) => reachable.has(id)),
+    nodesById: Object.fromEntries(Object.entries(nodesById).filter(([id]) => reachable.has(id))),
+  };
+}
+
 /** 展开一个节点，保持其余已访问分支不变。 */
 export function expandSpace(state: SpaceTreeState, spaceId: string): SpaceTreeState {
   return state.expandedIds.includes(spaceId)
@@ -124,4 +153,16 @@ function collectDescendantIds(state: SpaceTreeState, spaceId: string): Set<strin
     }
   }
   return result;
+}
+
+function collectReachableIds(byParent: Record<string, SpaceTreePage>): Set<string> {
+  const reachable = new Set<string>();
+  const pending = [...(byParent[ROOT_PARENT_KEY]?.items ?? [])];
+  while (pending.length > 0) {
+    const id = pending.pop();
+    if (!id || reachable.has(id)) continue;
+    reachable.add(id);
+    pending.push(...(byParent[id]?.items ?? []));
+  }
+  return reachable;
 }

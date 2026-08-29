@@ -21,11 +21,11 @@ export function SpaceTreeRow({
   onToggle: () => void;
   rowRef?: RefCallback<HTMLTableRowElement>;
 }) {
-  const status = node.isEffectivelyActive
-    ? "有效"
-    : node.isActive
+  const status = !node.isActive
+    ? "自身停用"
+    : !node.isEffectivelyActive
       ? "因上级停用而不可用"
-      : "自身停用";
+      : "有效";
   return (
     <TableRow ref={rowRef} id={`space-row-${node.id}`} tabIndex={-1}>
       <TableCell>
@@ -58,11 +58,6 @@ export function SpaceTreeRow({
       <TableCell className="hidden sm:table-cell">
         <div className="flex flex-wrap gap-1">
           <Badge variant={node.isEffectivelyActive ? "default" : "secondary"}>{status}</Badge>
-          {node.isActive ? (
-            <Badge variant="outline">自身启用</Badge>
-          ) : (
-            <Badge variant="secondary">自身停用</Badge>
-          )}
           {node.hasChildren ? <Badge variant="outline">包含子空间</Badge> : null}
         </div>
       </TableCell>

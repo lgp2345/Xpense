@@ -36,6 +36,7 @@ import {
   expandSpace,
   hasMoreChildren,
   mergeChildPage,
+  replaceChildPage,
   type SpaceTreeState,
   searchAncestorIds,
 } from "./space-tree-state";
@@ -221,6 +222,7 @@ export function SpaceTreeTable({
     setMutationError(null);
     try {
       await createMutation.mutateAsync(input);
+      await refreshLoadedTree();
       toast.success("空间创建成功");
     } catch (error) {
       actionError(error, "创建");
@@ -231,6 +233,7 @@ export function SpaceTreeTable({
     setMutationError(null);
     try {
       await batchMutation.mutateAsync(input);
+      await refreshLoadedTree();
       toast.success(`已创建 ${input.items.length} 个空间`);
     } catch (error) {
       actionError(error, "批量创建");
@@ -241,6 +244,7 @@ export function SpaceTreeTable({
     setMutationError(null);
     try {
       await updateMutation.mutateAsync({ id, input });
+      await refreshLoadedTree();
       toast.success("空间已更新");
     } catch (error) {
       actionError(error, "保存");
@@ -251,6 +255,7 @@ export function SpaceTreeTable({
     setMutationError(null);
     try {
       await moveMutation.mutateAsync({ id: space.id, parentId, sortOrder });
+      await refreshLoadedTree();
       toast.success("空间已移动");
     } catch (error) {
       actionError(error, "移动");
@@ -261,6 +266,7 @@ export function SpaceTreeTable({
     setMutationError(null);
     try {
       await statusMutation.mutateAsync({ id: space.id, isActive });
+      await refreshLoadedTree();
       toast.success(isActive ? "空间已启用" : "空间已停用");
     } catch (error) {
       actionError(error, "更新状态");
@@ -270,10 +276,45 @@ export function SpaceTreeTable({
     setMutationError(null);
     try {
       await deleteMutation.mutateAsync(space.id);
+      await refreshLoadedTree();
       toast.success("空间已删除");
     } catch (error) {
       actionError(error, "删除");
     }
+  }
+  async function refreshLoadedTree() {
+    const rootPage = childPage(treeRef.current, null);
+    if (!rootPage) return;
+    await refreshBranch(null, rootPage.page);
+    const loadedChildren = Object.entries(treeRef.current.byParent).filter(
+      ([parentKey]) => parentKey !== "root",
+    );
+    await Promise.all(loadedChildren.map(([parentId, page]) => refreshBranch(parentId, page.page)));
+  }
+  async function refreshBranch(parentId: string | null, loadedThroughPage: number) {
+    const pages = await Promise.all(
+      Array.from({ length: loadedThroughPage }, (_, index) =>
+        queryClient.fetchQuery({
+          ...rentalQueryOptions.children(api, organizationId, {
+            propertyId,
+            parentId,
+            page: index + 1,
+            pageSize: CHILD_PAGE_SIZE,
+          }),
+          retry: false,
+        }),
+      ),
+    );
+    const first = pages[0];
+    if (!first) return;
+    updateTree((current) =>
+      replaceChildPage(current, parentId, {
+        items: pages.flatMap((page) => page.items),
+        page: loadedThroughPage,
+        pageSize: first.pageSize,
+        total: first.total,
+      }),
+    );
   }
   return (
     <section aria-labelledby="space-tree-heading" className="space-y-3">

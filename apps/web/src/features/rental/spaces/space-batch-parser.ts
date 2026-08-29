@@ -7,6 +7,7 @@ export type SpaceBatchParseResult = {
 };
 
 const MAX_BATCH_ITEMS = 500;
+const MAX_ITEM_LENGTH = 120;
 
 /** 将逐行录入转换为批量接口输入，并在提交前标出可修正的行级错误。 */
 export function parseSpaceBatch(input: string): SpaceBatchParseResult {
@@ -31,6 +32,14 @@ export function parseSpaceBatch(input: string): SpaceBatchParseResult {
     }
     if (code === "") {
       errors.push({ line, message: "编号不能为空" });
+      continue;
+    }
+    if (name.length > MAX_ITEM_LENGTH) {
+      errors.push({ line, message: "名称不能超过 120 个字符" });
+      continue;
+    }
+    if (code && code.length > MAX_ITEM_LENGTH) {
+      errors.push({ line, message: "编号不能超过 120 个字符" });
       continue;
     }
     const duplicateNameLine = seenNames.get(name);

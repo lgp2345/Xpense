@@ -28,4 +28,16 @@ describe("parseSpaceBatch", () => {
     expect(result.items).toHaveLength(500);
     expect(result.errors).toEqual([{ line: 501, message: "最多可创建 500 个空间" }]);
   });
+
+  it("reports overlong names and codes on their exact lines", () => {
+    const overlong = "x".repeat(121);
+
+    expect(parseSpaceBatch(`${overlong}\n${overlong},有效名称`)).toEqual({
+      items: [],
+      errors: [
+        { line: 1, message: "名称不能超过 120 个字符" },
+        { line: 2, message: "编号不能超过 120 个字符" },
+      ],
+    });
+  });
 });

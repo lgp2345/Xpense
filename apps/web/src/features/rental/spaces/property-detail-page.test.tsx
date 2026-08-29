@@ -406,6 +406,23 @@ describe("PropertyDetailPage", () => {
     expect(screen.queryByRole("button", { name: "批量新增" })).not.toBeInTheDocument();
   });
 
+  it("keeps the narrow-screen details sheet available to read-only users", async () => {
+    const user = userEvent.setup();
+    renderPage({
+      getProperty: vi.fn().mockResolvedValue(detail),
+      listChildren: vi
+        .fn()
+        .mockResolvedValue({ items: [building], total: 1, page: 1, pageSize: 50 }),
+      searchSpaces: vi.fn(),
+    });
+    await screen.findByText("A 座");
+    await user.click(screen.getByRole("button", { name: "详情" }));
+    expect(screen.getByText("类型：building")).toBeInTheDocument();
+    expect(screen.getByText("状态：自身启用")).toBeInTheDocument();
+    expect(screen.getAllByText("不可出租")).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "编辑 A 座" })).not.toBeInTheDocument();
+  });
+
   it("keeps first-stage space forms free of rent fields and preserves batch text after atomic failure", async () => {
     const user = userEvent.setup();
     const activeDetail = { ...detail, isActive: true };
@@ -458,5 +475,157 @@ describe("PropertyDetailPage", () => {
       "该空间仍有子空间或租赁关联，请先处理关联后再删除。",
     );
     expect(screen.getByText("A 座")).toBeInTheDocument();
+  });
+
+  it("replaces loaded tree branches after a successful delete without collapsing unrelated branches", async () => {
+    const user = userEvent.setup();
+    const activeDetail = { ...detail, isActive: true };
+    const other = { ...building, id: "building-b", name: "B 座" };
+    const otherRoom = {
+      ...inactiveRoom,
+      id: "room-b",
+      parentId: other.id,
+      name: "B-101",
+      isEffectivelyActive: true,
+    };
+    let rootItems = [building, other];
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(activeDetail),
+        listChildren: vi.fn().mockImplementation(({ parentId }: { parentId: string | null }) =>
+          Promise.resolve({
+            items: parentId === null ? rootItems : parentId === other.id ? [otherRoom] : [],
+            total: parentId === null ? rootItems.length : parentId === other.id ? 1 : 0,
+            page: 1,
+            pageSize: 50,
+          }),
+        ),
+        searchSpaces: vi.fn(),
+        deleteSpace: vi.fn().mockImplementation(async () => {
+          rootItems = [other];
+        }),
+      },
+      ["rental_spaces:delete"],
+    );
+    await screen.findByText("A 座");
+    await user.click(screen.getByRole("button", { name: "展开 B 座" }));
+    await screen.findByText("B-101");
+    await user.click(screen.getByRole("button", { name: "删除 A 座" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+    await waitFor(() => expect(screen.queryByText("A 座")).not.toBeInTheDocument());
+    expect(screen.getByText("B 座")).toBeInTheDocument();
+    expect(screen.getByText("B-101")).toBeInTheDocument();
+  });
+
+  it("refreshes the current root branch after a successful create", async () => {
+    const user = userEvent.setup();
+    const activeDetail = { ...detail, isActive: true };
+    const created = { ...building, id: "building-new", name: "新楼栋", hasChildren: false };
+    let rootItems = [building];
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(activeDetail),
+        listChildren: vi.fn().mockImplementation(({ parentId }: { parentId: string | null }) =>
+          Promise.resolve({
+            items: parentId === null ? rootItems : [],
+            total: parentId === null ? rootItems.length : 0,
+            page: 1,
+            pageSize: 50,
+          }),
+        ),
+        searchSpaces: vi.fn(),
+        createSpace: vi.fn().mockImplementation(async () => {
+          rootItems = [building, created];
+          return { id: created.id };
+        }),
+      },
+      ["rental_spaces:create"],
+    );
+    await user.click(await screen.findByRole("button", { name: "新增空间" }));
+    await user.type(screen.getByRole("textbox", { name: "名称" }), created.name);
+    await user.click(screen.getByRole("button", { name: "创建空间" }));
+    expect(await screen.findByText(created.name)).toBeInTheDocument();
+  });
+
+  it("requires explicit confirmation before changing status and explains the descendant impact", async () => {
+    const user = userEvent.setup();
+    const activeDetail = { ...detail, isActive: true };
+    const setSpaceStatus = vi.fn().mockResolvedValue({ id: building.id });
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(activeDetail),
+        listChildren: vi
+          .fn()
+          .mockResolvedValue({ items: [building], total: 1, page: 1, pageSize: 50 }),
+        searchSpaces: vi.fn(),
+        setSpaceStatus,
+      },
+      ["rental_spaces:update"],
+    );
+    await screen.findByText("A 座");
+    await user.click(screen.getByRole("button", { name: "停用 A 座" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("已启用后代会因上级停用而暂时不可用");
+    expect(setSpaceStatus).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "确认停用" }));
+    await waitFor(() => expect(setSpaceStatus).toHaveBeenCalledWith(building.id, false));
+  });
+
+  it("loads paginated nested move targets and keeps the current nested parent selectable", async () => {
+    const user = userEvent.setup();
+    const activeDetail = { ...detail, isActive: true };
+    const source = { ...inactiveRoom, isEffectivelyActive: true };
+    const targetBranch = { ...building, id: "building-b", name: "B 座" };
+    const nestedTarget = {
+      ...source,
+      id: "unit-b",
+      parentId: "building-b",
+      name: "B 单元",
+      type: "unit" as const,
+    };
+    const rootPageOne = [
+      building,
+      targetBranch,
+      ...Array.from({ length: 48 }, (_, index) => ({
+        ...building,
+        id: `root-${index}`,
+        name: `根 ${index}`,
+        hasChildren: false,
+      })),
+    ];
+    const listChildren = vi
+      .fn()
+      .mockImplementation(({ parentId, page }: { parentId: string | null; page: number }) => {
+        if (parentId === null)
+          return Promise.resolve({
+            items: page === 1 ? rootPageOne : [{ ...building, id: "root-51", name: "第 51 个" }],
+            total: 51,
+            page,
+            pageSize: 50,
+          });
+        if (parentId === building.id)
+          return Promise.resolve({ items: [source], total: 1, page, pageSize: 50 });
+        if (parentId === targetBranch.id)
+          return Promise.resolve({ items: [nestedTarget], total: 1, page, pageSize: 50 });
+        return Promise.resolve({ items: [], total: 0, page, pageSize: 50 });
+      });
+    renderPage(
+      { getProperty: vi.fn().mockResolvedValue(activeDetail), listChildren, searchSpaces: vi.fn() },
+      ["rental_spaces:update"],
+    );
+    await screen.findByText("A 座");
+    await user.click(screen.getByRole("button", { name: "展开 A 座" }));
+    await screen.findByText("101");
+    await user.click(screen.getByRole("button", { name: "移动 101" }));
+    await waitFor(() =>
+      expect(listChildren).toHaveBeenCalledWith({
+        propertyId: detail.id,
+        parentId: null,
+        page: 2,
+        pageSize: 50,
+      }),
+    );
+    await user.click(screen.getByRole("combobox", { name: "移动目标" }));
+    expect(await screen.findByRole("option", { name: "B 座 / B 单元" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "A 座" })).toBeInTheDocument();
   });
 });

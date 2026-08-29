@@ -10,6 +10,7 @@ import {
   createSpaceTreeState,
   mergeChildPage,
   removeSpace,
+  replaceChildPage,
   searchAncestorIds,
 } from "./space-tree-state";
 
@@ -73,6 +74,19 @@ describe("space tree state", () => {
     expect(removed.byParent.root?.items).toEqual([]);
     expect(removed.byParent["building-1"]).toBeUndefined();
     expect(removed.byParent["floor-1"]).toBeUndefined();
+  });
+
+  it("replaces a refreshed loaded page so deleted and moved nodes no longer render", () => {
+    const loaded = mergeChildPage(
+      createSpaceTreeState(),
+      null,
+      page([node("building-1", null), node("building-2", null)], 1, 2),
+    );
+
+    const refreshed = replaceChildPage(loaded, null, page([node("building-2", null)]));
+
+    expect(refreshed.byParent.root?.items).toEqual(["building-2"]);
+    expect(refreshed.nodesById["building-1"]).toBeUndefined();
   });
 
   it("returns every ancestor in root-to-leaf order while excluding the focused search target", () => {

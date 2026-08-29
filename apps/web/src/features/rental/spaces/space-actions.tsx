@@ -59,7 +59,6 @@ export function SpaceActions({
   const canCreate = propertyActive && permissions.includes("rental_spaces:create");
   const canUpdate = permissions.includes("rental_spaces:update");
   const canDelete = permissions.includes("rental_spaces:delete");
-  if (!canCreate && !canUpdate && !canDelete) return null;
   return (
     <div className="flex flex-wrap justify-end gap-2">
       <SpaceDetailsSheet space={space} />
@@ -87,16 +86,7 @@ export function SpaceActions({
           onMove={(parentId, sortOrder) => onMove(space, parentId, sortOrder)}
         />
       ) : null}
-      {canUpdate ? (
-        <Button
-          aria-label={`${space.isActive ? "停用" : "启用"} ${space.name}`}
-          size="sm"
-          variant="outline"
-          onClick={() => void onSetStatus(space, !space.isActive)}
-        >
-          {space.isActive ? "停用" : "启用"}
-        </Button>
-      ) : null}
+      {canUpdate ? <SetSpaceStatusButton space={space} onSetStatus={onSetStatus} /> : null}
       {canDelete ? (
         <DeleteSpaceButton disabled={deleting} space={space} onDelete={onDelete} />
       ) : null}
@@ -120,11 +110,50 @@ function SpaceDetailsSheet({ space }: { space: RentalSpaceNode }) {
         <div className="grid gap-2 px-4 text-sm">
           <p>类型：{space.customTypeName ?? space.type}</p>
           <p>状态：{space.isActive ? "自身启用" : "自身停用"}</p>
-          <p>{space.isEffectivelyActive ? "当前可用" : "因上级停用而不可用"}</p>
+          <p>{space.isActive && !space.isEffectivelyActive ? "因上级停用而不可用" : "当前可用"}</p>
           <p>{space.isRentable ? "可出租" : "不可出租"}</p>
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function SetSpaceStatusButton({
+  space,
+  onSetStatus,
+}: {
+  space: RentalSpaceNode;
+  onSetStatus: (space: RentalSpaceNode, isActive: boolean) => Promise<void>;
+}) {
+  const isActivating = !space.isActive;
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          aria-label={`${isActivating ? "启用" : "停用"} ${space.name}`}
+          size="sm"
+          variant="outline"
+        >
+          {isActivating ? "启用" : "停用"}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{isActivating ? "确认启用空间" : "确认停用空间"}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {isActivating
+              ? "启用后仍会受到上级空间和房产状态影响。"
+              : "停用仅改变该空间自身状态；其已启用后代会因上级停用而暂时不可用。"}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogAction onClick={() => void onSetStatus(space, isActivating)}>
+            确认{isActivating ? "启用" : "停用"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
