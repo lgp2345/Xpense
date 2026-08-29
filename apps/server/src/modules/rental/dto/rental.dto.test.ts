@@ -12,6 +12,7 @@ import { propertyDetailSchema } from "./property-detail.dto.js";
 import { searchSpacesSchema } from "./search-spaces.dto.js";
 import { setPropertyStatusSchema } from "./set-property-status.dto.js";
 import { setSpaceStatusSchema } from "./set-space-status.dto.js";
+import { spaceSubtreeDepthSchema } from "./space-subtree-depth.dto.js";
 import { updateRentalPropertySchema } from "./update-property.dto.js";
 import { updateRentalSpaceSchema } from "./update-space.dto.js";
 
@@ -115,6 +116,17 @@ describe("rental DTO schemas", () => {
     expect(deletePropertySchema.parse({ id: propertyId })).toEqual({ id: propertyId });
     expect(() =>
       deletePropertySchema.parse({ id: propertyId, organizationId: ledgerId }),
+    ).toThrow();
+  });
+
+  it("requires a property-scoped space ID when reading subtree depth", () => {
+    expect(spaceSubtreeDepthSchema.parse({ propertyId, id: spaceId })).toEqual({
+      propertyId,
+      id: spaceId,
+    });
+    expect(() => spaceSubtreeDepthSchema.parse({ propertyId })).toThrow();
+    expect(() =>
+      spaceSubtreeDepthSchema.parse({ propertyId, id: spaceId, organizationId: ledgerId }),
     ).toThrow();
   });
 

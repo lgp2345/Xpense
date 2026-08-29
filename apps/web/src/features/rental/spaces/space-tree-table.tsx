@@ -69,6 +69,7 @@ export function SpaceTreeTable({
   const [searchItems, setSearchItems] = useState<RentalSpaceSearchResult[]>([]);
   const [searchPage, setSearchPage] = useState(1);
   const [searchLoadingMore, setSearchLoadingMore] = useState(false);
+  const [searchLoadMoreError, setSearchLoadMoreError] = useState(false);
   const [locationResult, setLocationResult] = useState<RentalSpaceSearchResult | null>(null);
   const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "success" | "failure">(
     "idle",
@@ -97,10 +98,12 @@ export function SpaceTreeTable({
     if (!keyword || !searchQuery.data) {
       setSearchItems([]);
       setSearchPage(1);
+      setSearchLoadMoreError(false);
       return;
     }
     setSearchItems(searchQuery.data.items);
     setSearchPage(searchQuery.data.page);
+    setSearchLoadMoreError(false);
   }, [keyword, searchQuery.data]);
 
   async function loadMoreSearchResults() {
@@ -124,6 +127,9 @@ export function SpaceTreeTable({
         return [...byId.values()];
       });
       setSearchPage(nextPage);
+      setSearchLoadMoreError(false);
+    } catch {
+      setSearchLoadMoreError(true);
     } finally {
       setSearchLoadingMore(false);
     }
@@ -397,12 +403,14 @@ export function SpaceTreeTable({
         />
         <SpaceSearchResults
           error={searchQuery.isError}
+          loadMoreError={searchLoadMoreError}
           isPending={searchQuery.isFetching}
           hasMore={Boolean(searchQuery.data && searchItems.length < searchQuery.data.total)}
           isLoadingMore={searchLoadingMore}
           items={searchItems}
           keyword={keyword}
           onLoadMore={() => void loadMoreSearchResults()}
+          onRetryLoadMore={() => void loadMoreSearchResults()}
           onSelect={(result) => void selectSearchResult(result)}
         />
         {locationStatus !== "idle" && locationResult ? (

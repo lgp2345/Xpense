@@ -59,6 +59,7 @@ function createApi(overrides: Partial<RentalApi> = {}): RentalApi {
     deleteProperty: vi.fn().mockResolvedValue(undefined),
     listChildren: vi.fn(),
     searchSpaces: vi.fn(),
+    getSpaceSubtreeDepth: vi.fn().mockResolvedValue({ relativeDepth: 0 }),
     createSpace: vi.fn(),
     batchCreateSpaces: vi.fn(),
     updateSpace: vi.fn(),
@@ -238,13 +239,55 @@ describe("PropertiesPage", () => {
     renderPage({ api, permissions: ["rental_properties:read", "rental_properties:update"] });
     await screen.findByText("阳光公寓");
     await user.click(screen.getByRole("button", { name: "编辑 阳光公寓" }));
+    expect(await screen.findByDisplayValue("保留的原始备注")).toBeInTheDocument();
     const name = screen.getByRole("textbox", { name: "房产名称" });
     await user.clear(name);
     await user.type(name, "阳光公寓二期");
     await user.click(screen.getByRole("button", { name: "保存房产" }));
     await waitFor(() => expect(api.updateProperty).toHaveBeenCalledOnce());
     expect(api.updateProperty).toHaveBeenCalledWith({ id: property.id, name: "阳光公寓二期" });
-    expect((await api.getProperty(property.id)).note).toBe("保留的原始备注");
+    expect(stored.note).toBe("保留的原始备注");
+
+    stored = { ...stored, note: "保存后重新加载的备注" };
+    await user.click(screen.getByRole("button", { name: "编辑 阳光公寓" }));
+    expect(await screen.findByDisplayValue("保存后重新加载的备注")).toBeInTheDocument();
+  });
+
+  it("loads fresh notes on every reopen and ignores a detail request that resolves after closing", async () => {
+    const user = userEvent.setup();
+    let resolveFirst: ((value: RentalPropertyDetail) => void) | undefined;
+    const getProperty = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<RentalPropertyDetail>((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({ ...propertyWithNote, note: "重新打开后的最新备注" });
+    const api = createApi({ getProperty });
+    renderPage({ api, permissions: ["rental_properties:read", "rental_properties:update"] });
+    await screen.findByText("阳光公寓");
+
+    await user.click(screen.getByRole("button", { name: "编辑 阳光公寓" }));
+    await user.click(screen.getByRole("button", { name: "取消" }));
+    resolveFirst?.({ ...propertyWithNote, note: "过期备注" });
+
+    await user.click(screen.getByRole("button", { name: "编辑 阳光公寓" }));
+    expect(await screen.findByDisplayValue("重新打开后的最新备注")).toBeInTheDocument();
+    expect(getProperty).toHaveBeenCalledTimes(2);
+    expect(screen.queryByDisplayValue("过期备注")).not.toBeInTheDocument();
+  });
+
+  it("keeps the editor recoverable when loading the latest detail fails", async () => {
+    const user = userEvent.setup();
+    const api = createApi({ getProperty: vi.fn().mockRejectedValue(new Error("offline")) });
+    renderPage({ api, permissions: ["rental_properties:read", "rental_properties:update"] });
+    await screen.findByText("阳光公寓");
+
+    await user.click(screen.getByRole("button", { name: "编辑 阳光公寓" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("加载房产详情失败");
+    expect(screen.getByRole("textbox", { name: "房产名称" })).toHaveValue("阳光公寓");
   });
 
   it("removes a fresh property detail cache after deletion so real detail navigation observes 404", async () => {

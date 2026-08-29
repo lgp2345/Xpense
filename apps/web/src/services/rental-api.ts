@@ -8,6 +8,7 @@ import type {
   RentalPropertyType,
   RentalSpaceChildrenPage,
   RentalSpaceSearchPage,
+  RentalSpaceSubtreeDepth,
   SetRentalPropertyStatusRequest,
   UpdateRentalPropertyRequest,
   UpdateRentalSpaceRequest,
@@ -43,6 +44,12 @@ export type SearchRentalSpacesQuery = {
   pageSize?: number;
 };
 
+/** 读取空间当前子树的最大相对深度。 */
+export type GetRentalSpaceSubtreeDepthQuery = {
+  propertyId: string;
+  id: string;
+};
+
 /** 服务端空间更新 DTO 支持部分字段更新。 */
 
 /** 空间单项写操作的服务端返回。 */
@@ -69,6 +76,10 @@ export function createRentalApi(client: ApiClient) {
       client.get<RentalSpaceChildrenPage>(`/rental-spaces/children${toChildrenQueryString(query)}`),
     searchSpaces: (query: SearchRentalSpacesQuery) =>
       client.get<RentalSpaceSearchPage>(`/rental-spaces/search${toSearchQueryString(query)}`),
+    getSpaceSubtreeDepth: (query: GetRentalSpaceSubtreeDepthQuery) =>
+      client.get<RentalSpaceSubtreeDepth>(
+        `/rental-spaces/subtree-depth${toSubtreeDepthQueryString(query)}`,
+      ),
     createSpace: (input: CreateRentalSpaceRequest) =>
       client.post<RentalSpaceMutationResult>("/rental-spaces/create", input),
     batchCreateSpaces: (input: BatchCreateRentalSpacesRequest) =>
@@ -114,6 +125,13 @@ function toSearchQueryString(query: SearchRentalSpacesQuery): string {
   appendParam(params, "keyword", query.keyword.trim());
   appendParam(params, "page", query.page?.toString());
   appendParam(params, "pageSize", query.pageSize?.toString());
+  return withQueryPrefix(params);
+}
+
+function toSubtreeDepthQueryString(query: GetRentalSpaceSubtreeDepthQuery): string {
+  const params = new URLSearchParams();
+  appendParam(params, "propertyId", query.propertyId);
+  appendParam(params, "id", query.id);
   return withQueryPrefix(params);
 }
 

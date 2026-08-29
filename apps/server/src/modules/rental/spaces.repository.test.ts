@@ -175,6 +175,20 @@ describe("SpacesRepository recursive queries", () => {
     );
   });
 
+  it("projects notes through both branches of the composed search tree", () => {
+    const query = buildSpaceSearchQuery(
+      new QueryBuilder() as never,
+      "organization-1",
+      "property-1",
+      { keyword: "101", page: 1, pageSize: 20 },
+    ).toSQL();
+    const sql = normalizeSql(query.sql);
+
+    expect(sql.match(/"space"\."note"/g)).toHaveLength(1);
+    expect(sql.match(/"child"\."note"/g)).toHaveLength(1);
+    expect(sql).toContain('"space_search_rows"."note"');
+  });
+
   it("treats percent, underscore, and backslash as literal search text in list and count", () => {
     const input = { keyword: "50%_\\archive", page: 1, pageSize: 10 };
     const expectedPattern = "%50\\%\\_\\\\archive%";

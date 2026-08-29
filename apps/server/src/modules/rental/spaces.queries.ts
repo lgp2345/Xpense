@@ -341,6 +341,7 @@ function buildSpaceTreeCte(organizationId: string, propertyId: string): SQL {
         "space"."is_rentable",
         "space"."is_active",
         "space"."sort_order",
+        "space"."note",
         ("property"."is_active" AND "space"."is_active") AS "is_effectively_active",
         JSONB_BUILD_ARRAY(JSONB_BUILD_OBJECT('id', "space"."id", 'name', "space"."name")) AS "path",
         ARRAY[
@@ -371,6 +372,7 @@ function buildSpaceTreeCte(organizationId: string, propertyId: string): SQL {
         "child"."is_rentable",
         "child"."is_active",
         "child"."sort_order",
+        "child"."note",
         ("tree"."is_effectively_active" AND "child"."is_active"),
         "tree"."path" || JSONB_BUILD_ARRAY(
           JSONB_BUILD_OBJECT('id', "child"."id", 'name', "child"."name")

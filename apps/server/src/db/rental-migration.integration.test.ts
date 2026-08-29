@@ -416,10 +416,10 @@ describe("rental property and space migration contract", () => {
         await sql`
           INSERT INTO "rental_properties" (
             "id", "organization_id", "ledger_id", "name", "type", "country_code",
-            "address_line", "created_by_user_id"
+            "address_line", "created_by_user_id", "updated_by_user_id"
           ) VALUES (
             ${firstPropertyId}, ${organizationId}, ${firstLedgerId}, '房产甲',
-            'residential_unit', 'CN', '测试地址甲', ${userId}
+            'residential_unit', 'CN', '测试地址甲', ${userId}, ${userId}
           )
         `;
         await expect(
@@ -428,10 +428,10 @@ describe("rental property and space migration contract", () => {
               savepoint`
               INSERT INTO "rental_properties" (
                 "id", "organization_id", "ledger_id", "name", "type", "country_code",
-                "address_line", "created_by_user_id"
+                "address_line", "created_by_user_id", "updated_by_user_id"
               ) VALUES (
                 '00000000-0000-0000-0000-000000000043', ${organizationId}, ${firstLedgerId}, '重复账本房产',
-                'residential_unit', 'CN', '测试地址重复', ${userId}
+                'residential_unit', 'CN', '测试地址重复', ${userId}, ${userId}
               )
             `,
           ),
@@ -445,10 +445,10 @@ describe("rental property and space migration contract", () => {
               savepoint`
               INSERT INTO "rental_properties" (
                 "id", "organization_id", "ledger_id", "name", "type", "country_code",
-                "address_line", "is_active", "created_by_user_id"
+                "address_line", "is_active", "created_by_user_id", "updated_by_user_id"
               ) VALUES (
                 '00000000-0000-0000-0000-000000000044', ${organizationId}, ${thirdLedgerId}, '房产甲',
-                'residential_unit', 'CN', '测试地址停用', FALSE, ${userId}
+                'residential_unit', 'CN', '测试地址停用', FALSE, ${userId}, ${userId}
               )
             `,
           ),
@@ -459,17 +459,17 @@ describe("rental property and space migration contract", () => {
         await sql`
           INSERT INTO "rental_properties" (
             "id", "organization_id", "ledger_id", "name", "type", "country_code",
-            "address_line", "created_by_user_id"
+            "address_line", "created_by_user_id", "updated_by_user_id"
           ) VALUES (
             ${secondPropertyId}, ${organizationId}, ${secondLedgerId}, '房产乙',
-            'residential_unit', 'CN', '测试地址乙', ${userId}
+            'residential_unit', 'CN', '测试地址乙', ${userId}, ${userId}
           )
         `;
         await sql`
           INSERT INTO "rental_spaces" (
-            "id", "organization_id", "property_id", "name", "code", "type", "created_by_user_id"
+            "id", "organization_id", "property_id", "name", "code", "type", "created_by_user_id", "updated_by_user_id"
           ) VALUES (
-            ${parentSpaceId}, ${organizationId}, ${firstPropertyId}, '一层', 'F1', 'floor', ${userId}
+            ${parentSpaceId}, ${organizationId}, ${firstPropertyId}, '一层', 'F1', 'floor', ${userId}, ${userId}
           )
         `;
         await expect(
@@ -478,10 +478,10 @@ describe("rental property and space migration contract", () => {
               savepoint`
               INSERT INTO "rental_spaces" (
                 "id", "organization_id", "property_id", "name", "code", "type", "is_active",
-                "created_by_user_id"
+                "created_by_user_id", "updated_by_user_id"
               ) VALUES (
                 '00000000-0000-0000-0000-000000000058', ${organizationId}, ${firstPropertyId},
-                '一层', 'F2', 'floor', FALSE, ${userId}
+                '一层', 'F2', 'floor', FALSE, ${userId}, ${userId}
               )
             `,
           ),
@@ -495,10 +495,10 @@ describe("rental property and space migration contract", () => {
               savepoint`
               INSERT INTO "rental_spaces" (
                 "id", "organization_id", "property_id", "name", "code", "type", "is_active",
-                "created_by_user_id"
+                "created_by_user_id", "updated_by_user_id"
               ) VALUES (
                 '00000000-0000-0000-0000-000000000059', ${organizationId}, ${firstPropertyId},
-                '二层', 'F1', 'floor', FALSE, ${userId}
+                '二层', 'F1', 'floor', FALSE, ${userId}, ${userId}
               )
             `,
           ),
@@ -509,10 +509,10 @@ describe("rental property and space migration contract", () => {
         await sql`
           INSERT INTO "rental_spaces" (
             "id", "organization_id", "property_id", "parent_id", "name", "code", "type",
-            "is_rentable", "created_by_user_id"
+            "is_rentable", "created_by_user_id", "updated_by_user_id"
           ) VALUES (
             ${activeSpaceId}, ${organizationId}, ${firstPropertyId}, ${parentSpaceId}, '101', 'A101', 'unit',
-            TRUE, ${userId}
+            TRUE, ${userId}, ${userId}
           )
         `;
         await expect(
@@ -520,10 +520,10 @@ describe("rental property and space migration contract", () => {
             async (savepoint) =>
               savepoint`
               INSERT INTO "rental_spaces" (
-                "id", "organization_id", "property_id", "parent_id", "name", "type", "created_by_user_id"
+                "id", "organization_id", "property_id", "parent_id", "name", "type", "created_by_user_id", "updated_by_user_id"
               ) VALUES (
                 '00000000-0000-0000-0000-000000000053', ${organizationId}, ${secondPropertyId}, ${parentSpaceId},
-                '跨房产父空间', 'unit', ${userId}
+                '跨房产父空间', 'unit', ${userId}, ${userId}
               )
             `,
           ),
@@ -534,10 +534,10 @@ describe("rental property and space migration contract", () => {
               savepoint`
               INSERT INTO "rental_spaces" (
                 "id", "organization_id", "property_id", "parent_id", "name", "code", "type",
-                "is_active", "created_by_user_id"
+                "is_active", "created_by_user_id", "updated_by_user_id"
               ) VALUES (
                 '00000000-0000-0000-0000-000000000054', ${organizationId}, ${firstPropertyId}, ${parentSpaceId},
-                '101', 'A102', 'unit', FALSE, ${userId}
+                '101', 'A102', 'unit', FALSE, ${userId}, ${userId}
               )
             `,
           ),
@@ -551,10 +551,10 @@ describe("rental property and space migration contract", () => {
               savepoint`
               INSERT INTO "rental_spaces" (
                 "id", "organization_id", "property_id", "parent_id", "name", "code", "type",
-                "is_active", "created_by_user_id"
+                "is_active", "created_by_user_id", "updated_by_user_id"
               ) VALUES (
                 '00000000-0000-0000-0000-000000000055', ${organizationId}, ${firstPropertyId}, ${parentSpaceId},
-                '102', 'A101', 'unit', FALSE, ${userId}
+                '102', 'A101', 'unit', FALSE, ${userId}, ${userId}
               )
             `,
           ),
@@ -565,10 +565,10 @@ describe("rental property and space migration contract", () => {
         await sql`
           INSERT INTO "rental_spaces" (
             "id", "organization_id", "property_id", "parent_id", "name", "code", "type", "deleted_at",
-            "created_by_user_id"
+            "created_by_user_id", "updated_by_user_id"
           ) VALUES (
             '00000000-0000-0000-0000-000000000057', ${organizationId}, ${firstPropertyId}, ${parentSpaceId},
-            '101', 'A101', 'unit', now(), ${userId}
+            '101', 'A101', 'unit', now(), ${userId}, ${userId}
           )
         `;
         expect(

@@ -43,6 +43,7 @@ describe("createRentalApi", () => {
 
     await api.listChildren({ propertyId: "p1", parentId: null, page: 1, pageSize: 50 });
     await api.searchSpaces({ propertyId: "p1", keyword: "  101 / A  ", page: 2, pageSize: 20 });
+    await api.getSpaceSubtreeDepth({ propertyId: "p1", id: "space-1" });
     await api.createSpace(createInput);
     await api.moveSpace("space-1", { parentId: null, sortOrder: 10 });
     await api.deleteSpace("space-1");
@@ -54,6 +55,10 @@ describe("createRentalApi", () => {
     expect(client.get).toHaveBeenNthCalledWith(
       2,
       "/rental-spaces/search?propertyId=p1&keyword=101+%2F+A&page=2&pageSize=20",
+    );
+    expect(client.get).toHaveBeenNthCalledWith(
+      3,
+      "/rental-spaces/subtree-depth?propertyId=p1&id=space-1",
     );
     expect(client.post).toHaveBeenNthCalledWith(1, "/rental-spaces/create", createInput);
     expect(client.post).toHaveBeenNthCalledWith(2, "/rental-spaces/move", {

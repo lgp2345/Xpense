@@ -5,7 +5,7 @@ import type {
   RentalPropertySummary,
   UpdateRentalPropertyRequest,
 } from "@xpense/shared";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -63,24 +63,38 @@ export function PropertyFormDialog({
   const [open, setOpen] = useState(false);
   const [loadedProperty, setLoadedProperty] = useState<RentalPropertyDetail | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const detailRequestId = useRef(0);
   const isEditing = property !== undefined;
   const editingProperty = loadedProperty ?? property;
+  const clearDetailState = useCallback(() => {
+    detailRequestId.current += 1;
+    setLoadedProperty(null);
+    setSubmitError(null);
+  }, []);
   const form = usePropertyForm({
     property: editingProperty,
     onCreate,
     onUpdate,
     setOpen,
     setSubmitError,
+    clearDetailState,
   });
 
   useEffect(() => {
-    if (!open || !property || "note" in property || !loadDetail || loadedProperty) return;
+    if (!open || !property || !loadDetail) return;
+    const requestId = detailRequestId.current + 1;
+    detailRequestId.current = requestId;
     void Promise.resolve(loadDetail())
       .then((detail) => {
-        if (detail) setLoadedProperty(detail);
+        if (detailRequestId.current === requestId && detail) setLoadedProperty(detail);
       })
-      .catch(() => setSubmitError("加载房产详情失败，请重试。"));
-  }, [loadDetail, loadedProperty, open, property]);
+      .catch(() => {
+        if (detailRequestId.current === requestId) setSubmitError("加载房产详情失败，请重试。");
+      });
+    return () => {
+      if (detailRequestId.current === requestId) detailRequestId.current += 1;
+    };
+  }, [loadDetail, open, property]);
 
   useEffect(() => {
     if (!loadedProperty) return;
@@ -99,8 +113,7 @@ export function PropertyFormDialog({
       onOpenChange={(next) => {
         setOpen(next);
         if (!next) {
-          setSubmitError(null);
-          setLoadedProperty(null);
+          clearDetailState();
           form.reset();
         }
       }}
@@ -226,9 +239,11 @@ function usePropertyForm({
   onUpdate,
   setOpen,
   setSubmitError,
+  clearDetailState,
 }: PropertyFormDialogProps & {
   setOpen: (open: boolean) => void;
   setSubmitError: (message: string | null) => void;
+  clearDetailState: () => void;
 }) {
   const form = useForm({
     defaultValues: propertyFormDefaults(property),
@@ -246,6 +261,7 @@ function usePropertyForm({
           );
           if (input) await onUpdate(input);
         } else if (onCreate) await onCreate(toCreatePropertyRequest(parsed.data));
+        clearDetailState();
         setOpen(false);
         form.reset();
       } catch {

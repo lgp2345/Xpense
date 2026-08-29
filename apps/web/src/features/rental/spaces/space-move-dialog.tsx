@@ -31,7 +31,7 @@ const SELECT_TARGET = "select-target";
 const CHILD_PAGE_SIZE = 50;
 
 type SpaceMoveDialogProps = {
-  api: Pick<RentalApi, "listChildren">;
+  api: Pick<RentalApi, "getSpaceSubtreeDepth" | "listChildren">;
   organizationId: string;
   propertyId: string;
   space: RentalSpaceNode;
@@ -56,6 +56,8 @@ export function SpaceMoveDialog({
   const activeLoadsRef = useRef(new Set<string>());
   const [loadingParents, setLoadingParents] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [sourceSubtreeRelativeDepth, setSourceSubtreeRelativeDepth] = useState<number | null>(null);
+  const [sourceDepthError, setSourceDepthError] = useState(false);
 
   const updateCandidateTree = useCallback(
     (updater: (current: SpaceTreeState) => SpaceTreeState) => {
@@ -96,6 +98,16 @@ export function SpaceMoveDialog({
     [api, organizationId, propertyId, queryClient, updateCandidateTree],
   );
 
+  const loadSourceSubtreeDepth = useCallback(async () => {
+    setSourceDepthError(false);
+    try {
+      const result = await api.getSpaceSubtreeDepth({ propertyId, id: space.id });
+      setSourceSubtreeRelativeDepth(result.relativeDepth);
+    } catch {
+      setSourceDepthError(true);
+    }
+  }, [api, propertyId, space.id]);
+
   useEffect(() => {
     if (!open) return;
     const emptyTree = createSpaceTreeState();
@@ -105,8 +117,11 @@ export function SpaceMoveDialog({
     setSortOrder(space.sortOrder);
     setSubmitError(null);
     setErrors({});
+    setSourceSubtreeRelativeDepth(null);
+    setSourceDepthError(false);
     void loadCandidatePage(null, 1);
-  }, [loadCandidatePage, open, space.parentId, space.sortOrder]);
+    void loadSourceSubtreeDepth();
+  }, [loadCandidatePage, loadSourceSubtreeDepth, open, space.parentId, space.sortOrder]);
 
   async function toggleCandidate(nodeId: string) {
     if (candidateTreeRef.current.expandedIds.includes(nodeId)) {
@@ -129,9 +144,9 @@ export function SpaceMoveDialog({
   }
 
   const rootPage = childPage(candidateTree, null);
-  const sourceSubtreeRelativeDepth = space.hasChildren ? 3 : 0;
   const rootIsLoading = loadingParents.includes(ROOT_TARGET);
-  const canSubmit = parentId !== SELECT_TARGET && !rootIsLoading;
+  const canSubmit =
+    parentId !== SELECT_TARGET && !rootIsLoading && sourceSubtreeRelativeDepth !== null;
 
   function renderCandidates(candidateParentId: string | null, targetParentLevel: number) {
     const page = childPage(candidateTree, candidateParentId);
@@ -143,7 +158,9 @@ export function SpaceMoveDialog({
           if (!node) return null;
           const isSource = node.id === space.id;
           const isDescendant = isCandidateDescendant(candidateTree, node.id, space.id);
-          const depthAllowed = targetParentLevel + 1 + sourceSubtreeRelativeDepth <= 4;
+          const depthAllowed =
+            sourceSubtreeRelativeDepth !== null &&
+            targetParentLevel + 1 + sourceSubtreeRelativeDepth <= 4;
           const canSelect = !isSource && !isDescendant && depthAllowed;
           const isExpanded = candidateTree.expandedIds.includes(node.id);
           const loading = loadingParents.includes(node.id);
@@ -165,7 +182,18 @@ export function SpaceMoveDialog({
                     {node.name}
                     {isSource ? "（当前空间，不可作为目标）" : null}
                     {isDescendant ? "（当前空间的后代，不可作为目标）" : null}
-                    {!isSource && !isDescendant && !depthAllowed ? "（层级超限）" : null}
+                    {!isSource &&
+                    !isDescendant &&
+                    sourceSubtreeRelativeDepth === null &&
+                    !sourceDepthError
+                      ? "（正在确认可移动层级）"
+                      : null}
+                    {!isSource &&
+                    !isDescendant &&
+                    sourceSubtreeRelativeDepth !== null &&
+                    !depthAllowed
+                      ? "（层级超限）"
+                      : null}
                   </span>
                 )}
                 {node.hasChildren && (isSource || canSelect) ? (
@@ -261,6 +289,23 @@ export function SpaceMoveDialog({
                 <p aria-live="polite" className="mt-2 text-sm text-muted-foreground">
                   正在加载可移动目标...
                 </p>
+              ) : null}
+              {sourceSubtreeRelativeDepth === null && !sourceDepthError ? (
+                <p aria-live="polite" className="mt-2 text-sm text-muted-foreground">
+                  正在确认可移动层级...
+                </p>
+              ) : null}
+              {sourceDepthError ? (
+                <Button
+                  aria-label="重试确认可移动层级"
+                  className="mt-2"
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() => void loadSourceSubtreeDepth()}
+                >
+                  重试确认层级
+                </Button>
               ) : null}
               <div className="mt-2">{renderCandidates(null, 1)}</div>
               {hasMoreChildren(candidateTree, null) ? (

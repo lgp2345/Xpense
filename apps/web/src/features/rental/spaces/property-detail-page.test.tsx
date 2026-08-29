@@ -78,6 +78,8 @@ function renderPage(
           searchSpaces:
             api.searchSpaces ??
             vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
+          getSpaceSubtreeDepth:
+            api.getSpaceSubtreeDepth ?? vi.fn().mockResolvedValue({ relativeDepth: 0 }),
           createSpace: api.createSpace ?? vi.fn(),
           batchCreateSpaces: api.batchCreateSpaces ?? vi.fn(),
           updateSpace: api.updateSpace ?? vi.fn(),
@@ -222,6 +224,46 @@ describe("PropertyDetailPage", () => {
       parentId: null,
       page: 2,
       pageSize: 50,
+    });
+  });
+
+  it("retains search results and retries the same page after loading more fails", async () => {
+    const user = userEvent.setup();
+    const secondResult = { ...inactiveRoom, id: "room-102", name: "102" };
+    const searchSpaces = vi
+      .fn()
+      .mockResolvedValueOnce({
+        items: [{ ...inactiveRoom, path: [{ id: inactiveRoom.id, name: inactiveRoom.name }] }],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      })
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({
+        items: [{ ...secondResult, path: [{ id: secondResult.id, name: secondResult.name }] }],
+        total: 2,
+        page: 2,
+        pageSize: 20,
+      });
+    renderPage({
+      getProperty: vi.fn().mockResolvedValue(detail),
+      listChildren: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 50 }),
+      searchSpaces,
+    });
+
+    await screen.findByRole("heading", { name: "阳光公寓" });
+    await user.type(screen.getByLabelText("搜索空间"), "1");
+    expect(await screen.findByRole("button", { name: /101/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "加载更多" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("加载更多搜索结果失败");
+    expect(screen.getByRole("button", { name: /101/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "重试加载更多搜索结果" }));
+    expect(await screen.findByRole("button", { name: /102/ })).toBeInTheDocument();
+    expect(searchSpaces).toHaveBeenLastCalledWith({
+      propertyId: detail.id,
+      keyword: "1",
+      page: 2,
+      pageSize: 20,
     });
   });
 
@@ -801,5 +843,43 @@ describe("PropertyDetailPage", () => {
     });
     expect(await screen.findByText("L4（层级超限）")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "选择 L4" })).not.toBeInTheDocument();
+  });
+
+  it("offers every depth-valid target for a non-leaf source with a shallow actual subtree", async () => {
+    const user = userEvent.setup();
+    const activeDetail = { ...detail, isActive: true };
+    const source = {
+      ...inactiveRoom,
+      id: "source",
+      parentId: null,
+      name: "浅层来源",
+      hasChildren: true,
+      isEffectivelyActive: true,
+    };
+    const levelOne = { ...building, id: "l1", name: "L1" };
+    const levelTwo = { ...building, id: "l2", parentId: levelOne.id, name: "L2" };
+    const listChildren = vi
+      .fn()
+      .mockImplementation(({ parentId, page }: { parentId: string | null; page: number }) => {
+        const items =
+          parentId === null ? [source, levelOne] : parentId === levelOne.id ? [levelTwo] : [];
+        return Promise.resolve({ items, total: items.length, page, pageSize: 50 });
+      });
+    const getSpaceSubtreeDepth = vi.fn().mockResolvedValue({ relativeDepth: 1 });
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(activeDetail),
+        listChildren,
+        searchSpaces: vi.fn(),
+        getSpaceSubtreeDepth,
+      },
+      ["rental_spaces:update"],
+    );
+
+    await screen.findByText("浅层来源");
+    await user.click(screen.getByRole("button", { name: "移动 浅层来源" }));
+    await user.click(await screen.findByRole("button", { name: "展开候选 L1" }));
+    expect(await screen.findByRole("button", { name: "选择 L2" })).toBeInTheDocument();
+    expect(getSpaceSubtreeDepth).toHaveBeenCalledWith({ propertyId: detail.id, id: source.id });
   });
 });

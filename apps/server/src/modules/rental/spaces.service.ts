@@ -4,6 +4,7 @@ import type {
   RentalSpaceNode,
   RentalSpaceSearchPage,
   RentalSpaceSearchResult,
+  RentalSpaceSubtreeDepth,
 } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
@@ -17,6 +18,7 @@ import type { ListSpaceChildrenDto } from "./dto/list-space-children.dto.js";
 import type { MoveSpaceDto } from "./dto/move-space.dto.js";
 import type { SearchSpacesDto } from "./dto/search-spaces.dto.js";
 import type { SetSpaceStatusDto } from "./dto/set-space-status.dto.js";
+import type { SpaceSubtreeDepthDto } from "./dto/space-subtree-depth.dto.js";
 import type { UpdateSpaceDto } from "./dto/update-space.dto.js";
 import type { RentalPropertyRecord } from "./properties.repository.types.js";
 import type { RentalSpaceUpdateValues } from "./rental.types.js";
@@ -74,6 +76,21 @@ export class SpacesService {
       pageSize: dto.pageSize,
     });
     return toSearchPage(page);
+  }
+
+  /** 在已验证房产与空间作用域内读取精确子树深度，供移动候选按需判断。 */
+  async getSubtreeDepth(
+    authContext: AuthContext,
+    dto: SpaceSubtreeDepthDto,
+  ): Promise<RentalSpaceSubtreeDepth> {
+    await this.policy.requireReadableProperty(authContext.organizationId, dto.propertyId);
+    await this.policy.requireReadableParent(authContext.organizationId, dto.propertyId, dto.id);
+    const relativeDepth = await this.repository.getSubtreeRelativeDepth(
+      authContext.organizationId,
+      dto.propertyId,
+      dto.id,
+    );
+    return { relativeDepth };
   }
 
   /** 在活动房产内创建根空间或子空间。 */

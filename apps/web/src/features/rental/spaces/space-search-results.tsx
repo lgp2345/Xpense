@@ -4,21 +4,25 @@ import { Button } from "@/components/ui/button";
 
 export function SpaceSearchResults({
   error,
+  loadMoreError,
   items,
   isPending,
   hasMore,
   isLoadingMore,
   keyword,
   onLoadMore,
+  onRetryLoadMore,
   onSelect,
 }: {
   error: boolean;
+  loadMoreError: boolean;
   isPending: boolean;
   hasMore: boolean;
   isLoadingMore: boolean;
   items: RentalSpaceSearchResult[];
   keyword: string;
   onLoadMore: () => void;
+  onRetryLoadMore: () => void;
   onSelect: (result: RentalSpaceSearchResult) => void;
 }) {
   if (!keyword) return null;
@@ -54,6 +58,20 @@ export function SpaceSearchResults({
         <li>
           <Button disabled={isLoadingMore} type="button" variant="outline" onClick={onLoadMore}>
             {isLoadingMore ? "正在加载..." : "加载更多"}
+          </Button>
+        </li>
+      ) : null}
+      {loadMoreError ? (
+        <li role="alert" className="flex items-center gap-2 text-xs text-destructive">
+          加载更多搜索结果失败，请重试。
+          <Button
+            aria-label="重试加载更多搜索结果"
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={onRetryLoadMore}
+          >
+            重试
           </Button>
         </li>
       ) : null}

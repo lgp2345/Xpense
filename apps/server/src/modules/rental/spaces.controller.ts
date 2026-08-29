@@ -1,5 +1,9 @@
 import { Body, Controller, Get, HttpCode, Post, Query, UseGuards } from "@nestjs/common";
-import type { RentalSpaceChildrenPage, RentalSpaceSearchPage } from "@xpense/shared";
+import type {
+  RentalSpaceChildrenPage,
+  RentalSpaceSearchPage,
+  RentalSpaceSubtreeDepth,
+} from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
@@ -13,6 +17,7 @@ import { ListSpaceChildrenDto } from "./dto/list-space-children.dto.js";
 import { MoveSpaceDto } from "./dto/move-space.dto.js";
 import { SearchSpacesDto } from "./dto/search-spaces.dto.js";
 import { SetSpaceStatusDto } from "./dto/set-space-status.dto.js";
+import { SpaceSubtreeDepthDto } from "./dto/space-subtree-depth.dto.js";
 import { UpdateSpaceDto } from "./dto/update-space.dto.js";
 import {
   type RentalSpaceBatchMutationResult,
@@ -42,6 +47,15 @@ export class SpacesController {
     @Query() dto: SearchSpacesDto,
   ): Promise<RentalSpaceSearchPage> {
     return this.service.search(authContext, dto);
+  }
+
+  @Get("subtree-depth")
+  @RequirePermission("rental_spaces:read")
+  getSubtreeDepth(
+    @CurrentAuthContext() authContext: AuthContext,
+    @Query() dto: SpaceSubtreeDepthDto,
+  ): Promise<RentalSpaceSubtreeDepth> {
+    return this.service.getSubtreeDepth(authContext, dto);
   }
 
   @Post("create")

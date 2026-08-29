@@ -87,6 +87,11 @@ export type RentalSpaceSearchResult = RentalSpaceNode & {
 /** 租赁空间搜索分页结果。 */
 export type RentalSpaceSearchPage = PageResult<RentalSpaceSearchResult>;
 
+/** 空间当前子树的最大相对深度，用于在不预取整树时校验移动候选。 */
+export type RentalSpaceSubtreeDepth = {
+  relativeDepth: number;
+};
+
 /** 创建租赁房产请求。 */
 export type CreateRentalPropertyRequest = {
   name: string;

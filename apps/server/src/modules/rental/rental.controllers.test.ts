@@ -128,6 +128,7 @@ describe("rental space controller", () => {
     const permissions = [
       [SpacesController.prototype.listChildren, "rental_spaces:read"],
       [SpacesController.prototype.search, "rental_spaces:read"],
+      [SpacesController.prototype.getSubtreeDepth, "rental_spaces:read"],
       [SpacesController.prototype.create, "rental_spaces:create"],
       [SpacesController.prototype.batchCreate, "rental_spaces:create"],
       [SpacesController.prototype.update, "rental_spaces:update"],
@@ -147,6 +148,7 @@ describe("rental space controller", () => {
     const routes = [
       [SpacesController.prototype.listChildren, "children", RequestMethod.GET, undefined],
       [SpacesController.prototype.search, "search", RequestMethod.GET, undefined],
+      [SpacesController.prototype.getSubtreeDepth, "subtree-depth", RequestMethod.GET, undefined],
       [SpacesController.prototype.create, "create", RequestMethod.POST, 200],
       [SpacesController.prototype.batchCreate, "batch-create", RequestMethod.POST, 200],
       [SpacesController.prototype.update, "update", RequestMethod.POST, 200],
@@ -166,6 +168,7 @@ describe("rental space controller", () => {
     const authContext = { organizationId: "organization-1", userId: "user-1" };
     const children = { propertyId: "property-1", parentId: null, page: 1, pageSize: 20 };
     const search = { propertyId: "property-1", keyword: "101", page: 1, pageSize: 20 };
+    const subtreeDepth = { propertyId: "property-1", id: "space-1" };
     const create = {
       propertyId: "property-1",
       name: "101",
@@ -185,6 +188,7 @@ describe("rental space controller", () => {
     const service = {
       listChildren: vi.fn().mockResolvedValue({ items: [] }),
       search: vi.fn().mockResolvedValue({ items: [] }),
+      getSubtreeDepth: vi.fn().mockResolvedValue({ relativeDepth: 1 }),
       create: vi.fn().mockResolvedValue({ id: "space-1" }),
       batchCreate: vi.fn().mockResolvedValue({ ids: ["space-1"] }),
       update: vi.fn().mockResolvedValue({ id: "space-1" }),
@@ -196,6 +200,7 @@ describe("rental space controller", () => {
 
     await controller.listChildren(authContext as never, children as never);
     await controller.search(authContext as never, search as never);
+    await controller.getSubtreeDepth(authContext as never, subtreeDepth as never);
     await controller.create(authContext as never, create as never);
     await controller.batchCreate(authContext as never, batch as never);
     await controller.update(authContext as never, update as never);
@@ -205,6 +210,7 @@ describe("rental space controller", () => {
 
     expect(service.listChildren).toHaveBeenCalledWith(authContext, children);
     expect(service.search).toHaveBeenCalledWith(authContext, search);
+    expect(service.getSubtreeDepth).toHaveBeenCalledWith(authContext, subtreeDepth);
     expect(service.create).toHaveBeenCalledWith(authContext, create);
     expect(service.batchCreate).toHaveBeenCalledWith(authContext, batch);
     expect(service.update).toHaveBeenCalledWith(authContext, update);

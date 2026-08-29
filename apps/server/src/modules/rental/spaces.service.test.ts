@@ -154,6 +154,28 @@ function createHarness() {
 }
 
 describe("SpacesService", () => {
+  it("returns an exact source subtree depth only after verifying the property and space scope", async () => {
+    const { repository, service } = createHarness();
+    repository.getSubtreeRelativeDepth.mockResolvedValue(1);
+
+    await expect(
+      service.getSubtreeDepth(authContext, {
+        propertyId: "property-1",
+        id: "space-1",
+      }),
+    ).resolves.toEqual({ relativeDepth: 1 });
+    expect(repository.findActiveOwned).toHaveBeenCalledWith(
+      "organization-1",
+      "property-1",
+      "space-1",
+    );
+    expect(repository.getSubtreeRelativeDepth).toHaveBeenCalledWith(
+      "organization-1",
+      "property-1",
+      "space-1",
+    );
+  });
+
   it("returns scoped child and search pages without leaking persistence fields", async () => {
     const { repository, service } = createHarness();
 

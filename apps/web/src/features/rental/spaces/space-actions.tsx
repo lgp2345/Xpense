@@ -32,7 +32,7 @@ import { SpaceFormDialog } from "./space-form-dialog";
 import { SpaceMoveDialog } from "./space-move-dialog";
 
 type SpaceActionsProps = {
-  api: Pick<RentalApi, "listChildren">;
+  api: Pick<RentalApi, "getSpaceSubtreeDepth" | "listChildren">;
   deleting: boolean;
   organizationId: string;
   permissions: readonly PermissionKey[];
