@@ -18,13 +18,24 @@ type AuditLogger = {
 
 const AUDIT_LOGGER = Symbol("AUDIT_LOGGER");
 
-const sensitiveMetadataKeys = new Set([
-  "password",
-  "token",
-  "refreshToken",
-  "refreshTokenHash",
-  "ip",
-]);
+const sensitiveMetadataKeys = new Set(
+  [
+    "password",
+    "token",
+    "refreshToken",
+    "refreshTokenHash",
+    "ip",
+    "documentNumber",
+    "documentAddress",
+    "birthDate",
+    "gender",
+    "ethnicity",
+    "phone",
+    "email",
+    "note",
+    "reason",
+  ].map((key) => key.toLowerCase()),
+);
 
 @Injectable()
 export class AuditService {
@@ -38,17 +49,16 @@ export class AuditService {
   async append(input: AppendAuditLogInput): Promise<void> {
     try {
       await this.appendRequired(input);
-    } catch (error) {
+    } catch {
       this.logger.error({
         message: "Failed to append audit log",
         action: input.action,
         targetType: input.targetType,
-        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
-  appendRequired(input: AppendAuditLogInput, executor?: AppDbExecutor): Promise<void> {
+  async appendRequired(input: AppendAuditLogInput, executor?: AppDbExecutor): Promise<void> {
     const requestId = input.requestId ?? requestContext.getRequestId() ?? null;
     const sanitizedInput = {
       ...input,
@@ -56,9 +66,9 @@ export class AuditService {
       metadata: this.sanitizeMetadata(input.metadata),
     };
 
-    return executor
+    await (executor
       ? this.repository.append(sanitizedInput, executor)
-      : this.repository.append(sanitizedInput);
+      : this.repository.append(sanitizedInput));
   }
 
   listCurrentOrganizationLogs(
@@ -76,8 +86,74 @@ export class AuditService {
       return {};
     }
 
-    return Object.fromEntries(
-      Object.entries(metadata).filter(([key]) => !sensitiveMetadataKeys.has(key)),
-    );
+    try {
+      return sanitizeMetadataRecord(metadata);
+    } catch {
+      throw new Error("Unsafe audit metadata");
+    }
   }
+}
+
+/** 递归剔除对象与数组中禁止进入审计元数据的敏感键。 */
+function sanitizeMetadataRecord(metadata: AuditMetadata): AuditMetadata {
+  return sanitizeMetadataObject(metadata, new WeakSet<object>());
+}
+
+function sanitizeMetadataObject(value: object, ancestors: WeakSet<object>): AuditMetadata {
+  assertNotCircular(value, ancestors);
+  ancestors.add(value);
+
+  try {
+    const sanitized: AuditMetadata = Object.create(null);
+    for (const key of Object.keys(value)) {
+      if (sensitiveMetadataKeys.has(key.toLowerCase())) continue;
+
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !("value" in descriptor)) throw new Error("Unsafe audit metadata");
+      if (typeof descriptor.value === "function") continue;
+
+      Object.defineProperty(sanitized, key, {
+        value: sanitizeMetadataValue(descriptor.value, ancestors),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
+    return sanitized;
+  } finally {
+    ancestors.delete(value);
+  }
+}
+
+function sanitizeMetadataArray(value: unknown[], ancestors: WeakSet<object>): unknown[] {
+  assertNotCircular(value, ancestors);
+  ancestors.add(value);
+
+  try {
+    const sanitized = new Array<unknown>(value.length);
+    for (let index = 0; index < value.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor) continue;
+      if (!("value" in descriptor)) throw new Error("Unsafe audit metadata");
+
+      sanitized[index] = sanitizeMetadataValue(descriptor.value, ancestors);
+    }
+    return sanitized;
+  } finally {
+    ancestors.delete(value);
+  }
+}
+
+function sanitizeMetadataValue(value: unknown, ancestors: WeakSet<object>): unknown {
+  if (typeof value === "function" || typeof value === "symbol") return null;
+  if (typeof value === "bigint") throw new Error("Unsafe audit metadata");
+  if (Array.isArray(value)) return sanitizeMetadataArray(value, ancestors);
+  if (value !== null && typeof value === "object") {
+    return sanitizeMetadataObject(value, ancestors);
+  }
+  return value;
+}
+
+function assertNotCircular(value: object, ancestors: WeakSet<object>): void {
+  if (ancestors.has(value)) throw new Error("Unsafe audit metadata");
 }
