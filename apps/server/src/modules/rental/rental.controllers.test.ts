@@ -13,6 +13,13 @@ import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write
 import { REQUIRE_PERMISSION_KEY } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
+import { ContractLifecycleService } from "./contract-lifecycle.service.js";
+import { ContractPartiesService } from "./contract-parties.service.js";
+import { ContractRelationsRepository } from "./contract-relations.repository.js";
+import { ContractsController } from "./contracts.controller.js";
+import { ContractsRepository } from "./contracts.repository.js";
+import { ContractsService } from "./contracts.service.js";
+import { ContractsPolicyService } from "./contracts-policy.service.js";
 import { PropertiesController } from "./properties.controller.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import { PropertiesService } from "./properties.service.js";
@@ -22,6 +29,10 @@ import { SpacesController } from "./spaces.controller.js";
 import { SpacesRepository } from "./spaces.repository.js";
 import { SpacesService } from "./spaces.service.js";
 import { SpacesPolicyService } from "./spaces-policy.service.js";
+import { TenantsController } from "./tenants.controller.js";
+import { TenantsRepository } from "./tenants.repository.js";
+import { TenantsService } from "./tenants.service.js";
+import { TenantsPolicyService } from "./tenants-policy.service.js";
 
 describe("rental property controller", () => {
   it("protects every route with authentication, RBAC, and exact permissions", () => {
@@ -105,6 +116,8 @@ describe("rental property controller", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, RentalModule)).toEqual([
       PropertiesController,
       SpacesController,
+      TenantsController,
+      ContractsController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([
@@ -223,12 +236,236 @@ describe("rental space controller", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, RentalModule)).toEqual([
       PropertiesController,
       SpacesController,
+      TenantsController,
+      ContractsController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([SpacesRepository, SpacesPolicyService, SpacesService]),
     );
     expect(Reflect.getMetadata(MODULE_METADATA.EXPORTS, RentalModule) ?? []).not.toContain(
       SpacesRepository,
+    );
+  });
+});
+describe("rental tenant controller", () => {
+  it("protects every route with authentication, RBAC, and exact permissions", () => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, TenantsController)).toEqual([AuthGuard, RbacGuard]);
+    const permissions = [
+      [TenantsController.prototype.list, "rental_tenants:read"],
+      [TenantsController.prototype.detail, "rental_tenants:read"],
+      [TenantsController.prototype.create, "rental_tenants:create"],
+      [TenantsController.prototype.update, "rental_tenants:update"],
+      [TenantsController.prototype.setStatus, "rental_tenants:update"],
+      [TenantsController.prototype.delete, "rental_tenants:delete"],
+      [
+        TenantsController.prototype.revealSensitive,
+        ["rental_tenants:read", "rental_tenants:sensitive_read"],
+      ],
+    ] as const;
+    for (const [handler, permission] of permissions) {
+      expect(Reflect.getMetadata(REQUIRE_PERMISSION_KEY, handler)).toEqual(permission);
+    }
+  });
+
+  it("publishes the exact tenant paths, methods, and write status codes", () => {
+    expect(Reflect.getMetadata(PATH_METADATA, TenantsController)).toBe("rental-tenants");
+    const routes = [
+      [TenantsController.prototype.list, "list", RequestMethod.GET, undefined],
+      [TenantsController.prototype.detail, "detail", RequestMethod.GET, undefined],
+      [TenantsController.prototype.create, "create", RequestMethod.POST, 200],
+      [TenantsController.prototype.update, "update", RequestMethod.POST, 200],
+      [TenantsController.prototype.setStatus, "set-status", RequestMethod.POST, 200],
+      [TenantsController.prototype.delete, "delete", RequestMethod.POST, 200],
+      [TenantsController.prototype.revealSensitive, "reveal-sensitive", RequestMethod.POST, 200],
+    ] as const;
+    for (const [handler, path, method, status] of routes) {
+      expect(Reflect.getMetadata(PATH_METADATA, handler)).toBe(path);
+      expect(Reflect.getMetadata(METHOD_METADATA, handler)).toBe(method);
+      expect(Reflect.getMetadata(HTTP_CODE_METADATA, handler)).toBe(status);
+    }
+  });
+
+  it("delegates only trusted auth context and validated tenant DTOs", async () => {
+    const auth = { organizationId: "organization-1", userId: "user-1" };
+    const inputs = {
+      list: { page: 1, pageSize: 20 },
+      detail: { id: "tenant-1" },
+      create: { type: "individual" as const, name: "张三" },
+      update: { id: "tenant-1", phone: null },
+      setStatus: { id: "tenant-1", isActive: false },
+      delete: { id: "tenant-1" },
+      revealSensitive: { id: "tenant-1" },
+    };
+    const service = Object.fromEntries(
+      Object.keys(inputs).map((name) => [name, vi.fn().mockResolvedValue({ id: "tenant-1" })]),
+    );
+    const controller = new TenantsController(service as never);
+    for (const [name, dto] of Object.entries(inputs)) {
+      await controller[name as keyof typeof inputs](auth as never, dto as never);
+      expect(service[name]).toHaveBeenCalledWith(auth, dto);
+    }
+  });
+
+  it("registers tenant providers without exporting its repository", () => {
+    expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
+      expect.arrayContaining([TenantsRepository, TenantsPolicyService, TenantsService]),
+    );
+    expect(Reflect.getMetadata(MODULE_METADATA.EXPORTS, RentalModule) ?? []).not.toContain(
+      TenantsRepository,
+    );
+  });
+});
+
+describe("rental contract controller", () => {
+  it("protects each core contract route with exact permissions", () => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, ContractsController)).toEqual([
+      AuthGuard,
+      RbacGuard,
+    ]);
+    const permissions = [
+      [ContractsController.prototype.list, "rental_contracts:read"],
+      [ContractsController.prototype.detail, "rental_contracts:read"],
+      [ContractsController.prototype.create, "rental_contracts:create"],
+      [ContractsController.prototype.update, "rental_contracts:update"],
+      [ContractsController.prototype.checkAvailability, "rental_contracts:read"],
+      [ContractsController.prototype.confirm, "rental_contracts:update"],
+      [ContractsController.prototype.cancel, "rental_contracts:update"],
+      [ContractsController.prototype.changeParties, "rental_contracts:update"],
+      [ContractsController.prototype.terminate, "rental_contracts:update"],
+      [ContractsController.prototype.revokeTermination, "rental_contracts:update"],
+      [ContractsController.prototype.renew, "rental_contracts:update"],
+      [
+        ContractsController.prototype.revealSensitive,
+        ["rental_contracts:read", "rental_tenants:sensitive_read"],
+      ],
+      [ContractsController.prototype.delete, "rental_contracts:delete"],
+    ] as const;
+    for (const [handler, permission] of permissions) {
+      expect(Reflect.getMetadata(REQUIRE_PERMISSION_KEY, handler)).toEqual(permission);
+    }
+  });
+
+  it("publishes action-style paths with GET reads and POST 200 writes", () => {
+    expect(Reflect.getMetadata(PATH_METADATA, ContractsController)).toBe("rental-contracts");
+    const routes = [
+      [ContractsController.prototype.list, "list", RequestMethod.GET, undefined],
+      [ContractsController.prototype.detail, "detail", RequestMethod.GET, undefined],
+      [ContractsController.prototype.create, "create", RequestMethod.POST, 200],
+      [ContractsController.prototype.update, "update", RequestMethod.POST, 200],
+      [
+        ContractsController.prototype.checkAvailability,
+        "check-availability",
+        RequestMethod.POST,
+        200,
+      ],
+      [ContractsController.prototype.confirm, "confirm", RequestMethod.POST, 200],
+      [ContractsController.prototype.cancel, "cancel", RequestMethod.POST, 200],
+      [ContractsController.prototype.changeParties, "change-parties", RequestMethod.POST, 200],
+      [ContractsController.prototype.terminate, "terminate", RequestMethod.POST, 200],
+      [
+        ContractsController.prototype.revokeTermination,
+        "revoke-termination",
+        RequestMethod.POST,
+        200,
+      ],
+      [ContractsController.prototype.renew, "renew", RequestMethod.POST, 200],
+      [ContractsController.prototype.revealSensitive, "reveal-sensitive", RequestMethod.POST, 200],
+      [ContractsController.prototype.delete, "delete", RequestMethod.POST, 200],
+    ] as const;
+    for (const [handler, path, method, status] of routes) {
+      expect(Reflect.getMetadata(PATH_METADATA, handler)).toBe(path);
+      expect(Reflect.getMetadata(METHOD_METADATA, handler)).toBe(method);
+      expect(Reflect.getMetadata(HTTP_CODE_METADATA, handler)).toBe(status);
+    }
+  });
+
+  it("delegates only trusted auth context and validated contract DTOs", async () => {
+    const authContext = { organizationId: "organization-1", userId: "user-1" };
+    const coreInputs = {
+      list: { page: 1, pageSize: 20 },
+      detail: { id: "contract-1" },
+      create: { propertyId: "property-1" },
+      update: { id: "contract-1", note: "新备注" },
+      checkAvailability: {
+        propertyId: "property-1",
+        spaceIds: ["space-1"],
+        startDate: "2026-09-01",
+        endDate: "2027-08-31",
+      },
+      delete: { id: "contract-1" },
+    };
+    const lifecycleInputs = {
+      confirm: { id: "contract-1" },
+      cancel: { id: "contract-1", reason: "计划有变" },
+      terminate: { id: "contract-1", terminationDate: "2027-01-01", reason: "提前退租" },
+      revokeTermination: { id: "contract-1", reason: "恢复" },
+      renew: { id: "contract-1" },
+    };
+    const partyInputs = {
+      changeParties: {
+        id: "contract-1",
+        effectiveDate: "2026-10-01",
+        reason: "变更",
+        parties: [{ tenantId: "tenant-1", isPrimaryPayer: true }],
+      },
+      revealSensitive: { contractId: "contract-1", tenantId: "tenant-1", validFrom: "2026-01-01" },
+    };
+    const contracts = Object.fromEntries(
+      Object.keys(coreInputs).map((name) => [
+        name,
+        vi.fn().mockResolvedValue({ id: "contract-1" }),
+      ]),
+    );
+    const lifecycle = Object.fromEntries(
+      Object.keys(lifecycleInputs).map((name) => [
+        name,
+        vi.fn().mockResolvedValue({ id: "contract-1" }),
+      ]),
+    );
+    const parties = Object.fromEntries(
+      Object.keys(partyInputs).map((name) => [
+        name,
+        vi.fn().mockResolvedValue({ id: "contract-1" }),
+      ]),
+    );
+    const controller = new ContractsController(
+      contracts as never,
+      lifecycle as never,
+      parties as never,
+    );
+    for (const [name, dto] of Object.entries(coreInputs)) {
+      await controller[name as keyof typeof coreInputs](authContext as never, dto as never);
+      expect(contracts[name]).toHaveBeenCalledWith(authContext, dto);
+    }
+    for (const [name, dto] of Object.entries(lifecycleInputs)) {
+      await controller[name as keyof typeof lifecycleInputs](authContext as never, dto as never);
+      expect(lifecycle[name]).toHaveBeenCalledWith(authContext, dto);
+    }
+    for (const [name, dto] of Object.entries(partyInputs)) {
+      await controller[name as keyof typeof partyInputs](authContext as never, dto as never);
+      expect(parties[name]).toHaveBeenCalledWith(authContext, dto);
+    }
+  });
+
+  it("registers contract providers without exporting repositories", () => {
+    expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, RentalModule)).toEqual([
+      PropertiesController,
+      SpacesController,
+      TenantsController,
+      ContractsController,
+    ]);
+    expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
+      expect.arrayContaining([
+        ContractsRepository,
+        ContractRelationsRepository,
+        ContractsPolicyService,
+        ContractsService,
+        ContractLifecycleService,
+        ContractPartiesService,
+      ]),
+    );
+    expect(Reflect.getMetadata(MODULE_METADATA.EXPORTS, RentalModule) ?? []).not.toContain(
+      ContractsRepository,
     );
   });
 });

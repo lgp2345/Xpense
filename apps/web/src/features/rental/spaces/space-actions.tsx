@@ -18,14 +18,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import type { RentalApi } from "../../../services/rental-api";
 import { SpaceBatchDialog } from "./space-batch-dialog";
 import { SpaceFormDialog } from "./space-form-dialog";
@@ -68,37 +60,94 @@ export function SpaceActions({
   const canCreate = propertyActive && depth < 3 && permissions.includes("rental_spaces:create");
   const canUpdate = permissions.includes("rental_spaces:update");
   const canDelete = permissions.includes("rental_spaces:delete");
+  const restrictionMessage = contractRestrictionReason(space);
+  const contractBlocked = restrictionMessage !== null;
+  const restrictionId = `space-contract-restriction-${space.id}`;
   return (
     <div className="flex flex-wrap justify-end gap-2">
-      <SpaceDetailsSheet space={space} />
-      {canCreate ? (
-        <SpaceBatchDialog propertyId={propertyId} parentId={space.id} onCreate={onBatchCreate} />
+      {contractBlocked ? (
+        <span
+          id={restrictionId}
+          role="status"
+          className="self-center text-xs text-muted-foreground"
+        >
+          {restrictionMessage}
+        </span>
       ) : null}
       {canCreate ? (
-        <SpaceFormDialog
-          parentId={space.id}
-          propertyId={propertyId}
-          onCreate={onCreate}
-          trigger={
-            <Button aria-label={`在 ${space.name} 下新增`} size="sm" variant="outline">
-              新增子空间
-            </Button>
-          }
-        />
+        contractBlocked ? (
+          <Button
+            aria-describedby={restrictionId}
+            aria-label={`在 ${space.name} 下批量新增`}
+            disabled
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            批量新增
+          </Button>
+        ) : (
+          <SpaceBatchDialog propertyId={propertyId} parentId={space.id} onCreate={onBatchCreate} />
+        )
+      ) : null}
+      {canCreate ? (
+        contractBlocked ? (
+          <Button
+            aria-describedby={restrictionId}
+            aria-label={`在 ${space.name} 下新增`}
+            disabled
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            新增子空间
+          </Button>
+        ) : (
+          <SpaceFormDialog
+            parentId={space.id}
+            propertyId={propertyId}
+            onCreate={onCreate}
+            trigger={
+              <Button aria-label={`在 ${space.name} 下新增`} size="sm" variant="outline">
+                新增子空间
+              </Button>
+            }
+          />
+        )
       ) : null}
       {canUpdate ? (
         <SpaceFormDialog propertyId={propertyId} space={space} onUpdate={onUpdate} />
       ) : null}
       {canUpdate && propertyActive ? (
-        <SpaceMoveDialog
-          api={api}
-          organizationId={organizationId}
-          propertyId={propertyId}
+        contractBlocked ? (
+          <Button
+            aria-describedby={restrictionId}
+            aria-label={`移动 ${space.name}`}
+            disabled
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            移动
+          </Button>
+        ) : (
+          <SpaceMoveDialog
+            api={api}
+            organizationId={organizationId}
+            propertyId={propertyId}
+            space={space}
+            onMove={(parentId, sortOrder) => onMove(space, parentId, sortOrder)}
+          />
+        )
+      ) : null}
+      {canUpdate ? (
+        <SetSpaceStatusButton
+          blocked={contractBlocked}
+          restrictionId={restrictionId}
           space={space}
-          onMove={(parentId, sortOrder) => onMove(space, parentId, sortOrder)}
+          onSetStatus={onSetStatus}
         />
       ) : null}
-      {canUpdate ? <SetSpaceStatusButton space={space} onSetStatus={onSetStatus} /> : null}
       {canDelete ? (
         <DeleteSpaceButton disabled={deleting} space={space} onDelete={onDelete} />
       ) : null}
@@ -106,41 +155,32 @@ export function SpaceActions({
   );
 }
 
-function SpaceDetailsSheet({ space }: { space: RentalSpaceNode }) {
-  return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button className="sm:hidden" size="sm" variant="outline">
-          详情
-        </Button>
-      </SheetTrigger>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>{space.name}</SheetTitle>
-          <SheetDescription>空间详情</SheetDescription>
-        </SheetHeader>
-        <div className="grid gap-2 px-4 text-sm">
-          <p>类型：{space.customTypeName ?? space.type}</p>
-          <p>状态：{space.isActive ? "自身启用" : "自身停用"}</p>
-          <p>
-            {!space.isActive
-              ? "自身停用"
-              : !space.isEffectivelyActive
-                ? "因上级停用而不可用"
-                : "当前可用"}
-          </p>
-          <p>{space.isRentable ? "可出租" : "不可出租"}</p>
-          {space.note ? <p>备注：{space.note}</p> : null}
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
+/** 仅依据服务端合同字段推导操作限制；不根据时间或树外数据猜测。 */
+export function contractRestrictionReason(
+  space: Pick<RentalSpaceNode, "leaseStatus" | "hasUpcomingContract" | "leaseBlockedReason">,
+): string | null {
+  if (space.leaseBlockedReason === "ancestor_contract") {
+    return "上级空间已有合同，暂不能进行此操作。";
+  }
+  if (space.leaseBlockedReason === "descendant_contract") {
+    return "下级空间已有合同，暂不能进行此操作。";
+  }
+  if (space.leaseStatus === "active") return "当前空间正在租赁中，暂不能进行此操作。";
+  if (space.leaseStatus === "expiring_soon") return "当前空间即将到期，暂不能进行此操作。";
+  if (space.leaseStatus === "upcoming" || space.hasUpcomingContract) {
+    return "当前空间有即将生效合同，暂不能进行此操作。";
+  }
+  return null;
 }
 
 function SetSpaceStatusButton({
+  blocked,
+  restrictionId,
   space,
   onSetStatus,
 }: {
+  blocked: boolean;
+  restrictionId: string;
   space: RentalSpaceNode;
   onSetStatus: (space: RentalSpaceNode, isActive: boolean) => Promise<void>;
 }) {
@@ -150,8 +190,10 @@ function SetSpaceStatusButton({
       <AlertDialogTrigger asChild>
         <Button
           aria-label={`${isActivating ? "启用" : "停用"} ${space.name}`}
+          aria-describedby={blocked ? restrictionId : undefined}
           size="sm"
           variant="outline"
+          disabled={blocked && !isActivating}
         >
           {isActivating ? "启用" : "停用"}
         </Button>

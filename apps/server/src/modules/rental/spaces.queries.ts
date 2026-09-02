@@ -326,6 +326,36 @@ export function buildSpaceSubtreeDepthQuery(
     .from(rows);
 }
 
+/** 构建当前节点全部严格后代 ID 的有界递归查询。 */
+export function buildSpaceDescendantIdsQuery(
+  _executor: Pick<AppDbExecutor, "execute">,
+  organizationId: string,
+  propertyId: string,
+  id: string,
+) {
+  return sql`
+    WITH RECURSIVE "space_descendants" AS (
+      SELECT "space"."id", 0::integer AS "depth"
+      FROM ${rentalSpaces} AS "space"
+      WHERE "space"."organization_id" = ${organizationId}
+        AND "space"."property_id" = ${propertyId}
+        AND "space"."id" = ${id}
+        AND "space"."deleted_at" IS NULL
+      UNION ALL
+      SELECT "child"."id", "descendant"."depth" + 1
+      FROM ${rentalSpaces} AS "child"
+      INNER JOIN "space_descendants" AS "descendant"
+        ON "child"."parent_id" = "descendant"."id"
+        AND "child"."organization_id" = ${organizationId}
+        AND "child"."property_id" = ${propertyId}
+      WHERE "child"."deleted_at" IS NULL
+        AND "descendant"."depth" < ${MAX_SPACE_RECURSIVE_DEPTH}
+    )
+    SELECT "id" FROM "space_descendants" WHERE "depth" > 0
+    ORDER BY "id"
+  `;
+}
+
 /** 构建四层空间树；路径和有效状态均在递归过程中一次累积。 */
 function buildSpaceTreeCte(organizationId: string, propertyId: string): SQL {
   return sql`

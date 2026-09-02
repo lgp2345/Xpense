@@ -12,6 +12,11 @@ export const ROUTE_DEFINITIONS = {
   Categories: { path: "/categories" },
   RentalProperties: { path: "/rentals/properties" },
   RentalPropertyDetail: { path: "/rentals/properties/$propertyId" },
+  RentalTenants: { path: "/rentals/tenants" },
+  RentalTenantDetail: { path: "/rentals/tenants/$tenantId" },
+  RentalContracts: { path: "/rentals/contracts" },
+  RentalContractDetail: { path: "/rentals/contracts/$contractId" },
+  RentalContractCreate: { path: "/rentals/contracts/new" },
 } as const;
 
 export type RouteKey = keyof typeof ROUTE_DEFINITIONS;

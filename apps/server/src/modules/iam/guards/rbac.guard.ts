@@ -34,16 +34,20 @@ export class RbacGuard implements CanActivate {
       });
     }
 
-    const requiredPermission = this.reflector.getAllAndOverride<PermissionKey>(
-      REQUIRE_PERMISSION_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredPermission = this.reflector.getAllAndOverride<
+      PermissionKey | readonly PermissionKey[]
+    >(REQUIRE_PERMISSION_KEY, [context.getHandler(), context.getClass()]);
 
     if (!requiredPermission) {
       return true;
     }
 
-    this.accessService.assertPermission(authContext, requiredPermission);
+    const permissions = Array.isArray(requiredPermission)
+      ? requiredPermission
+      : [requiredPermission];
+    for (const permission of permissions) {
+      this.accessService.assertPermission(authContext, permission);
+    }
 
     return true;
   }

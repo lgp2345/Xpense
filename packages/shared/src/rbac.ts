@@ -69,6 +69,15 @@ const rentalPermissions = [
   "rental_spaces:create",
   "rental_spaces:update",
   "rental_spaces:delete",
+  "rental_tenants:read",
+  "rental_tenants:create",
+  "rental_tenants:update",
+  "rental_tenants:delete",
+  "rental_tenants:sensitive_read",
+  "rental_contracts:read",
+  "rental_contracts:create",
+  "rental_contracts:update",
+  "rental_contracts:delete",
 ] as const;
 
 // ── 汇总（不修改此行逻辑）─────────────────────────

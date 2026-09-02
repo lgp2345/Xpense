@@ -62,8 +62,34 @@ export const propertySummaryFields = {
 };
 
 /** 房产详情字段；与列表摘要一致统计空间，并补充详情专用字段。 */
-export const propertyDetailFields = {
-  ...propertySummaryFields,
-  note: rentalProperties.note,
-  createdAt: rentalProperties.createdAt,
-};
+/** 房产详情中按 actual end/date 桶一次聚合当前/未来合同计数。 */
+export function propertyDetailFields(today = "CURRENT_DATE") {
+  const currentDate = today === "CURRENT_DATE" ? sql`CURRENT_DATE` : sql`${today}::date`;
+  const contractScope = sql`
+    FROM "rental_contracts" AS "contract"
+    WHERE "contract"."organization_id" = "rental_properties"."organization_id"
+      AND "contract"."property_id" = "rental_properties"."id"
+      AND "contract"."deleted_at" IS NULL
+      AND "contract"."status" IN ('confirmed', 'terminated')
+  `;
+  return {
+    ...propertySummaryFields,
+    activeContractCount: sql<number>`(
+      SELECT COUNT(*) ${contractScope}
+      AND "contract"."start_date" <= ${currentDate}
+      AND ${currentDate} < COALESCE("contract"."termination_date", "contract"."end_date") - INTERVAL '30 days'
+    )`.mapWith(Number),
+    upcomingContractCount: sql<number>`(
+      SELECT COUNT(*) ${contractScope}
+      AND "contract"."start_date" > ${currentDate}
+    )`.mapWith(Number),
+    expiringSoonContractCount: sql<number>`(
+      SELECT COUNT(*) ${contractScope}
+      AND "contract"."start_date" <= ${currentDate}
+      AND ${currentDate} >= COALESCE("contract"."termination_date", "contract"."end_date") - INTERVAL '30 days'
+      AND ${currentDate} <= COALESCE("contract"."termination_date", "contract"."end_date")
+    )`.mapWith(Number),
+    note: rentalProperties.note,
+    createdAt: rentalProperties.createdAt,
+  };
+}

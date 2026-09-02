@@ -11,11 +11,24 @@ import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type { AuditLogSearch } from "../features/audit/audit-log-filters";
 import type { BookkeepingApi, ListTransactionsQuery } from "../services/bookkeeping-api";
 import type { IamApi } from "../services/iam-api";
-import type { ListRentalPropertiesQuery } from "../services/rental-api";
+import type {
+  ListRentalContractsQuery,
+  ListRentalPropertiesQuery,
+  ListRentalTenantsQuery,
+  RentalApi,
+} from "../services/rental-api";
 import type { WebSessionDependency } from "../services/web-session";
 import { createAuthStore } from "../stores/auth-store";
 import { createMenuStore } from "../stores/menu-store";
-import { ROUTE_REGISTRY } from "./route-registry";
+import {
+  createRentalContractCreateRoutePageProps,
+  createRentalContractDetailRoutePageProps,
+  createRentalContractsRoutePageProps,
+  createRentalTenantDetailRoutePageProps,
+  createRentalTenantsRoutePageProps,
+  ROUTE_REGISTRY,
+  validateRentalContractCreateSearch,
+} from "./route-registry";
 
 const require = createRequire(import.meta.url);
 const ts: typeof TypeScript = require("typescript");
@@ -166,6 +179,144 @@ describe("ROUTE_REGISTRY", () => {
     expect(validateSearch({ keyword: "  ", type: "invalid", isActive: "maybe", page: 0 })).toEqual(
       {},
     );
+  });
+
+  it("registers tenant and contract routes with typed searches and a read-only create boundary", () => {
+    expect((ROUTE_REGISTRY.RentalTenants.route.options as { path?: string }).path).toBe(
+      "/rentals/tenants",
+    );
+    expect((ROUTE_REGISTRY.RentalTenantDetail.route.options as { path?: string }).path).toBe(
+      "/rentals/tenants/$tenantId",
+    );
+    expect((ROUTE_REGISTRY.RentalContracts.route.options as { path?: string }).path).toBe(
+      "/rentals/contracts",
+    );
+    expect((ROUTE_REGISTRY.RentalContractDetail.route.options as { path?: string }).path).toBe(
+      "/rentals/contracts/$contractId",
+    );
+    expect((ROUTE_REGISTRY.RentalContractCreate.route.options as { path?: string }).path).toBe(
+      "/rentals/contracts/new",
+    );
+    expectTypeOf<
+      typeof ROUTE_REGISTRY.RentalTenants.route.types.fullSearchSchema
+    >().toEqualTypeOf<ListRentalTenantsQuery>();
+    expectTypeOf<
+      typeof ROUTE_REGISTRY.RentalContracts.route.types.fullSearchSchema
+    >().toEqualTypeOf<ListRentalContractsQuery>();
+    expectTypeOf<
+      Parameters<typeof ROUTE_REGISTRY.RentalTenantDetail.render>[0]["params"]
+    >().toEqualTypeOf<typeof ROUTE_REGISTRY.RentalTenantDetail.route.types.allParams>();
+    expectTypeOf<
+      Parameters<typeof ROUTE_REGISTRY.RentalContractDetail.render>[0]["params"]
+    >().toEqualTypeOf<typeof ROUTE_REGISTRY.RentalContractDetail.route.types.allParams>();
+
+    const validateTenants = ROUTE_REGISTRY.RentalTenants.route.options.validateSearch;
+    const validateContracts = ROUTE_REGISTRY.RentalContracts.route.options.validateSearch;
+    expect(typeof validateTenants).toBe("function");
+    expect(typeof validateContracts).toBe("function");
+    if (typeof validateTenants !== "function" || typeof validateContracts !== "function") return;
+
+    expect(
+      validateTenants({
+        keyword: "  租户  ",
+        isActive: "false",
+        documentNumber: "  raw  ",
+        page: "2",
+      }),
+    ).toEqual({ keyword: "租户", isActive: false, documentNumber: "  raw  ", page: 2 });
+    expect(
+      validateContracts({
+        keyword: "  合同  ",
+        propertyId: ledgerId,
+        status: "active",
+        startDateFrom: "2026-09-01",
+        startDateTo: "2026-08-01",
+        page: "0",
+        unknown: "drop",
+      }),
+    ).toEqual({ keyword: "合同", propertyId: ledgerId, status: "active" });
+    expect(validateContracts({ startDateFrom: "0000-01-01", endDateTo: "0000-12-31" })).toEqual({});
+  });
+
+  it("normalizes create search seeds, drops invalid UUIDs, and requires a property for spaces", () => {
+    expect(
+      validateRentalContractCreateSearch({
+        draftId: ` ${ledgerId} `,
+        propertyId: ` ${accountId} `,
+        spaceIds: [ledgerId, ` ${ledgerId} `, "not-a-uuid", categoryId],
+      }),
+    ).toEqual({ draftId: ledgerId, propertyId: accountId, spaceIds: [ledgerId, categoryId] });
+    expect(validateRentalContractCreateSearch({ spaceId: ledgerId })).toEqual({});
+    expect(validateRentalContractCreateSearch({ propertyId: "bad", spaceIds: [ledgerId] })).toEqual(
+      {},
+    );
+  });
+
+  it("passes the full rental API, organization, search, params, navigation, and create capability seam", () => {
+    const api = {} as RentalApi;
+    const navigate = vi.fn();
+    const context = { organizationId: "org-a", permissions: ["rental_contracts:create"] } as const;
+
+    const listInput = {
+      session: { rentalApi: api },
+      navigate,
+      params: {},
+      search: { keyword: "tenant" },
+    } as never;
+    const tenantDetailInput = {
+      session: { rentalApi: api },
+      navigate,
+      params: { tenantId: "tenant-1" },
+      search: {},
+    } as never;
+    const contractsInput = {
+      session: { rentalApi: api },
+      navigate,
+      params: {},
+      search: { status: "active" },
+    } as never;
+    const contractDetailInput = {
+      session: { rentalApi: api },
+      navigate,
+      params: { contractId: "contract-1" },
+      search: {},
+    } as never;
+    const createInput = {
+      session: { rentalApi: api },
+      navigate,
+      params: {},
+      search: {},
+    } as never;
+
+    expect(createRentalTenantsRoutePageProps(listInput, context)).toMatchObject({
+      api,
+      organizationId: "org-a",
+      permissions: context.permissions,
+      search: { keyword: "tenant" },
+      navigate,
+    });
+    expect(createRentalTenantDetailRoutePageProps(tenantDetailInput, context)).toMatchObject({
+      api,
+      tenantId: "tenant-1",
+      navigate,
+      search: {},
+    });
+    expect(createRentalContractsRoutePageProps(contractsInput, context)).toMatchObject({
+      api,
+      search: { status: "active" },
+      navigate,
+    });
+    expect(createRentalContractDetailRoutePageProps(contractDetailInput, context)).toMatchObject({
+      api,
+      contractId: "contract-1",
+      navigate,
+      search: {},
+    });
+    expect(createRentalContractCreateRoutePageProps(createInput, context)).toMatchObject({
+      api,
+      navigate,
+      canCreate: true,
+    });
   });
 
   it.each([
@@ -527,6 +678,8 @@ describe("ROUTE_REGISTRY", () => {
       "../features/roles/roles-page",
       "../features/sessions/sessions-page",
       "../pages/dashboard-page",
+      "../features/rental/tenants/tenants-page",
+      "../features/rental/tenants/tenant-detail-page",
     ]);
     const sourceText = readFileSync(resolve("src/routes/route-registry.tsx"), "utf8");
     const sourceFile = ts.createSourceFile(

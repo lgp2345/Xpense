@@ -12,12 +12,36 @@ function hasPostgreSqlProtocol(value: string): boolean {
   }
 }
 
+function decodeBase64Key(value: string): Buffer | null {
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
+    return null;
+  }
+
+  const key = Buffer.from(value, "base64");
+  return key.toString("base64") === value ? key : null;
+}
+
+const rentalPiiKeySchema = z.string().transform((value, ctx) => {
+  const key = decodeBase64Key(value);
+  if (key === null || key.length !== 32) {
+    ctx.addIssue({
+      code: "custom",
+      message: "must be a Base64-encoded 32-byte key",
+    });
+    return z.NEVER;
+  }
+
+  return key;
+});
+
 const serverEnvSchema = z
   .object({
     DATABASE_URL: z.string().url().refine(hasPostgreSqlProtocol, {
       message: "DATABASE_URL must use a PostgreSQL protocol",
     }),
     JWT_ACCESS_SECRET: z.string().min(32),
+    RENTAL_PII_ENCRYPTION_KEY: rentalPiiKeySchema,
+    RENTAL_PII_LOOKUP_KEY: rentalPiiKeySchema,
     ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
     WEB_ORIGIN: z.string().url(),
@@ -69,6 +93,14 @@ const serverEnvSchema = z
     LOGIN_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(300),
   })
   .superRefine((env, ctx) => {
+    if (env.RENTAL_PII_ENCRYPTION_KEY.equals(env.RENTAL_PII_LOOKUP_KEY)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "RENTAL_PII_ENCRYPTION_KEY and RENTAL_PII_LOOKUP_KEY must be different",
+        path: ["RENTAL_PII_LOOKUP_KEY"],
+      });
+    }
+
     const bootstrapValues = [
       env.BOOTSTRAP_SUPER_ADMIN_EMAIL,
       env.BOOTSTRAP_SUPER_ADMIN_PHONE,

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { RentalPropertyDetail } from "@xpense/shared";
+import type { RentalContractPage, RentalPropertyDetail } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../../services/api-client";
@@ -22,6 +22,9 @@ const detail: RentalPropertyDetail = {
   isActive: false,
   spaceCount: 12,
   rentableSpaceCount: 10,
+  activeContractCount: 0,
+  upcomingContractCount: 0,
+  expiringSoonContractCount: 0,
   note: "临近地铁",
   createdAt: "2026-08-01T00:00:00.000Z",
   updatedAt: "2026-08-26T00:00:00.000Z",
@@ -40,6 +43,9 @@ const building = {
   isEffectivelyActive: true,
   sortOrder: 0,
   hasChildren: true,
+  leaseStatus: "vacant" as const,
+  hasUpcomingContract: false,
+  leaseBlockedReason: null,
 };
 
 const inactiveRoom = {
@@ -55,11 +61,42 @@ const inactiveRoom = {
   isEffectivelyActive: false,
   sortOrder: 0,
   hasChildren: false,
+  leaseStatus: "vacant" as const,
+  hasUpcomingContract: false,
+  leaseBlockedReason: null,
+};
+
+const contractPage: RentalContractPage = {
+  items: [
+    {
+      id: "423e4567-e89b-42d3-a456-426614174000",
+      propertyId: detail.id,
+      propertyName: detail.name,
+      contractNumber: "HT-001",
+      externalContractNumber: null,
+      lifecycleStatus: "confirmed",
+      displayStatus: "active",
+      startDate: "2026-08-01",
+      endDate: "2027-07-31",
+      actualEndDate: null,
+      rentAmountMinor: 100000,
+      tenantNames: ["张三"],
+      spaceNames: ["101"],
+      updatedAt: "2026-08-01T00:00:00.000Z",
+    },
+  ],
+  total: 11,
+  page: 1,
+  pageSize: 10,
 };
 
 function renderPage(
   api: Pick<RentalApi, "getProperty"> & Partial<RentalApi>,
-  permissions: string[] = [],
+  permissions: string[] = ["rental_spaces:read"],
+  navigation: {
+    onCreateContract?: (propertyId: string) => void;
+    onNavigateContract?: (contractId: string) => void;
+  } = {},
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -86,16 +123,255 @@ function renderPage(
           moveSpace: api.moveSpace ?? vi.fn(),
           setSpaceStatus: api.setSpaceStatus ?? vi.fn(),
           deleteSpace: api.deleteSpace ?? vi.fn(),
+          listContracts:
+            api.listContracts ??
+            vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 10 }),
         }}
         organizationId="org-a"
         permissions={permissions as never}
         propertyId={detail.id}
+        onCreateContract={navigation.onCreateContract}
+        onNavigateContract={navigation.onNavigateContract}
       />
     </QueryClientProvider>,
   );
 }
 
 describe("PropertyDetailPage", () => {
+  it("does not request or display spaces without the space read permission, even after searching", async () => {
+    const user = userEvent.setup();
+    const listChildren = vi.fn().mockResolvedValue({
+      items: [building],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+    });
+    const searchSpaces = vi.fn().mockResolvedValue({
+      items: [{ ...building, path: [{ id: building.id, name: building.name }] }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    renderPage({ getProperty: vi.fn().mockResolvedValue(detail), listChildren, searchSpaces }, [
+      "rental_spaces:update",
+    ]);
+
+    expect(await screen.findByRole("heading", { name: detail.name })).toBeInTheDocument();
+    expect(screen.getByText("你没有查看空间的权限。")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("搜索空间"), "A 座");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    });
+
+    expect(listChildren).not.toHaveBeenCalled();
+    expect(searchSpaces).not.toHaveBeenCalled();
+    expect(screen.queryByText("A 座")).not.toBeInTheDocument();
+  });
+
+  it("shows server contract counts and a property-scoped paged contract section", async () => {
+    const user = userEvent.setup();
+    const countedDetail = {
+      ...detail,
+      activeContractCount: 3,
+      upcomingContractCount: 2,
+      expiringSoonContractCount: 1,
+    };
+    const listContracts = vi.fn().mockResolvedValue(contractPage);
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(countedDetail),
+        listContracts,
+      },
+      ["rental_contracts:read"],
+    );
+    expect((await screen.findByText("生效中合同")).parentElement).toHaveTextContent("3");
+    expect(screen.getByText("即将生效合同").parentElement).toHaveTextContent("2");
+    expect(screen.getByText("即将到期合同").parentElement).toHaveTextContent("1");
+    expect(screen.getByText("HT-001")).toBeInTheDocument();
+    expect(listContracts).toHaveBeenCalledWith({ propertyId: detail.id, page: 1, pageSize: 10 });
+    expect(screen.getByRole("button", { name: "上一页" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "下一页" }));
+    await waitFor(() =>
+      expect(listContracts).toHaveBeenLastCalledWith({
+        propertyId: detail.id,
+        page: 2,
+        pageSize: 10,
+      }),
+    );
+  });
+
+  it("keeps own lease, upcoming, and blocking states distinct and explains disabled actions", async () => {
+    const user = userEvent.setup();
+    const restricted = {
+      ...building,
+      leaseStatus: "active" as const,
+      hasUpcomingContract: true,
+      leaseBlockedReason: "ancestor_contract" as const,
+    };
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue({ ...detail, isActive: true }),
+        listChildren: vi.fn().mockResolvedValue({
+          items: [restricted],
+          total: 1,
+          page: 1,
+          pageSize: 50,
+        }),
+        searchSpaces: vi.fn(),
+      },
+      ["rental_spaces:read", "rental_spaces:create", "rental_spaces:update"],
+    );
+    await screen.findByText("A 座");
+    expect(screen.getByText("出租中")).toBeInTheDocument();
+    expect(screen.getByText("即将有合同")).toBeInTheDocument();
+    expect(screen.getByText("上级已有合同")).toBeInTheDocument();
+    const reason = screen.getByText("上级空间已有合同，暂不能进行此操作。");
+    expect(reason).toHaveAttribute("role", "status");
+    expect(screen.getByRole("button", { name: "停用 A 座" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "移动 A 座" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "在 A 座 下新增" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "在 A 座 下批量新增" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "启用 A 座" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "详情" }));
+    expect(screen.getByText("租赁状态：出租中")).toBeInTheDocument();
+    expect(screen.getByText("有即将生效合同")).toBeInTheDocument();
+    expect(screen.getByText("阻塞原因：上级空间已有合同")).toBeInTheDocument();
+  });
+
+  it("keeps contract section failures local, retryable, and empty without hiding property details", async () => {
+    const user = userEvent.setup();
+    const listContracts = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 10 });
+    renderPage({ getProperty: vi.fn().mockResolvedValue(detail), listContracts }, [
+      "rental_contracts:read",
+    ]);
+    expect(await screen.findByRole("alert")).toHaveTextContent("加载房产合同失败");
+    expect(screen.getByRole("heading", { name: detail.name })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "重试" }));
+    expect(await screen.findByText("当前房产没有合同。")).toBeInTheDocument();
+    expect(listContracts).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders the property contract section's forbidden response as a safe retryable error", async () => {
+    const user = userEvent.setup();
+    const listContracts = vi
+      .fn()
+      .mockRejectedValueOnce(new ApiError(403, "FORBIDDEN", "forbidden"))
+      .mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 10 });
+    renderPage(
+      { getProperty: vi.fn().mockResolvedValue({ ...detail, isActive: true }), listContracts },
+      ["rental_contracts:read"],
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("你没有查看当前房产合同的权限。");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("forbidden");
+    await user.click(screen.getByRole("button", { name: "重试" }));
+    expect(await screen.findByText("当前房产没有合同。")).toBeInTheDocument();
+    expect(listContracts).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows create and detail contract navigation callbacks", async () => {
+    const user = userEvent.setup();
+    const onCreateContract = vi.fn();
+    const onNavigateContract = vi.fn();
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue({ ...detail, isActive: true }),
+        listContracts: vi.fn().mockResolvedValue(contractPage),
+      },
+      ["rental_contracts:create", "rental_contracts:read", "rental_contracts:update"],
+      { onCreateContract, onNavigateContract },
+    );
+    await screen.findByText("HT-001");
+    await user.click(screen.getByRole("button", { name: "为此房产新建合同" }));
+    expect(onCreateContract).toHaveBeenCalledWith(detail.id);
+    await user.click(screen.getByRole("link", { name: /HT-001/ }));
+    expect(onNavigateContract).toHaveBeenCalledWith(contractPage.items[0]?.id);
+  });
+
+  it("hides the contract creation entry for an inactive property or missing contract permission", async () => {
+    const allPermissions = [
+      "rental_contracts:create",
+      "rental_contracts:read",
+      "rental_contracts:update",
+    ];
+    const inactive = renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(detail),
+        listContracts: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 10 }),
+      },
+      allPermissions,
+    );
+    await screen.findByRole("heading", { name: detail.name });
+    expect(screen.queryByRole("button", { name: "为此房产新建合同" })).not.toBeInTheDocument();
+    inactive.unmount();
+
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue({ ...detail, isActive: true }),
+        listContracts: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 10 }),
+      },
+      ["rental_contracts:create", "rental_contracts:read"],
+    );
+    await screen.findByRole("heading", { name: detail.name });
+    expect(screen.queryByRole("button", { name: "为此房产新建合同" })).not.toBeInTheDocument();
+  });
+
+  it("does not disable enabling a space because of a contract restriction", async () => {
+    const restrictedInactive = {
+      ...building,
+      isActive: false,
+      leaseStatus: "active" as const,
+      leaseBlockedReason: "descendant_contract" as const,
+    };
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue({ ...detail, isActive: true }),
+        listChildren: vi.fn().mockResolvedValue({
+          items: [restrictedInactive],
+          total: 1,
+          page: 1,
+          pageSize: 50,
+        }),
+        searchSpaces: vi.fn(),
+      },
+      ["rental_spaces:read", "rental_spaces:update"],
+    );
+    await screen.findByText("A 座");
+    expect(screen.getByRole("button", { name: "启用 A 座" })).toBeEnabled();
+  });
+
+  it("exposes the same mobile lease details to read-only users", async () => {
+    const user = userEvent.setup();
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue({ ...detail, isActive: true }),
+        listChildren: vi.fn().mockResolvedValue({
+          items: [
+            {
+              ...building,
+              leaseStatus: "expiring_soon" as const,
+              hasUpcomingContract: true,
+              leaseBlockedReason: "descendant_contract" as const,
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 50,
+        }),
+        searchSpaces: vi.fn(),
+      },
+      ["rental_spaces:read"],
+    );
+    await screen.findByText("A 座");
+    await user.click(screen.getByRole("button", { name: "详情" }));
+    expect(screen.getByText("租赁状态：即将到期")).toBeInTheDocument();
+    expect(screen.getByText("有即将生效合同")).toBeInTheDocument();
+    expect(screen.getByText("阻塞原因：下级空间已有合同")).toBeInTheDocument();
+  });
+
   it("shows loading and an independently useful property header without ledger leakage", async () => {
     let resolve: ((value: RentalPropertyDetail) => void) | undefined;
     renderPage({
@@ -475,7 +751,7 @@ describe("PropertyDetailPage", () => {
         searchSpaces: vi.fn(),
         batchCreateSpaces: vi.fn().mockRejectedValue(new Error("conflict")),
       },
-      ["rental_spaces:create"],
+      ["rental_spaces:read", "rental_spaces:create"],
     );
     await user.click(await screen.findByRole("button", { name: "新增空间" }));
     expect(screen.queryByLabelText("面积")).not.toBeInTheDocument();
@@ -505,7 +781,7 @@ describe("PropertyDetailPage", () => {
         searchSpaces: vi.fn(),
         deleteSpace: vi.fn().mockRejectedValue(new ApiError(409, "CONFLICT", "linked")),
       },
-      ["rental_spaces:delete"],
+      ["rental_spaces:read", "rental_spaces:delete"],
     );
     expect(await screen.findByText("A 座")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "删除 A 座" }));
@@ -547,7 +823,7 @@ describe("PropertyDetailPage", () => {
           rootItems = [other];
         }),
       },
-      ["rental_spaces:delete"],
+      ["rental_spaces:read", "rental_spaces:delete"],
     );
     await screen.findByText("A 座");
     await user.click(screen.getByRole("button", { name: "展开 B 座" }));
@@ -581,7 +857,7 @@ describe("PropertyDetailPage", () => {
           return { id: created.id };
         }),
       },
-      ["rental_spaces:create"],
+      ["rental_spaces:read", "rental_spaces:create"],
     );
     await user.click(await screen.findByRole("button", { name: "新增空间" }));
     await user.type(screen.getByRole("textbox", { name: "名称" }), created.name);
@@ -605,7 +881,7 @@ describe("PropertyDetailPage", () => {
         searchSpaces: vi.fn(),
         createSpace: vi.fn().mockResolvedValue({ id: "created" }),
       },
-      ["rental_spaces:create"],
+      ["rental_spaces:read", "rental_spaces:create"],
     );
     await user.click(await screen.findByRole("button", { name: "新增空间" }));
     await user.type(screen.getByRole("textbox", { name: "名称" }), "新空间");
@@ -631,7 +907,7 @@ describe("PropertyDetailPage", () => {
         searchSpaces: vi.fn(),
         setSpaceStatus,
       },
-      ["rental_spaces:update"],
+      ["rental_spaces:read", "rental_spaces:update"],
     );
     await screen.findByText("A 座");
     await user.click(screen.getByRole("button", { name: "停用 A 座" }));
@@ -681,7 +957,7 @@ describe("PropertyDetailPage", () => {
       });
     renderPage(
       { getProperty: vi.fn().mockResolvedValue(activeDetail), listChildren, searchSpaces: vi.fn() },
-      ["rental_spaces:update"],
+      ["rental_spaces:read", "rental_spaces:update"],
     );
     await screen.findByText("A 座");
     await user.click(screen.getByRole("button", { name: "展开 A 座" }));
@@ -735,7 +1011,7 @@ describe("PropertyDetailPage", () => {
       });
     renderPage(
       { getProperty: vi.fn().mockResolvedValue(activeDetail), listChildren, searchSpaces: vi.fn() },
-      ["rental_spaces:update"],
+      ["rental_spaces:read", "rental_spaces:update"],
     );
     await screen.findByText("A 座");
     await user.click(screen.getByRole("button", { name: "展开 A 座" }));
@@ -784,7 +1060,7 @@ describe("PropertyDetailPage", () => {
       });
     renderPage(
       { getProperty: vi.fn().mockResolvedValue(activeDetail), listChildren, searchSpaces: vi.fn() },
-      ["rental_spaces:update"],
+      ["rental_spaces:read", "rental_spaces:update"],
     );
     await screen.findByText("A 座");
     await screen.findByText("101");
@@ -828,7 +1104,7 @@ describe("PropertyDetailPage", () => {
       });
     renderPage(
       { getProperty: vi.fn().mockResolvedValue(activeDetail), listChildren, searchSpaces: vi.fn() },
-      ["rental_spaces:update"],
+      ["rental_spaces:read", "rental_spaces:update"],
     );
     await screen.findByText("101");
     await user.click(screen.getByRole("button", { name: "移动 101" }));
@@ -873,7 +1149,7 @@ describe("PropertyDetailPage", () => {
         searchSpaces: vi.fn(),
         getSpaceSubtreeDepth,
       },
-      ["rental_spaces:update"],
+      ["rental_spaces:read", "rental_spaces:update"],
     );
 
     await screen.findByText("浅层来源");

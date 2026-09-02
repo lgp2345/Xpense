@@ -11,6 +11,7 @@ import { DatabaseTransactionService } from "../../db/database-transaction.servic
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import { RentalLedgerBoundaryService } from "../bookkeeping/rental-ledger-boundary.service.js";
+import { ContractReferenceService } from "./contract-reference.service.js";
 import type { CreatePropertyDto } from "./dto/create-property.dto.js";
 import type { DeletePropertyDto } from "./dto/delete-property.dto.js";
 import type { ListPropertiesDto } from "./dto/list-properties.dto.js";
@@ -34,6 +35,7 @@ export class PropertiesService {
     private readonly ledgerBoundary: RentalLedgerBoundaryService,
     private readonly auditService: AuditService,
     private readonly transactions: DatabaseTransactionService,
+    private readonly contractReference: ContractReferenceService,
   ) {}
 
   /** 返回当前组织内未软删除房产的分页摘要。 */
@@ -50,9 +52,14 @@ export class PropertiesService {
 
   /** 返回当前组织内未软删除的房产详情。 */
   async detail(authContext: AuthContext, dto: PropertyDetailDto): Promise<RentalPropertyDetail> {
-    const property = await this.repository.findActiveOwned(authContext.organizationId, dto.id);
+    const today = await this.contractReference.organizationToday(authContext.organizationId);
+    const property = await this.repository.findActiveOwned(
+      authContext.organizationId,
+      dto.id,
+      undefined,
+      today,
+    );
     if (!property) throw this.notFound("租赁房产不存在");
-
     return toPropertyDetail(property);
   }
 
@@ -187,6 +194,13 @@ export class PropertiesService {
           transaction,
         );
       }
+      if (!dto.isActive && current.isActive) {
+        await this.contractReference.assertPropertyCanDeactivate(
+          authContext.organizationId,
+          current.id,
+          transaction,
+        );
+      }
 
       try {
         await this.repository.setStatus(
@@ -271,9 +285,9 @@ export class PropertiesService {
     id: string,
     executor: AppDbExecutor,
   ): Promise<RentalPropertyDetail> {
-    const property = await this.repository.findActiveOwned(organizationId, id, executor);
+    const today = await this.contractReference.organizationToday(organizationId, executor);
+    const property = await this.repository.findActiveOwned(organizationId, id, executor, today);
     if (!property) throw this.notFound("租赁房产不存在");
-
     return toPropertyDetail(property);
   }
 
@@ -309,5 +323,8 @@ function toPropertyDetail(property: RentalPropertyDetailRecord): RentalPropertyD
     ...toPropertySummary(property),
     note: property.note,
     createdAt: property.createdAt.toISOString(),
+    activeContractCount: property.activeContractCount ?? 0,
+    upcomingContractCount: property.upcomingContractCount ?? 0,
+    expiringSoonContractCount: property.expiringSoonContractCount ?? 0,
   };
 }

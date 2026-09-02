@@ -9,6 +9,7 @@ import type { RentalPropertyType, RentalSpaceType } from "@xpense/shared";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
+import type { ContractReferenceSummary } from "./contracts.repository.types.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import type {
   RentalPropertyDetailRecord,
@@ -225,6 +226,20 @@ export class SpacesPolicyService {
       )
     ) {
       throw this.conflict("租赁空间仍有未删除子空间，请改为停用");
+    }
+  }
+
+  /** 拒绝自身、祖先或后代存在当前/未来合同的空间停用。 */
+  assertCanDeactivate(summary: ContractReferenceSummary): void {
+    if (summary.own || summary.oldAncestor || summary.descendant) {
+      throw this.conflict("租赁空间存在当前或未来合同，不能停用");
+    }
+  }
+
+  /** 拒绝移动影响集合中存在当前/未来合同的空间移动。 */
+  assertCanMove(summary: ContractReferenceSummary): void {
+    if (summary.own || summary.descendant || summary.oldAncestor || summary.newAncestor) {
+      throw this.conflict("租赁空间存在当前或未来合同，不能移动");
     }
   }
 

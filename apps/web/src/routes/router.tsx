@@ -99,6 +99,11 @@ const routeTree = rootRoute.addChildren([
     ROUTE_REGISTRY.Categories.route,
     ROUTE_REGISTRY.RentalProperties.route,
     ROUTE_REGISTRY.RentalPropertyDetail.route,
+    ROUTE_REGISTRY.RentalTenants.route,
+    ROUTE_REGISTRY.RentalTenantDetail.route,
+    ROUTE_REGISTRY.RentalContracts.route,
+    ROUTE_REGISTRY.RentalContractDetail.route,
+    ROUTE_REGISTRY.RentalContractCreate.route,
   ]),
 ]);
 

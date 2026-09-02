@@ -55,6 +55,18 @@ export type RentalSpaceNodeRecord = Pick<
 > & {
   isEffectivelyActive: boolean;
   hasChildren: boolean;
+  leaseStatus?: "vacant" | "upcoming" | "active" | "expiring_soon";
+  leaseBlockedReason?: "ancestor_contract" | "descendant_contract" | null;
+  hasUpcomingContract?: boolean;
+};
+
+export type SpaceLeaseStateFacts = {
+  spaceId: string;
+  hasOwnActive: boolean;
+  hasOwnExpiringSoon: boolean;
+  hasOwnUpcoming: boolean;
+  hasAncestorCurrentOrUpcoming: boolean;
+  hasDescendantCurrentOrUpcoming: boolean;
 };
 
 /** 空间直属子节点持久化分页结果。 */

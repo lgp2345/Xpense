@@ -33,8 +33,11 @@ import {
   type MenuSortOrderUpdate,
 } from "../modules/iam/menu.repository.js";
 import { OrganizationsRepository } from "../modules/organizations/organizations.repository.js";
+import { ContractRelationsRepository } from "../modules/rental/contract-relations.repository.js";
+import { ContractsRepository } from "../modules/rental/contracts.repository.js";
 import { PropertiesRepository } from "../modules/rental/properties.repository.js";
 import { SpacesRepository } from "../modules/rental/spaces.repository.js";
+import { TenantsRepository } from "../modules/rental/tenants.repository.js";
 import { UserRepository } from "../modules/user/user.repository.js";
 import { TEST_CAPTCHA, TEST_PHONES, type TestAuth, testIds } from "./auth-test-helpers.js";
 import {
@@ -50,9 +53,14 @@ import {
   restoreBookkeepingTestState,
 } from "./bookkeeping-test-state.js";
 import {
+  createRentalDatabaseFake,
+  createRentalMutationFixtureRegistry,
+  createRentalQueryFixtureRegistry,
   createRentalRepositoryFakes,
   createRentalTestState,
   createRentalTransactionService,
+  type RentalMutationFixtureRegistry,
+  type RentalQueryFixtureRegistry,
   type RentalTestState,
 } from "./rental-test-harness.js";
 
@@ -94,9 +102,28 @@ const rentalTestRolePermissions = {
     "rental_spaces:create",
     "rental_spaces:update",
     "rental_spaces:delete",
+    "rental_tenants:read",
+    "rental_tenants:create",
+    "rental_tenants:update",
+    "rental_tenants:delete",
+    "rental_tenants:sensitive_read",
+    "rental_contracts:read",
+    "rental_contracts:create",
+    "rental_contracts:update",
+    "rental_contracts:delete",
   ],
-  member: ["rental_properties:read", "rental_spaces:read"],
-  viewer: ["rental_properties:read", "rental_spaces:read"],
+  member: [
+    "rental_properties:read",
+    "rental_spaces:read",
+    "rental_tenants:read",
+    "rental_contracts:read",
+  ],
+  viewer: [
+    "rental_properties:read",
+    "rental_spaces:read",
+    "rental_tenants:read",
+    "rental_contracts:read",
+  ],
 } as const satisfies Record<"member" | "owner" | "viewer", readonly PermissionKey[]>;
 
 const testAdmin = {
@@ -120,6 +147,8 @@ export type TestState = {
   failNextRequiredAuditAppendAfterPersist: boolean;
   bookkeeping: BookkeepingTestState;
   rental: RentalTestState;
+  rentalQuery: RentalQueryFixtureRegistry;
+  rentalMutation: RentalMutationFixtureRegistry;
 };
 
 export type TestAppHarness = {
@@ -138,12 +167,14 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   ensureTestEnv();
 
   const state = createTestState(options);
+  const rentalQuery = state.rentalQuery;
   const bookkeepingFakes = createBookkeepingRepositoryFakes(state.bookkeeping);
   const transactionService = options.rental
     ? createRentalTransactionService(
         state.rental,
         state.bookkeeping,
         state.auditLogs,
+        rentalQuery,
         cloneBookkeepingTestState,
         restoreBookkeepingTestState,
       )
@@ -152,7 +183,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     imports: [AppModule],
   })
     .overrideProvider(DB)
-    .useValue({})
+    .useValue(options.rental ? createRentalDatabaseFake(state.rental, rentalQuery) : {})
     .overrideProvider(DatabaseTransactionService)
     .useValue(transactionService)
     .overrideProvider(bookkeepingRepositoryTokens.LedgersRepository)
@@ -187,13 +218,24 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .useValue(createAuditRepository(state));
 
   if (options.rental) {
-    const rentalFakes = createRentalRepositoryFakes(state.rental, state.bookkeeping);
+    const rentalFakes = createRentalRepositoryFakes(
+      state.rental,
+      state.bookkeeping,
+      rentalQuery,
+      state.rentalMutation,
+    );
     rentalFakes.extendLedgersRepository(bookkeepingFakes.ledgersRepository);
     moduleBuilder = moduleBuilder
       .overrideProvider(PropertiesRepository)
       .useValue(rentalFakes.propertiesRepository)
       .overrideProvider(SpacesRepository)
-      .useValue(rentalFakes.spacesRepository);
+      .useValue(rentalFakes.spacesRepository)
+      .overrideProvider(TenantsRepository)
+      .useValue(rentalFakes.tenantsRepository)
+      .overrideProvider(ContractsRepository)
+      .useValue(rentalFakes.contractsRepository)
+      .overrideProvider(ContractRelationsRepository)
+      .useValue(rentalFakes.contractRelationsRepository);
   }
 
   const moduleRef = await moduleBuilder.compile();
@@ -221,6 +263,8 @@ function ensureTestEnv(): void {
   process.env.JWT_ACCESS_SECRET ??= "test-secret-with-at-least-thirty-two-characters";
   process.env.WEB_ORIGIN ??= "http://localhost:5173";
   process.env.VITE_API_PREFIX ??= "api";
+  process.env.RENTAL_PII_ENCRYPTION_KEY ??= "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+  process.env.RENTAL_PII_LOOKUP_KEY ??= "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=";
 }
 
 function createTestState(options: TestAppOptions): TestState {
@@ -404,6 +448,8 @@ function createTestState(options: TestAppOptions): TestState {
     failNextRequiredAuditAppendAfterPersist: false,
     bookkeeping: createBookkeepingTestState(),
     rental: createRentalTestState(),
+    rentalQuery: createRentalQueryFixtureRegistry(),
+    rentalMutation: createRentalMutationFixtureRegistry(),
   };
 }
 
@@ -898,6 +944,13 @@ function createAuditRepository(state: TestState): Partial<AuditRepository> {
         requestId: input.requestId ?? null,
         createdAt: new Date(),
       });
+      if (input.action.startsWith("rental_")) {
+        state.rental.auditEntries.push({
+          action: input.action,
+          targetId: input.targetId ?? "",
+          metadata: structuredClone(input.metadata ?? {}),
+        });
+      }
       if (state.failNextRequiredAuditAppendAfterPersist) {
         state.failNextRequiredAuditAppendAfterPersist = false;
         throw new Error("Test required audit append post-persist failure");

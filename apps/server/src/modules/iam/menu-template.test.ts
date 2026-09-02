@@ -5,8 +5,141 @@ import {
   DEFAULT_MENU_TEMPLATE,
   type MenuTemplateInsert,
 } from "./menu-template.js";
+import { RENTAL_MENU_TEMPLATE } from "./rental-menu-template.js";
 
 describe("DEFAULT_MENU_TEMPLATE", () => {
+  it("includes tenant, contract, and contract creation routes in the rental template", () => {
+    expect(RENTAL_MENU_TEMPLATE.map(({ templateKey }) => templateKey)).toEqual(
+      expect.arrayContaining(["rental-tenants", "rental-contracts", "rental-contracts.create"]),
+    );
+  });
+
+  it("defines every tenant and contract route and action under its exact parent", () => {
+    const tenantContractNodes = RENTAL_MENU_TEMPLATE.filter(
+      ({ templateKey }) =>
+        templateKey.startsWith("rental-tenant") || templateKey.startsWith("rental-contract"),
+    ).map((node) => ({
+      key: node.templateKey,
+      parent: node.parentTemplateKey,
+      type: node.type,
+      route: node.routeKey,
+      permission: node.permissionCode,
+      visible: node.isVisible,
+      keepAlive: node.keepAlive,
+    }));
+
+    expect(tenantContractNodes).toEqual([
+      {
+        key: "rental-tenants",
+        parent: "rental",
+        type: "menu",
+        route: "RentalTenants",
+        permission: "rental_tenants:read",
+        visible: true,
+        keepAlive: true,
+      },
+      {
+        key: "rental-tenant-detail",
+        parent: "rental-tenants",
+        type: "menu",
+        route: "RentalTenantDetail",
+        permission: "rental_tenants:read",
+        visible: false,
+        keepAlive: false,
+      },
+      {
+        key: "rental-tenants.create",
+        parent: "rental-tenants",
+        type: "button",
+        route: null,
+        permission: "rental_tenants:create",
+        visible: null,
+        keepAlive: null,
+      },
+      {
+        key: "rental-tenants.update",
+        parent: "rental-tenants",
+        type: "button",
+        route: null,
+        permission: "rental_tenants:update",
+        visible: null,
+        keepAlive: null,
+      },
+      {
+        key: "rental-tenants.delete",
+        parent: "rental-tenants",
+        type: "button",
+        route: null,
+        permission: "rental_tenants:delete",
+        visible: null,
+        keepAlive: null,
+      },
+      {
+        key: "rental-tenants.sensitive-read",
+        parent: "rental-tenants",
+        type: "button",
+        route: null,
+        permission: "rental_tenants:sensitive_read",
+        visible: null,
+        keepAlive: null,
+      },
+      {
+        key: "rental-contracts",
+        parent: "rental",
+        type: "menu",
+        route: "RentalContracts",
+        permission: "rental_contracts:read",
+        visible: true,
+        keepAlive: true,
+      },
+      {
+        key: "rental-contract-detail",
+        parent: "rental-contracts",
+        type: "menu",
+        route: "RentalContractDetail",
+        permission: "rental_contracts:read",
+        visible: false,
+        keepAlive: false,
+      },
+      {
+        key: "rental-contracts.create",
+        parent: "rental-contracts",
+        type: "menu",
+        route: "RentalContractCreate",
+        permission: "rental_contracts:create",
+        visible: false,
+        keepAlive: false,
+      },
+      {
+        key: "rental-contracts.create-action",
+        parent: "rental-contracts",
+        type: "button",
+        route: null,
+        permission: "rental_contracts:create",
+        visible: null,
+        keepAlive: null,
+      },
+      {
+        key: "rental-contracts.update",
+        parent: "rental-contracts",
+        type: "button",
+        route: null,
+        permission: "rental_contracts:update",
+        visible: null,
+        keepAlive: null,
+      },
+      {
+        key: "rental-contracts.delete",
+        parent: "rental-contracts",
+        type: "button",
+        route: null,
+        permission: "rental_contracts:delete",
+        visible: null,
+        keepAlive: null,
+      },
+    ]);
+  });
+
   it("covers every registered management route", () => {
     const routeKeys = DEFAULT_MENU_TEMPLATE.flatMap((node) =>
       node.type === "menu" && node.routeKey ? [node.routeKey] : [],
@@ -19,6 +152,11 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       "Categories",
       "RentalProperties",
       "RentalPropertyDetail",
+      "RentalTenants",
+      "RentalTenantDetail",
+      "RentalContracts",
+      "RentalContractDetail",
+      "RentalContractCreate",
       "Members",
       "Roles",
       "Menus",
@@ -144,7 +282,7 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
     );
   });
 
-  it("defines the rental hierarchy with a hidden detail page and six action buttons", () => {
+  it("defines the rental hierarchy with hidden detail/create pages and every action button", () => {
     const rentalNodes = DEFAULT_MENU_TEMPLATE.filter(
       (node) => node.templateKey === "rental" || node.templateKey.startsWith("rental-"),
     ).map((node) => ({
@@ -199,6 +337,73 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
           route: null,
           permission,
         }),
+      ),
+      {
+        key: "rental-tenants",
+        parent: "rental",
+        type: "menu",
+        route: "RentalTenants",
+        permission: "rental_tenants:read",
+        visible: true,
+        keepAlive: true,
+      },
+      {
+        key: "rental-tenant-detail",
+        parent: "rental-tenants",
+        type: "menu",
+        route: "RentalTenantDetail",
+        permission: "rental_tenants:read",
+        visible: false,
+        keepAlive: false,
+      },
+      ...[
+        "rental_tenants:create",
+        "rental_tenants:update",
+        "rental_tenants:delete",
+        "rental_tenants:sensitive_read",
+      ].map((permission) =>
+        expect.objectContaining({
+          parent: "rental-tenants",
+          type: "button",
+          route: null,
+          permission,
+        }),
+      ),
+      {
+        key: "rental-contracts",
+        parent: "rental",
+        type: "menu",
+        route: "RentalContracts",
+        permission: "rental_contracts:read",
+        visible: true,
+        keepAlive: true,
+      },
+      {
+        key: "rental-contract-detail",
+        parent: "rental-contracts",
+        type: "menu",
+        route: "RentalContractDetail",
+        permission: "rental_contracts:read",
+        visible: false,
+        keepAlive: false,
+      },
+      {
+        key: "rental-contracts.create",
+        parent: "rental-contracts",
+        type: "menu",
+        route: "RentalContractCreate",
+        permission: "rental_contracts:create",
+        visible: false,
+        keepAlive: false,
+      },
+      ...["rental_contracts:create", "rental_contracts:update", "rental_contracts:delete"].map(
+        (permission) =>
+          expect.objectContaining({
+            parent: "rental-contracts",
+            type: "button",
+            route: null,
+            permission,
+          }),
       ),
     ]);
   });
@@ -256,6 +461,13 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       "rental_spaces:create",
       "rental_spaces:update",
       "rental_spaces:delete",
+      "rental_tenants:create",
+      "rental_tenants:update",
+      "rental_tenants:delete",
+      "rental_tenants:sensitive_read",
+      "rental_contracts:create",
+      "rental_contracts:update",
+      "rental_contracts:delete",
       "members:create",
       "members:update",
       "members:disable",

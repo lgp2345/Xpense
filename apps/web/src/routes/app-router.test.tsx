@@ -9,6 +9,7 @@ import { StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AppProviders } from "../components/app-providers";
+import { rentalKeys } from "../services/rental-query";
 import { createWebSession } from "../services/web-session";
 import { authStore, createAuthStore } from "../stores/auth-store";
 import { AppRouter, createAppRouter } from "./router";
@@ -266,6 +267,8 @@ describe("AppRouter startup", () => {
       defaultOptions: { queries: { retry: false } },
     });
     queryClient.setQueryData(["bookkeeping", "org-stale", "transactions"], ["stale"]);
+    const rentalStaleKey = rentalKeys.tenants("org-stale", { page: 1, pageSize: 20 });
+    queryClient.setQueryData(rentalStaleKey, ["stale"]);
     queryClient.setQueryData(["iam", "menus"], ["keep"]);
 
     const restoreSession = vi.fn(async () => {
@@ -282,9 +285,12 @@ describe("AppRouter startup", () => {
 
     await screen.findByRole("heading", { name: "仪表盘" });
     expect(queryClient.getQueryData(["bookkeeping", "org-stale", "transactions"])).toBeUndefined();
+    expect(queryClient.getQueryData(rentalStaleKey)).toBeUndefined();
     expect(queryClient.getQueryData(["iam", "menus"])).toEqual(["keep"]);
 
     queryClient.setQueryData(["bookkeeping", "org-injected", "accounts"], ["old account"]);
+    const rentalOrgKey = rentalKeys.contracts("org-injected", { page: 1, pageSize: 20 });
+    queryClient.setQueryData(rentalOrgKey, ["old contract"]);
     act(() => {
       store.getState().setCurrentUserContext({
         ...injectedUserContext,
@@ -294,12 +300,16 @@ describe("AppRouter startup", () => {
     await waitFor(() =>
       expect(queryClient.getQueryData(["bookkeeping", "org-injected", "accounts"])).toBeUndefined(),
     );
+    expect(queryClient.getQueryData(rentalOrgKey)).toBeUndefined();
 
     queryClient.setQueryData(["bookkeeping", "org-family", "monthly"], ["private"]);
+    const rentalFamilyKey = rentalKeys.contractDraft("org-family", "draft-1");
+    queryClient.setQueryData(rentalFamilyKey, { draft: true });
     act(() => store.getState().clearAuth());
     await waitFor(() =>
       expect(queryClient.getQueryData(["bookkeeping", "org-family", "monthly"])).toBeUndefined(),
     );
+    expect(queryClient.getQueryData(rentalFamilyKey)).toBeUndefined();
 
     queryClient.setQueryData(["bookkeeping", "org-anonymous-stale", "categories"], ["private"]);
     act(() => store.getState().setCurrentUserContext(injectedUserContext));

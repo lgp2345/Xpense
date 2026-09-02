@@ -57,14 +57,127 @@ describe("AuditService", () => {
         refreshToken: "refresh-token",
         refreshTokenHash: "hash",
         ip: "127.0.0.1",
+        nested: {
+          documentNumber: "110101199001011234",
+          documentAddress: "北京市东城区",
+          safe: "retained",
+          contact: [{ phone: "13800000000", email: "secret@example.com", label: "primary" }],
+        },
+        birthDate: "1990-01-01",
+        gender: "male",
+        ethnicity: "汉",
+        note: "包含隐私的备注",
+        reason: "包含隐私的原因",
       },
     });
 
     expect(repository.append).toHaveBeenCalledWith(
       expect.objectContaining({
-        metadata: { roleFrom: "viewer", roleTo: "admin" },
+        metadata: {
+          roleFrom: "viewer",
+          roleTo: "admin",
+          nested: { safe: "retained", contact: [{ label: "primary" }] },
+        },
       }),
     );
+    const metadata = repository.append.mock.calls[0]?.[0]?.metadata;
+    for (const key of [
+      "documentNumber",
+      "documentAddress",
+      "birthDate",
+      "gender",
+      "ethnicity",
+      "phone",
+      "email",
+      "note",
+      "reason",
+    ]) {
+      expect(JSON.stringify(metadata)).not.toContain(`"${key}"`);
+    }
+  });
+
+  it("sanitizes case-insensitive keys in arrays and custom-prototype objects", async () => {
+    const { repository, service } = createHarness();
+    const custom = Object.assign(Object.create({ inherited: "ignored" }), {
+      Phone: "139-SENTINEL-PHONE",
+      safe: "retained",
+      nested: [{ EMAIL: "private@example.test", DocumentNumber: "ID-SENTINEL", keep: 1 }],
+    });
+
+    await service.appendRequired({
+      organizationId: "org-1",
+      actorUserId: "actor-1",
+      action: "rental_tenant.updated",
+      targetType: "rental_tenant",
+      targetId: "tenant-1",
+      result: "succeeded",
+      metadata: {
+        custom,
+        array: [{ NoTe: "SENTINEL-NOTE", safe: true }, { rEaSoN: "SENTINEL-REASON" }],
+      },
+    });
+
+    const metadata = repository.append.mock.calls[0]?.[0]?.metadata;
+    expect(metadata).toEqual({
+      custom: { safe: "retained", nested: [{ keep: 1 }] },
+      array: [{ safe: true }, {}],
+    });
+    const serialized = JSON.stringify(metadata);
+    for (const sentinel of [
+      "139-SENTINEL-PHONE",
+      "private@example.test",
+      "ID-SENTINEL",
+      "SENTINEL-NOTE",
+      "SENTINEL-REASON",
+    ]) {
+      expect(serialized).not.toContain(sentinel);
+    }
+  });
+
+  it("does not retain executable own metadata properties that can recreate sensitive values", async () => {
+    const { repository, service } = createHarness();
+    const metadataWithToJson = {
+      safe: "retained",
+      toJSON: () => ({ phone: "139-SENTINEL-TO-JSON" }),
+    };
+
+    await service.appendRequired({
+      organizationId: "org-1",
+      actorUserId: "actor-1",
+      action: "rental_tenant.updated",
+      targetType: "rental_tenant",
+      targetId: "tenant-1",
+      result: "succeeded",
+      metadata: { metadataWithToJson },
+    });
+
+    const metadata = repository.append.mock.calls[0]?.[0]?.metadata;
+    expect(metadata).toEqual({ metadataWithToJson: { safe: "retained" } });
+    expect(JSON.stringify(metadata)).not.toContain("139-SENTINEL-TO-JSON");
+  });
+
+  it("rejects circular object and array metadata before appending", async () => {
+    const { repository, service } = createHarness();
+    const circularObject: { phone: string; self?: unknown } = { phone: "139-SENTINEL-OBJECT" };
+    circularObject.self = circularObject;
+    const circularArray: unknown[] = ["139-SENTINEL-ARRAY"];
+    circularArray.push(circularArray);
+
+    for (const metadata of [{ circularObject }, { circularArray }]) {
+      await expect(
+        service.appendRequired({
+          organizationId: "org-1",
+          actorUserId: "actor-1",
+          action: "rental_tenant.sensitive_revealed",
+          targetType: "rental_tenant",
+          targetId: "tenant-1",
+          result: "succeeded",
+          metadata,
+        }),
+      ).rejects.toThrow("Unsafe audit metadata");
+    }
+
+    expect(repository.append).not.toHaveBeenCalled();
   });
 
   it("fills requestId from the request context when not provided", async () => {
@@ -88,7 +201,7 @@ describe("AuditService", () => {
 
   it("logs and swallows append failures for best-effort audit writes", async () => {
     const { repository, logger, service } = createHarness();
-    repository.append.mockRejectedValue(new Error("db down"));
+    repository.append.mockRejectedValue(new Error("139-SENTINEL-LOGGER"));
 
     await expect(
       service.append({
@@ -106,6 +219,7 @@ describe("AuditService", () => {
         targetType: "session",
       }),
     );
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain("139-SENTINEL-LOGGER");
   });
 
   it("throws appendRequired failures", async () => {

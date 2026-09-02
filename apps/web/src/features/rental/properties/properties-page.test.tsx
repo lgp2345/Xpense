@@ -39,6 +39,9 @@ function page(items: RentalPropertySummary[] = [property]): RentalPropertyPage {
 
 const propertyWithNote: RentalPropertyDetail = {
   ...property,
+  activeContractCount: 0,
+  upcomingContractCount: 0,
+  expiringSoonContractCount: 0,
   note: "保留的原始备注",
   createdAt: "2026-08-01T00:00:00.000Z",
 };
@@ -47,15 +50,30 @@ function createApi(overrides: Partial<RentalApi> = {}): RentalApi {
   return {
     listProperties: vi.fn().mockResolvedValue(page()),
     getProperty: vi.fn(),
-    createProperty: vi
-      .fn()
-      .mockResolvedValue({ ...property, note: null, createdAt: property.updatedAt }),
-    updateProperty: vi
-      .fn()
-      .mockResolvedValue({ ...property, note: null, createdAt: property.updatedAt }),
-    setPropertyStatus: vi
-      .fn()
-      .mockResolvedValue({ ...property, note: null, createdAt: property.updatedAt }),
+    createProperty: vi.fn().mockResolvedValue({
+      ...property,
+      activeContractCount: 0,
+      upcomingContractCount: 0,
+      expiringSoonContractCount: 0,
+      note: null,
+      createdAt: property.updatedAt,
+    }),
+    updateProperty: vi.fn().mockResolvedValue({
+      ...property,
+      activeContractCount: 0,
+      upcomingContractCount: 0,
+      expiringSoonContractCount: 0,
+      note: null,
+      createdAt: property.updatedAt,
+    }),
+    setPropertyStatus: vi.fn().mockResolvedValue({
+      ...property,
+      activeContractCount: 0,
+      upcomingContractCount: 0,
+      expiringSoonContractCount: 0,
+      note: null,
+      createdAt: property.updatedAt,
+    }),
     deleteProperty: vi.fn().mockResolvedValue(undefined),
     listChildren: vi.fn(),
     searchSpaces: vi.fn(),
@@ -76,6 +94,7 @@ function renderPage({
   permissions = ["rental_properties:read"] as readonly PermissionKey[],
   onSearchChange,
   onNavigate = () => undefined,
+  onCreateContract = () => undefined,
   queryClient: providedQueryClient,
 }: {
   api?: RentalApi;
@@ -83,6 +102,7 @@ function renderPage({
   permissions?: readonly PermissionKey[];
   onSearchChange?: (value: ListRentalPropertiesQuery) => void;
   onNavigate?: (propertyId: string) => void;
+  onCreateContract?: (propertyId: string) => void;
   queryClient?: QueryClient;
 } = {}) {
   const queryClient =
@@ -96,6 +116,7 @@ function renderPage({
         permissions={permissions}
         search={search}
         onNavigate={onNavigate}
+        onCreateContract={onCreateContract}
         onSearchChange={(next) => {
           onSearchChange?.(next);
           setSearch(next);
@@ -382,5 +403,118 @@ describe("PropertiesPage", () => {
     expect(screen.queryByRole("button", { name: "编辑 阳光公寓" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: "阳光公寓" }));
     expect(navigate).toHaveBeenCalledWith(property.id);
+  });
+
+  it("shows the contract entry only with create/read/update and carries the property seed", async () => {
+    const user = userEvent.setup();
+    const onCreateContract = vi.fn();
+    const first = renderPage({
+      permissions: [
+        "rental_properties:read",
+        "rental_contracts:create",
+        "rental_contracts:read",
+        "rental_contracts:update",
+      ],
+      onCreateContract,
+    });
+    await screen.findByRole("table");
+    await user.click(screen.getByRole("button", { name: "新建合同" }));
+    expect(onCreateContract).toHaveBeenCalledWith(property.id);
+    first.unmount();
+
+    const withoutUpdate = renderPage({
+      permissions: ["rental_properties:read", "rental_contracts:create", "rental_contracts:read"],
+    });
+    await screen.findAllByRole("table");
+    expect(screen.queryAllByRole("button", { name: "新建合同" })).toHaveLength(0);
+    withoutUpdate.unmount();
+  });
+
+  it("does not offer a contract entry for an inactive property on desktop", async () => {
+    const onCreateContract = vi.fn();
+    renderPage({
+      api: createApi({
+        listProperties: vi.fn().mockResolvedValue(page([{ ...property, isActive: false }])),
+      }),
+      permissions: [
+        "rental_properties:read",
+        "rental_contracts:create",
+        "rental_contracts:read",
+        "rental_contracts:update",
+      ],
+      onCreateContract,
+    });
+
+    await screen.findByRole("table");
+    expect(screen.queryByRole("button", { name: "新建合同" })).not.toBeInTheDocument();
+    expect(onCreateContract).not.toHaveBeenCalled();
+  });
+
+  it("does not offer a contract entry for an inactive property on mobile", async () => {
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (query: string): MediaQueryList => ({
+        matches: query === "(max-width: 767px)",
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      }),
+    });
+    const onCreateContract = vi.fn();
+    renderPage({
+      api: createApi({
+        listProperties: vi.fn().mockResolvedValue(page([{ ...property, isActive: false }])),
+      }),
+      permissions: [
+        "rental_properties:read",
+        "rental_contracts:create",
+        "rental_contracts:read",
+        "rental_contracts:update",
+      ],
+      onCreateContract,
+    });
+
+    await screen.findByTestId("property-cards");
+    expect(screen.queryByRole("button", { name: "新建合同" })).not.toBeInTheDocument();
+    expect(onCreateContract).not.toHaveBeenCalled();
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
+  });
+
+  it("keeps the mobile contract entry clickable for an active property with all permissions", async () => {
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (query: string): MediaQueryList => ({
+        matches: query === "(max-width: 767px)",
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      }),
+    });
+    const user = userEvent.setup();
+    const onCreateContract = vi.fn();
+    renderPage({
+      permissions: [
+        "rental_properties:read",
+        "rental_contracts:create",
+        "rental_contracts:read",
+        "rental_contracts:update",
+      ],
+      onCreateContract,
+    });
+
+    await screen.findByTestId("property-cards");
+    await user.click(screen.getByRole("button", { name: "新建合同" }));
+    expect(onCreateContract).toHaveBeenCalledWith(property.id);
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
   });
 });

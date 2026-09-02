@@ -39,11 +39,13 @@ const typeLabels = {
 type PropertyTableProps = {
   getProperty?: (id: string) => Promise<RentalPropertyDetail>;
   canDelete: boolean;
+  canCreateContract?: boolean;
   canUpdate: boolean;
   deleting: boolean;
   items: RentalPropertySummary[];
   onDelete: (property: RentalPropertySummary) => Promise<void>;
   onNavigate: (propertyId: string) => void;
+  onCreateContract?: (propertyId: string) => void;
   onSetStatus: (property: RentalPropertySummary, isActive: boolean) => Promise<void>;
   onUpdate: (
     input: Parameters<NonNullable<React.ComponentProps<typeof PropertyFormDialog>["onUpdate"]>>[0],
@@ -54,11 +56,13 @@ type PropertyTableProps = {
 export function PropertyTable({
   getProperty,
   canDelete,
+  canCreateContract,
   canUpdate,
   deleting,
   items,
   onDelete,
   onNavigate,
+  onCreateContract,
   onSetStatus,
   onUpdate,
 }: PropertyTableProps) {
@@ -73,7 +77,9 @@ export function PropertyTable({
               <TableHead>地址</TableHead>
               <TableHead>空间</TableHead>
               <TableHead>状态</TableHead>
-              {canUpdate || canDelete ? <TableHead className="text-right">操作</TableHead> : null}
+              {canUpdate || canDelete || canCreateContract ? (
+                <TableHead className="text-right">操作</TableHead>
+              ) : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -99,7 +105,7 @@ export function PropertyTable({
                 <TableCell>
                   <StatusBadge active={property.isActive} />
                 </TableCell>
-                {canUpdate || canDelete ? (
+                {canUpdate || canDelete || canCreateContract ? (
                   <TableCell>
                     <div className="flex justify-end gap-2">
                       {canUpdate ? (
@@ -125,6 +131,15 @@ export function PropertyTable({
                           property={property}
                           onDelete={onDelete}
                         />
+                      ) : null}
+                      {canCreateContract && property.isActive ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onCreateContract?.(property.id)}
+                        >
+                          新建合同
+                        </Button>
                       ) : null}
                     </div>
                   </TableCell>

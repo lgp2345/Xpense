@@ -13,11 +13,13 @@ import {
 type PropertyCardsProps = {
   getProperty?: (id: string) => Promise<RentalPropertyDetail>;
   canDelete: boolean;
+  canCreateContract?: boolean;
   canUpdate: boolean;
   deleting: boolean;
   items: RentalPropertySummary[];
   onDelete: (property: RentalPropertySummary) => Promise<void>;
   onNavigate: (propertyId: string) => void;
+  onCreateContract?: (propertyId: string) => void;
   onSetStatus: (property: RentalPropertySummary, isActive: boolean) => Promise<void>;
   onUpdate: (
     input: Parameters<NonNullable<React.ComponentProps<typeof PropertyFormDialog>["onUpdate"]>>[0],
@@ -28,11 +30,13 @@ type PropertyCardsProps = {
 export function PropertyCards({
   getProperty,
   canDelete,
+  canCreateContract,
   canUpdate,
   deleting,
   items,
   onDelete,
   onNavigate,
+  onCreateContract,
   onSetStatus,
   onUpdate,
 }: PropertyCardsProps) {
@@ -61,7 +65,7 @@ export function PropertyCards({
             </div>
             <p className="text-sm text-muted-foreground">{propertyAddress(property)}</p>
             <p className="text-sm">{spaceSummary(property)}</p>
-            {canUpdate || canDelete ? (
+            {canUpdate || canDelete || canCreateContract ? (
               <div className="flex flex-wrap gap-2">
                 {canUpdate ? (
                   <>
@@ -86,6 +90,15 @@ export function PropertyCards({
                     property={property}
                     onDelete={onDelete}
                   />
+                ) : null}
+                {canCreateContract && property.isActive ? (
+                  <button
+                    type="button"
+                    className="rounded-md border px-3 py-1.5 text-sm"
+                    onClick={() => onCreateContract?.(property.id)}
+                  >
+                    新建合同
+                  </button>
                 ) : null}
               </div>
             ) : null}

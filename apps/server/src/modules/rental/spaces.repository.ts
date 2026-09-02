@@ -4,12 +4,14 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 import type { AppDb, AppDbExecutor } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import { rentalSpaces } from "../../db/schema.js";
+import { querySpaceLeaseStates } from "./space-lease-status.queries.js";
 import {
   buildActiveOwnedSpaceCondition,
   buildActiveSpaceForUpdateQuery,
   buildSpaceAncestorsQuery,
   buildSpaceChildrenCountQuery,
   buildSpaceChildrenQuery,
+  buildSpaceDescendantIdsQuery,
   buildSpaceSearchCountQuery,
   buildSpaceSearchQuery,
   buildSpaceSiblingConflictCondition,
@@ -28,6 +30,7 @@ import type {
   SetRentalSpaceStatusInput,
   SoftDeleteRentalSpaceInput,
   SpaceChildrenListInput,
+  SpaceLeaseStateFacts,
   SpaceSearchInput,
   UpdateRentalSpaceInput,
 } from "./spaces.repository.types.js";
@@ -138,6 +141,31 @@ export class SpacesRepository {
     const rows = await buildSpaceAncestorsQuery(executor, organizationId, propertyId, id);
 
     return rows.map(({ id: ancestorId, name }) => ({ id: ancestorId, name }));
+  }
+
+  /** 返回当前空间的全部严格后代 ID，供移动引用保护构造精确影响集合。 */
+  async listDescendantIds(
+    organizationId: string,
+    propertyId: string,
+    id: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<string[]> {
+    return Array.from(
+      await executor.execute(
+        buildSpaceDescendantIdsQuery(executor, organizationId, propertyId, id),
+      ),
+    ).map((row) => String((row as { id: string }).id));
+  }
+
+  /** 对当前页空间执行一次合同事实批量查询。 */
+  async listLeaseStates(
+    organizationId: string,
+    propertyId: string,
+    spaceIds: string[],
+    today: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<Map<string, SpaceLeaseStateFacts>> {
+    return querySpaceLeaseStates({ organizationId, propertyId, spaceIds, today }, executor);
   }
 
   /** 返回包含当前节点为零的最大子树相对深度，最多递归三条边。 */

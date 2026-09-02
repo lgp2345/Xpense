@@ -297,8 +297,25 @@ describe("buildAuthorizedMenuTree", () => {
           routeKey: "RentalProperties",
           permissionCode: "rental_properties:read",
         },
+        {
+          type: "menu",
+          routeKey: "RentalTenants",
+          permissionCode: "rental_tenants:read",
+        },
+        {
+          type: "menu",
+          routeKey: "RentalContracts",
+          permissionCode: "rental_contracts:read",
+        },
       ]);
       expect(resolvedRentalNodes.some((node) => node.type === "button")).toBe(false);
+      expect(
+        resolvedRentalNodes.some((node) =>
+          ["RentalTenantDetail", "RentalContractDetail", "RentalContractCreate"].includes(
+            node.routeKey ?? "",
+          ),
+        ),
+      ).toBe(false);
     }
   });
 

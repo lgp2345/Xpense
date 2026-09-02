@@ -330,10 +330,12 @@ export function createBookkeepingTestTransaction(input: {
 /** 深复制所有可变记账集合以形成事务前快照。 */
 export function cloneBookkeepingTestState(state: BookkeepingTestState): BookkeepingTestState {
   return {
-    ledgers: new Map([...state.ledgers].map(([id, value]) => [id, { ...value }])),
-    accounts: new Map([...state.accounts].map(([id, value]) => [id, { ...value }])),
-    categories: new Map([...state.categories].map(([id, value]) => [id, { ...value }])),
-    transactions: new Map([...state.transactions].map(([id, value]) => [id, { ...value }])),
+    ledgers: new Map([...state.ledgers].map(([id, value]) => [id, cloneRecordDates(value)])),
+    accounts: new Map([...state.accounts].map(([id, value]) => [id, cloneRecordDates(value)])),
+    categories: new Map([...state.categories].map(([id, value]) => [id, cloneRecordDates(value)])),
+    transactions: new Map(
+      [...state.transactions].map(([id, value]) => [id, cloneRecordDates(value)]),
+    ),
     movements: state.movements.map((movement) => ({ ...movement })),
     nextAccountId: state.nextAccountId,
     nextCategoryId: state.nextCategoryId,
@@ -350,10 +352,23 @@ export function restoreBookkeepingTestState(
   replaceMap(state.accounts, snapshot.accounts);
   replaceMap(state.categories, snapshot.categories);
   replaceMap(state.transactions, snapshot.transactions);
-  state.movements = snapshot.movements;
+  state.movements.splice(
+    0,
+    state.movements.length,
+    ...snapshot.movements.map((movement) => ({ ...movement })),
+  );
   state.nextAccountId = snapshot.nextAccountId;
   state.nextCategoryId = snapshot.nextCategoryId;
   state.nextTransactionId = snapshot.nextTransactionId;
+}
+
+function cloneRecordDates<T extends Record<string, unknown>>(record: T): T {
+  return Object.fromEntries(
+    Object.entries(record).map(([key, value]) => [
+      key,
+      value instanceof Date ? new Date(value) : value,
+    ]),
+  ) as T;
 }
 
 /** 原位替换 Map 内容，保持仓储已捕获的状态引用有效。 */

@@ -124,6 +124,8 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
           "statistics:read",
           "rental_properties:read",
           "rental_spaces:read",
+          "rental_tenants:read",
+          "rental_contracts:read",
         ],
       },
       {
@@ -140,6 +142,8 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
           "statistics:read",
           "rental_properties:read",
           "rental_spaces:read",
+          "rental_tenants:read",
+          "rental_contracts:read",
         ],
       },
     ],

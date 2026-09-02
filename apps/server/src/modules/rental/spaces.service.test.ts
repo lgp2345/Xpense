@@ -75,6 +75,9 @@ function nodeRecord(overrides: Record<string, unknown> = {}) {
     isEffectivelyActive: true,
     sortOrder: 0,
     hasChildren: false,
+    leaseStatus: "vacant" as const,
+    leaseBlockedReason: null,
+    hasUpcomingContract: false,
     ...overrides,
   };
 }
@@ -130,6 +133,27 @@ function createHarness() {
     writeLockRepository as never,
   );
   const auditService = { appendRequired: vi.fn().mockResolvedValue(undefined) };
+  const contractReference = {
+    organizationToday: vi.fn().mockResolvedValue("2026-08-31"),
+    listSpaceLeaseStates: vi.fn(
+      (_: string, __: string, spaceIds: string[]) =>
+        new Map(
+          spaceIds.map((spaceId) => [
+            spaceId,
+            {
+              spaceId,
+              hasOwnActive: false,
+              hasOwnExpiringSoon: false,
+              hasOwnUpcoming: false,
+              hasAncestorCurrentOrUpcoming: false,
+              hasDescendantCurrentOrUpcoming: false,
+            },
+          ]),
+        ),
+    ),
+    assertSpaceCanDeactivate: vi.fn().mockResolvedValue(undefined),
+    assertSpaceCanMove: vi.fn().mockResolvedValue(undefined),
+  };
   const transactions = {
     run: vi.fn().mockImplementation(async (operation) => operation(transaction)),
   };
@@ -138,10 +162,12 @@ function createHarness() {
     policy,
     auditService as never,
     transactions as never,
+    contractReference as never,
   );
 
   return {
     auditService,
+    contractReference,
     propertiesRepository,
     property,
     repository,
@@ -177,7 +203,7 @@ describe("SpacesService", () => {
   });
 
   it("returns scoped child and search pages without leaking persistence fields", async () => {
-    const { repository, service } = createHarness();
+    const { contractReference, repository, service } = createHarness();
 
     await expect(
       service.listChildren(authContext, {
@@ -215,6 +241,45 @@ describe("SpacesService", () => {
       page: 1,
       pageSize: 20,
     });
+    expect(contractReference.listSpaceLeaseStates).toHaveBeenCalledTimes(2);
+    expect(contractReference.listSpaceLeaseStates).toHaveBeenNthCalledWith(
+      1,
+      "organization-1",
+      "property-1",
+      ["space-1"],
+      "2026-08-31",
+    );
+  });
+
+  it("does not batch lease states for an empty child or search page", async () => {
+    const { contractReference, repository, service } = createHarness();
+    repository.listChildren.mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+    });
+    repository.search.mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+    });
+
+    await service.listChildren(authContext, {
+      propertyId: "property-1",
+      parentId: null,
+      page: 1,
+      pageSize: 20,
+    });
+    await service.search(authContext, {
+      propertyId: "property-1",
+      keyword: "none",
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(contractReference.listSpaceLeaseStates).not.toHaveBeenCalled();
   });
 
   it("returns not found for a missing property or a parent outside that property", async () => {
@@ -602,7 +667,7 @@ describe("SpacesService", () => {
   });
 
   it("checks target siblings and moves in the same transaction", async () => {
-    const { auditService, repository, service, transaction } = createHarness();
+    const { auditService, contractReference, repository, service, transaction } = createHarness();
     repository.findActiveOwnedById
       .mockResolvedValueOnce(spaceRecord({ id: "space-1" }))
       .mockResolvedValueOnce(spaceRecord({ id: "target", parentId: null }));
@@ -636,6 +701,20 @@ describe("SpacesService", () => {
       },
       transaction,
     );
+    expect(contractReference.assertSpaceCanMove).toHaveBeenCalledWith(
+      "organization-1",
+      "property-1",
+      "space-1",
+      null,
+      "target",
+      transaction,
+    );
+    expect(contractReference.assertSpaceCanMove.mock.invocationCallOrder[0]).toBeLessThan(
+      repository.move.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+    expect(repository.move.mock.invocationCallOrder[0]).toBeLessThan(
+      auditService.appendRequired.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
     expect(auditService.appendRequired).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "rental_space.moved",
@@ -644,6 +723,33 @@ describe("SpacesService", () => {
       }),
       transaction,
     );
+  });
+
+  it("skips contract protection when the move keeps the same parent", async () => {
+    const { contractReference, repository, service } = createHarness();
+
+    await service.move(authContext, { id: "space-1", parentId: null, sortOrder: 1 });
+
+    expect(contractReference.assertSpaceCanMove).not.toHaveBeenCalled();
+    expect(repository.move).toHaveBeenCalledOnce();
+  });
+
+  it("does not mutate or audit when a move is blocked by contract protection", async () => {
+    const { auditService, contractReference, repository, service } = createHarness();
+    repository.findActiveOwnedById
+      .mockResolvedValueOnce(spaceRecord({ id: "space-1" }))
+      .mockResolvedValueOnce(spaceRecord({ id: "target" }));
+    repository.findActiveOwnedForUpdate
+      .mockResolvedValueOnce(spaceRecord({ id: "space-1" }))
+      .mockResolvedValueOnce(spaceRecord({ id: "target" }));
+    repository.listAncestors.mockResolvedValue([{ id: "target", name: "目标" }]);
+    contractReference.assertSpaceCanMove.mockRejectedValueOnce(new ConflictException());
+
+    await expect(
+      service.move(authContext, { id: "space-1", parentId: "target", sortOrder: 0 }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.move).not.toHaveBeenCalled();
+    expect(auditService.appendRequired).not.toHaveBeenCalled();
   });
 
   it("updates merged profile fields and checks conflicts for inactive spaces too", async () => {
@@ -734,6 +840,17 @@ describe("SpacesService", () => {
       }),
       transaction,
     );
+  });
+
+  it("does not mutate or audit when deactivation is blocked by contract protection", async () => {
+    const { auditService, contractReference, repository, service } = createHarness();
+    contractReference.assertSpaceCanDeactivate.mockRejectedValueOnce(new ConflictException());
+
+    await expect(
+      service.setStatus(authContext, { id: "space-1", isActive: false }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.setStatus).not.toHaveBeenCalled();
+    expect(auditService.appendRequired).not.toHaveBeenCalled();
   });
 
   it("preserves parent-derived effective status returned by read queries", async () => {

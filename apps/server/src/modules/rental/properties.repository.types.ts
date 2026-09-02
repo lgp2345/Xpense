@@ -1,5 +1,6 @@
 import type { RentalPropertyType } from "@xpense/shared";
 
+import type { PropertyContractCounts } from "./contracts.repository.types.js";
 import type { RentalPropertyUpdateValues } from "./rental.types.js";
 
 /** 已归一化的房产列表筛选条件。 */
@@ -61,7 +62,7 @@ export type RentalPropertySummaryRecord = Pick<
 export type RentalPropertyDetailRecord = RentalPropertySummaryRecord & {
   note: string | null;
   createdAt: Date;
-};
+} & Partial<PropertyContractCounts>;
 
 /** 持久化层分页结果；服务层负责将日期映射为共享契约的 ISO 字符串。 */
 export type RentalPropertyPageRecord = {

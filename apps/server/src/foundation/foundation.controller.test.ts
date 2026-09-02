@@ -6,7 +6,13 @@ import { AppModule } from "../app.module.js";
 import { ServerConfigService } from "../config/config.service.js";
 import { DB } from "../db/db.tokens.js";
 
-const touchedEnvKeys = ["DATABASE_URL", "JWT_ACCESS_SECRET", "WEB_ORIGIN"] as const;
+const touchedEnvKeys = [
+  "DATABASE_URL",
+  "JWT_ACCESS_SECRET",
+  "WEB_ORIGIN",
+  "RENTAL_PII_ENCRYPTION_KEY",
+  "RENTAL_PII_LOOKUP_KEY",
+] as const;
 const originalTouchedEnv = Object.fromEntries(
   touchedEnvKeys.map((key) => [key, process.env[key]]),
 ) as Record<(typeof touchedEnvKeys)[number], string | undefined>;
@@ -14,6 +20,8 @@ const requiredTestEnv = {
   DATABASE_URL: "postgresql://user:pass@localhost:5432/xpense",
   JWT_ACCESS_SECRET: "a-secret-with-at-least-32-characters",
   WEB_ORIGIN: "http://localhost:5173",
+  RENTAL_PII_ENCRYPTION_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+  RENTAL_PII_LOOKUP_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
 };
 const execute = vi.fn();
 

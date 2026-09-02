@@ -98,6 +98,11 @@ describe("RbacGuard", () => {
     readProfile() {
       return "ok";
     }
+
+    @RequirePermission(["roles:read", "roles:update"] as never)
+    editRole() {
+      return "ok";
+    }
   }
 
   function createHarness(handler: () => unknown) {
@@ -141,6 +146,26 @@ describe("RbacGuard", () => {
     });
 
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+  });
+
+  it("asserts every permission in an all-of requirement", () => {
+    const { accessService, guard, context } = createHarness(TestController.prototype.editRole);
+
+    expect(guard.canActivate(context)).toBe(true);
+    expect(accessService.assertPermission.mock.calls).toEqual([
+      [authContext, "roles:read"],
+      [authContext, "roles:update"],
+    ]);
+  });
+
+  it("rejects an all-of route when either required permission is missing", () => {
+    const { accessService, guard, context } = createHarness(TestController.prototype.editRole);
+    accessService.assertPermission.mockImplementation((_auth: AuthContext, permission: string) => {
+      if (permission === "roles:read") throw new ForbiddenException("missing permission");
+    });
+
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+    expect(accessService.assertPermission).toHaveBeenCalledTimes(1);
   });
 
   it("uses RequirePermission metadata key", () => {

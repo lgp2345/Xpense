@@ -6,6 +6,8 @@ const validRequiredEnv = {
   DATABASE_URL: "postgres://user:pass@localhost:5432/xpense",
   JWT_ACCESS_SECRET: "a-secret-with-at-least-32-characters",
   WEB_ORIGIN: "http://localhost:5173",
+  RENTAL_PII_ENCRYPTION_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+  RENTAL_PII_LOOKUP_KEY: "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA=",
 };
 
 describe("parseServerEnv", () => {
@@ -78,6 +80,37 @@ describe("parseServerEnv", () => {
         JWT_ACCESS_SECRET: "short-secret",
       }),
     ).toThrow(/JWT_ACCESS_SECRET/);
+  });
+
+  it("requires distinct 32-byte Base64 rental PII keys", () => {
+    expect(() =>
+      parseServerEnv({
+        DATABASE_URL: validRequiredEnv.DATABASE_URL,
+        JWT_ACCESS_SECRET: validRequiredEnv.JWT_ACCESS_SECRET,
+        WEB_ORIGIN: validRequiredEnv.WEB_ORIGIN,
+      }),
+    ).toThrow(/RENTAL_PII_ENCRYPTION_KEY/);
+
+    expect(() =>
+      parseServerEnv({
+        ...validRequiredEnv,
+        RENTAL_PII_ENCRYPTION_KEY: "not-base64",
+      }),
+    ).toThrow(/RENTAL_PII_ENCRYPTION_KEY/);
+
+    expect(() =>
+      parseServerEnv({
+        ...validRequiredEnv,
+        RENTAL_PII_LOOKUP_KEY: "YQ==",
+      }),
+    ).toThrow(/RENTAL_PII_LOOKUP_KEY/);
+
+    expect(() =>
+      parseServerEnv({
+        ...validRequiredEnv,
+        RENTAL_PII_LOOKUP_KEY: validRequiredEnv.RENTAL_PII_ENCRYPTION_KEY,
+      }),
+    ).toThrow(/must be different/);
   });
 
   it("uses the confirmed defaults when optional values are omitted", () => {

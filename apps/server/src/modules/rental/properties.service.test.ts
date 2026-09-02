@@ -77,6 +77,15 @@ function createHarness() {
     softDelete: vi.fn().mockResolvedValue(undefined),
   };
   const auditService = { appendRequired: vi.fn().mockResolvedValue(undefined) };
+  const contractReference = {
+    organizationToday: vi.fn().mockResolvedValue("2026-08-31"),
+    countPropertyContracts: vi.fn().mockResolvedValue({
+      activeContractCount: 0,
+      upcomingContractCount: 0,
+      expiringSoonContractCount: 0,
+    }),
+    assertPropertyCanDeactivate: vi.fn().mockResolvedValue(undefined),
+  };
   const transactions = {
     run: vi.fn().mockImplementation(async (operation) => operation(transaction)),
   };
@@ -86,11 +95,13 @@ function createHarness() {
     ledgerBoundary as never,
     auditService as never,
     transactions as never,
+    contractReference as never,
   );
 
   return {
     auditService,
     current,
+    contractReference,
     detail,
     ledgerBoundary,
     repository,
@@ -128,7 +139,12 @@ describe("PropertiesService", () => {
     expect(detail).not.toHaveProperty("createdByUserId");
     expect(detail).not.toHaveProperty("deletedAt");
     expect(repository.list).toHaveBeenCalledWith("organization-1", { page: 1, pageSize: 20 });
-    expect(repository.findActiveOwned).toHaveBeenCalledWith("organization-1", "property-1");
+    expect(repository.findActiveOwned).toHaveBeenCalledWith(
+      "organization-1",
+      "property-1",
+      undefined,
+      "2026-08-31",
+    );
   });
 
   it("returns not found for a deleted, missing, or cross-organization property detail", async () => {
@@ -427,6 +443,61 @@ describe("PropertiesService", () => {
         metadata: { isActive: true },
       }),
       transaction,
+    );
+  });
+
+  it("uses one transaction executor for contract protection, mutation, and audit", async () => {
+    const { auditService, contractReference, repository, service, transaction } = createHarness();
+    repository.findActiveOwnedForUpdate.mockResolvedValue(propertyRecord({ isActive: true }));
+
+    await service.setStatus(authContext, { id: "property-1", isActive: false });
+
+    expect(contractReference.assertPropertyCanDeactivate).toHaveBeenCalledWith(
+      "organization-1",
+      "property-1",
+      transaction,
+    );
+    expect(repository.setStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "property-1", isActive: false }),
+      transaction,
+    );
+    expect(auditService.appendRequired).toHaveBeenCalledWith(expect.anything(), transaction);
+    expect(contractReference.assertPropertyCanDeactivate.mock.invocationCallOrder[0]).toBeLessThan(
+      repository.setStatus.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+    expect(repository.setStatus.mock.invocationCallOrder[0]).toBeLessThan(
+      auditService.appendRequired.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+  });
+
+  it("does not mutate or audit when contract protection rejects deactivation", async () => {
+    const { auditService, contractReference, repository, service } = createHarness();
+    contractReference.assertPropertyCanDeactivate.mockRejectedValueOnce(
+      new ConflictException({ code: "CONTRACT_REFERENCE" }),
+    );
+
+    await expect(
+      service.setStatus(authContext, { id: "property-1", isActive: false }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.setStatus).not.toHaveBeenCalled();
+    expect(auditService.appendRequired).not.toHaveBeenCalled();
+  });
+
+  it("maps mutually exclusive property contract buckets into the detail response", async () => {
+    const { detail, repository, service } = createHarness();
+    repository.findActiveOwned.mockResolvedValueOnce({
+      ...detail,
+      activeContractCount: 2,
+      upcomingContractCount: 3,
+      expiringSoonContractCount: 1,
+    });
+
+    await expect(service.detail(authContext, { id: "property-1" })).resolves.toEqual(
+      expect.objectContaining({
+        activeContractCount: 2,
+        upcomingContractCount: 3,
+        expiringSoonContractCount: 1,
+      }),
     );
   });
 
