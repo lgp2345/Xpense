@@ -25,6 +25,8 @@ const bookkeepingWritePermissions = new Set<PermissionKey>(bookkeepingWritePermi
 const rentalReadPermissionKeys = [
   "rental_properties:read",
   "rental_spaces:read",
+  "rental_tenants:read",
+  "rental_contracts:read",
 ] as const satisfies readonly PermissionKey[];
 const rentalWritePermissionKeys = [
   "rental_properties:create",
@@ -33,6 +35,13 @@ const rentalWritePermissionKeys = [
   "rental_spaces:create",
   "rental_spaces:update",
   "rental_spaces:delete",
+  "rental_tenants:create",
+  "rental_tenants:update",
+  "rental_tenants:delete",
+  "rental_tenants:sensitive_read",
+  "rental_contracts:create",
+  "rental_contracts:update",
+  "rental_contracts:delete",
 ] as const satisfies readonly PermissionKey[];
 
 describe("buildRbacSeedPlan", () => {
@@ -93,7 +102,7 @@ describe("buildRbacSeedPlan", () => {
     }
   });
 
-  it("grants member and viewer exactly the two rental read permissions", () => {
+  it("grants member and viewer every rental read permission and no privileged rental action", () => {
     const plan = buildRbacSeedPlan();
 
     for (const roleKey of ["member", "viewer"] as const) {
@@ -102,7 +111,10 @@ describe("buildRbacSeedPlan", () => {
       expect(role?.permissions.filter((permission) => permission.startsWith("rental_"))).toEqual([
         "rental_properties:read",
         "rental_spaces:read",
+        "rental_tenants:read",
+        "rental_contracts:read",
       ]);
+      expect(role?.permissions).not.toEqual(expect.arrayContaining([...rentalWritePermissionKeys]));
     }
   });
 
@@ -121,6 +133,8 @@ describe("buildRbacSeedPlan", () => {
         "statistics:read",
         "rental_properties:read",
         "rental_spaces:read",
+        "rental_tenants:read",
+        "rental_contracts:read",
       ].sort(),
     );
     expect(member?.permissions).toEqual(
@@ -142,6 +156,8 @@ describe("buildRbacSeedPlan", () => {
         "statistics:read",
         "rental_properties:read",
         "rental_spaces:read",
+        "rental_tenants:read",
+        "rental_contracts:read",
       ].sort(),
     );
     expect(

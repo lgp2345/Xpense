@@ -16,10 +16,21 @@ import {
   organizations,
   permissions,
   refreshSessions,
+  rentalContractActions,
+  rentalContractActionType,
+  rentalContractChanges,
+  rentalContractDepositTerms,
+  rentalContractNumberCounters,
+  rentalContractPartyPeriods,
+  rentalContractSpaces,
+  rentalContractStatus,
+  rentalContracts,
   rentalProperties,
   rentalPropertyType,
   rentalSpaces,
   rentalSpaceType,
+  rentalTenants,
+  rentalTenantType,
   rolePermissions,
   roles,
   transactions,
@@ -727,6 +738,371 @@ describe("rental property and space database schema", () => {
     );
     expect(columnNames(indexes.rental_spaces_scope_parent_deleted_sort_idx.config.columns)).toEqual(
       ["organization_id", "property_id", "parent_id", "deleted_at", "sort_order"],
+    );
+  });
+});
+
+describe("rental tenant and contract database schema", () => {
+  it("persists masked document numbers alongside their encrypted/hash identity", () => {
+    expect(rentalTenants.maskedDocumentNumber).toBeDefined();
+    expect(rentalTenants.maskedDocumentNumber.notNull).toBe(false);
+    expect(rentalContractPartyPeriods.maskedDocumentNumberSnapshot).toBeDefined();
+    expect(rentalContractPartyPeriods.maskedDocumentNumberSnapshot.notNull).toBe(false);
+
+    const dialect = new PgDialect();
+    const tenantChecks = Object.fromEntries(
+      getTableConfig(rentalTenants).checks.map((item) => [
+        item.name,
+        dialect.sqlToQuery(item.value).sql,
+      ]),
+    );
+    const partyChecks = Object.fromEntries(
+      getTableConfig(rentalContractPartyPeriods).checks.map((item) => [
+        item.name,
+        dialect.sqlToQuery(item.value).sql,
+      ]),
+    );
+
+    expect(tenantChecks.rental_tenants_document_fields_check).toContain(
+      '"rental_tenants"."masked_document_number"',
+    );
+    const partySnapshotCheck = partyChecks.rental_contract_party_periods_snapshot_fields_check;
+    expect(partySnapshotCheck).toContain(
+      '"rental_contract_party_periods"."masked_document_number_snapshot"',
+    );
+    expect(partySnapshotCheck).toContain(
+      '"rental_contract_party_periods"."valid_from" IS NOT NULL',
+    );
+    expect(partySnapshotCheck).toContain(
+      '"rental_contract_party_periods"."tenant_type_snapshot" IS NOT NULL',
+    );
+    expect(partySnapshotCheck).toContain(
+      '"rental_contract_party_periods"."tenant_name_snapshot" IS NOT NULL',
+    );
+    expect(partySnapshotCheck).not.toContain(
+      '"rental_contract_party_periods"."identity_snapshot_ciphertext" IS NOT NULL',
+    );
+    expect(partySnapshotCheck).not.toContain(
+      '"rental_contract_party_periods"."identity_snapshot_key_version" > 0',
+    );
+  });
+
+  const columnNames = (columns: unknown[]) =>
+    columns.map((column) =>
+      typeof column === "object" && column !== null && "name" in column ? column.name : undefined,
+    );
+
+  it("exports the tenant and contract lifecycle vocabularies", () => {
+    expect(rentalTenantType.enumValues).toEqual(["individual", "company"]);
+    expect(rentalContractStatus.enumValues).toEqual([
+      "draft",
+      "confirmed",
+      "cancelled",
+      "terminated",
+    ]);
+  });
+
+  it("defines typed append-only contract actions for termination revocations", () => {
+    expect(rentalContractActionType.enumValues).toEqual(["termination_revoked"]);
+    expect(rentalContractActions).toMatchObject({
+      organizationId: expect.anything(),
+      contractId: expect.anything(),
+      type: expect.anything(),
+      reason: expect.anything(),
+      terminationDateBeforeRevoke: expect.anything(),
+      createdByUserId: expect.anything(),
+      createdAt: expect.anything(),
+    });
+
+    const config = getTableConfig(rentalContractActions);
+    const checks = Object.fromEntries(
+      config.checks.map((item) => [item.name, new PgDialect().sqlToQuery(item.value).sql]),
+    );
+    expect(checks.rental_contract_actions_reason_check).toContain("btrim");
+    expect(checks.rental_contract_actions_reason_check).toContain("1000");
+    expect(config.indexes.map((item) => item.config.name)).toContain(
+      "rental_contract_actions_contract_created_at_idx",
+    );
+    const scopeReference = config.foreignKeys
+      .find((item) => item.getName() === "rental_contract_actions_contract_scope_fk")
+      ?.reference();
+    expect(columnNames(scopeReference?.columns ?? [])).toEqual(["organization_id", "contract_id"]);
+    expect(columnNames(scopeReference?.foreignColumns ?? [])).toEqual(["organization_id", "id"]);
+  });
+
+  it("keeps active tenant document hashes uniquely scoped with a generated partial index", () => {
+    const dialect = new PgDialect();
+    const activeDocumentHash = getTableConfig(rentalTenants).indexes.find(
+      (item) => item.config.name === "rental_tenants_active_document_hash_unique",
+    );
+    if (!activeDocumentHash?.config.where) {
+      throw new Error("tenant document hash must use a partial unique index");
+    }
+
+    expect(activeDocumentHash.config.unique).toBe(true);
+    expect(columnNames(activeDocumentHash.config.columns)).toEqual([
+      "organization_id",
+      "document_number_lookup_hash",
+    ]);
+    expect(dialect.sqlToQuery(activeDocumentHash.config.where).sql).toBe(
+      '"rental_tenants"."deleted_at" IS NULL AND "rental_tenants"."document_number_lookup_hash" IS NOT NULL',
+    );
+  });
+
+  it("keeps contract spaces within their organization, contract, and property scopes", () => {
+    const spaceReference = getTableConfig(rentalContractSpaces)
+      .foreignKeys.find((item) => item.getName() === "rental_contract_spaces_space_scope_fk")
+      ?.reference();
+
+    expect(columnNames(spaceReference?.columns ?? [])).toEqual([
+      "organization_id",
+      "property_id",
+      "space_id",
+    ]);
+    expect(columnNames(spaceReference?.foreignColumns ?? [])).toEqual([
+      "organization_id",
+      "property_id",
+      "id",
+    ]);
+    expect(spaceReference?.foreignTable).toBe(rentalSpaces);
+  });
+
+  it("gives every tenancy relation child an organization column and exact composite scope foreign keys", () => {
+    const relationTables = [
+      rentalContractSpaces,
+      rentalContractPartyPeriods,
+      rentalContractChanges,
+      rentalContractActions,
+      rentalContractDepositTerms,
+    ];
+    for (const table of relationTables) {
+      expect(table.organizationId.notNull).toBe(true);
+    }
+    expect(rentalContractNumberCounters.organizationId.notNull).toBe(true);
+
+    const contractForeignKeys = getTableConfig(rentalContracts).foreignKeys;
+    const propertyReference = contractForeignKeys
+      .find((item) => item.getName() === "rental_contracts_property_scope_fk")
+      ?.reference();
+    expect(columnNames(propertyReference?.columns ?? [])).toEqual([
+      "organization_id",
+      "property_id",
+    ]);
+    expect(columnNames(propertyReference?.foreignColumns ?? [])).toEqual(["organization_id", "id"]);
+    expect(propertyReference?.foreignTable).toBe(rentalProperties);
+
+    const renewalReference = contractForeignKeys
+      .find((item) => item.getName() === "rental_contracts_renewed_from_scope_fk")
+      ?.reference();
+    expect(columnNames(renewalReference?.columns ?? [])).toEqual([
+      "organization_id",
+      "property_id",
+      "renewed_from_contract_id",
+    ]);
+    expect(columnNames(renewalReference?.foreignColumns ?? [])).toEqual([
+      "organization_id",
+      "property_id",
+      "id",
+    ]);
+    expect(renewalReference?.foreignTable).toBe(rentalContracts);
+
+    const contractSpaceForeignKeys = getTableConfig(rentalContractSpaces).foreignKeys;
+    const contractSpaceReference = contractSpaceForeignKeys
+      .find((item) => item.getName() === "rental_contract_spaces_contract_scope_fk")
+      ?.reference();
+    expect(columnNames(contractSpaceReference?.columns ?? [])).toEqual([
+      "organization_id",
+      "contract_id",
+      "property_id",
+    ]);
+    expect(columnNames(contractSpaceReference?.foreignColumns ?? [])).toEqual([
+      "organization_id",
+      "id",
+      "property_id",
+    ]);
+    expect(contractSpaceReference?.foreignTable).toBe(rentalContracts);
+
+    const spaceScopeReference = contractSpaceForeignKeys
+      .find((item) => item.getName() === "rental_contract_spaces_space_scope_fk")
+      ?.reference();
+    expect(columnNames(spaceScopeReference?.columns ?? [])).toEqual([
+      "organization_id",
+      "property_id",
+      "space_id",
+    ]);
+    expect(columnNames(spaceScopeReference?.foreignColumns ?? [])).toEqual([
+      "organization_id",
+      "property_id",
+      "id",
+    ]);
+    expect(spaceScopeReference?.foreignTable).toBe(rentalSpaces);
+
+    const partyForeignKeys = getTableConfig(rentalContractPartyPeriods).foreignKeys;
+    const partyContractReference = partyForeignKeys
+      .find((item) => item.getName() === "rental_contract_party_periods_contract_scope_fk")
+      ?.reference();
+    expect(columnNames(partyContractReference?.columns ?? [])).toEqual([
+      "organization_id",
+      "contract_id",
+    ]);
+    expect(columnNames(partyContractReference?.foreignColumns ?? [])).toEqual([
+      "organization_id",
+      "id",
+    ]);
+    expect(partyContractReference?.foreignTable).toBe(rentalContracts);
+
+    const partyTenantReference = partyForeignKeys
+      .find((item) => item.getName() === "rental_contract_party_periods_tenant_scope_fk")
+      ?.reference();
+    expect(columnNames(partyTenantReference?.columns ?? [])).toEqual([
+      "organization_id",
+      "tenant_id",
+    ]);
+    expect(columnNames(partyTenantReference?.foreignColumns ?? [])).toEqual([
+      "organization_id",
+      "id",
+    ]);
+    expect(partyTenantReference?.foreignTable).toBe(rentalTenants);
+
+    const changeReference = getTableConfig(rentalContractChanges)
+      .foreignKeys.find((item) => item.getName() === "rental_contract_changes_contract_scope_fk")
+      ?.reference();
+    expect(columnNames(changeReference?.columns ?? [])).toEqual(["organization_id", "contract_id"]);
+    expect(columnNames(changeReference?.foreignColumns ?? [])).toEqual(["organization_id", "id"]);
+    expect(changeReference?.foreignTable).toBe(rentalContracts);
+
+    const depositReference = getTableConfig(rentalContractDepositTerms)
+      .foreignKeys.find(
+        (item) => item.getName() === "rental_contract_deposit_terms_contract_scope_fk",
+      )
+      ?.reference();
+    expect(columnNames(depositReference?.columns ?? [])).toEqual([
+      "organization_id",
+      "contract_id",
+    ]);
+    expect(columnNames(depositReference?.foreignColumns ?? [])).toEqual(["organization_id", "id"]);
+    expect(depositReference?.foreignTable).toBe(rentalContracts);
+  });
+
+  it("keeps document, snapshot, money, date, payment, and lifecycle checks non-degenerate", () => {
+    const dialect = new PgDialect();
+    const tenantChecks = Object.fromEntries(
+      getTableConfig(rentalTenants).checks.map((item) => [
+        item.name,
+        dialect.sqlToQuery(item.value).sql,
+      ]),
+    );
+    const spaceChecks = Object.fromEntries(
+      getTableConfig(rentalContractSpaces).checks.map((item) => [
+        item.name,
+        dialect.sqlToQuery(item.value).sql,
+      ]),
+    );
+    const partyChecks = Object.fromEntries(
+      getTableConfig(rentalContractPartyPeriods).checks.map((item) => [
+        item.name,
+        dialect.sqlToQuery(item.value).sql,
+      ]),
+    );
+    const contractChecks = Object.fromEntries(
+      getTableConfig(rentalContracts).checks.map((item) => [
+        item.name,
+        dialect.sqlToQuery(item.value).sql,
+      ]),
+    );
+    const depositChecks = Object.fromEntries(
+      getTableConfig(rentalContractDepositTerms).checks.map((item) => [
+        item.name,
+        dialect.sqlToQuery(item.value).sql,
+      ]),
+    );
+
+    expect(tenantChecks.rental_tenants_document_type_other_name_check).toBe(
+      '("rental_tenants"."document_type" = \'other\' AND "rental_tenants"."document_type_other_name" IS NOT NULL) OR ("rental_tenants"."document_type" IS DISTINCT FROM \'other\' AND "rental_tenants"."document_type_other_name" IS NULL)',
+    );
+    expect(tenantChecks.rental_tenants_document_fields_check).toBe(
+      '("rental_tenants"."document_country_code" IS NULL AND "rental_tenants"."document_type" IS NULL AND "rental_tenants"."document_number_lookup_hash" IS NULL AND "rental_tenants"."masked_document_number" IS NULL) OR ("rental_tenants"."document_country_code" IS NOT NULL AND "rental_tenants"."document_type" IS NOT NULL AND "rental_tenants"."document_number_lookup_hash" IS NOT NULL AND "rental_tenants"."masked_document_number" IS NOT NULL)',
+    );
+    expect(tenantChecks.rental_tenants_document_country_code_check).toBe(
+      '"rental_tenants"."document_country_code" IS NULL OR char_length("rental_tenants"."document_country_code") = 2',
+    );
+    expect(tenantChecks.rental_tenants_sensitive_identity_key_check).toBe(
+      '("rental_tenants"."sensitive_identity_ciphertext" IS NULL AND "rental_tenants"."sensitive_identity_key_version" IS NULL) OR ("rental_tenants"."sensitive_identity_ciphertext" IS NOT NULL AND "rental_tenants"."sensitive_identity_key_version" > 0)',
+    );
+    expect(tenantChecks.rental_tenants_document_identity_ciphertext_check).toBe(
+      '"rental_tenants"."document_number_lookup_hash" IS NULL OR ("rental_tenants"."sensitive_identity_ciphertext" IS NOT NULL AND "rental_tenants"."sensitive_identity_key_version" IS NOT NULL)',
+    );
+    expect(spaceChecks.rental_contract_spaces_snapshot_fields_check).toBe(
+      '("rental_contract_spaces"."space_name_snapshot" IS NULL AND "rental_contract_spaces"."space_code_snapshot" IS NULL AND "rental_contract_spaces"."space_path_snapshot" IS NULL) OR ("rental_contract_spaces"."space_name_snapshot" IS NOT NULL AND "rental_contract_spaces"."space_path_snapshot" IS NOT NULL)',
+    );
+    expect(partyChecks.rental_contract_party_periods_date_fields_check).toBe(
+      '("rental_contract_party_periods"."valid_from" IS NULL AND "rental_contract_party_periods"."valid_to" IS NULL) OR ("rental_contract_party_periods"."valid_from" IS NOT NULL AND "rental_contract_party_periods"."valid_to" IS NOT NULL AND "rental_contract_party_periods"."valid_from" <= "rental_contract_party_periods"."valid_to")',
+    );
+    expect(partyChecks.rental_contract_party_periods_snapshot_fields_check).toBe(
+      '("rental_contract_party_periods"."valid_from" IS NULL AND "rental_contract_party_periods"."valid_to" IS NULL AND "rental_contract_party_periods"."tenant_type_snapshot" IS NULL AND "rental_contract_party_periods"."tenant_name_snapshot" IS NULL AND "rental_contract_party_periods"."phone_snapshot" IS NULL AND "rental_contract_party_periods"."email_snapshot" IS NULL AND "rental_contract_party_periods"."primary_contact_name_snapshot" IS NULL AND "rental_contract_party_periods"."document_country_code_snapshot" IS NULL AND "rental_contract_party_periods"."document_type_snapshot" IS NULL AND "rental_contract_party_periods"."document_type_other_name_snapshot" IS NULL AND "rental_contract_party_periods"."masked_document_number_snapshot" IS NULL AND "rental_contract_party_periods"."identity_snapshot_ciphertext" IS NULL AND "rental_contract_party_periods"."identity_snapshot_key_version" IS NULL) OR ("rental_contract_party_periods"."valid_from" IS NOT NULL AND "rental_contract_party_periods"."valid_to" IS NOT NULL AND "rental_contract_party_periods"."tenant_type_snapshot" IS NOT NULL AND "rental_contract_party_periods"."tenant_name_snapshot" IS NOT NULL)',
+    );
+    expect(partyChecks.rental_contract_party_periods_document_fields_check).toBe(
+      '("rental_contract_party_periods"."document_country_code_snapshot" IS NULL AND "rental_contract_party_periods"."document_type_snapshot" IS NULL AND "rental_contract_party_periods"."masked_document_number_snapshot" IS NULL) OR ("rental_contract_party_periods"."document_country_code_snapshot" IS NOT NULL AND "rental_contract_party_periods"."document_type_snapshot" IS NOT NULL AND "rental_contract_party_periods"."masked_document_number_snapshot" IS NOT NULL)',
+    );
+    expect(partyChecks.rental_contract_party_periods_document_country_code_check).toBe(
+      '"rental_contract_party_periods"."document_country_code_snapshot" IS NULL OR char_length("rental_contract_party_periods"."document_country_code_snapshot") = 2',
+    );
+    expect(partyChecks.rental_contract_party_periods_document_type_other_name_check).toBe(
+      '("rental_contract_party_periods"."document_type_snapshot" = \'other\' AND "rental_contract_party_periods"."document_type_other_name_snapshot" IS NOT NULL) OR ("rental_contract_party_periods"."document_type_snapshot" IS DISTINCT FROM \'other\' AND "rental_contract_party_periods"."document_type_other_name_snapshot" IS NULL)',
+    );
+    expect(partyChecks.rental_contract_party_periods_identity_snapshot_key_check).toBe(
+      '("rental_contract_party_periods"."identity_snapshot_ciphertext" IS NULL AND "rental_contract_party_periods"."identity_snapshot_key_version" IS NULL) OR ("rental_contract_party_periods"."identity_snapshot_ciphertext" IS NOT NULL AND "rental_contract_party_periods"."identity_snapshot_key_version" > 0)',
+    );
+    expect(contractChecks.rental_contracts_date_order_check).toBe(
+      '"rental_contracts"."start_date" IS NULL OR "rental_contracts"."end_date" IS NULL OR "rental_contracts"."start_date" <= "rental_contracts"."end_date"',
+    );
+    expect(contractChecks.rental_contracts_rent_amount_minor_check).toBe(
+      '"rental_contracts"."rent_amount_minor" IS NULL OR ("rental_contracts"."rent_amount_minor" > 0 AND "rental_contracts"."rent_amount_minor" <= 9007199254740991)',
+    );
+    expect(contractChecks.rental_contracts_payment_interval_months_check).toBe(
+      '"rental_contracts"."payment_interval_months" IS NULL OR "rental_contracts"."payment_interval_months" IN (1, 3, 6, 12)',
+    );
+    expect(contractChecks.rental_contracts_due_days_before_check).toBe(
+      '"rental_contracts"."due_days_before" IS NULL OR "rental_contracts"."due_days_before" BETWEEN 0 AND 90',
+    );
+    expect(contractChecks.rental_contracts_confirmed_core_fields_check).toBe(
+      '"rental_contracts"."status" = \'draft\' OR ("rental_contracts"."start_date" IS NOT NULL AND "rental_contracts"."end_date" IS NOT NULL AND "rental_contracts"."rent_amount_minor" IS NOT NULL AND "rental_contracts"."billing_anchor" IS NOT NULL AND "rental_contracts"."payment_interval_months" IS NOT NULL AND "rental_contracts"."due_days_before" IS NOT NULL)',
+    );
+    expect(contractChecks.rental_contracts_cancellation_status_check).toBe(
+      '("rental_contracts"."status" = \'cancelled\') = ("rental_contracts"."cancelled_at" IS NOT NULL)',
+    );
+    expect(contractChecks.rental_contracts_cancellation_fields_check).toBe(
+      '("rental_contracts"."cancelled_at" IS NULL AND "rental_contracts"."cancelled_by_user_id" IS NULL AND "rental_contracts"."cancellation_reason" IS NULL) OR ("rental_contracts"."cancelled_at" IS NOT NULL AND "rental_contracts"."cancelled_by_user_id" IS NOT NULL AND "rental_contracts"."cancellation_reason" IS NOT NULL)',
+    );
+    expect(contractChecks.rental_contracts_termination_status_check).toBe(
+      '("rental_contracts"."status" = \'terminated\') = ("rental_contracts"."termination_date" IS NOT NULL)',
+    );
+    expect(contractChecks.rental_contracts_termination_fields_check).toBe(
+      '("rental_contracts"."termination_date" IS NULL AND "rental_contracts"."termination_recorded_at" IS NULL AND "rental_contracts"."terminated_by_user_id" IS NULL AND "rental_contracts"."termination_reason" IS NULL) OR ("rental_contracts"."termination_date" IS NOT NULL AND "rental_contracts"."termination_recorded_at" IS NOT NULL AND "rental_contracts"."terminated_by_user_id" IS NOT NULL AND "rental_contracts"."termination_reason" IS NOT NULL)',
+    );
+    expect(contractChecks.rental_contracts_termination_date_check).toBe(
+      '"rental_contracts"."termination_date" IS NULL OR ("rental_contracts"."start_date" IS NOT NULL AND "rental_contracts"."end_date" IS NOT NULL AND "rental_contracts"."termination_date" BETWEEN "rental_contracts"."start_date" AND "rental_contracts"."end_date" AND "rental_contracts"."termination_date" < "rental_contracts"."end_date")',
+    );
+    expect(contractChecks.rental_contracts_only_drafts_soft_delete_check).toBe(
+      '"rental_contracts"."deleted_at" IS NULL OR "rental_contracts"."status" = \'draft\'',
+    );
+    expect(spaceChecks.rental_contract_spaces_rent_allocation_minor_check).toBe(
+      '"rental_contract_spaces"."rent_allocation_minor" IS NULL OR ("rental_contract_spaces"."rent_allocation_minor" > 0 AND "rental_contract_spaces"."rent_allocation_minor" <= 9007199254740991)',
+    );
+    expect(depositChecks.rental_contract_deposit_terms_fixed_amount_minor_check).toBe(
+      '"rental_contract_deposit_terms"."fixed_amount_minor" IS NULL OR ("rental_contract_deposit_terms"."fixed_amount_minor" > 0 AND "rental_contract_deposit_terms"."fixed_amount_minor" <= 9007199254740991)',
+    );
+    expect(depositChecks.rental_contract_deposit_terms_custom_name_check).toBe(
+      '("rental_contract_deposit_terms"."type" = \'other\' AND "rental_contract_deposit_terms"."custom_name" IS NOT NULL) OR ("rental_contract_deposit_terms"."type" <> \'other\' AND "rental_contract_deposit_terms"."custom_name" IS NULL)',
+    );
+    expect(depositChecks.rental_contract_deposit_terms_calculation_mode_check).toBe(
+      '("rental_contract_deposit_terms"."calculation_mode" = \'fixed_amount\' AND "rental_contract_deposit_terms"."fixed_amount_minor" IS NOT NULL AND "rental_contract_deposit_terms"."rent_multiple" IS NULL) OR ("rental_contract_deposit_terms"."calculation_mode" = \'rent_multiple\' AND "rental_contract_deposit_terms"."fixed_amount_minor" IS NULL AND "rental_contract_deposit_terms"."rent_multiple" IS NOT NULL)',
+    );
+    expect(depositChecks.rental_contract_deposit_terms_rent_multiple_check).toBe(
+      '"rental_contract_deposit_terms"."rent_multiple" IS NULL OR "rental_contract_deposit_terms"."rent_multiple" > 0',
+    );
+    expect(depositChecks.rental_contract_deposit_terms_final_amount_minor_check).toBe(
+      '"rental_contract_deposit_terms"."final_amount_minor" IS NULL OR ("rental_contract_deposit_terms"."final_amount_minor" > 0 AND "rental_contract_deposit_terms"."final_amount_minor" <= 9007199254740991)',
     );
   });
 });
