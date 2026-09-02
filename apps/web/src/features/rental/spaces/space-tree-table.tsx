@@ -24,7 +24,11 @@ import {
 } from "@/components/ui/table";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
-import { invalidateSpaceMutation, rentalQueryOptions } from "../../../services/rental-query";
+import {
+  invalidateSpaceMutation,
+  rentalKeys,
+  rentalQueryOptions,
+} from "../../../services/rental-query";
 import { SpaceActions } from "./space-actions";
 import { SpaceBatchDialog } from "./space-batch-dialog";
 import { SpaceFormDialog } from "./space-form-dialog";
@@ -75,6 +79,7 @@ export function SpaceTreeTable({
     "idle",
   );
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const canRead = permissions.includes("rental_spaces:read");
   const rootQuery = useQuery({
     ...rentalQueryOptions.children(api as RentalApi, organizationId, {
       propertyId,
@@ -82,6 +87,7 @@ export function SpaceTreeTable({
       page: 1,
       pageSize: CHILD_PAGE_SIZE,
     }),
+    enabled: canRead && Boolean(organizationId && propertyId),
     retry: false,
   });
   const searchQuery = useQuery({
@@ -91,11 +97,29 @@ export function SpaceTreeTable({
       page: 1,
       pageSize: 20,
     }),
-    enabled: keyword.length > 0,
+    enabled: canRead && keyword.length > 0,
     retry: false,
   });
   useEffect(() => {
-    if (!keyword || !searchQuery.data) {
+    if (canRead) return;
+    const emptyTree = createSpaceTreeState();
+    treeRef.current = emptyTree;
+    setTree(emptyTree);
+    setErrors({});
+    setSearchItems([]);
+    setSearchPage(1);
+    setSearchLoadMoreError(false);
+    setLocationResult(null);
+    setLocationStatus("idle");
+    queryClient.removeQueries({
+      queryKey: rentalKeys.childrenRoot(organizationId, propertyId),
+    });
+    queryClient.removeQueries({
+      queryKey: rentalKeys.searchRoot(organizationId, propertyId),
+    });
+  }, [canRead, organizationId, propertyId, queryClient]);
+  useEffect(() => {
+    if (!canRead || !keyword || !searchQuery.data) {
       setSearchItems([]);
       setSearchPage(1);
       setSearchLoadMoreError(false);
@@ -104,7 +128,7 @@ export function SpaceTreeTable({
     setSearchItems(searchQuery.data.items);
     setSearchPage(searchQuery.data.page);
     setSearchLoadMoreError(false);
-  }, [keyword, searchQuery.data]);
+  }, [canRead, keyword, searchQuery.data]);
 
   async function loadMoreSearchResults() {
     if (!searchQuery.data || searchLoadingMore || searchItems.length >= searchQuery.data.total)
@@ -175,8 +199,9 @@ export function SpaceTreeTable({
   }, []);
 
   useEffect(() => {
-    if (rootQuery.data) updateTree((current) => mergeChildPage(current, null, rootQuery.data));
-  }, [rootQuery.data, updateTree]);
+    if (canRead && rootQuery.data)
+      updateTree((current) => mergeChildPage(current, null, rootQuery.data));
+  }, [canRead, rootQuery.data, updateTree]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setKeyword(draftKeyword.trim()), 250);
@@ -250,10 +275,12 @@ export function SpaceTreeTable({
   }
 
   const root = childPage(tree, null);
-  const canCreate = propertyActive && permissions.includes("rental_spaces:create");
-  const canActions = permissions.some((permission) =>
-    ["rental_spaces:create", "rental_spaces:update", "rental_spaces:delete"].includes(permission),
-  );
+  const canCreate = canRead && propertyActive && permissions.includes("rental_spaces:create");
+  const canActions =
+    canRead &&
+    permissions.some((permission) =>
+      ["rental_spaces:create", "rental_spaces:update", "rental_spaces:delete"].includes(permission),
+    );
   const actionError = (error: unknown, action: string) => {
     const message =
       action === "删除" && error instanceof ApiError && error.status === 409
@@ -365,6 +392,31 @@ export function SpaceTreeTable({
         pageSize: first.pageSize,
         total: first.total,
       }),
+    );
+  }
+  if (!canRead) {
+    return (
+      <section aria-labelledby="space-tree-heading" className="space-y-3">
+        <div>
+          <h2 id="space-tree-heading" className="text-lg font-medium">
+            空间管理
+          </h2>
+        </div>
+        <div className="space-y-2">
+          <label className="sr-only" htmlFor="space-search">
+            搜索空间
+          </label>
+          <Input
+            id="space-search"
+            placeholder="按名称或编码搜索空间"
+            value={draftKeyword}
+            onChange={(event) => setDraftKeyword(event.target.value)}
+          />
+        </div>
+        <p className="rounded-lg border bg-muted p-3 text-sm text-muted-foreground">
+          你没有查看空间的权限。
+        </p>
+      </section>
     );
   }
   return (

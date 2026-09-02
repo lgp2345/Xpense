@@ -33,6 +33,7 @@ export type PropertiesPageProps = {
   search: ListRentalPropertiesQuery;
   onSearchChange: (search: ListRentalPropertiesQuery) => void;
   onNavigate: (propertyId: string) => void;
+  onCreateContract?: (propertyId: string) => void;
 };
 
 /** URL 作用域筛选、分页和权限驱动操作的房产管理页。 */
@@ -42,6 +43,7 @@ export function PropertiesPage({
   permissions,
   search,
   onNavigate,
+  onCreateContract,
   onSearchChange,
 }: PropertiesPageProps) {
   const queryClient = useQueryClient();
@@ -71,6 +73,10 @@ export function PropertiesPage({
   });
   const items = propertiesQuery.data?.items ?? [];
   const canCreate = permissions.includes("rental_properties:create");
+  const canCreateContract =
+    permissions.includes("rental_contracts:create") &&
+    permissions.includes("rental_contracts:read") &&
+    permissions.includes("rental_contracts:update");
   const canUpdate = permissions.includes("rental_properties:update");
   const canDelete = permissions.includes("rental_properties:delete");
   async function handleCreate(input: CreateRentalPropertyRequest) {
@@ -141,24 +147,28 @@ export function PropertiesPage({
       ) : isMobile ? (
         <PropertyCards
           canDelete={canDelete}
+          canCreateContract={canCreateContract}
           canUpdate={canUpdate}
           deleting={deleteMutation.isPending}
           getProperty={api.getProperty}
           items={items}
           onDelete={handleDelete}
           onNavigate={onNavigate}
+          onCreateContract={onCreateContract}
           onSetStatus={handleStatus}
           onUpdate={handleUpdate}
         />
       ) : (
         <PropertyTable
           canDelete={canDelete}
+          canCreateContract={canCreateContract}
           canUpdate={canUpdate}
           deleting={deleteMutation.isPending}
           getProperty={api.getProperty}
           items={items}
           onDelete={handleDelete}
           onNavigate={onNavigate}
+          onCreateContract={onCreateContract}
           onSetStatus={handleStatus}
           onUpdate={handleUpdate}
         />

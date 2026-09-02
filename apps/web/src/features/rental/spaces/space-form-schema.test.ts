@@ -69,6 +69,9 @@ describe("spaceFormSchema", () => {
       isEffectivelyActive: true,
       sortOrder: 0,
       hasChildren: false,
+      leaseStatus: "vacant",
+      leaseBlockedReason: null,
+      hasUpcomingContract: false,
     });
     expect(toUpdateSpaceRequest(initial, initial)).toBeNull();
     expect(toUpdateSpaceRequest(initial, { ...initial, name: "102" })).toEqual({ name: "102" });

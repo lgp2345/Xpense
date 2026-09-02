@@ -33,6 +33,9 @@ function node(
     isEffectivelyActive: true,
     sortOrder: 0,
     hasChildren: false,
+    leaseStatus: "vacant",
+    leaseBlockedReason: null,
+    hasUpcomingContract: false,
     ...overrides,
   };
 }
