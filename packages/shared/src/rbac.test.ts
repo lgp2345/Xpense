@@ -75,4 +75,20 @@ describe("RBAC shared constants", () => {
       expect(rolePermissions[roleKey]).toEqual(rentalReadPermissions);
     }
   });
+
+  it("includes the tenant and contract permission vocabularies", () => {
+    expect(permissionKeys).toEqual(
+      expect.arrayContaining([
+        "rental_tenants:read",
+        "rental_tenants:create",
+        "rental_tenants:update",
+        "rental_tenants:delete",
+        "rental_tenants:sensitive_read",
+        "rental_contracts:read",
+        "rental_contracts:create",
+        "rental_contracts:update",
+        "rental_contracts:delete",
+      ]),
+    );
+  });
 });

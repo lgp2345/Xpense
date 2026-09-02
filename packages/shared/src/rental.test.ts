@@ -3,11 +3,54 @@ import { describe, expect, it } from "vitest";
 import type {
   CreateRentalPropertyRequest,
   DeleteRentalPropertyRequest,
+  RentalPropertyDetail,
+  RentalSpaceNode,
   SetRentalPropertyStatusRequest,
   UpdateRentalPropertyRequest,
   UpdateRentalSpaceRequest,
 } from "./rental.js";
 import { rentalPropertyTypes, rentalSpaceTypes } from "./rental.js";
+
+const propertyDetailContract = {
+  id: "property-1",
+  ledgerId: "ledger-1",
+  name: "阳光公寓",
+  type: "apartment_building",
+  customTypeName: null,
+  countryCode: "CN",
+  province: null,
+  city: "深圳",
+  district: null,
+  addressLine: "科技园 1 号",
+  isActive: true,
+  spaceCount: 3,
+  rentableSpaceCount: 2,
+  updatedAt: "2026-08-30T00:00:00.000Z",
+  note: null,
+  createdAt: "2026-08-30T00:00:00.000Z",
+  activeContractCount: 1,
+  upcomingContractCount: 1,
+  expiringSoonContractCount: 0,
+} satisfies RentalPropertyDetail;
+
+const spaceNodeContract = {
+  id: "space-1",
+  propertyId: "property-1",
+  parentId: null,
+  name: "101",
+  code: null,
+  type: "unit",
+  customTypeName: null,
+  isRentable: true,
+  isActive: true,
+  note: null,
+  isEffectivelyActive: true,
+  sortOrder: 0,
+  hasChildren: false,
+  leaseStatus: "vacant",
+  leaseBlockedReason: null,
+  hasUpcomingContract: false,
+} satisfies RentalSpaceNode;
 
 describe("rental contracts", () => {
   it("keeps the phase-one vocabularies stable", () => {
@@ -78,5 +121,14 @@ describe("rental contracts", () => {
     expect(update).toEqual({ id: "space-1", note: null });
     expect(partialUpdate).toEqual({ id: "space-1" });
     expect(statusInUpdate).toEqual({ id: "space-1", isActive: false });
+  });
+
+  it("includes contract counters and derived lease state in rental responses", () => {
+    expect(propertyDetailContract.activeContractCount).toBe(1);
+    expect(propertyDetailContract.upcomingContractCount).toBe(1);
+    expect(propertyDetailContract.expiringSoonContractCount).toBe(0);
+    expect(spaceNodeContract.leaseStatus).toBe("vacant");
+    expect(spaceNodeContract.leaseBlockedReason).toBeNull();
+    expect(spaceNodeContract.hasUpcomingContract).toBe(false);
   });
 });

@@ -54,6 +54,9 @@ export type RentalPropertySummary = {
 export type RentalPropertyDetail = RentalPropertySummary & {
   note: string | null;
   createdAt: string;
+  activeContractCount: number;
+  upcomingContractCount: number;
+  expiringSoonContractCount: number;
 };
 
 /** 租赁房产分页结果。 */
@@ -74,6 +77,9 @@ export type RentalSpaceNode = {
   isEffectivelyActive: boolean;
   sortOrder: number;
   hasChildren: boolean;
+  leaseStatus: import("./rental-contracts.js").RentalLeaseStatus;
+  leaseBlockedReason: import("./rental-contracts.js").RentalLeaseBlockedReason | null;
+  hasUpcomingContract: boolean;
 };
 
 /** 租赁空间子节点分页结果。 */
