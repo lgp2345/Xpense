@@ -30,6 +30,11 @@ const routePermissions = {
   Categories: "categories:read",
   RentalProperties: "rental_properties:read",
   RentalPropertyDetail: "rental_properties:read",
+  RentalTenants: "rental_tenants:read",
+  RentalTenantDetail: "rental_tenants:read",
+  RentalContracts: "rental_contracts:read",
+  RentalContractDetail: "rental_contracts:read",
+  RentalContractCreate: "rental_contracts:read",
 } as const satisfies Record<RouteKey, PermissionKey>;
 
 function authorizedMenu<Key extends RouteKey>(routeKey: Key, id: number): AuthorizedMenuNode {

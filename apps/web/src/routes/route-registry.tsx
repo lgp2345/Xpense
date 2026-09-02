@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router";
 import {
   type AuthorizedMenuNode,
+  type PermissionKey,
   ROUTE_DEFINITIONS,
   type RouteKey,
   transactionTypes,
@@ -23,7 +24,12 @@ import type { RegisteredPageInput } from "../components/layout/page-cache-host";
 import type { AuditLogSearch } from "../features/audit/audit-log-filters";
 import { ApiError } from "../services/api-client";
 import type { ListTransactionsQuery } from "../services/bookkeeping-api";
-import type { ListRentalPropertiesQuery } from "../services/rental-api";
+import type {
+  ListRentalContractsQuery,
+  ListRentalPropertiesQuery,
+  ListRentalTenantsQuery,
+  RentalApi,
+} from "../services/rental-api";
 import type { WebSessionDependency } from "../services/web-session";
 
 const DashboardPage = lazy(() =>
@@ -69,6 +75,31 @@ const PropertiesPage = lazy(() =>
 const PropertyDetailPage = lazy(() =>
   import("../features/rental/spaces/property-detail-page").then((module) => ({
     default: module.PropertyDetailPage,
+  })),
+);
+const RentalTenantsPage = lazy(() =>
+  import("../features/rental/tenants/tenants-page").then((module) => ({
+    default: module.TenantsPage,
+  })),
+);
+const RentalTenantDetailPage = lazy(() =>
+  import("../features/rental/tenants/tenant-detail-page").then((module) => ({
+    default: module.TenantDetailPage,
+  })),
+);
+const RentalContractsPage = lazy(() =>
+  import("../features/rental/contracts/contracts-page").then((module) => ({
+    default: module.ContractsPage,
+  })),
+);
+const RentalContractDetailPage = lazy(() =>
+  import("../features/rental/contracts/contract-detail-page").then((module) => ({
+    default: module.ContractDetailPage,
+  })),
+);
+const RentalContractCreatePage = lazy(() =>
+  import("../features/rental/contracts/contract-form-page").then((module) => ({
+    default: module.ContractFormPage,
   })),
 );
 
@@ -159,6 +190,64 @@ const rentalPropertyDetailRoute = createRoute({
   pendingComponent: RouteAccessPending,
   pendingMs: 0,
 });
+const rentalTenantsRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: ROUTE_DEFINITIONS.RentalTenants.path,
+  staticData: { routeKey: "RentalTenants" },
+  beforeLoad: ({ context, location }) =>
+    requireRegisteredRouteAccess(context, location, "RentalTenants"),
+  component: RegisteredRouteLeaf,
+  pendingComponent: RouteAccessPending,
+  pendingMs: 0,
+  validateSearch: validateRentalTenantsSearch,
+});
+const rentalTenantDetailRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: ROUTE_DEFINITIONS.RentalTenantDetail.path,
+  staticData: { routeKey: "RentalTenantDetail" },
+  beforeLoad: ({ context, location }) =>
+    requireRegisteredRouteAccess(context, location, "RentalTenantDetail"),
+  component: RegisteredRouteLeaf,
+  pendingComponent: RouteAccessPending,
+  pendingMs: 0,
+});
+const rentalContractsRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: ROUTE_DEFINITIONS.RentalContracts.path,
+  staticData: { routeKey: "RentalContracts" },
+  beforeLoad: ({ context, location }) =>
+    requireRegisteredRouteAccess(context, location, "RentalContracts"),
+  component: RegisteredRouteLeaf,
+  pendingComponent: RouteAccessPending,
+  pendingMs: 0,
+  validateSearch: validateRentalContractsSearch,
+});
+const rentalContractDetailRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: ROUTE_DEFINITIONS.RentalContractDetail.path,
+  staticData: { routeKey: "RentalContractDetail" },
+  beforeLoad: ({ context, location }) =>
+    requireRegisteredRouteAccess(context, location, "RentalContractDetail"),
+  component: RegisteredRouteLeaf,
+  pendingComponent: RouteAccessPending,
+  pendingMs: 0,
+});
+const rentalContractCreateRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: ROUTE_DEFINITIONS.RentalContractCreate.path,
+  staticData: { routeKey: "RentalContractCreate" },
+  beforeLoad: async ({ context, location }) => {
+    const access = await requireRegisteredRouteAccess(context, location, "RentalContracts");
+    if (!context.session.authStore.getState().permissions.includes("rental_contracts:create")) {
+      throw redirect({ to: "/forbidden" });
+    }
+    return access;
+  },
+  component: RegisteredRouteLeaf,
+  pendingComponent: RouteAccessPending,
+  pendingMs: 0,
+  validateSearch: validateRentalContractCreateSearch,
+});
 
 export const ROUTE_REGISTRY = {
   Dashboard: defineRouteRegistration({
@@ -215,6 +304,31 @@ export const ROUTE_REGISTRY = {
     label: "房产详情",
     route: rentalPropertyDetailRoute,
     render: (input) => renderLazyPage(<PropertyDetailPageAdapter input={input} />),
+  }),
+  RentalTenants: defineRouteRegistration({
+    label: "租户管理",
+    route: rentalTenantsRoute,
+    render: (input) => renderLazyPage(<RentalTenantsPageAdapter input={input} />),
+  }),
+  RentalTenantDetail: defineRouteRegistration({
+    label: "租户详情",
+    route: rentalTenantDetailRoute,
+    render: (input) => renderLazyPage(<RentalTenantDetailPageAdapter input={input} />),
+  }),
+  RentalContracts: defineRouteRegistration({
+    label: "合同管理",
+    route: rentalContractsRoute,
+    render: (input) => renderLazyPage(<RentalContractsPageAdapter input={input} />),
+  }),
+  RentalContractDetail: defineRouteRegistration({
+    label: "合同详情",
+    route: rentalContractDetailRoute,
+    render: (input) => renderLazyPage(<RentalContractDetailPageAdapter input={input} />),
+  }),
+  RentalContractCreate: defineRouteRegistration({
+    label: "新增合同",
+    route: rentalContractCreateRoute,
+    render: (input) => renderLazyPage(<RentalContractCreatePageAdapter input={input} />),
   }),
 } satisfies Record<RouteKey, WebRouteRegistrationConstraint>;
 
@@ -406,6 +520,41 @@ function renderRegisteredPage(input: CapturedRegisteredPageInput): ReactNode {
         search: input.search,
         session: input.session,
       });
+    case "RentalTenants":
+      return ROUTE_REGISTRY.RentalTenants.render({
+        navigate: input.navigate,
+        params: input.params as never,
+        search: validateRentalTenantsSearch(input.search),
+        session: input.session,
+      });
+    case "RentalTenantDetail":
+      return ROUTE_REGISTRY.RentalTenantDetail.render({
+        navigate: input.navigate,
+        params: input.params as never,
+        search: input.search,
+        session: input.session,
+      });
+    case "RentalContracts":
+      return ROUTE_REGISTRY.RentalContracts.render({
+        navigate: input.navigate,
+        params: input.params as never,
+        search: validateRentalContractsSearch(input.search),
+        session: input.session,
+      });
+    case "RentalContractDetail":
+      return ROUTE_REGISTRY.RentalContractDetail.render({
+        navigate: input.navigate,
+        params: input.params as never,
+        search: input.search,
+        session: input.session,
+      });
+    case "RentalContractCreate":
+      return ROUTE_REGISTRY.RentalContractCreate.render({
+        navigate: input.navigate,
+        params: input.params as never,
+        search: input.search,
+        session: input.session,
+      });
   }
 }
 
@@ -497,6 +646,9 @@ function PropertiesPageAdapter({
           params: { propertyId },
         })
       }
+      onCreateContract={(propertyId) =>
+        void input.navigate({ to: "/rentals/contracts/new", search: { propertyId } })
+      }
     />
   );
 }
@@ -518,6 +670,227 @@ function PropertyDetailPageAdapter({
       organizationId={organizationId}
       permissions={permissions}
       propertyId={input.params.propertyId}
+      onCreateContract={(propertyId) =>
+        void input.navigate({ to: "/rentals/contracts/new", search: { propertyId } })
+      }
+      onNavigateContract={(contractId) =>
+        void input.navigate({ to: "/rentals/contracts/$contractId", params: { contractId } })
+      }
+    />
+  );
+}
+
+type RentalRoutePageContext = {
+  canCreate?: boolean;
+  organizationId: string;
+  permissions: readonly PermissionKey[];
+};
+
+export type RentalTenantsRoutePageProps = RentalRoutePageContext & {
+  api: RentalApi;
+  navigate: RegisteredPageInput<typeof rentalTenantsRoute>["navigate"];
+  search: ListRentalTenantsQuery;
+};
+
+export type RentalTenantDetailRoutePageProps = RentalRoutePageContext & {
+  api: RentalApi;
+  navigate: RegisteredPageInput<typeof rentalTenantDetailRoute>["navigate"];
+  search: Record<string, unknown>;
+  tenantId: string;
+};
+
+export type RentalContractsRoutePageProps = RentalRoutePageContext & {
+  api: RentalApi;
+  navigate: RegisteredPageInput<typeof rentalContractsRoute>["navigate"];
+  search: ListRentalContractsQuery;
+};
+
+export type RentalContractDetailRoutePageProps = RentalRoutePageContext & {
+  api: RentalApi;
+  contractId: string;
+  navigate: RegisteredPageInput<typeof rentalContractDetailRoute>["navigate"];
+  search: Record<string, unknown>;
+};
+
+export type RentalContractCreateRoutePageProps = RentalRoutePageContext & {
+  api: RentalApi;
+  canCreate: boolean;
+  navigate: RegisteredPageInput<typeof rentalContractCreateRoute>["navigate"];
+  search: RentalContractCreateSearch;
+};
+
+export type RentalContractCreateSearch = {
+  draftId?: string;
+  propertyId?: string;
+  spaceIds?: string[];
+};
+
+export function createRentalTenantsRoutePageProps(
+  input: RegisteredPageInput<typeof rentalTenantsRoute>,
+  context: RentalRoutePageContext,
+): RentalTenantsRoutePageProps {
+  return {
+    ...context,
+    api: input.session.rentalApi,
+    navigate: input.navigate,
+    search: input.search,
+  };
+}
+
+export function createRentalTenantDetailRoutePageProps(
+  input: RegisteredPageInput<typeof rentalTenantDetailRoute>,
+  context: RentalRoutePageContext,
+): RentalTenantDetailRoutePageProps {
+  return {
+    ...context,
+    api: input.session.rentalApi,
+    navigate: input.navigate,
+    search: input.search,
+    tenantId: input.params.tenantId,
+  };
+}
+
+export function createRentalContractsRoutePageProps(
+  input: RegisteredPageInput<typeof rentalContractsRoute>,
+  context: RentalRoutePageContext,
+): RentalContractsRoutePageProps {
+  return {
+    ...context,
+    api: input.session.rentalApi,
+    navigate: input.navigate,
+    search: input.search,
+  };
+}
+
+export function createRentalContractDetailRoutePageProps(
+  input: RegisteredPageInput<typeof rentalContractDetailRoute>,
+  context: RentalRoutePageContext,
+): RentalContractDetailRoutePageProps {
+  return {
+    ...context,
+    api: input.session.rentalApi,
+    contractId: input.params.contractId,
+    navigate: input.navigate,
+    search: input.search,
+  };
+}
+
+export function createRentalContractCreateRoutePageProps(
+  input: RegisteredPageInput<typeof rentalContractCreateRoute>,
+  context: RentalRoutePageContext,
+): RentalContractCreateRoutePageProps {
+  return {
+    ...context,
+    api: input.session.rentalApi,
+    canCreate: context.permissions.includes("rental_contracts:create"),
+    navigate: input.navigate,
+    search: input.search,
+  };
+}
+
+function RentalTenantsPageAdapter({
+  input,
+}: {
+  input: RegisteredPageInput<typeof rentalTenantsRoute>;
+}) {
+  const permissions = useStore(input.session.authStore, (state) => state.permissions);
+  const organizationId = useStore(
+    input.session.authStore,
+    (state) => state.currentOrganization?.id ?? "",
+  );
+
+  return (
+    <RentalTenantsPage
+      api={input.session.rentalApi}
+      organizationId={organizationId}
+      permissions={permissions}
+      search={input.search}
+      onSearchChange={(search) => void input.navigate({ search, replace: true })}
+      onNavigate={(tenantId) =>
+        void input.navigate({ to: "/rentals/tenants/$tenantId", params: { tenantId } })
+      }
+    />
+  );
+}
+
+function RentalTenantDetailPageAdapter({
+  input,
+}: {
+  input: RegisteredPageInput<typeof rentalTenantDetailRoute>;
+}) {
+  const permissions = useStore(input.session.authStore, (state) => state.permissions);
+  const organizationId = useStore(
+    input.session.authStore,
+    (state) => state.currentOrganization?.id ?? "",
+  );
+
+  return (
+    <RentalTenantDetailPage
+      api={input.session.rentalApi}
+      organizationId={organizationId}
+      permissions={permissions}
+      tenantId={input.params.tenantId}
+    />
+  );
+}
+
+function RentalContractsPageAdapter({
+  input,
+}: {
+  input: RegisteredPageInput<typeof rentalContractsRoute>;
+}) {
+  const permissions = useStore(input.session.authStore, (state) => state.permissions);
+  const organizationId = useStore(
+    input.session.authStore,
+    (state) => state.currentOrganization?.id ?? "",
+  );
+
+  return (
+    <RentalContractsPage
+      {...createRentalContractsRoutePageProps(input, { organizationId, permissions })}
+    />
+  );
+}
+
+function RentalContractDetailPageAdapter({
+  input,
+}: {
+  input: RegisteredPageInput<typeof rentalContractDetailRoute>;
+}) {
+  const permissions = useStore(input.session.authStore, (state) => state.permissions);
+  const organizationId = useStore(
+    input.session.authStore,
+    (state) => state.currentOrganization?.id ?? "",
+  );
+
+  return (
+    <RentalContractDetailPage
+      {...createRentalContractDetailRoutePageProps(input, { organizationId, permissions })}
+    />
+  );
+}
+
+function RentalContractCreatePageAdapter({
+  input,
+}: {
+  input: RegisteredPageInput<typeof rentalContractCreateRoute>;
+}) {
+  const permissions = useStore(input.session.authStore, (state) => state.permissions);
+  const organizationId = useStore(
+    input.session.authStore,
+    (state) => state.currentOrganization?.id ?? "",
+  );
+
+  return (
+    <RentalContractCreatePage
+      {...createRentalContractCreateRoutePageProps(input, { organizationId, permissions })}
+      onNonDraft={(detail) =>
+        void input.navigate({
+          to: "/rentals/contracts/$contractId",
+          params: { contractId: detail.id },
+          replace: true,
+        })
+      }
     />
   );
 }
@@ -679,6 +1052,81 @@ function validateRentalPropertiesSearch(
   return result;
 }
 
+function validateRentalTenantsSearch(search: Record<string, unknown>): ListRentalTenantsQuery {
+  const result: ListRentalTenantsQuery = {};
+  const keyword = readTrimmedSearchString(search.keyword);
+  const type = readRentalTenantType(search.type);
+  const isActive = readSearchBoolean(search.isActive);
+  const documentCountryCode = readSearchString(search.documentCountryCode);
+  const documentType = readRentalDocumentType(search.documentType);
+  const documentNumber = readSearchRawString(search.documentNumber);
+  const page = readSearchPage(search.page);
+  const pageSize = readSearchPageSize(search.pageSize);
+  if (keyword) result.keyword = keyword;
+  if (type) result.type = type;
+  if (isActive !== undefined) result.isActive = isActive;
+  if (documentCountryCode) result.documentCountryCode = documentCountryCode;
+  if (documentType) result.documentType = documentType;
+  if (documentNumber !== undefined) result.documentNumber = documentNumber;
+  if (page) result.page = page;
+  if (pageSize) result.pageSize = pageSize;
+  return result;
+}
+
+function validateRentalContractsSearch(search: Record<string, unknown>): ListRentalContractsQuery {
+  const result: ListRentalContractsQuery = {};
+  const keyword = readTrimmedSearchString(search.keyword);
+  const propertyId = readSearchUuid(search.propertyId);
+  const tenantId = readSearchUuid(search.tenantId);
+  const status = readRentalContractStatus(search.status);
+  const startDateFrom = readSearchDate(search.startDateFrom);
+  const startDateTo = readSearchDate(search.startDateTo);
+  const endDateFrom = readSearchDate(search.endDateFrom);
+  const endDateTo = readSearchDate(search.endDateTo);
+  const page = readSearchPage(search.page);
+  const pageSize = readSearchPageSize(search.pageSize);
+
+  if (keyword) result.keyword = keyword;
+  if (propertyId) result.propertyId = propertyId;
+  if (tenantId) result.tenantId = tenantId;
+  if (status) result.status = status;
+  if (startDateFrom && (!startDateTo || startDateFrom <= startDateTo)) {
+    result.startDateFrom = startDateFrom;
+  }
+  if (startDateTo && (!startDateFrom || startDateFrom <= startDateTo)) {
+    result.startDateTo = startDateTo;
+  }
+  if (endDateFrom && (!endDateTo || endDateFrom <= endDateTo)) {
+    result.endDateFrom = endDateFrom;
+  }
+  if (endDateTo && (!endDateFrom || endDateFrom <= endDateTo)) {
+    result.endDateTo = endDateTo;
+  }
+  if (page) result.page = page;
+  if (pageSize) result.pageSize = pageSize;
+  return result;
+}
+
+export function validateRentalContractCreateSearch(
+  search: Record<string, unknown>,
+): RentalContractCreateSearch {
+  const draftId = readSearchUuid(search.draftId);
+  const propertyId = readSearchUuid(search.propertyId);
+  const rawSpaceIds = Array.isArray(search.spaceIds)
+    ? search.spaceIds
+    : search.spaceId === undefined
+      ? []
+      : [search.spaceId];
+  const spaceIds = [
+    ...new Set(rawSpaceIds.map(readSearchUuid).filter((value): value is string => Boolean(value))),
+  ];
+  return {
+    ...(draftId ? { draftId } : {}),
+    ...(propertyId ? { propertyId } : {}),
+    ...(propertyId && spaceIds.length ? { spaceIds } : {}),
+  };
+}
+
 const uuidPattern =
   /^([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/i;
 
@@ -719,6 +1167,38 @@ function readRentalPropertyType(value: unknown): ListRentalPropertiesQuery["type
     : undefined;
 }
 
+function readRentalTenantType(value: unknown): ListRentalTenantsQuery["type"] {
+  return value === "individual" || value === "company" ? value : undefined;
+}
+
+function readRentalDocumentType(value: unknown): ListRentalTenantsQuery["documentType"] {
+  const types = [
+    "national_id",
+    "passport",
+    "residence_permit",
+    "business_registration",
+    "other",
+  ] as const;
+  return typeof value === "string" && types.some((type) => type === value)
+    ? (value as ListRentalTenantsQuery["documentType"])
+    : undefined;
+}
+
+function readRentalContractStatus(value: unknown): ListRentalContractsQuery["status"] {
+  const statuses = [
+    "draft",
+    "upcoming",
+    "active",
+    "expiring_soon",
+    "expired",
+    "cancelled",
+    "terminated",
+  ] as const;
+  return typeof value === "string" && statuses.some((status) => status === value)
+    ? (value as ListRentalContractsQuery["status"])
+    : undefined;
+}
+
 function readSearchBoolean(value: unknown): boolean | undefined {
   if (value === true || value === "true") return true;
   if (value === false || value === "false") return false;
@@ -729,10 +1209,14 @@ function readSearchString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+function readSearchRawString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 function readSearchDate(value: unknown): string | undefined {
   const date = readSearchString(value);
 
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!date || !/^[1-9]\d{3}-\d{2}-\d{2}$/.test(date)) {
     return undefined;
   }
 

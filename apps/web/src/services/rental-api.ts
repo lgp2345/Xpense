@@ -1,20 +1,47 @@
 import type {
   BatchCreateRentalSpacesRequest,
+  CancelRentalContractRequest,
+  ChangeRentalContractPartiesRequest,
+  CheckRentalContractAvailabilityRequest,
+  ConfirmRentalContractRequest,
+  CreateRentalContractRequest,
   CreateRentalPropertyRequest,
   CreateRentalSpaceRequest,
+  CreateRentalTenantRequest,
+  DeleteRentalContractRequest,
+  DeleteRentalTenantRequest,
   MoveRentalSpaceRequest,
+  RenewRentalContractRequest,
+  RentalContractAvailability,
+  RentalContractDetail,
+  RentalContractDetailQuery,
+  RentalContractPage,
+  RentalContractPartySensitiveDetail,
   RentalPropertyDetail,
   RentalPropertyPage,
   RentalPropertyType,
   RentalSpaceChildrenPage,
   RentalSpaceSearchPage,
   RentalSpaceSubtreeDepth,
+  RentalTenantDetail,
+  RentalTenantDetailQuery,
+  RentalTenantPage,
+  RentalTenantSensitiveDetail,
+  RevealRentalContractPartySensitiveRequest,
+  RevealRentalTenantSensitiveRequest,
+  RevokeRentalContractTerminationRequest,
   SetRentalPropertyStatusRequest,
+  SetRentalTenantStatusRequest,
+  ListRentalContractsQuery as SharedListRentalContractsQuery,
+  ListRentalTenantsQuery as SharedListRentalTenantsQuery,
+  TerminateRentalContractRequest,
+  UpdateRentalContractRequest,
   UpdateRentalPropertyRequest,
   UpdateRentalSpaceRequest,
+  UpdateRentalTenantRequest,
 } from "@xpense/shared";
 
-import type { ApiClient } from "./api-client";
+import type { ApiClient, ApiRequestOptions } from "./api-client";
 
 /** 租赁房产分页筛选，字段和服务端 ListPropertiesDto 保持一致。 */
 export type ListRentalPropertiesQuery = {
@@ -44,6 +71,9 @@ export type SearchRentalSpacesQuery = {
   pageSize?: number;
 };
 
+export type ListRentalTenantsQuery = SharedListRentalTenantsQuery;
+export type ListRentalContractsQuery = SharedListRentalContractsQuery;
+
 /** 读取空间当前子树的最大相对深度。 */
 export type GetRentalSpaceSubtreeDepthQuery = {
   propertyId: string;
@@ -72,6 +102,67 @@ export function createRentalApi(client: ApiClient) {
     setPropertyStatus: (input: SetRentalPropertyStatusRequest) =>
       client.post<RentalPropertyDetail>("/rental-properties/set-status", input),
     deleteProperty: (id: string) => client.post<void>("/rental-properties/delete", { id }),
+    listTenants: (query: ListRentalTenantsQuery = {}) =>
+      client.get<RentalTenantPage>(`/rental-tenants/list${toTenantsQueryString(query)}`),
+    tenantDetail: (id: string) =>
+      client.get<RentalTenantDetail>(`/rental-tenants/detail${toDetailQueryString({ id })}`),
+    createTenant: (input: CreateRentalTenantRequest) =>
+      client.post<RentalTenantDetail>("/rental-tenants/create", input),
+    updateTenant: (input: UpdateRentalTenantRequest) =>
+      client.post<RentalTenantDetail>("/rental-tenants/update", input),
+    setTenantStatus: (input: SetRentalTenantStatusRequest) =>
+      client.post<RentalTenantDetail>("/rental-tenants/set-status", input),
+    deleteTenant: (id: string) =>
+      client.post<void>("/rental-tenants/delete", { id } as DeleteRentalTenantRequest),
+    revealTenantSensitive: (
+      input: RevealRentalTenantSensitiveRequest,
+      requestOptions?: Pick<ApiRequestOptions, "signal">,
+    ) =>
+      requestOptions
+        ? client.post<RentalTenantSensitiveDetail>(
+            "/rental-tenants/reveal-sensitive",
+            input,
+            requestOptions,
+          )
+        : client.post<RentalTenantSensitiveDetail>("/rental-tenants/reveal-sensitive", input),
+    listContracts: (query: ListRentalContractsQuery = {}) =>
+      client.get<RentalContractPage>(`/rental-contracts/list${toContractsQueryString(query)}`),
+    contractDetail: (id: string) =>
+      client.get<RentalContractDetail>(`/rental-contracts/detail${toDetailQueryString({ id })}`),
+    createContract: (input: CreateRentalContractRequest) =>
+      client.post<RentalContractDetail>("/rental-contracts/create", input),
+    updateContract: (input: UpdateRentalContractRequest) =>
+      client.post<RentalContractDetail>("/rental-contracts/update", input),
+    checkContractAvailability: (input: CheckRentalContractAvailabilityRequest) =>
+      client.post<RentalContractAvailability>("/rental-contracts/check-availability", input),
+    confirmContract: (input: ConfirmRentalContractRequest) =>
+      client.post<RentalContractDetail>("/rental-contracts/confirm", input),
+    cancelContract: (input: CancelRentalContractRequest) =>
+      client.post<RentalContractDetail>("/rental-contracts/cancel", input),
+    changeContractParties: (input: ChangeRentalContractPartiesRequest) =>
+      client.post<RentalContractDetail>("/rental-contracts/change-parties", input),
+    terminateContract: (input: TerminateRentalContractRequest) =>
+      client.post<RentalContractDetail>("/rental-contracts/terminate", input),
+    revokeContractTermination: (input: RevokeRentalContractTerminationRequest) =>
+      client.post<RentalContractDetail>("/rental-contracts/revoke-termination", input),
+    renewContract: (input: RenewRentalContractRequest) =>
+      client.post<RentalContractDetail>("/rental-contracts/renew", input),
+    deleteContract: (input: DeleteRentalContractRequest) =>
+      client.post<void>("/rental-contracts/delete", input),
+    revealContractPartySensitive: (
+      input: RevealRentalContractPartySensitiveRequest,
+      requestOptions?: Pick<ApiRequestOptions, "signal">,
+    ) =>
+      requestOptions
+        ? client.post<RentalContractPartySensitiveDetail>(
+            "/rental-contracts/reveal-sensitive",
+            input,
+            requestOptions,
+          )
+        : client.post<RentalContractPartySensitiveDetail>(
+            "/rental-contracts/reveal-sensitive",
+            input,
+          ),
     listChildren: (query: ListRentalSpaceChildrenQuery) =>
       client.get<RentalSpaceChildrenPage>(`/rental-spaces/children${toChildrenQueryString(query)}`),
     searchSpaces: (query: SearchRentalSpacesQuery) =>
@@ -94,8 +185,32 @@ export function createRentalApi(client: ApiClient) {
   };
 }
 
-/** 租赁 API 客户端类型。 */
-export type RentalApi = ReturnType<typeof createRentalApi>;
+/** 租赁 API 客户端类型；新增租户/合同端点保持对旧页面测试 seam 的兼容。 */
+type RentalTenancyApi = Pick<
+  ReturnType<typeof createRentalApi>,
+  | "listTenants"
+  | "tenantDetail"
+  | "createTenant"
+  | "updateTenant"
+  | "setTenantStatus"
+  | "deleteTenant"
+  | "revealTenantSensitive"
+  | "listContracts"
+  | "contractDetail"
+  | "createContract"
+  | "updateContract"
+  | "checkContractAvailability"
+  | "confirmContract"
+  | "cancelContract"
+  | "changeContractParties"
+  | "terminateContract"
+  | "revokeContractTermination"
+  | "renewContract"
+  | "deleteContract"
+  | "revealContractPartySensitive"
+>;
+export type RentalApi = Omit<ReturnType<typeof createRentalApi>, keyof RentalTenancyApi> &
+  Partial<RentalTenancyApi>;
 
 function toPropertiesQueryString(query: ListRentalPropertiesQuery): string {
   const params = new URLSearchParams();
@@ -131,6 +246,40 @@ function toSearchQueryString(query: SearchRentalSpacesQuery): string {
 function toSubtreeDepthQueryString(query: GetRentalSpaceSubtreeDepthQuery): string {
   const params = new URLSearchParams();
   appendParam(params, "propertyId", query.propertyId);
+  appendParam(params, "id", query.id);
+  return withQueryPrefix(params);
+}
+
+function toTenantsQueryString(query: ListRentalTenantsQuery): string {
+  const params = new URLSearchParams();
+  appendParam(params, "keyword", query.keyword?.trim());
+  appendParam(params, "type", query.type);
+  appendParam(params, "isActive", query.isActive?.toString());
+  appendParam(params, "documentCountryCode", query.documentCountryCode);
+  appendParam(params, "documentType", query.documentType);
+  appendParam(params, "documentNumber", query.documentNumber);
+  appendParam(params, "page", query.page?.toString());
+  appendParam(params, "pageSize", query.pageSize?.toString());
+  return withQueryPrefix(params);
+}
+
+function toContractsQueryString(query: ListRentalContractsQuery): string {
+  const params = new URLSearchParams();
+  appendParam(params, "keyword", query.keyword?.trim());
+  appendParam(params, "propertyId", query.propertyId);
+  appendParam(params, "tenantId", query.tenantId);
+  appendParam(params, "status", query.status);
+  appendParam(params, "startDateFrom", query.startDateFrom);
+  appendParam(params, "startDateTo", query.startDateTo);
+  appendParam(params, "endDateFrom", query.endDateFrom);
+  appendParam(params, "endDateTo", query.endDateTo);
+  appendParam(params, "page", query.page?.toString());
+  appendParam(params, "pageSize", query.pageSize?.toString());
+  return withQueryPrefix(params);
+}
+
+function toDetailQueryString(query: RentalTenantDetailQuery | RentalContractDetailQuery): string {
+  const params = new URLSearchParams();
   appendParam(params, "id", query.id);
   return withQueryPrefix(params);
 }
