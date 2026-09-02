@@ -11,6 +11,7 @@ import type { AuthContext } from "../../common/auth/auth-context.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
+import { ContractReferenceService } from "./contract-reference.service.js";
 import type { BatchCreateSpacesDto } from "./dto/batch-create-spaces.dto.js";
 import type { CreateSpaceDto } from "./dto/create-space.dto.js";
 import type { DeleteSpaceDto } from "./dto/delete-space.dto.js";
@@ -47,6 +48,7 @@ export class SpacesService {
     private readonly policy: SpacesPolicyService,
     private readonly auditService: AuditService,
     private readonly transactions: DatabaseTransactionService,
+    private readonly contractReference: ContractReferenceService,
   ) {}
 
   /** 返回已验证房产及父节点作用域内的直属子空间分页。 */
@@ -64,7 +66,12 @@ export class SpacesService {
       page: dto.page,
       pageSize: dto.pageSize,
     });
-    return toChildrenPage(page);
+    return this.withLeaseStates(
+      authContext,
+      dto.propertyId,
+      page,
+      toChildrenPage,
+    ) as Promise<RentalSpaceChildrenPage>;
   }
 
   /** 返回当前组织指定房产内可定位路径的空间搜索分页。 */
@@ -75,7 +82,12 @@ export class SpacesService {
       page: dto.page,
       pageSize: dto.pageSize,
     });
-    return toSearchPage(page);
+    return this.withLeaseStates(
+      authContext,
+      dto.propertyId,
+      page,
+      toSearchPage,
+    ) as Promise<RentalSpaceSearchPage>;
   }
 
   /** 在已验证房产与空间作用域内读取精确子树深度，供移动候选按需判断。 */
@@ -116,7 +128,6 @@ export class SpacesService {
         siblingInput(authContext.organizationId, input.propertyId, input.parentId, [input]),
         transaction,
       );
-
       let space: RentalSpaceRecord;
       try {
         space = await this.repository.create(
@@ -317,6 +328,17 @@ export class SpacesService {
         transaction,
       );
 
+      if (parentId !== current.parentId) {
+        await this.contractReference.assertSpaceCanMove(
+          authContext.organizationId,
+          current.propertyId,
+          current.id,
+          current.parentId,
+          parentId,
+          transaction,
+        );
+      }
+
       try {
         await this.repository.move(
           {
@@ -370,6 +392,14 @@ export class SpacesService {
             [current],
             current.id,
           ),
+          transaction,
+        );
+      }
+      if (!dto.isActive && current.isActive) {
+        await this.contractReference.assertSpaceCanDeactivate(
+          authContext.organizationId,
+          current.propertyId,
+          current.id,
           transaction,
         );
       }
@@ -479,6 +509,43 @@ export class SpacesService {
     );
     return { property, space };
   }
+
+  private async withLeaseStates<
+    T extends {
+      items: Array<RentalSpaceNodeRecord | RentalSpaceSearchRecord>;
+      total: number;
+      page: number;
+      pageSize: number;
+    },
+  >(
+    authContext: AuthContext,
+    propertyId: string,
+    page: T,
+    mapPage: (page: T) => RentalSpaceChildrenPage | RentalSpaceSearchPage,
+  ): Promise<RentalSpaceChildrenPage | RentalSpaceSearchPage> {
+    if (page.items.length === 0) return mapPage(page);
+    const today = await this.contractReference.organizationToday(authContext.organizationId);
+    const facts = await this.contractReference.listSpaceLeaseStates(
+      authContext.organizationId,
+      propertyId,
+      page.items.map(({ id }) => id),
+      today,
+    );
+    const items = page.items.map((item) => ({
+      ...item,
+      ...ContractReferenceService.toLeaseState(
+        facts.get(item.id) ?? {
+          spaceId: item.id,
+          hasOwnActive: false,
+          hasOwnExpiringSoon: false,
+          hasOwnUpcoming: false,
+          hasAncestorCurrentOrUpcoming: false,
+          hasDescendantCurrentOrUpcoming: false,
+        },
+      ),
+    }));
+    return mapPage({ ...page, items } as T);
+  }
 }
 
 function normalizeCreateDto(dto: CreateSpaceDto) {
@@ -557,7 +624,7 @@ function toChildrenPage(page: {
   pageSize: number;
 }): RentalSpaceChildrenPage {
   return {
-    items: page.items.map(toSpaceNode),
+    items: page.items.map((item) => toSpaceNode(item)),
     total: page.total,
     page: page.page,
     pageSize: page.pageSize,
@@ -571,7 +638,7 @@ function toSearchPage(page: {
   pageSize: number;
 }): RentalSpaceSearchPage {
   return {
-    items: page.items.map(toSearchResult),
+    items: page.items.map((item) => toSearchResult(item)),
     total: page.total,
     page: page.page,
     pageSize: page.pageSize,
@@ -579,7 +646,7 @@ function toSearchPage(page: {
 }
 
 function toSpaceNode(space: RentalSpaceNodeRecord): RentalSpaceNode {
-  return {
+  const node = {
     id: space.id,
     propertyId: space.propertyId,
     parentId: space.parentId,
@@ -594,6 +661,15 @@ function toSpaceNode(space: RentalSpaceNodeRecord): RentalSpaceNode {
     sortOrder: space.sortOrder,
     hasChildren: space.hasChildren,
   };
+  if (space.leaseStatus !== undefined) {
+    return {
+      ...node,
+      leaseStatus: space.leaseStatus,
+      leaseBlockedReason: space.leaseBlockedReason ?? null,
+      hasUpcomingContract: space.hasUpcomingContract ?? false,
+    };
+  }
+  return node as RentalSpaceNode;
 }
 
 function toSearchResult(space: RentalSpaceSearchRecord): RentalSpaceSearchResult {

@@ -53,9 +53,10 @@ export class PropertiesRepository {
     organizationId: string,
     id: string,
     executor: AppDbExecutor = this.db,
+    today = "CURRENT_DATE",
   ): Promise<RentalPropertyDetailRecord | null> {
     const [property] = await executor
-      .select(propertyDetailFields)
+      .select(propertyDetailFields(today))
       .from(rentalProperties)
       .where(
         and(

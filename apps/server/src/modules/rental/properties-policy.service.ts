@@ -8,6 +8,7 @@ import {
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
+import type { ContractReferenceSummary } from "./contracts.repository.types.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import type {
   RentalPropertyRecord,
@@ -95,6 +96,11 @@ export class PropertiesPolicyService {
     if (await this.repository.hasActiveSpace(property.organizationId, property.id, executor)) {
       throw this.conflict("租赁房产仍有未删除空间，请改为停用");
     }
+  }
+
+  /** 拒绝存在当前或未来合同引用的房产停用。 */
+  assertCanDeactivate(summary: ContractReferenceSummary): void {
+    if (summary.own) throw this.conflict("租赁房产存在当前或未来合同，不能停用");
   }
 
   /** 将并发写入触发的未删除房产同名约束转换为稳定冲突异常。 */
