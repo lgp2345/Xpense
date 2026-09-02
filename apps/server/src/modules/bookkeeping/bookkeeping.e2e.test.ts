@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { login, parseJson, testIds } from "../../test/auth-test-helpers.js";
 import { bookkeepingTestIds } from "../../test/bookkeeping-test-harness.js";
 import { createTestApp, type TestAppHarness } from "../../test/create-test-app.js";
+import { FIXED_RENTAL_NOW } from "../../test/rental-test-state.js";
 
 type InjectResponse = {
   payload: string;
@@ -68,6 +69,31 @@ describe("Bookkeeping e2e", () => {
   it("rejects ordinary category and transaction writes against a property rental ledger", async () => {
     harness = await createTestApp({ bookkeeping: true, rental: true });
     const { app } = harness;
+    harness.state.rentalQuery.registerRead(
+      "properties.detail",
+      [testIds.organization, "88888888-8888-4888-8888-000000000001"],
+      {
+        id: "88888888-8888-4888-8888-000000000001",
+        ledgerId: "44444444-4444-4444-8444-000000000101",
+        name: "记账边界房产",
+        type: "warehouse",
+        customTypeName: null,
+        countryCode: "CN",
+        province: null,
+        city: null,
+        district: null,
+        addressLine: "工业路 1 号",
+        note: null,
+        isActive: true,
+        spaceCount: 0,
+        rentableSpaceCount: 0,
+        activeContractCount: 0,
+        upcomingContractCount: 0,
+        expiringSoonContractCount: 0,
+        updatedAt: new Date(FIXED_RENTAL_NOW),
+        createdAt: new Date(FIXED_RENTAL_NOW),
+      },
+    );
     const headers = await authorization(app, "13800000001");
     const property = expectOk<{ ledgerId: string }>(
       await app.inject({
