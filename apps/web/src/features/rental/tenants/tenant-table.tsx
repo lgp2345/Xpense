@@ -75,7 +75,12 @@ export function TenantTable({
                 <TableCell className="max-w-48 truncate">
                   {tenant.phone ?? tenant.email ?? "未填写"}
                 </TableCell>
-                <TableCell>{tenant.primaryContactName ?? "未填写"}</TableCell>
+                <TableCell>
+                  <div>{tenant.primaryContactName ?? "未填写"}</div>
+                  {tenant.primaryContactPhone ? (
+                    <div className="text-muted-foreground">{tenant.primaryContactPhone}</div>
+                  ) : null}
+                </TableCell>
                 <TableCell>{tenant.maskedDocumentNumber ?? "未填写"}</TableCell>
                 <TableCell>
                   <Badge variant={tenant.isActive ? "default" : "secondary"}>

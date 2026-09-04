@@ -48,7 +48,8 @@ export function TenantCards({
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">主要联系人</dt>
                 <dd className="max-w-[65%] break-words text-right">
-                  {tenant.primaryContactName ?? "未填写"}
+                  <div>{tenant.primaryContactName ?? "未填写"}</div>
+                  {tenant.primaryContactPhone ? <div>{tenant.primaryContactPhone}</div> : null}
                 </dd>
               </div>
               <div className="flex justify-between gap-3">

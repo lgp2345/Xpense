@@ -31,6 +31,7 @@ function tenantRecord() {
     phone: sentinels.phone,
     email: sentinels.email,
     primaryContactName: null,
+    primaryContactPhone: null,
     documentCountryCode: null,
     documentType: null,
     documentTypeOtherName: null,

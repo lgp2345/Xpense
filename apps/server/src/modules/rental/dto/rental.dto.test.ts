@@ -282,6 +282,8 @@ describe("rental DTO schemas", () => {
         type: "individual",
         name: " 张三 ",
         phone: "   ",
+        primaryContactName: "联系人",
+        primaryContactPhone: "13800000000",
         documentCountryCode: " CN ",
         documentType: "national_id",
         documentNumber: " 110101 19900101 1234 ",
@@ -293,6 +295,8 @@ describe("rental DTO schemas", () => {
       type: "individual",
       name: "张三",
       phone: undefined,
+      primaryContactName: "联系人",
+      primaryContactPhone: "13800000000",
       documentCountryCode: "CN",
       documentNumber: " 110101 19900101 1234 ",
       ethnicity: "汉",
@@ -313,6 +317,21 @@ describe("rental DTO schemas", () => {
         birthDate: "1990-01-01",
       }),
     ).toThrow();
+    expect(() =>
+      createTenantSchema.parse({
+        type: "company",
+        name: "星海公司",
+        primaryContactName: "王经理",
+      }),
+    ).toThrow("企业租户必须填写联系人姓名和联系人电话");
+    expect(() =>
+      createTenantSchema.parse({
+        type: "company",
+        name: "星海公司",
+        primaryContactName: "王经理",
+        primaryContactPhone: "13800000000",
+      }),
+    ).not.toThrow();
     expect(() =>
       createTenantSchema.parse({
         type: "individual",

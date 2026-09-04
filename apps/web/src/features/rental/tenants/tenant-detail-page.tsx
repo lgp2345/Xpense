@@ -192,6 +192,7 @@ export function TenantDetailPage({
           <Info label="电话" value={tenant.phone} />
           <Info label="邮箱" value={tenant.email} />
           <Info label="主要联系人" value={tenant.primaryContactName} />
+          <Info label="联系人电话" value={tenant.primaryContactPhone} />
           <Info label="证件号" value={tenant.maskedDocumentNumber} />
           <Info label="更新时间" value={tenant.updatedAt.replace("T", " ").slice(0, 16)} />
           {tenant.note ? (

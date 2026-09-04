@@ -15,6 +15,7 @@ const baseValues = {
   phone: " 13800000000 ",
   email: " zhang@example.com ",
   primaryContactName: " 张三 ",
+  primaryContactPhone: " 13900000000 ",
   documentCountryCode: "CN",
   documentType: "national_id" as const,
   documentTypeOtherName: "",
@@ -45,6 +46,25 @@ describe("tenant form schema", () => {
         ...baseValues,
         documentType: "other",
         documentTypeOtherName: "工作证",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("requires both contact fields for companies and allows them for individuals", () => {
+    expect(
+      tenantFormSchema.safeParse({
+        ...baseValues,
+        type: "company",
+        primaryContactName: "",
+        primaryContactPhone: "",
+      }).success,
+    ).toBe(false);
+    expect(
+      tenantFormSchema.safeParse({
+        ...baseValues,
+        type: "individual",
+        primaryContactName: "联系人",
+        primaryContactPhone: "13900000000",
       }).success,
     ).toBe(true);
   });
@@ -92,6 +112,7 @@ describe("tenant form schema", () => {
       phone: "13800000000",
       email: "zhang@example.com",
       primaryContactName: "张三",
+      primaryContactPhone: "13900000000",
     });
   });
 
@@ -103,6 +124,7 @@ describe("tenant form schema", () => {
       phone: null,
       email: null,
       primaryContactName: null,
+      primaryContactPhone: null,
       documentCountryCode: "CN",
       documentType: "national_id",
       documentTypeOtherName: null,

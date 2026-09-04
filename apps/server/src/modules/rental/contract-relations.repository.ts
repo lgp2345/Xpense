@@ -97,6 +97,7 @@ function buildPartySnapshotStatement(input: ConfirmContractSnapshotsInput): SQL 
       "phone_snapshot" = "tenant"."phone",
       "email_snapshot" = "tenant"."email",
       "primary_contact_name_snapshot" = "tenant"."primary_contact_name",
+      "primary_contact_phone_snapshot" = "tenant"."primary_contact_phone",
       "document_country_code_snapshot" = "tenant"."document_country_code",
       "document_type_snapshot" = "tenant"."document_type",
       "document_type_other_name_snapshot" = "tenant"."document_type_other_name",
@@ -262,7 +263,8 @@ export class ContractRelationsRepository {
       INSERT INTO ${rentalContractPartyPeriods} (
         "organization_id", "contract_id", "tenant_id", "valid_from", "valid_to",
         "is_primary_payer", "tenant_type_snapshot", "tenant_name_snapshot", "phone_snapshot",
-        "email_snapshot", "primary_contact_name_snapshot", "document_country_code_snapshot",
+        "email_snapshot", "primary_contact_name_snapshot", "primary_contact_phone_snapshot",
+        "document_country_code_snapshot",
         "document_type_snapshot", "document_type_other_name_snapshot",
         "masked_document_number_snapshot",
         "identity_snapshot_ciphertext", "identity_snapshot_key_version"
@@ -272,6 +274,7 @@ export class ContractRelationsRepository {
         COALESCE("contract"."termination_date", "contract"."end_date"),
         "requested"."is_primary_payer", "tenant"."type", "tenant"."name",
         "tenant"."phone", "tenant"."email", "tenant"."primary_contact_name",
+        "tenant"."primary_contact_phone",
         "tenant"."document_country_code", "tenant"."document_type",
         "tenant"."document_type_other_name", "tenant"."masked_document_number",
         "tenant"."sensitive_identity_ciphertext",
@@ -345,7 +348,8 @@ export class ContractRelationsRepository {
       INSERT INTO ${rentalContractPartyPeriods} (
         "organization_id", "contract_id", "tenant_id", "valid_from", "valid_to",
         "is_primary_payer", "tenant_type_snapshot", "tenant_name_snapshot", "phone_snapshot",
-        "email_snapshot", "primary_contact_name_snapshot", "document_country_code_snapshot",
+        "email_snapshot", "primary_contact_name_snapshot", "primary_contact_phone_snapshot",
+        "document_country_code_snapshot",
         "document_type_snapshot", "document_type_other_name_snapshot",
         "masked_document_number_snapshot",
         "identity_snapshot_ciphertext", "identity_snapshot_key_version"
@@ -355,6 +359,7 @@ export class ContractRelationsRepository {
         ${input.validFrom}::date, ${input.validTo}::date, "source"."is_primary_payer",
         "source"."tenant_type_snapshot", "source"."tenant_name_snapshot", "source"."phone_snapshot",
         "source"."email_snapshot", "source"."primary_contact_name_snapshot",
+        "source"."primary_contact_phone_snapshot",
         "source"."document_country_code_snapshot", "source"."document_type_snapshot",
         "source"."document_type_other_name_snapshot", "source"."masked_document_number_snapshot",
         "source"."identity_snapshot_ciphertext",

@@ -32,6 +32,7 @@ export function buildTenantListConditions(organizationId: string, input: TenantL
       ilike(rentalTenants.phone, keyword),
       ilike(rentalTenants.email, keyword),
       ilike(rentalTenants.primaryContactName, keyword),
+      ilike(rentalTenants.primaryContactPhone, keyword),
     );
     if (keywordCondition) conditions.push(keywordCondition);
   }

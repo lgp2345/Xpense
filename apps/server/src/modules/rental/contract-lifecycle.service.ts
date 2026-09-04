@@ -675,6 +675,7 @@ export function toContractDetail(contract: RentalContractDetailRecord): RentalCo
       phone: party.phone,
       email: party.email,
       primaryContactName: party.primaryContactName,
+      primaryContactPhone: party.primaryContactPhone,
       documentCountryCode: party.documentCountryCode,
       documentType: party.documentType,
       documentTypeOtherName: party.documentTypeOtherName,

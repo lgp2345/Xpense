@@ -51,6 +51,7 @@ const contractDetailContract = {
       phone: "13800000000",
       email: null,
       primaryContactName: null,
+      primaryContactPhone: null,
       documentCountryCode: "CN",
       documentType: "national_id",
       documentTypeOtherName: null,

@@ -16,6 +16,7 @@ const tenantDetailContract = {
   phone: "13800000000",
   email: "wang@example.com",
   primaryContactName: null,
+  primaryContactPhone: null,
   documentCountryCode: "CN",
   documentType: "national_id",
   documentTypeOtherName: null,

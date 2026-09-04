@@ -151,6 +151,7 @@ const parties = sql<RentalContractPartyPeriodRecord[]>`COALESCE((
     'phone', COALESCE("period"."phone_snapshot", "tenant"."phone"),
     'email', COALESCE("period"."email_snapshot", "tenant"."email"),
     'primaryContactName', COALESCE("period"."primary_contact_name_snapshot", "tenant"."primary_contact_name"),
+    'primaryContactPhone', COALESCE("period"."primary_contact_phone_snapshot", "tenant"."primary_contact_phone"),
     'documentCountryCode', COALESCE("period"."document_country_code_snapshot", "tenant"."document_country_code"),
     'documentType', COALESCE("period"."document_type_snapshot", "tenant"."document_type"),
     'documentTypeOtherName', COALESCE("period"."document_type_other_name_snapshot", "tenant"."document_type_other_name"),

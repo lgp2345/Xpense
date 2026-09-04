@@ -30,6 +30,7 @@ function tenantRecord(overrides: Record<string, unknown> = {}) {
     phone: "13800000000",
     email: "zhang@example.com",
     primaryContactName: null,
+    primaryContactPhone: null,
     documentCountryCode: "CN",
     documentType: "national_id" as const,
     documentTypeOtherName: null,
@@ -165,6 +166,8 @@ describe("TenantsService", () => {
       gender: "male",
       ethnicity: "汉",
       documentAddress: "北京市东城区",
+      primaryContactName: "联系人",
+      primaryContactPhone: "13900000000",
       note: "按时付款",
     });
 
@@ -182,6 +185,8 @@ describe("TenantsService", () => {
         documentNumberLookupHash: "document-hash",
         sensitiveIdentityCiphertext: Buffer.from("new-ciphertext"),
         sensitiveIdentityKeyVersion: 1,
+        primaryContactName: "联系人",
+        primaryContactPhone: "13900000000",
       }),
       transaction,
     );

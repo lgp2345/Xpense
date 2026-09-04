@@ -11,6 +11,7 @@ const tenant: RentalTenantDetail = {
   phone: null,
   email: null,
   primaryContactName: null,
+  primaryContactPhone: null,
   documentCountryCode: "CN",
   documentType: "national_id",
   documentTypeOtherName: null,

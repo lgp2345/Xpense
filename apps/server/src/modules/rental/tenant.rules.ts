@@ -9,6 +9,7 @@ export type RentalTenantMutableValues = {
   phone: string | null;
   email: string | null;
   primaryContactName: string | null;
+  primaryContactPhone: string | null;
   documentCountryCode: string | null;
   documentType: RentalIdentityDocumentType | null;
   documentTypeOtherName: string | null;
@@ -28,6 +29,7 @@ const rentalTenantMutableFields = [
   "phone",
   "email",
   "primaryContactName",
+  "primaryContactPhone",
   "documentCountryCode",
   "documentType",
   "documentTypeOtherName",
@@ -47,6 +49,9 @@ function hasValue(value: unknown): boolean {
 /** 校验租户类型、证件和敏感身份字段的组合关系。 */
 export function assertTenantFields(input: TenantFieldsInput): void {
   if (input.type === "company") {
+    if (!hasValue(input.primaryContactName) || !hasValue(input.primaryContactPhone)) {
+      throw new Error("企业租户必须填写联系人姓名和联系人电话");
+    }
     for (const field of ["birthDate", "gender", "ethnicity", "documentAddress"] as const) {
       if (hasValue(input[field])) {
         throw new Error("企业租户不得填写个人身份字段");
@@ -63,9 +68,6 @@ export function assertTenantFields(input: TenantFieldsInput): void {
   }
 
   if (input.type === "individual") {
-    if (hasValue(input.primaryContactName)) {
-      throw new Error("个人租户不得填写企业联系人");
-    }
     if (input.documentType === "business_registration") {
       throw new Error("个人租户不得填写营业执照");
     }

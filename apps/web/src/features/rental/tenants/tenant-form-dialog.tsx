@@ -201,7 +201,10 @@ export function TenantFormDialog({
             <Field form={form} name="phone" label="电话" />
             <Field form={form} name="email" label="邮箱" />
           </div>
-          <Field form={form} name="primaryContactName" label="主要联系人" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field form={form} name="primaryContactName" label="主要联系人" />
+            <Field form={form} name="primaryContactPhone" label="联系人电话" />
+          </div>
           <form.Subscribe selector={(state) => state.values.type === "individual"}>
             {(isIndividual) =>
               isIndividual ? (

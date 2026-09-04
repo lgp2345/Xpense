@@ -36,6 +36,7 @@ export const createTenantSchema = z
       z.string().trim().email().max(320).optional(),
     ),
     primaryContactName: optionalText(120),
+    primaryContactPhone: optionalText(50),
     documentCountryCode: optionalCountryCode,
     documentType: z.enum(rentalIdentityDocumentTypes).optional(),
     documentTypeOtherName: optionalText(120),

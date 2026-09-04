@@ -21,6 +21,7 @@ export type RentalTenantRecord = {
   phone: string | null;
   email: string | null;
   primaryContactName: string | null;
+  primaryContactPhone: string | null;
   documentCountryCode: string | null;
   documentType: RentalIdentityDocumentType | null;
   documentTypeOtherName: string | null;
@@ -47,6 +48,7 @@ export type RentalTenantSummaryRecord = Pick<
   | "phone"
   | "email"
   | "primaryContactName"
+  | "primaryContactPhone"
   | "documentCountryCode"
   | "documentType"
   | "documentTypeOtherName"
@@ -85,6 +87,7 @@ export type UpdateRentalTenantInput = Pick<
   | "phone"
   | "email"
   | "primaryContactName"
+  | "primaryContactPhone"
   | "documentCountryCode"
   | "documentType"
   | "documentTypeOtherName"

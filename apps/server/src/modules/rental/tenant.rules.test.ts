@@ -14,6 +14,7 @@ const individual: RentalTenantMutableValues = {
   phone: null,
   email: null,
   primaryContactName: null,
+  primaryContactPhone: null,
   documentCountryCode: "CN",
   documentType: "national_id",
   documentTypeOtherName: null,
@@ -29,10 +30,32 @@ describe("租户字段纯规则", () => {
   it("限制个人与企业各自不适用的字段", () => {
     expect(() => assertTenantFields({ type: "company", birthDate: "1990-01-01" })).toThrow();
     expect(() =>
-      assertTenantFields({ type: "individual", primaryContactName: "联系人" }),
-    ).toThrow();
+      assertTenantFields({
+        type: "individual",
+        primaryContactName: "联系人",
+        primaryContactPhone: "13800000000",
+      }),
+    ).not.toThrow();
+    expect(() => assertTenantFields({ type: "company", name: "星海公司" })).toThrow(
+      "企业租户必须填写联系人姓名和联系人电话",
+    );
     expect(() =>
       assertTenantFields({ type: "company", name: "星海公司", primaryContactName: "王经理" }),
+    ).toThrow("企业租户必须填写联系人姓名和联系人电话");
+    expect(() =>
+      assertTenantFields({
+        type: "company",
+        name: "星海公司",
+        primaryContactPhone: "13800000000",
+      }),
+    ).toThrow("企业租户必须填写联系人姓名和联系人电话");
+    expect(() =>
+      assertTenantFields({
+        type: "company",
+        name: "星海公司",
+        primaryContactName: "王经理",
+        primaryContactPhone: "13800000000",
+      }),
     ).not.toThrow();
   });
 
@@ -85,6 +108,7 @@ describe("租户字段纯规则", () => {
         {
           ...individual,
           primaryContactName: null,
+          primaryContactPhone: null,
           birthDate: null,
           gender: null,
           ethnicity: null,
@@ -93,6 +117,7 @@ describe("租户字段纯规则", () => {
         {
           type: "company",
           primaryContactName: "王经理",
+          primaryContactPhone: "13800000000",
           documentType: "business_registration",
         },
       ),

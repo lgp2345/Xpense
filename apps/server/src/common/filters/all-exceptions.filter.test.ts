@@ -65,7 +65,27 @@ describe("AllExceptionsFilter", () => {
 
     expect(reply).toHaveBeenCalledWith(
       response,
-      { code: "VALIDATION_FAILED", message: "参数校验失败", data: null },
+      { code: "VALIDATION_FAILED", message: "Invalid email", data: null },
+      400,
+    );
+  });
+
+  it("returns the first concrete Zod validation message", () => {
+    const { filter, host, reply, response } = createHarness();
+
+    filter.catch(
+      new ZodValidationException({
+        issues: [
+          { code: "custom", path: ["type"], message: "企业租户类型不合法" },
+          { code: "custom", path: ["name"], message: "租客名称不能为空" },
+        ],
+      }),
+      host,
+    );
+
+    expect(reply).toHaveBeenCalledWith(
+      response,
+      { code: "VALIDATION_FAILED", message: "企业租户类型不合法", data: null },
       400,
     );
   });
@@ -112,6 +132,18 @@ describe("AllExceptionsFilter", () => {
       }),
       host,
     );
+
+    expect(reply).toHaveBeenCalledWith(
+      response,
+      { code: "VALIDATION_FAILED", message: "field is required", data: null },
+      400,
+    );
+  });
+
+  it("keeps the generic validation message when no array item has a message", () => {
+    const { filter, host, reply, response } = createHarness();
+
+    filter.catch(new BadRequestException({ errors: [], message: [] }), host);
 
     expect(reply).toHaveBeenCalledWith(
       response,

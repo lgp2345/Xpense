@@ -15,6 +15,7 @@ const tenant: RentalTenantSummary = {
   phone: "13800000000",
   email: "zhang@example.com",
   primaryContactName: "张三",
+  primaryContactPhone: "13900000000",
   documentCountryCode: "CN",
   documentType: "national_id",
   documentTypeOtherName: null,

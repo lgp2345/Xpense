@@ -39,6 +39,11 @@ export const tenantFormSchema = z
         "请输入有效的邮箱地址",
       ),
     primaryContactName: z.string().trim().max(120, "主要联系人不能超过 120 个字符"),
+    primaryContactPhone: z
+      .string()
+      .trim()
+      .max(40, "联系人电话不能超过 40 个字符")
+      .refine((value) => value === "" || /^[+()\d\s-]+$/.test(value), "请输入有效的联系人电话号码"),
     documentCountryCode: z.string().trim().max(8, "证件国家代码不能超过 8 个字符"),
     documentType: z.union([z.enum(rentalIdentityDocumentTypes), z.literal("")]),
     documentTypeOtherName: z.string().trim().max(120, "自定义证件类型不能超过 120 个字符"),
@@ -50,6 +55,22 @@ export const tenantFormSchema = z
     note: z.string().trim().max(2000, "备注不能超过 2000 个字符"),
   })
   .superRefine((value, context) => {
+    if (value.type === "company") {
+      if (!value.primaryContactName) {
+        context.addIssue({
+          code: "custom",
+          path: ["primaryContactName"],
+          message: "企业租户必须填写联系人姓名",
+        });
+      }
+      if (!value.primaryContactPhone) {
+        context.addIssue({
+          code: "custom",
+          path: ["primaryContactPhone"],
+          message: "企业租户必须填写联系人电话",
+        });
+      }
+    }
     if (
       value.type === "individual" &&
       value.documentType === "other" &&
@@ -72,6 +93,7 @@ type TenantFormSource = Pick<
   | "phone"
   | "email"
   | "primaryContactName"
+  | "primaryContactPhone"
   | "documentCountryCode"
   | "documentType"
   | "documentTypeOtherName"
@@ -87,6 +109,7 @@ export function defaultTenantFormValues(
     phone: tenant?.phone ?? "",
     email: tenant?.email ?? "",
     primaryContactName: tenant?.primaryContactName ?? "",
+    primaryContactPhone: tenant?.primaryContactPhone ?? "",
     documentCountryCode: tenant?.documentCountryCode ?? "",
     documentType: tenant?.documentType ?? "",
     documentTypeOtherName: tenant?.documentTypeOtherName ?? "",
@@ -138,6 +161,12 @@ export function toUpdateTenantRequest(
     nullable(parsed.primaryContactName),
     nullable(initial.primaryContactName),
   );
+  addChanged(
+    input,
+    "primaryContactPhone",
+    nullable(parsed.primaryContactPhone),
+    nullable(initial.primaryContactPhone),
+  );
   if (parsed.type === "company") {
     if (initial.type === "individual") {
       for (const field of identityFields) {
@@ -183,6 +212,7 @@ function appendCommonFields(request: CreateRentalTenantRequest, values: TenantFo
   addOptional(request, "phone", values.phone);
   addOptional(request, "email", values.email);
   addOptional(request, "primaryContactName", values.primaryContactName);
+  addOptional(request, "primaryContactPhone", values.primaryContactPhone);
   addOptional(request, "note", values.note);
 }
 

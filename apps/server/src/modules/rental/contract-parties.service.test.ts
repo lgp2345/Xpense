@@ -58,6 +58,7 @@ describe("ContractPartiesService", () => {
           phone: null,
           email: null,
           primaryContactName: null,
+          primaryContactPhone: null,
           documentCountryCode: null,
           documentType: null,
           documentTypeOtherName: null,

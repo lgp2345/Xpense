@@ -120,6 +120,7 @@ export class TenantsRepository {
         phone: input.phone,
         email: input.email,
         primaryContactName: input.primaryContactName,
+        primaryContactPhone: input.primaryContactPhone,
         documentCountryCode: input.documentCountryCode,
         documentType: input.documentType,
         documentTypeOtherName: input.documentTypeOtherName,

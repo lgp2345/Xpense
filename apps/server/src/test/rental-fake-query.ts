@@ -231,7 +231,7 @@ export function createRentalMutationFixtureRegistry(): RentalMutationFixtureRegi
 function mutationFixtureKey(method: RentalMutationMethod, input: RentalMutationInput): string {
   const expectedKeys: Record<RentalMutationMethod, string> = {
     "tenants.update":
-      "documentCountryCode,documentNumberLookupHash,documentType,documentTypeOtherName,email,id,isActive,maskedDocumentNumber,name,note,organizationId,phone,primaryContactName,sensitiveIdentityCiphertext,sensitiveIdentityKeyVersion,type,updatedByUserId",
+      "documentCountryCode,documentNumberLookupHash,documentType,documentTypeOtherName,email,id,isActive,maskedDocumentNumber,name,note,organizationId,phone,primaryContactName,primaryContactPhone,sensitiveIdentityCiphertext,sensitiveIdentityKeyVersion,type,updatedByUserId",
     "tenants.status": "id,isActive,organizationId,updatedByUserId",
     "tenants.delete": "deletedByUserId,id,organizationId,updatedByUserId",
     "relations.confirmSnapshots": "contractId,organizationId",

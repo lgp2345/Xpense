@@ -194,6 +194,7 @@ describe("TenantsRepository", () => {
       phone: null,
       email: null,
       primaryContactName: null,
+      primaryContactPhone: null,
       documentCountryCode: "CN",
       documentType: "national_id" as const,
       documentTypeOtherName: null,

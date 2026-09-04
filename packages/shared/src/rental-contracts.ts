@@ -86,6 +86,7 @@ export type RentalContractParty = {
   phone: string | null;
   email: string | null;
   primaryContactName: string | null;
+  primaryContactPhone: string | null;
   documentCountryCode: string | null;
   documentType: RentalIdentityDocumentType | null;
   documentTypeOtherName: string | null;

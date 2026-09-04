@@ -31,6 +31,25 @@ function codeForHttpStatus(status: number): string {
   }
 }
 
+function firstValidationMessage(value: unknown): string | null {
+  if (!Array.isArray(value)) return null;
+
+  for (const item of value) {
+    if (typeof item === "string" && item.trim()) return item;
+    if (
+      item !== null &&
+      typeof item === "object" &&
+      "message" in item &&
+      typeof item.message === "string" &&
+      item.message.trim()
+    ) {
+      return item.message;
+    }
+  }
+
+  return null;
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = createRequestLogger(AllExceptionsFilter.name);
@@ -62,7 +81,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
         if (Array.isArray(record.errors) || Array.isArray(record.message)) {
           status = HttpStatus.BAD_REQUEST;
           code = apiErrorCodes.validationFailed;
-          message = "参数校验失败";
+          message =
+            firstValidationMessage(record.errors) ??
+            firstValidationMessage(record.message) ??
+            "参数校验失败";
         } else if (typeof record.message === "string") {
           message = record.message;
         }

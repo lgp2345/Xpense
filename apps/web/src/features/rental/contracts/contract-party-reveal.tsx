@@ -131,6 +131,8 @@ function PartyRow({
         <p>
           有效期：{party.validFrom ?? "合同开始"} 至 {party.validTo ?? "当前"}
         </p>
+        <p>联系人：{party.primaryContactName ?? "未填写"}</p>
+        <p>联系人电话：{party.primaryContactPhone ?? "未填写"}</p>
         <p>
           证件号：<span>{documentNumber}</span>
         </p>

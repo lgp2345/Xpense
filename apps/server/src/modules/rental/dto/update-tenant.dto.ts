@@ -42,6 +42,7 @@ export const updateTenantSchema = z
       z.string().trim().email().max(320).nullable().optional(),
     ),
     primaryContactName: optionalNullableText(120),
+    primaryContactPhone: optionalNullableText(50),
     documentCountryCode: optionalNullableCountryCode,
     documentType: z.enum(rentalIdentityDocumentTypes).nullable().optional(),
     documentTypeOtherName: optionalNullableText(120),

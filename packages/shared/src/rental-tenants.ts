@@ -32,6 +32,7 @@ export type RentalTenantSummary = {
   phone: string | null;
   email: string | null;
   primaryContactName: string | null;
+  primaryContactPhone: string | null;
   documentCountryCode: string | null;
   documentType: RentalIdentityDocumentType | null;
   documentTypeOtherName: string | null;
@@ -83,6 +84,7 @@ type RentalTenantMutableFields = {
   phone: string | null;
   email: string | null;
   primaryContactName: string | null;
+  primaryContactPhone: string | null;
   documentCountryCode: string | null;
   documentType: RentalIdentityDocumentType | null;
   documentTypeOtherName: string | null;
