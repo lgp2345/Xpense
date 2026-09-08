@@ -15,7 +15,7 @@
 - 异常通过 NestJS exception/filter 体系处理，不直接返回临时错误对象
 - 不直接依赖 Express 专属 middleware 或 request/response API
 - 需要原始 SQL 时必须封装、参数化，并说明原因
-- migration 必须和 schema 变更一起提交
+- migration 必须与 schema 变更在同一变更集中交付；Git 提交仍遵循根目录审批规则
 - 业务接口不得绕过认证和用户作用域校验
 
 ## NestJS 技能规范
@@ -47,19 +47,9 @@
 
 ## 安全与日志
 
-- 数据库连接字符串、JWT secret、第三方密钥不得提交到仓库
-- 禁止使用 `console.log`、`console.warn`、`console.error`
-- 必须使用结构化 logger
-- token、session、密码等敏感信息不得写入日志
-- 不得记录密码、token、银行卡号、完整身份证号等敏感信息
-- 不在响应中暴露密码、token、内部异常栈或数据库细节
+- 继承根目录的日志与敏感信息规则；此外不得记录完整身份证号，也不得在响应中暴露内部异常栈或数据库细节
 
 ## 测试要求
 
-- 新增 controller、service、repository 必须有对应测试
-- service 测试覆盖业务规则、权限边界和异常路径
-- repository 测试覆盖关键查询条件和数据映射
+- 新增或实质修改 controller、service、repository 时必须有对应测试；service 覆盖业务规则、权限边界和异常路径，repository 覆盖关键查询条件和数据映射
 - API E2E 测试必须覆盖成功、校验失败、未认证和无权限场景
-- Fastify E2E 测试使用 `app.inject`
-- 测试不得依赖真实外部服务
-- 修复 bug 必须先补充能复现问题的测试
