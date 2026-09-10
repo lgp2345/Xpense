@@ -14,6 +14,7 @@ import { describe, expect, it, vi } from "vitest";
 import { useStore } from "zustand";
 
 import { AppProviders } from "@/components/app-providers";
+import type { RegisteredPageDescriptor } from "@/routes/-shared/registered-page";
 import { createWebSession, type WebSessionDependency } from "@/services/web-session";
 import { createAuthStore } from "@/stores/auth-store";
 
@@ -133,7 +134,277 @@ function createDeferred<T>() {
   return { promise, reject, resolve };
 }
 
+function DescriptorProbe({ search, session }: { search: string; session: WebSessionDependency }) {
+  return (
+    <section data-testid="cached-probe">
+      <p data-testid="descriptor-session">{session === undefined ? "missing" : "provided"}</p>
+      <p data-testid="descriptor-search">{search}</p>
+      <input aria-label="descriptor input" />
+    </section>
+  );
+}
+
+function registeredMenu(routeKey: "Members" | "Transactions", id: number): AuthorizedMenuNode {
+  return {
+    id,
+    parentId: null,
+    type: "menu",
+    name: routeKey,
+    sortOrder: id,
+    icon: null,
+    isVisible: true,
+    routeKey,
+    path: routeKey === "Members" ? "/members" : "/transactions",
+    url: null,
+    permissionCode: routeKey === "Members" ? "members:read" : "transactions:read",
+    isExternal: false,
+    keepAlive: true,
+    children: [],
+  } as AuthorizedMenuNode;
+}
+
+function createDescriptor(
+  search: string,
+  cacheParams: Readonly<Record<string, unknown>> = {},
+): RegisteredPageDescriptor {
+  return {
+    routeKey: "Transactions",
+    cacheParams,
+    render: ({ session }) => <DescriptorProbe search={search} session={session} />,
+  };
+}
+
 describe("AuthenticatedLayout", () => {
+  it("活动页面仅更新 search 时使用新的 descriptor 闭包并保留页面节点", async () => {
+    const user = userEvent.setup();
+    const store = createAuthStore({ accessToken: "access-token" });
+    store.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    const transactionsMenu = registeredMenu("Transactions", 3);
+    mock.onGet("http://localhost:4000/menus").reply(200, {
+      code: "OK",
+      message: "ok",
+      data: [transactionsMenu],
+    });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    await session.menuStore
+      .getState()
+      .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    const rootRoute = createRootRoute({
+      component: () => <AuthenticatedLayout session={session} />,
+    });
+    const transactionsRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/transactions",
+      staticData: { routeKey: "Transactions" },
+      validateSearch: (search: Record<string, unknown>) => ({
+        page: typeof search.page === "number" ? search.page : 1,
+      }),
+      beforeLoad: ({ search }) => ({
+        registeredMenu: transactionsMenu,
+        registeredPage: createDescriptor(`page=${search.page}`),
+      }),
+      component: () => null,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([transactionsRoute]),
+      history: createMemoryHistory({ initialEntries: ["/transactions?page=1"] }),
+    });
+
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    const originalNode = await screen.findByTestId("cached-probe");
+    await user.type(screen.getByRole("textbox", { name: "descriptor input" }), "retained state");
+
+    await act(async () => router.navigate({ to: "/transactions", search: { page: 2 } } as never));
+
+    expect(screen.getByTestId("cached-probe")).toBe(originalNode);
+    expect(screen.getByRole("textbox", { name: "descriptor input" })).toHaveValue("retained state");
+    expect(screen.getByTestId("descriptor-search")).toHaveTextContent("page=2");
+  });
+
+  it("隐藏后以新 search 返回时使用新的 descriptor 闭包并保留页面节点", async () => {
+    const user = userEvent.setup();
+    const store = createAuthStore({ accessToken: "access-token" });
+    store.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    const transactionsMenu = registeredMenu("Transactions", 3);
+    mock.onGet("http://localhost:4000/menus").reply(200, {
+      code: "OK",
+      message: "ok",
+      data: [transactionsMenu],
+    });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    await session.menuStore
+      .getState()
+      .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    const rootRoute = createRootRoute({
+      component: () => <AuthenticatedLayout session={session} />,
+    });
+    const transactionsRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/transactions",
+      staticData: { routeKey: "Transactions" },
+      validateSearch: (search: Record<string, unknown>) => ({
+        page: typeof search.page === "number" ? search.page : 1,
+      }),
+      beforeLoad: ({ search }) => ({
+        registeredMenu: transactionsMenu,
+        registeredPage: createDescriptor(`page=${search.page}`),
+      }),
+      component: () => null,
+    });
+    const membersRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/members",
+      component: () => null,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([transactionsRoute, membersRoute]),
+      history: createMemoryHistory({ initialEntries: ["/transactions?page=1"] }),
+    });
+
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    const originalNode = await screen.findByTestId("cached-probe");
+    await user.type(screen.getByRole("textbox", { name: "descriptor input" }), "retained state");
+
+    await act(async () => router.navigate({ to: "/members" } as never));
+    await act(async () => router.navigate({ to: "/transactions", search: { page: 2 } } as never));
+
+    expect(screen.getByTestId("cached-probe")).toBe(originalNode);
+    expect(screen.getByRole("textbox", { name: "descriptor input" })).toHaveValue("retained state");
+    expect(screen.getByTestId("descriptor-search")).toHaveTextContent("page=2");
+  });
+
+  it("使用 descriptor cacheParams 而非叶路由 params 决定缓存 identity", async () => {
+    const user = userEvent.setup();
+    const store = createAuthStore({ accessToken: "access-token" });
+    store.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    const membersMenu = registeredMenu("Members", 2);
+    mock.onGet("http://localhost:4000/menus").reply(200, {
+      code: "OK",
+      message: "ok",
+      data: [membersMenu],
+    });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    await session.menuStore
+      .getState()
+      .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    const rootRoute = createRootRoute({
+      component: () => <AuthenticatedLayout session={session} />,
+    });
+    const membersRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/members/$memberId",
+      staticData: { routeKey: "Members" },
+      beforeLoad: ({ params }) => ({
+        registeredMenu: membersMenu,
+        registeredPage: {
+          routeKey: "Members",
+          cacheParams: { view: "members" },
+          render: ({ session: descriptorSession }: { session: WebSessionDependency }) => (
+            <DescriptorProbe search={`member=${params.memberId}`} session={descriptorSession} />
+          ),
+        },
+      }),
+      component: () => null,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([membersRoute]),
+      history: createMemoryHistory({ initialEntries: ["/members/1"] }),
+    });
+
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    const originalNode = await screen.findByTestId("cached-probe");
+    await user.type(screen.getByRole("textbox", { name: "descriptor input" }), "retained state");
+
+    await act(async () => router.navigate({ to: "/members/2" } as never));
+
+    expect(screen.getByTestId("cached-probe")).toBe(originalNode);
+    expect(screen.getByRole("textbox", { name: "descriptor input" })).toHaveValue("retained state");
+    expect(screen.getByTestId("descriptor-search")).toHaveTextContent("member=2");
+  });
+
+  it("忽略错键叶路由 descriptor 并回退 Outlet", async () => {
+    const store = createAuthStore({ accessToken: "access-token" });
+    store.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    const membersMenu = registeredMenu("Members", 2);
+    mock.onGet("http://localhost:4000/menus").reply(200, {
+      code: "OK",
+      message: "ok",
+      data: [membersMenu],
+    });
+    const session = createWebSession({
+      authStore: store,
+      baseUrl: "http://localhost:4000",
+      instance,
+    });
+    await session.menuStore
+      .getState()
+      .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
+    const descriptorRender = vi.fn(() => <p>descriptor page</p>);
+    const wrongDescriptor: RegisteredPageDescriptor = {
+      routeKey: "Transactions",
+      cacheParams: {},
+      render: descriptorRender,
+    };
+    const rootRoute = createRootRoute({
+      component: () => <AuthenticatedLayout session={session} />,
+    });
+    const membersRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/members",
+      staticData: { routeKey: "Members" },
+      beforeLoad: () => ({ registeredPage: wrongDescriptor }),
+      component: () => <p data-testid="outlet-probe">outlet page</p>,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([membersRoute]),
+      history: createMemoryHistory({ initialEntries: ["/members"] }),
+    });
+
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByTestId("outlet-probe")).toBeInTheDocument();
+    expect(descriptorRender).not.toHaveBeenCalled();
+  });
+
   it("呈现当前会话的组织、邮箱与获授权导航控制项", async () => {
     const user = userEvent.setup();
     const store = createAuthStore({ accessToken: "access-token" });

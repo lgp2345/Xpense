@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AppProviders } from "@/components/app-providers";
+import type { RegisteredPageDescriptor } from "@/routes/-shared/registered-page";
 import { createWebSession } from "@/services/web-session";
 import { createAuthStore } from "@/stores/auth-store";
 
@@ -60,6 +61,14 @@ function createPage({
     menuId,
     params,
     render: () => <StatefulPage label={label} query={query} />,
+  };
+}
+
+function createRegisteredPageDescriptor(routeKey: "Members" | "Roles"): RegisteredPageDescriptor {
+  return {
+    routeKey,
+    cacheParams: {},
+    render: () => <StatefulPage label={routeKey} />,
   };
 }
 
@@ -489,17 +498,13 @@ describe("PageCacheHost", () => {
     const session = createWebSession({ authStore, baseUrl: "http://localhost:4000", instance });
     await vi.waitFor(() => expect(session.menuStore.getState().status).toBe("ready"));
     const rootRoute = createRootRoute({
-      component: () => (
-        <AuthenticatedLayout
-          renderRegisteredPage={({ routeKey }) => <StatefulPage label={routeKey} />}
-          session={session}
-        />
-      ),
+      component: () => <AuthenticatedLayout session={session} />,
     });
     const membersRoute = createRoute({
       getParentRoute: () => rootRoute,
       path: "/members",
       staticData: { routeKey: "Members" },
+      beforeLoad: () => ({ registeredPage: createRegisteredPageDescriptor("Members") }),
       component: () => null,
     });
     const router = createRouter({
@@ -548,17 +553,13 @@ describe("PageCacheHost", () => {
     const session = createWebSession({ authStore, baseUrl: "http://localhost:4000", instance });
     await vi.waitFor(() => expect(session.menuStore.getState().status).toBe("ready"));
     const rootRoute = createRootRoute({
-      component: () => (
-        <AuthenticatedLayout
-          renderRegisteredPage={({ routeKey }) => <StatefulPage label={routeKey} />}
-          session={session}
-        />
-      ),
+      component: () => <AuthenticatedLayout session={session} />,
     });
     const membersRoute = createRoute({
       getParentRoute: () => rootRoute,
       path: "/members",
       staticData: { routeKey: "Members" },
+      beforeLoad: () => ({ registeredPage: createRegisteredPageDescriptor("Members") }),
       component: () => null,
     });
     const router = createRouter({
@@ -637,12 +638,7 @@ describe("PageCacheHost", () => {
     const session = createWebSession({ authStore, baseUrl: "http://localhost:4000", instance });
     await vi.waitFor(() => expect(session.menuStore.getState().status).toBe("ready"));
     const rootRoute = createRootRoute({
-      component: () => (
-        <AuthenticatedLayout
-          renderRegisteredPage={({ routeKey }) => <StatefulPage label={routeKey} />}
-          session={session}
-        />
-      ),
+      component: () => <AuthenticatedLayout session={session} />,
     });
     const membersRoute = createRoute({
       getParentRoute: () => rootRoute,
@@ -651,6 +647,7 @@ describe("PageCacheHost", () => {
       beforeLoad: () => ({
         registeredMenu: membersMenu,
         registeredMenuAuthorization: session.menuStore.getState().byRouteKey,
+        registeredPage: createRegisteredPageDescriptor("Members"),
       }),
       component: () => null,
     });
@@ -658,6 +655,7 @@ describe("PageCacheHost", () => {
       getParentRoute: () => rootRoute,
       path: "/roles",
       staticData: { routeKey: "Roles" },
+      beforeLoad: () => ({ registeredPage: createRegisteredPageDescriptor("Roles") }),
       component: () => null,
     });
     const router = createRouter({

@@ -1,54 +1,43 @@
-import {
-  Outlet,
-  type UseNavigateResult,
-  useNavigate,
-  useRouterState,
-} from "@tanstack/react-router";
-import type { RouteKey } from "@xpense/shared";
-import type { JSX, ReactNode } from "react";
+import { Outlet, useRouterState } from "@tanstack/react-router";
+import type { JSX } from "react";
 import { useStore } from "zustand";
 
 import { CommandMenu } from "@/components/command-menu";
 import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import type { AppRouterContext } from "@/routes/__root";
 import type { WebSessionDependency } from "@/services/web-session";
 
 import { AppSidebar } from "./app-sidebar";
 import { Header } from "./header";
 import { PageCacheHost, type PageCacheHostPage } from "./page-cache-host";
 
-export type CapturedRegisteredPageInput = {
-  navigate: UseNavigateResult<string>;
-  params: Record<string, unknown>;
-  routeKey: RouteKey;
-  search: Record<string, unknown>;
-  session: WebSessionDependency;
-};
-
 type AuthenticatedLayoutProps = {
-  renderRegisteredPage?: (input: CapturedRegisteredPageInput) => ReactNode;
   session: WebSessionDependency;
   requiresMenuBootstrap?: boolean;
 };
 
 export function AuthenticatedLayout({
-  renderRegisteredPage,
   session,
   requiresMenuBootstrap = true,
 }: AuthenticatedLayoutProps): JSX.Element {
   const leafMatch = useRouterState({ select: (state) => state.matches.at(-1) });
+  const leafContext =
+    leafMatch?.status === "success" ? (leafMatch.context as AppRouterContext) : undefined;
+  const registeredPage = leafContext?.registeredPage;
+  const routeKey = leafMatch?.status === "success" ? leafMatch.staticData.routeKey : undefined;
+  const validRegisteredPage =
+    registeredPage !== undefined && routeKey !== undefined && registeredPage.routeKey === routeKey
+      ? registeredPage
+      : undefined;
   const activeRegisteredMatch =
-    leafMatch?.status === "success" && leafMatch.staticData.routeKey !== undefined
+    leafMatch?.status === "success" && routeKey !== undefined
       ? {
-          fullPath: leafMatch.fullPath,
-          params: leafMatch.params,
           registeredMenu: leafMatch.context.registeredMenu,
           registeredMenuAuthorization: leafMatch.context.registeredMenuAuthorization,
-          routeKey: leafMatch.staticData.routeKey,
-          search: leafMatch.search,
+          routeKey,
         }
       : null;
-  const navigate = useNavigate({ from: activeRegisteredMatch?.fullPath });
   const authStatus = useStore(session.authStore, (state) => state.status);
   const organizationId = useStore(
     session.authStore,
@@ -76,20 +65,13 @@ export function AuthenticatedLayout({
     : undefined;
   const activeMenu = localMenu ?? registeredMenu;
   const activePage: PageCacheHostPage | null =
-    isMenuReady && activeMenu && activeRegisteredMatch && renderRegisteredPage
+    isMenuReady && activeMenu && activeRegisteredMatch && validRegisteredPage
       ? {
           authorizationSource: localMenu ? "local" : "resolved",
           keepAlive: activeMenu.keepAlive === true,
           menuId: activeMenu.id,
-          params: activeRegisteredMatch.params,
-          render: () =>
-            renderRegisteredPage({
-              navigate,
-              params: activeRegisteredMatch.params,
-              routeKey: activeRegisteredMatch.routeKey,
-              search: activeRegisteredMatch.search,
-              session,
-            }),
+          params: validRegisteredPage.cacheParams,
+          render: () => validRegisteredPage.render({ session }),
         }
       : null;
   const cacheableMenuIds = new Set(

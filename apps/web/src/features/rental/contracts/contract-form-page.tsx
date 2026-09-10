@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { RentalContractCreateRoutePageProps } from "../../../routes/route-registry";
+import type { RentalApi } from "@/services/rental-api";
 import { type ContractFormValues, defaultContractFormValues } from "./contract-form-schema";
 import { ContractPartiesStep } from "./steps/contract-parties-step";
 import { ContractReviewStep } from "./steps/contract-review-step";
@@ -23,7 +23,35 @@ import { ContractSpacesStep } from "./steps/contract-spaces-step";
 import { ContractTermsStep } from "./steps/contract-terms-step";
 import { useContractDraft } from "./use-contract-draft";
 
-export type ContractFormPageProps = RentalContractCreateRoutePageProps & {
+export type ContractFormSearch = {
+  draftId?: string;
+  propertyId?: string;
+  spaceIds?: string[];
+};
+
+export type ContractFormNavigate = (
+  options:
+    | {
+        search: { draftId: string };
+        replace: true;
+      }
+    | {
+        to: "/rentals/contracts/$contractId";
+        params: { contractId: string };
+        replace: true;
+      },
+) => Promise<unknown> | unknown;
+
+export type ContractFormPageInput = {
+  api: RentalApi;
+  organizationId: string;
+  permissions: readonly PermissionKey[];
+  canCreate: boolean;
+  navigate: ContractFormNavigate;
+  search: ContractFormSearch;
+};
+
+export type ContractFormPageProps = ContractFormPageInput & {
   onNonDraft?: (
     detail: Parameters<NonNullable<Parameters<typeof useContractDraft>[0]["onNonDraft"]>>[0],
   ) => void;
@@ -72,7 +100,12 @@ export function ContractFormPage({
     (id: string) => {
       createdDraftId.current = id;
       pendingDraftRouteId.current = id;
-      void Promise.resolve(navigate({ search: { draftId: id }, replace: true })).finally(() => {
+      void Promise.resolve(
+        navigate({
+          search: { draftId: id },
+          replace: true,
+        }),
+      ).finally(() => {
         if (pendingDraftRouteId.current === id) pendingDraftRouteId.current = undefined;
       });
     },

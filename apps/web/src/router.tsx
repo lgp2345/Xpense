@@ -1,143 +1,23 @@
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  createRoute,
-  createRouter,
-  type RouterHistory,
-  RouterProvider,
-  redirect,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createRouter, type RouterHistory, RouterProvider } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
-import { AuthenticatedLayout } from "../components/layout/authenticated-layout";
-import { MenuResetPage } from "../features/menus/menu-reset-page";
-import { ForbiddenPage } from "../pages/forbidden-page";
-import { FoundationPage } from "../pages/foundation-page";
-import { LoginPage } from "../pages/login-page";
-import { clearBookkeepingQueries } from "../services/bookkeeping-query";
-import { clearRentalQueries } from "../services/rental-query";
-import { type WebSessionDependency, webSession } from "../services/web-session";
-import type { AuthStoreApi } from "../stores/auth-store";
-import type { MenuStoreApi } from "../stores/menu-store";
-import { didBookkeepingScopeChange } from "./bookkeeping-cache-scope";
-import { didRentalScopeChange } from "./rental-cache-scope";
-import {
-  authenticatedRoute,
-  ROUTE_REGISTRY,
-  RouteAccessPending,
-  requireAuthenticatedRouteAccess,
-  rootRoute,
-} from "./route-registry";
-import { getSafeRedirectPath } from "./safe-redirect";
+import { didBookkeepingScopeChange } from "@/routes/-shared/bookkeeping-cache-scope";
+import { didRentalScopeChange } from "@/routes/-shared/rental-cache-scope";
+import { RouteAccessPending } from "@/routes/-shared/status";
+import { routeTree } from "./routeTree.gen";
+import { clearBookkeepingQueries } from "./services/bookkeeping-query";
+import { clearRentalQueries } from "./services/rental-query";
+import { type WebSessionDependency, webSession } from "./services/web-session";
+import type { AuthStoreApi } from "./stores/auth-store";
+import type { MenuStoreApi } from "./stores/menu-store";
 
-type CreateAppRouterOptions = {
+export type CreateAppRouterOptions = {
   history?: RouterHistory;
   session?: WebSessionDependency;
 };
 
 const sessionsByRouter = new WeakMap<object, WebSessionDependency>();
-
-const loginRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/login",
-  validateSearch: (search: Record<string, unknown>) => ({
-    redirect: typeof search.redirect === "string" ? search.redirect : "/",
-  }),
-  beforeLoad: ({ context, search }) => {
-    if (context.session.authStore.getState().status === "authenticated") {
-      throw redirect({ href: getSafeRedirectPath(search.redirect) });
-    }
-  },
-  component: LoginRoutePage,
-});
-
-const foundationRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/foundation",
-  component: FoundationPage,
-});
-
-const forbiddenRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/forbidden",
-  beforeLoad: ({ context, location }) => requireAuthenticatedRouteAccess(context, location),
-  component: ForbiddenRoutePage,
-});
-
-const staticAuthenticatedRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  id: "_static_authenticated",
-  beforeLoad: ({ context, location }) => requireAuthenticatedRouteAccess(context, location),
-  component: StaticAuthenticatedRoutePage,
-});
-
-const menuResetRoute = createRoute({
-  getParentRoute: () => staticAuthenticatedRoute,
-  path: "/system/menu-reset",
-  beforeLoad: ({ context }) => {
-    if (!context.session.authStore.getState().currentUser?.isSuperAdmin) {
-      throw redirect({ to: "/forbidden" });
-    }
-  },
-  component: MenuResetRoutePage,
-});
-
-const routeTree = rootRoute.addChildren([
-  loginRoute,
-  forbiddenRoute,
-  foundationRoute,
-  staticAuthenticatedRoute.addChildren([menuResetRoute]),
-  authenticatedRoute.addChildren([
-    ROUTE_REGISTRY.Dashboard.route,
-    ROUTE_REGISTRY.Members.route,
-    ROUTE_REGISTRY.Roles.route,
-    ROUTE_REGISTRY.Sessions.route,
-    ROUTE_REGISTRY.AuditLogs.route,
-    ROUTE_REGISTRY.Menus.route,
-    ROUTE_REGISTRY.Transactions.route,
-    ROUTE_REGISTRY.Accounts.route,
-    ROUTE_REGISTRY.Categories.route,
-    ROUTE_REGISTRY.RentalProperties.route,
-    ROUTE_REGISTRY.RentalPropertyDetail.route,
-    ROUTE_REGISTRY.RentalTenants.route,
-    ROUTE_REGISTRY.RentalTenantDetail.route,
-    ROUTE_REGISTRY.RentalContracts.route,
-    ROUTE_REGISTRY.RentalContractDetail.route,
-    ROUTE_REGISTRY.RentalContractCreate.route,
-  ]),
-]);
-
-function LoginRoutePage() {
-  const { redirect: redirectPath } = loginRoute.useSearch();
-  const { session } = loginRoute.useRouteContext();
-  const navigate = useNavigate();
-
-  return (
-    <LoginPage
-      redirectPath={redirectPath}
-      session={session}
-      onAuthenticated={(path) => navigate({ href: path, replace: true })}
-    />
-  );
-}
-
-function ForbiddenRoutePage() {
-  const navigate = forbiddenRoute.useNavigate();
-
-  return <ForbiddenPage onBack={() => void navigate({ to: "/" })} />;
-}
-
-function StaticAuthenticatedRoutePage() {
-  const { session } = staticAuthenticatedRoute.useRouteContext();
-
-  return <AuthenticatedLayout requiresMenuBootstrap={false} session={session} />;
-}
-
-function MenuResetRoutePage() {
-  const { session } = menuResetRoute.useRouteContext();
-
-  return <MenuResetPage session={session} />;
-}
 
 function NotFoundPage() {
   return (
@@ -154,16 +34,13 @@ export function createAppRouter(options: CreateAppRouterOptions = {}) {
   const routerSession = options.session ?? webSession;
   const appRouter = createRouter({
     routeTree,
-    context: {
-      session: routerSession,
-    },
+    context: { session: routerSession },
     history: options.history,
+    trailingSlash: "never",
     defaultNotFoundComponent: NotFoundPage,
     defaultPendingComponent: RouteAccessPending,
   });
-
   sessionsByRouter.set(appRouter, routerSession);
-
   return appRouter;
 }
 
@@ -176,7 +53,7 @@ declare module "@tanstack/react-router" {
   }
 }
 
-type AppRouterProps = {
+export type AppRouterProps = {
   router?: AppRouterInstance;
   restoreSession?: () => Promise<boolean>;
 };

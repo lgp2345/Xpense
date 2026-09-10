@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from "node:url";
 
 import tailwindcss from "@tailwindcss/vite";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { codeInspectorPlugin } from "code-inspector-plugin";
 import { defineConfig } from "vitest/config";
@@ -12,6 +13,13 @@ const isVitest = process.env.VITEST === "true";
 
 export default defineConfig({
   plugins: [
+    tanstackRouter({
+      autoCodeSplitting: true,
+      generatedRouteTree: "./src/routeTree.gen.ts",
+      routeFileIgnorePattern: "\\.test\\.[cm]?[jt]sx?$",
+      routeFileIgnorePrefix: "-",
+      routesDirectory: "./src/routes",
+    }),
     react(),
     tailwindcss(),
     ...(isVitest ? [] : [codeInspectorPlugin({ bundler: "vite" })]),

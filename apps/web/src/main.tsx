@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { AppProviders } from "./components/app-providers";
-import { AppRouter } from "./routes/router";
+import { AppRouter } from "./router";
 import "./styles.css";
 
 const rootElement = document.getElementById("root");

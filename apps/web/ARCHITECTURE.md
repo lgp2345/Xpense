@@ -23,7 +23,8 @@ WEB 端是个人记账系统的后台管理界面。
 
 ## 目录结构
 
-- `src/routes`：TanStack Router 路由
+- `src/routes`：TanStack File-Based Routing 路由定义
+- `src/routeTree.gen.ts`：由 TanStack Router 生成，禁止手工编辑
 - `src/pages`：页面级组件
 - `src/features`：按业务功能组织的模块
 - `src/components`：通用 UI 组件
@@ -37,7 +38,9 @@ WEB 端是个人记账系统的后台管理界面。
 
 ## 路由与页面边界
 
-- 路由定义放在 `src/routes`。
+- 路由定义放在 `src/routes`，使用 TanStack File-Based Routing。
+- `src/routes` 中的 authenticated File Routes 返回由 `PageCacheHost` 消费的 page descriptor。
+- 业务页面继续位于 `src/pages` 与 `src/features`，路由适配器不承载页面业务实现。
 - 页面级数据边界应与路由保持一致。
 - 路由参数和 search 参数必须有类型约束。
 - 需要登录态的页面通过统一的路由守卫或布局入口处理。

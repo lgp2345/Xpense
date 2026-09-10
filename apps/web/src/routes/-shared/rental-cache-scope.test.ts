@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { type AuthStatus, createAuthStore } from "../stores/auth-store";
-import { didBookkeepingScopeChange } from "./bookkeeping-cache-scope";
+import { type AuthStatus, createAuthStore } from "../../stores/auth-store";
+import { didRentalScopeChange } from "./rental-cache-scope";
 
-/** 构造只改变缓存隔离字段的真实认证 store 状态。 */
 function authState(status: AuthStatus, organizationId: string | null) {
   return createAuthStore({
     currentOrganization: organizationId ? { id: organizationId, name: organizationId } : null,
@@ -11,22 +10,22 @@ function authState(status: AuthStatus, organizationId: string | null) {
   }).getState();
 }
 
-describe("didBookkeepingScopeChange", () => {
-  it("仅在认证状态或当前组织变化时跨越财务缓存边界", () => {
+describe("didRentalScopeChange", () => {
+  it("crosses the rental cache boundary only on authentication or organization changes", () => {
     expect(
-      didBookkeepingScopeChange(
+      didRentalScopeChange(
         authState("authenticated", "org-a"),
         authState("authenticated", "org-a"),
       ),
     ).toBe(false);
     expect(
-      didBookkeepingScopeChange(
+      didRentalScopeChange(
         authState("authenticated", "org-b"),
         authState("authenticated", "org-a"),
       ),
     ).toBe(true);
     expect(
-      didBookkeepingScopeChange(authState("anonymous", null), authState("authenticated", "org-a")),
+      didRentalScopeChange(authState("anonymous", null), authState("authenticated", "org-a")),
     ).toBe(true);
   });
 });

@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import type { UseNavigateResult } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
 
 import { Button } from "@/components/ui/button";
@@ -18,9 +17,8 @@ export type ContractsPageProps = {
   organizationId: string;
   permissions: readonly PermissionKey[];
   search: ListRentalContractsQuery;
-  navigate?: UseNavigateResult<"/rentals/contracts">;
-  onSearchChange?: (search: ListRentalContractsQuery) => void;
-  onNavigate?: (contractId: string) => void;
+  onSearchChange: (search: ListRentalContractsQuery) => void;
+  onNavigate: (contractId: string) => void;
 };
 
 export function ContractsPage({
@@ -28,7 +26,6 @@ export function ContractsPage({
   organizationId,
   permissions,
   search,
-  navigate,
   onSearchChange,
   onNavigate,
 }: ContractsPageProps) {
@@ -42,17 +39,10 @@ export function ContractsPage({
       previousQuery?.queryKey?.[1] === organizationId ? previousData : undefined,
   });
   const changeSearch = (next: ListRentalContractsQuery) => {
-    if (onSearchChange) onSearchChange(next);
-    else if (navigate) void navigate({ search: next, replace: true });
+    onSearchChange(next);
   };
   const openDetail = (id: string) => {
-    if (onNavigate) onNavigate(id);
-    else if (navigate)
-      void navigate({
-        to: "/rentals/contracts/$contractId",
-        params: { contractId: id },
-        search: normalizedSearch,
-      });
+    onNavigate(id);
   };
   if (!canRead)
     return (
