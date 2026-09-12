@@ -956,14 +956,23 @@ function createAuditRepository(state: TestState): Partial<AuditRepository> {
         throw new Error("Test required audit append post-persist failure");
       }
     },
-    listCurrentOrganizationLogs: async (input) =>
-      state.auditLogs.filter(
-        (log) =>
-          log.organizationId === input.organizationId &&
-          (!input.action || log.action === input.action) &&
-          (!input.actorUserId || log.actorUserId === input.actorUserId) &&
-          (!input.targetType || log.targetType === input.targetType),
-      ),
+    listCurrentOrganizationLogs: async (input) => {
+      const page = input.page ?? 1;
+      const pageSize = input.pageSize ?? 50;
+
+      return state.auditLogs
+        .filter(
+          (log) =>
+            log.organizationId === input.organizationId &&
+            (!input.action || log.action === input.action) &&
+            (!input.actorUserId || log.actorUserId === input.actorUserId) &&
+            (!input.targetType || log.targetType === input.targetType) &&
+            (!input.from || log.createdAt >= input.from) &&
+            (!input.to || log.createdAt <= input.to),
+        )
+        .toSorted((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+        .slice((page - 1) * pageSize, page * pageSize);
+    },
   };
 }
 
