@@ -2,9 +2,18 @@
 
 ## 前置条件
 
-- Node.js 与 pnpm 版本满足根 `package.json` 要求。
+- Node.js 固定使用 `26.8.2`，pnpm 固定使用 `10.30.2`，版本以根 `package.json` 和 `.node-version` 为准。
 - Docker Desktop 已启动，并支持 Docker Compose v2。
 - 本地端口 `5432`、`4000`、`5173` 未被占用。
+
+进入项目后先确认运行时版本：
+
+```bash
+node --version
+pnpm --version
+```
+
+Node.js 应输出 `v26.8.2`。支持 `.node-version` 的版本管理工具可直接读取项目声明；切换版本不会修改系统默认 Node.js。
 
 ## 初始化配置
 

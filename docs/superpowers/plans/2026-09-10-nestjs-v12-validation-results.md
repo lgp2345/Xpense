@@ -12,3 +12,12 @@
 - 说明：现有 `nestjs-zod` 校验错误会返回具体英文错误文本；迁移阶段按照实施方案统一为中文 `参数校验失败`。
 
 后续阶段将在此文件追加目标环境、命令结果、阶段提交 SHA 和剩余风险。
+
+## 阶段 2：Node.js 26.8.2
+
+- npm 发布元数据确认 Node.js `26.8.2` 存在，本地 `node --version` 输出 `v26.8.2`。
+- 根 package 声明和 `.node-version` 使用精确版本 `26.8.2`。
+- server 与 web Dockerfile 使用 `node:26.8.2-alpine`。
+- Docker Hub 官方标签列表确认 `node:26.8.2-alpine` 存在；本机 Docker registry 元数据请求连续超时，镜像拉取及两份镜像构建未能完成，留待最终阶段重试。
+- `pnpm install --frozen-lockfile` 成功，pnpm 保持 `10.30.2`；本机 Argon2 哈希与验证冒烟成功。
+- 服务端 check、lint、1025 项通过且 2 项跳过、build 成功；根级 check、lint、test 成功。Web 测试仍输出既有 React `act(...)` 警告。
