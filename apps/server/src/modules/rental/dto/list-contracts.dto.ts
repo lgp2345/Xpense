@@ -1,5 +1,4 @@
 import { rentalContractDisplayStatuses } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 import { contractCalendarDateSchema } from "./create-contract.dto.js";
@@ -34,8 +33,8 @@ export const listContractsSchema = z
     }
   });
 
-/** 租赁合同列表查询 DTO。 */
-export class ListContractsDto extends createZodDto(listContractsSchema) {}
+/** 租赁合同列表查询 DTO，由 listContractsSchema 校验并转换。 */
+export type ListContractsDto = z.output<typeof listContractsSchema>;
 
 export const listRentalContractsSchema = listContractsSchema;
-export { ListContractsDto as ListRentalContractsDto };
+export type { ListContractsDto as ListRentalContractsDto };

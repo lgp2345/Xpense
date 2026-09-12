@@ -7,9 +7,10 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { AbstractHttpAdapter, HttpAdapterHost } from "@nestjs/core";
-import { ZodValidationException } from "nestjs-zod";
 import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
+import { createValidationPipe } from "../validation/create-validation-pipe.js";
 import { AllExceptionsFilter } from "./all-exceptions.filter.js";
 
 function createHarness() {
@@ -53,39 +54,38 @@ describe("AllExceptionsFilter", () => {
     );
   });
 
-  it("maps validation errors to VALIDATION_FAILED", () => {
+  it("maps validation errors to VALIDATION_FAILED", async () => {
     const { filter, host, reply, response } = createHarness();
+    const schema = z.object({ email: z.string().email() });
 
-    filter.catch(
-      new ZodValidationException({
-        issues: [{ code: "invalid_type", path: ["email"], message: "Invalid email" }],
-      }),
-      host,
-    );
+    const exception = await createValidationPipe()
+      .transform({ email: "invalid" }, { type: "body", schema } as Parameters<
+        ReturnType<typeof createValidationPipe>["transform"]
+      >[1])
+      .catch((error: unknown) => error);
+    filter.catch(exception, host);
 
     expect(reply).toHaveBeenCalledWith(
       response,
-      { code: "VALIDATION_FAILED", message: "Invalid email", data: null },
+      { code: "VALIDATION_FAILED", message: "参数校验失败", data: null },
       400,
     );
   });
 
-  it("returns the first concrete Zod validation message", () => {
+  it("does not expose concrete schema validation details", async () => {
     const { filter, host, reply, response } = createHarness();
+    const schema = z.object({ type: z.string().refine(() => false, "企业租户类型不合法") });
 
-    filter.catch(
-      new ZodValidationException({
-        issues: [
-          { code: "custom", path: ["type"], message: "企业租户类型不合法" },
-          { code: "custom", path: ["name"], message: "租客名称不能为空" },
-        ],
-      }),
-      host,
-    );
+    const exception = await createValidationPipe()
+      .transform({ type: "company" }, { type: "body", schema } as Parameters<
+        ReturnType<typeof createValidationPipe>["transform"]
+      >[1])
+      .catch((error: unknown) => error);
+    filter.catch(exception, host);
 
     expect(reply).toHaveBeenCalledWith(
       response,
-      { code: "VALIDATION_FAILED", message: "企业租户类型不合法", data: null },
+      { code: "VALIDATION_FAILED", message: "参数校验失败", data: null },
       400,
     );
   });

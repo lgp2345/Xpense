@@ -1,5 +1,4 @@
 import { accountTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 /** 更新账户请求校验规则。 */
@@ -32,5 +31,5 @@ export const updateAccountSchema = z
     { message: "至少需要提供一项账户信息" },
   );
 
-/** 更新账户请求 DTO。 */
-export class UpdateAccountDto extends createZodDto(updateAccountSchema) {}
+/** 更新账户请求 DTO，由 updateAccountSchema 校验并转换。 */
+export type UpdateAccountDto = z.output<typeof updateAccountSchema>;

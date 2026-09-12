@@ -1,5 +1,4 @@
 import { chinaPhoneSchema, clientTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 export const loginSchema = z.object({
@@ -12,4 +11,5 @@ export const loginSchema = z.object({
   deviceName: z.string().min(1).max(120).optional(),
 });
 
-export class LoginDto extends createZodDto(loginSchema) {}
+/** 经过 loginSchema 校验并转换后的业务输入。 */
+export type LoginDto = z.output<typeof loginSchema>;

@@ -103,7 +103,7 @@ describe("Audit e2e", () => {
     expect(response.statusCode).toBe(400);
     expect(parseJson(response)).toEqual({
       code: "VALIDATION_FAILED",
-      message: expect.any(String),
+      message: "参数校验失败",
       data: null,
     });
   });

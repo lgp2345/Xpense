@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 export const editRoleSchema = z
@@ -12,4 +11,5 @@ export const editRoleSchema = z
     message: "至少需要提供一项角色信息",
   });
 
-export class EditRoleDto extends createZodDto(editRoleSchema) {}
+/** 经过 editRoleSchema 校验并转换后的业务输入。 */
+export type EditRoleDto = z.output<typeof editRoleSchema>;

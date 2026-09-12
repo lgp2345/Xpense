@@ -1,5 +1,4 @@
 import { permissionKeys } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 export const editRolePermissionsSchema = z
@@ -9,4 +8,5 @@ export const editRolePermissionsSchema = z
   })
   .strict();
 
-export class EditRolePermissionsDto extends createZodDto(editRolePermissionsSchema) {}
+/** 经过 editRolePermissionsSchema 校验并转换后的业务输入。 */
+export type EditRolePermissionsDto = z.output<typeof editRolePermissionsSchema>;

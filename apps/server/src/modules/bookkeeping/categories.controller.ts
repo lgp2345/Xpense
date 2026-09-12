@@ -7,10 +7,10 @@ import { RequirePermission } from "../iam/decorators/require-permission.decorato
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import { CategoriesService } from "./categories.service.js";
-import { CreateCategoryDto } from "./dto/create-category.dto.js";
-import { DeleteCategoryDto } from "./dto/delete-category.dto.js";
-import { ListCategoriesDto } from "./dto/list-categories.dto.js";
-import { UpdateCategoryDto } from "./dto/update-category.dto.js";
+import { type CreateCategoryDto, createCategorySchema } from "./dto/create-category.dto.js";
+import { type DeleteCategoryDto, deleteCategorySchema } from "./dto/delete-category.dto.js";
+import { type ListCategoriesDto, listCategoriesSchema } from "./dto/list-categories.dto.js";
+import { type UpdateCategoryDto, updateCategorySchema } from "./dto/update-category.dto.js";
 
 /** 暴露两级分类查询与管理接口。 */
 @Controller("categories")
@@ -23,7 +23,7 @@ export class CategoriesController {
   @RequirePermission("categories:read")
   list(
     @CurrentAuthContext() authContext: AuthContext,
-    @Query() dto: ListCategoriesDto,
+    @Query({ schema: listCategoriesSchema }) dto: ListCategoriesDto,
   ): Promise<CategoryNode[]> {
     return this.service.list(authContext, dto);
   }
@@ -34,7 +34,7 @@ export class CategoriesController {
   @RequirePermission("categories:create")
   create(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: CreateCategoryDto,
+    @Body({ schema: createCategorySchema }) dto: CreateCategoryDto,
   ): Promise<CategoryNode> {
     return this.service.create(authContext, dto);
   }
@@ -45,7 +45,7 @@ export class CategoriesController {
   @RequirePermission("categories:update")
   update(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: UpdateCategoryDto,
+    @Body({ schema: updateCategorySchema }) dto: UpdateCategoryDto,
   ): Promise<CategoryNode> {
     return this.service.update(authContext, dto);
   }
@@ -56,7 +56,7 @@ export class CategoriesController {
   @RequirePermission("categories:delete")
   delete(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: DeleteCategoryDto,
+    @Body({ schema: deleteCategorySchema }) dto: DeleteCategoryDto,
   ): Promise<void> {
     return this.service.delete(authContext, dto);
   }

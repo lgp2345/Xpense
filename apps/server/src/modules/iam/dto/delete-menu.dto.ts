@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 export const deleteMenuSchema = z
@@ -7,4 +6,5 @@ export const deleteMenuSchema = z
   })
   .strict();
 
-export class DeleteMenuDto extends createZodDto(deleteMenuSchema) {}
+/** 经过 deleteMenuSchema 校验并转换后的业务输入。 */
+export type DeleteMenuDto = z.output<typeof deleteMenuSchema>;

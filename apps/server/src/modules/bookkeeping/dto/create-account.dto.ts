@@ -1,5 +1,4 @@
 import { accountTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const sortOrderSchema = z.number().int().min(-2_147_483_648).max(2_147_483_647);
@@ -21,5 +20,5 @@ export const createAccountSchema = z
   })
   .strict();
 
-/** 创建账户请求 DTO。 */
-export class CreateAccountDto extends createZodDto(createAccountSchema) {}
+/** 创建账户请求 DTO，由 createAccountSchema 校验并转换。 */
+export type CreateAccountDto = z.output<typeof createAccountSchema>;

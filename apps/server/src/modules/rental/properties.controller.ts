@@ -6,12 +6,15 @@ import { CurrentAuthContext } from "../../common/auth/current-auth-context.decor
 import { RequirePermission } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
-import { CreatePropertyDto } from "./dto/create-property.dto.js";
-import { DeletePropertyDto } from "./dto/delete-property.dto.js";
-import { ListPropertiesDto } from "./dto/list-properties.dto.js";
-import { PropertyDetailDto } from "./dto/property-detail.dto.js";
-import { SetPropertyStatusDto } from "./dto/set-property-status.dto.js";
-import { UpdatePropertyDto } from "./dto/update-property.dto.js";
+import { type CreatePropertyDto, createRentalPropertySchema } from "./dto/create-property.dto.js";
+import { type DeletePropertyDto, deletePropertySchema } from "./dto/delete-property.dto.js";
+import { type ListPropertiesDto, listPropertiesSchema } from "./dto/list-properties.dto.js";
+import { type PropertyDetailDto, propertyDetailSchema } from "./dto/property-detail.dto.js";
+import {
+  type SetPropertyStatusDto,
+  setPropertyStatusSchema,
+} from "./dto/set-property-status.dto.js";
+import { type UpdatePropertyDto, updateRentalPropertySchema } from "./dto/update-property.dto.js";
 import { PropertiesService } from "./properties.service.js";
 
 /** 暴露租赁房产分页、详情及管理动作接口。 */
@@ -25,7 +28,7 @@ export class PropertiesController {
   @RequirePermission("rental_properties:read")
   list(
     @CurrentAuthContext() authContext: AuthContext,
-    @Query() dto: ListPropertiesDto,
+    @Query({ schema: listPropertiesSchema }) dto: ListPropertiesDto,
   ): Promise<RentalPropertyPage> {
     return this.service.list(authContext, dto);
   }
@@ -35,7 +38,7 @@ export class PropertiesController {
   @RequirePermission("rental_properties:read")
   detail(
     @CurrentAuthContext() authContext: AuthContext,
-    @Query() dto: PropertyDetailDto,
+    @Query({ schema: propertyDetailSchema }) dto: PropertyDetailDto,
   ): Promise<RentalPropertyDetail> {
     return this.service.detail(authContext, dto);
   }
@@ -46,7 +49,7 @@ export class PropertiesController {
   @RequirePermission("rental_properties:create")
   create(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: CreatePropertyDto,
+    @Body({ schema: createRentalPropertySchema }) dto: CreatePropertyDto,
   ): Promise<RentalPropertyDetail> {
     return this.service.create(authContext, dto);
   }
@@ -57,7 +60,7 @@ export class PropertiesController {
   @RequirePermission("rental_properties:update")
   update(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: UpdatePropertyDto,
+    @Body({ schema: updateRentalPropertySchema }) dto: UpdatePropertyDto,
   ): Promise<RentalPropertyDetail> {
     return this.service.update(authContext, dto);
   }
@@ -68,7 +71,7 @@ export class PropertiesController {
   @RequirePermission("rental_properties:update")
   setStatus(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: SetPropertyStatusDto,
+    @Body({ schema: setPropertyStatusSchema }) dto: SetPropertyStatusDto,
   ): Promise<RentalPropertyDetail> {
     return this.service.setStatus(authContext, dto);
   }
@@ -79,7 +82,7 @@ export class PropertiesController {
   @RequirePermission("rental_properties:delete")
   delete(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: DeletePropertyDto,
+    @Body({ schema: deletePropertySchema }) dto: DeletePropertyDto,
   ): Promise<void> {
     return this.service.delete(authContext, dto);
   }

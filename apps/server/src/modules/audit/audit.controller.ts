@@ -7,7 +7,7 @@ import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import { AuditService } from "./audit.service.js";
 import type { AuditLogRecord } from "./audit.types.js";
-import { ListAuditLogsDto } from "./dto/list-audit-logs.dto.js";
+import { type ListAuditLogsDto, listAuditLogsSchema } from "./dto/list-audit-logs.dto.js";
 
 @Controller("audit-logs")
 @UseGuards(AuthGuard, RbacGuard)
@@ -18,7 +18,7 @@ export class AuditController {
   @RequirePermission("audit_logs:read")
   listCurrentOrganizationLogs(
     @CurrentAuthContext() authContext: AuthContext,
-    @Query() query: ListAuditLogsDto,
+    @Query({ schema: listAuditLogsSchema }) query: ListAuditLogsDto,
   ): Promise<AuditLogRecord[]> {
     return this.auditService.listCurrentOrganizationLogs(authContext, query);
   }

@@ -1,8 +1,8 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 export const switchOrganizationSchema = z.object({
   organizationId: z.string().uuid(),
 });
 
-export class SwitchOrganizationDto extends createZodDto(switchOrganizationSchema) {}
+/** 经过 switchOrganizationSchema 校验并转换后的业务输入。 */
+export type SwitchOrganizationDto = z.output<typeof switchOrganizationSchema>;

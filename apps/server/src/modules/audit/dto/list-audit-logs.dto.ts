@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 export const listAuditLogsSchema = z.object({
@@ -11,4 +10,5 @@ export const listAuditLogsSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(50),
 });
 
-export class ListAuditLogsDto extends createZodDto(listAuditLogsSchema) {}
+/** 经过 listAuditLogsSchema 校验并转换后的业务输入。 */
+export type ListAuditLogsDto = z.output<typeof listAuditLogsSchema>;

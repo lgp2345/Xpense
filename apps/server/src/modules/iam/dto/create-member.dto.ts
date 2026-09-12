@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 export const createMemberSchema = z.object({
@@ -6,4 +5,5 @@ export const createMemberSchema = z.object({
   roleId: z.string().uuid(),
 });
 
-export class CreateMemberDto extends createZodDto(createMemberSchema) {}
+/** 经过 createMemberSchema 校验并转换后的业务输入。 */
+export type CreateMemberDto = z.output<typeof createMemberSchema>;

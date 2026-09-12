@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 export const updateMemberSchema = z
@@ -11,4 +10,5 @@ export const updateMemberSchema = z
     message: "至少需要提供一项成员信息",
   });
 
-export class UpdateMemberDto extends createZodDto(updateMemberSchema) {}
+/** 经过 updateMemberSchema 校验并转换后的业务输入。 */
+export type UpdateMemberDto = z.output<typeof updateMemberSchema>;

@@ -4172,7 +4172,7 @@ describe("Rental HTTP e2e", () => {
     "missing",
   ] as const)("returns a scoped 404 for %s renew source", async (kind) => {
     const setup = await createHarness();
-    const id = `bbbbbbbb-bbbb-4bbb-8bbb-0000000009${kind === "foreign" ? "1" : kind === "deleted" ? "2" : "3"}`;
+    const id = `bbbbbbbb-bbbb-4bbb-8bbb-00000000009${kind === "foreign" ? "1" : kind === "deleted" ? "2" : "3"}`;
     setup.state.rentalQuery.registerRead("contracts.find", [testIds.organization, id], null);
     setup.state.rentalQuery.registerRead(
       "contracts.findForUpdate",

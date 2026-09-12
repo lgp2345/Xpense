@@ -5,12 +5,15 @@ import type { PermissionTreeNode } from "@xpense/shared";
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
 import { RequirePermission } from "./decorators/require-permission.decorator.js";
-import { CreateMemberDto } from "./dto/create-member.dto.js";
-import { CreateRoleDto } from "./dto/create-role.dto.js";
-import { DeleteRoleDto } from "./dto/delete-role.dto.js";
-import { EditRolePermissionsDto } from "./dto/edit-role-permissions.dto.js";
-import { UpdateMemberDto } from "./dto/update-member.dto.js";
-import { UpdateRoleDto } from "./dto/update-role.dto.js";
+import { type CreateMemberDto, createMemberSchema } from "./dto/create-member.dto.js";
+import { type CreateRoleDto, createRoleSchema } from "./dto/create-role.dto.js";
+import { type DeleteRoleDto, deleteRoleSchema } from "./dto/delete-role.dto.js";
+import {
+  type EditRolePermissionsDto,
+  editRolePermissionsSchema,
+} from "./dto/edit-role-permissions.dto.js";
+import { type UpdateMemberDto, updateMemberSchema } from "./dto/update-member.dto.js";
+import { type UpdateRoleDto, updateRoleSchema } from "./dto/update-role.dto.js";
 import { AuthGuard } from "./guards/auth.guard.js";
 import { RbacGuard } from "./guards/rbac.guard.js";
 import { IamService } from "./iam.service.js";
@@ -36,7 +39,7 @@ export class IamController {
   @RequirePermission("members:create")
   createMember(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: CreateMemberDto,
+    @Body({ schema: createMemberSchema }) dto: CreateMemberDto,
   ): Promise<IamMember> {
     return this.iamService.createMember(authContext, dto);
   }
@@ -45,7 +48,7 @@ export class IamController {
   @HttpCode(200)
   updateMember(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: UpdateMemberDto,
+    @Body({ schema: updateMemberSchema }) dto: UpdateMemberDto,
   ): Promise<IamMember> {
     return this.iamService.updateMember(authContext, dto);
   }
@@ -61,7 +64,7 @@ export class IamController {
   @RequirePermission("roles:create")
   createRole(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: CreateRoleDto,
+    @Body({ schema: createRoleSchema }) dto: CreateRoleDto,
   ): Promise<IamRole> {
     return this.iamService.createRole(authContext, dto);
   }
@@ -71,7 +74,7 @@ export class IamController {
   @RequirePermission("roles:update")
   updateRole(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: UpdateRoleDto,
+    @Body({ schema: updateRoleSchema }) dto: UpdateRoleDto,
   ): Promise<IamRole> {
     return this.iamService.updateRole(authContext, dto);
   }
@@ -81,7 +84,7 @@ export class IamController {
   @RequirePermission("roles:delete")
   deleteRole(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: DeleteRoleDto,
+    @Body({ schema: deleteRoleSchema }) dto: DeleteRoleDto,
   ): Promise<void> {
     return this.iamService.deleteRole(authContext, dto);
   }
@@ -91,7 +94,7 @@ export class IamController {
   @RequirePermission("roles:permissions:update")
   editRolePermissions(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: EditRolePermissionsDto,
+    @Body({ schema: editRolePermissionsSchema }) dto: EditRolePermissionsDto,
   ): Promise<void> {
     return this.permissionTreeService.editRolePermissions(authContext, dto);
   }

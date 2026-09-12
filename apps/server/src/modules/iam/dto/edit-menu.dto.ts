@@ -1,5 +1,4 @@
 import { menuIconKeys, permissionKeys, ROUTE_DEFINITIONS, type RouteKey } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 import type { MenuMutationDtoShape } from "./add-menu.dto.js";
@@ -65,4 +64,5 @@ export const editMenuSchema = z
   ])
   .transform((value): MenuMutationDtoShape & { id: number } => value);
 
-export class EditMenuDto extends createZodDto(editMenuSchema) {}
+/** 经过 editMenuSchema 校验并转换后的业务输入。 */
+export type EditMenuDto = z.output<typeof editMenuSchema>;

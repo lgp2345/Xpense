@@ -1,5 +1,4 @@
 import { rentalGenders, rentalIdentityDocumentTypes, rentalTenantTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 import { assertTenantFields } from "../tenant.rules.js";
@@ -62,9 +61,9 @@ export const createTenantSchema = z
     }
   });
 
-/** 创建租户请求 DTO。 */
-export class CreateTenantDto extends createZodDto(createTenantSchema) {}
+/** 创建租户请求 DTO，由 createTenantSchema 校验并转换。 */
+export type CreateTenantDto = z.output<typeof createTenantSchema>;
 
 /** 兼容按资源名称命名的 DTO 导出。 */
 export const createRentalTenantSchema = createTenantSchema;
-export { CreateTenantDto as CreateRentalTenantDto };
+export type { CreateTenantDto as CreateRentalTenantDto };

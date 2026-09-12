@@ -1,5 +1,4 @@
 import { transactionTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const calendarDatePattern = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -42,5 +41,5 @@ export const listTransactionsSchema = z
     path: ["to"],
   });
 
-/** 交易分页及筛选查询 DTO。 */
-export class ListTransactionsDto extends createZodDto(listTransactionsSchema) {}
+/** 交易分页及筛选查询 DTO，由 listTransactionsSchema 校验并转换。 */
+export type ListTransactionsDto = z.output<typeof listTransactionsSchema>;

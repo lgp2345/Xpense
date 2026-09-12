@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const sortOrderSchema = z.number().int().min(-2_147_483_648).max(2_147_483_647);
@@ -12,8 +11,8 @@ export const moveRentalSpaceSchema = z
   })
   .strict();
 
-/** 移动租赁空间请求 DTO。 */
-export class MoveSpaceDto extends createZodDto(moveRentalSpaceSchema) {}
+/** 移动租赁空间请求 DTO，由 moveRentalSpaceSchema 校验并转换。 */
+export type MoveSpaceDto = z.output<typeof moveRentalSpaceSchema>;
 
 /** 兼容按动作名称命名的 schema 导出。 */
 export const moveSpaceSchema = moveRentalSpaceSchema;

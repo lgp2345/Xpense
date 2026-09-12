@@ -1,5 +1,4 @@
 import { categoryTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const iconSchema = z
@@ -22,5 +21,5 @@ export const createCategorySchema = z
   })
   .strict();
 
-/** 创建分类请求 DTO。 */
-export class CreateCategoryDto extends createZodDto(createCategorySchema) {}
+/** 创建分类请求 DTO，由 createCategorySchema 校验并转换。 */
+export type CreateCategoryDto = z.output<typeof createCategorySchema>;

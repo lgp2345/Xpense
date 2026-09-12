@@ -1,9 +1,9 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core";
-import { ZodValidationPipe } from "nestjs-zod";
 
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter.js";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor.js";
+import { createValidationPipe } from "./common/validation/create-validation-pipe.js";
 import { ServerConfigModule } from "./config/config.module.js";
 import { DbModule } from "./db/db.module.js";
 import { FoundationModule } from "./foundation/foundation.module.js";
@@ -31,7 +31,7 @@ import { UserModule } from "./modules/user/user.module.js";
   providers: [
     {
       provide: APP_PIPE,
-      useClass: ZodValidationPipe,
+      useFactory: createValidationPipe,
     },
     {
       provide: APP_INTERCEPTOR,

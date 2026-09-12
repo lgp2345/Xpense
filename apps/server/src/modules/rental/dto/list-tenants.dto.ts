@@ -1,5 +1,4 @@
 import { rentalIdentityDocumentTypes, rentalTenantTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const queryBoolean = z.union([
@@ -41,9 +40,9 @@ export const listTenantsSchema = z
   })
   .strict();
 
-/** 租户列表查询 DTO。 */
-export class ListTenantsDto extends createZodDto(listTenantsSchema) {}
+/** 租户列表查询 DTO，由 listTenantsSchema 校验并转换。 */
+export type ListTenantsDto = z.output<typeof listTenantsSchema>;
 
 /** 兼容按资源名称命名的 DTO 导出。 */
 export const listRentalTenantsSchema = listTenantsSchema;
-export { ListTenantsDto as ListRentalTenantsDto };
+export type { ListTenantsDto as ListRentalTenantsDto };

@@ -1,5 +1,4 @@
 import { rentalPropertyTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const nameSchema = z.string().trim().min(1).max(120);
@@ -45,8 +44,8 @@ export const updateRentalPropertySchema = z
     }
   });
 
-/** 更新租赁房产请求 DTO。 */
-export class UpdatePropertyDto extends createZodDto(updateRentalPropertySchema) {}
+/** 更新租赁房产请求 DTO，由 updateRentalPropertySchema 校验并转换。 */
+export type UpdatePropertyDto = z.output<typeof updateRentalPropertySchema>;
 
 /** 兼容按资源名称命名的 schema 导出。 */
 export const updatePropertySchema = updateRentalPropertySchema;

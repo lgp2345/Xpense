@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 export const editMenuOrderSchema = z
@@ -8,4 +7,5 @@ export const editMenuOrderSchema = z
   })
   .strict();
 
-export class EditMenuOrderDto extends createZodDto(editMenuOrderSchema) {}
+/** 经过 editMenuOrderSchema 校验并转换后的业务输入。 */
+export type EditMenuOrderDto = z.output<typeof editMenuOrderSchema>;

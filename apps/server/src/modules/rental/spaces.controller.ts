@@ -10,15 +10,24 @@ import { CurrentAuthContext } from "../../common/auth/current-auth-context.decor
 import { RequirePermission } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
-import { BatchCreateSpacesDto } from "./dto/batch-create-spaces.dto.js";
-import { CreateSpaceDto } from "./dto/create-space.dto.js";
-import { DeleteSpaceDto } from "./dto/delete-space.dto.js";
-import { ListSpaceChildrenDto } from "./dto/list-space-children.dto.js";
-import { MoveSpaceDto } from "./dto/move-space.dto.js";
-import { SearchSpacesDto } from "./dto/search-spaces.dto.js";
-import { SetSpaceStatusDto } from "./dto/set-space-status.dto.js";
-import { SpaceSubtreeDepthDto } from "./dto/space-subtree-depth.dto.js";
-import { UpdateSpaceDto } from "./dto/update-space.dto.js";
+import {
+  type BatchCreateSpacesDto,
+  batchCreateRentalSpacesSchema,
+} from "./dto/batch-create-spaces.dto.js";
+import { type CreateSpaceDto, createRentalSpaceSchema } from "./dto/create-space.dto.js";
+import { type DeleteSpaceDto, deleteSpaceSchema } from "./dto/delete-space.dto.js";
+import {
+  type ListSpaceChildrenDto,
+  listSpaceChildrenSchema,
+} from "./dto/list-space-children.dto.js";
+import { type MoveSpaceDto, moveRentalSpaceSchema } from "./dto/move-space.dto.js";
+import { type SearchSpacesDto, searchSpacesSchema } from "./dto/search-spaces.dto.js";
+import { type SetSpaceStatusDto, setSpaceStatusSchema } from "./dto/set-space-status.dto.js";
+import {
+  type SpaceSubtreeDepthDto,
+  spaceSubtreeDepthSchema,
+} from "./dto/space-subtree-depth.dto.js";
+import { type UpdateSpaceDto, updateRentalSpaceSchema } from "./dto/update-space.dto.js";
 import {
   type RentalSpaceBatchMutationResult,
   type RentalSpaceMutationResult,
@@ -35,7 +44,7 @@ export class SpacesController {
   @RequirePermission("rental_spaces:read")
   listChildren(
     @CurrentAuthContext() authContext: AuthContext,
-    @Query() dto: ListSpaceChildrenDto,
+    @Query({ schema: listSpaceChildrenSchema }) dto: ListSpaceChildrenDto,
   ): Promise<RentalSpaceChildrenPage> {
     return this.service.listChildren(authContext, dto);
   }
@@ -44,7 +53,7 @@ export class SpacesController {
   @RequirePermission("rental_spaces:read")
   search(
     @CurrentAuthContext() authContext: AuthContext,
-    @Query() dto: SearchSpacesDto,
+    @Query({ schema: searchSpacesSchema }) dto: SearchSpacesDto,
   ): Promise<RentalSpaceSearchPage> {
     return this.service.search(authContext, dto);
   }
@@ -53,7 +62,7 @@ export class SpacesController {
   @RequirePermission("rental_spaces:read")
   getSubtreeDepth(
     @CurrentAuthContext() authContext: AuthContext,
-    @Query() dto: SpaceSubtreeDepthDto,
+    @Query({ schema: spaceSubtreeDepthSchema }) dto: SpaceSubtreeDepthDto,
   ): Promise<RentalSpaceSubtreeDepth> {
     return this.service.getSubtreeDepth(authContext, dto);
   }
@@ -63,7 +72,7 @@ export class SpacesController {
   @RequirePermission("rental_spaces:create")
   create(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: CreateSpaceDto,
+    @Body({ schema: createRentalSpaceSchema }) dto: CreateSpaceDto,
   ): Promise<RentalSpaceMutationResult> {
     return this.service.create(authContext, dto);
   }
@@ -73,7 +82,7 @@ export class SpacesController {
   @RequirePermission("rental_spaces:create")
   batchCreate(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: BatchCreateSpacesDto,
+    @Body({ schema: batchCreateRentalSpacesSchema }) dto: BatchCreateSpacesDto,
   ): Promise<RentalSpaceBatchMutationResult> {
     return this.service.batchCreate(authContext, dto);
   }
@@ -83,7 +92,7 @@ export class SpacesController {
   @RequirePermission("rental_spaces:update")
   update(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: UpdateSpaceDto,
+    @Body({ schema: updateRentalSpaceSchema }) dto: UpdateSpaceDto,
   ): Promise<RentalSpaceMutationResult> {
     return this.service.update(authContext, dto);
   }
@@ -93,7 +102,7 @@ export class SpacesController {
   @RequirePermission("rental_spaces:update")
   move(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: MoveSpaceDto,
+    @Body({ schema: moveRentalSpaceSchema }) dto: MoveSpaceDto,
   ): Promise<RentalSpaceMutationResult> {
     return this.service.move(authContext, dto);
   }
@@ -103,7 +112,7 @@ export class SpacesController {
   @RequirePermission("rental_spaces:update")
   setStatus(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: SetSpaceStatusDto,
+    @Body({ schema: setSpaceStatusSchema }) dto: SetSpaceStatusDto,
   ): Promise<RentalSpaceMutationResult> {
     return this.service.setStatus(authContext, dto);
   }
@@ -113,7 +122,7 @@ export class SpacesController {
   @RequirePermission("rental_spaces:delete")
   delete(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: DeleteSpaceDto,
+    @Body({ schema: deleteSpaceSchema }) dto: DeleteSpaceDto,
   ): Promise<void> {
     return this.service.delete(authContext, dto);
   }

@@ -5,7 +5,10 @@ import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
-import { SwitchOrganizationDto } from "./dto/switch-organization.dto.js";
+import {
+  type SwitchOrganizationDto,
+  switchOrganizationSchema,
+} from "./dto/switch-organization.dto.js";
 import type { UserOrganization } from "./organizations.repository.js";
 import { OrganizationsService } from "./organizations.service.js";
 
@@ -23,7 +26,7 @@ export class OrganizationsController {
   @HttpCode(200)
   switchCurrentOrganization(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: SwitchOrganizationDto,
+    @Body({ schema: switchOrganizationSchema }) dto: SwitchOrganizationDto,
   ): Promise<AuthTokensResponse> {
     return this.organizationsService.switchCurrentOrganization(authContext, dto.organizationId);
   }

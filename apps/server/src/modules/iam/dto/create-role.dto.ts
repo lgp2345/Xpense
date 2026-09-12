@@ -1,5 +1,4 @@
 import { permissionKeys } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 export const createRoleSchema = z.object({
@@ -14,4 +13,5 @@ export const createRoleSchema = z.object({
   permissionKeys: z.array(z.enum(permissionKeys)).default([]),
 });
 
-export class CreateRoleDto extends createZodDto(createRoleSchema) {}
+/** 经过 createRoleSchema 校验并转换后的业务输入。 */
+export type CreateRoleDto = z.output<typeof createRoleSchema>;

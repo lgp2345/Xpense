@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 export const resolveMenuSchema = z
@@ -7,4 +6,5 @@ export const resolveMenuSchema = z
   })
   .strict();
 
-export class ResolveMenuDto extends createZodDto(resolveMenuSchema) {}
+/** 经过 resolveMenuSchema 校验并转换后的业务输入。 */
+export type ResolveMenuDto = z.output<typeof resolveMenuSchema>;

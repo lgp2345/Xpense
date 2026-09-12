@@ -21,3 +21,12 @@
 - Docker Hub 官方标签列表确认 `node:26.8.2-alpine` 存在；本机 Docker registry 元数据请求连续超时，镜像拉取及两份镜像构建未能完成，留待最终阶段重试。
 - `pnpm install --frozen-lockfile` 成功，pnpm 保持 `10.30.2`；本机 Argon2 哈希与验证冒烟成功。
 - 服务端 check、lint、1025 项通过且 2 项跳过、build 成功；根级 check、lint、test 成功。Web 测试仍输出既有 React `act(...)` 警告。
+
+## 阶段 3：NestJS 12 与原生 Zod 校验
+
+- `@nestjs/common`、`@nestjs/core`、`@nestjs/platform-fastify`、`@nestjs/testing` 升级到 `12.0.1`，`@nestjs/cli` 升级到 `12.0.0`。
+- 删除 `nestjs-zod`，全局使用 NestJS 12 的 `StandardSchemaValidationPipe`；失败响应固定为 `{ code: "VALIDATION_FAILED", message: "参数校验失败" }`。
+- 将 65 个 DTO class 改为 `z.output<typeof schema>`，并为每个业务输入类型保留 JSDoc。
+- 将 64 个 `@Body()` / `@Query()` 入口改为显式 schema 绑定，保留 Zod 默认值、强制转换与 transform 输出。
+- 完整测试暴露 3 个少一位的 UUID 测试夹具；修正为合法 UUID 后，原有续租业务层 404 契约恢复。
+- 服务端 check、lint、1027 项通过且 2 项跳过、build 成功；`git diff --check` 成功。

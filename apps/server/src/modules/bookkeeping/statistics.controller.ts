@@ -6,7 +6,10 @@ import { CurrentAuthContext } from "../../common/auth/current-auth-context.decor
 import { RequirePermission } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
-import { MonthlyStatisticsDto } from "./dto/monthly-statistics.dto.js";
+import {
+  type MonthlyStatisticsDto,
+  monthlyStatisticsSchema,
+} from "./dto/monthly-statistics.dto.js";
 import { StatisticsService } from "./statistics.service.js";
 
 /** 暴露当前组织月度收支统计接口。 */
@@ -20,7 +23,7 @@ export class StatisticsController {
   @RequirePermission("statistics:read")
   monthly(
     @CurrentAuthContext() authContext: AuthContext,
-    @Query() dto: MonthlyStatisticsDto,
+    @Query({ schema: monthlyStatisticsSchema }) dto: MonthlyStatisticsDto,
   ): Promise<MonthlyStatistics> {
     return this.service.monthly(authContext, dto);
   }

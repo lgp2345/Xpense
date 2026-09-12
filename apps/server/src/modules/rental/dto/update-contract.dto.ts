@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 import {
@@ -47,8 +46,8 @@ export const updateContractSchema = z
   )
   .superRefine(refineContractUpdateCollections);
 
-/** 更新租赁合同请求 DTO。 */
-export class UpdateContractDto extends createZodDto(updateContractSchema) {}
+/** 更新租赁合同请求 DTO，由 updateContractSchema 校验并转换。 */
+export type UpdateContractDto = z.output<typeof updateContractSchema>;
 
 export const updateRentalContractSchema = updateContractSchema;
-export { UpdateContractDto as UpdateRentalContractDto };
+export type { UpdateContractDto as UpdateRentalContractDto };

@@ -22,8 +22,8 @@ import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import type { SessionResponse } from "./auth.service.js";
 import { AuthService } from "./auth.service.js";
 import { CaptchaService } from "./captcha.service.js";
-import { LoginDto } from "./dto/login.dto.js";
-import { RefreshDto } from "./dto/refresh.dto.js";
+import { type LoginDto, loginSchema } from "./dto/login.dto.js";
+import { type RefreshDto, refreshSchema } from "./dto/refresh.dto.js";
 import { OptionalAuthGuard } from "./optional-auth.guard.js";
 
 type AuthCookieRequest = {
@@ -66,7 +66,7 @@ export class AuthController {
   @Post("login")
   @HttpCode(200)
   async login(
-    @Body() dto: LoginDto,
+    @Body({ schema: loginSchema }) dto: LoginDto,
     @Req() request: AuthLoginRequest,
     @Res({ passthrough: true }) reply: AuthCookieReply,
   ): Promise<AuthTokensResponse> {
@@ -88,7 +88,7 @@ export class AuthController {
   @Post("refresh")
   @HttpCode(200)
   async refresh(
-    @Body() dto: RefreshDto,
+    @Body({ schema: refreshSchema }) dto: RefreshDto,
     @Req() request: AuthCookieRequest,
     @Res({ passthrough: true }) reply: AuthCookieReply,
   ): Promise<AuthTokensResponse> {

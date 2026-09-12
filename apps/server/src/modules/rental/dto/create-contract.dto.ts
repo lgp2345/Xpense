@@ -3,7 +3,6 @@ import {
   rentalDepositCalculationModes,
   rentalDepositTypes,
 } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 import { assertSpaceAllocations } from "../contract.rules.js";
 import { assertCalendarDate } from "../contract-date.rules.js";
@@ -135,8 +134,9 @@ export const createContractSchema = z
   .strict()
   .superRefine(refineContractDtoCollections);
 
-/** 创建租赁合同草稿请求 DTO。 */
-export class CreateContractDto extends createZodDto(createContractSchema) {}
+/** 创建租赁合同草稿请求 DTO，由 createContractSchema 校验并转换。 */
+export type CreateContractDto = z.output<typeof createContractSchema>;
 
 export const createRentalContractSchema = createContractSchema;
-export { CreateContractDto as CreateRentalContractDto, mutableShape as contractMutableShape };
+export type { CreateContractDto as CreateRentalContractDto };
+export { mutableShape as contractMutableShape };

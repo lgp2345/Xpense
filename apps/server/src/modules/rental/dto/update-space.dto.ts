@@ -1,5 +1,4 @@
 import { rentalSpaceTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const nameSchema = z.string().trim().min(1).max(120);
@@ -41,9 +40,9 @@ export const updateRentalSpaceSchema = z
     }
   });
 
-/** 更新租赁空间请求 DTO。 */
-export class UpdateSpaceDto extends createZodDto(updateRentalSpaceSchema) {}
+/** 更新租赁空间请求 DTO，由 updateRentalSpaceSchema 校验并转换。 */
+export type UpdateSpaceDto = z.output<typeof updateRentalSpaceSchema>;
 
 /** 兼容按资源名称命名的 schema 导出。 */
 export const updateSpaceSchema = updateRentalSpaceSchema;
-export { UpdateSpaceDto as UpdateRentalSpaceDto };
+export type { UpdateSpaceDto as UpdateRentalSpaceDto };

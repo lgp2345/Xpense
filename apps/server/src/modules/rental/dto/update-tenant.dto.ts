@@ -1,5 +1,4 @@
 import { rentalGenders, rentalIdentityDocumentTypes, rentalTenantTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const optionalNullableText = (maxLength: number) =>
@@ -63,9 +62,9 @@ export const updateTenantSchema = z
     "至少需要提供一项租户信息",
   );
 
-/** 更新租户请求 DTO。 */
-export class UpdateTenantDto extends createZodDto(updateTenantSchema) {}
+/** 更新租户请求 DTO，由 updateTenantSchema 校验并转换。 */
+export type UpdateTenantDto = z.output<typeof updateTenantSchema>;
 
 /** 兼容按资源名称命名的 DTO 导出。 */
 export const updateRentalTenantSchema = updateTenantSchema;
-export { UpdateTenantDto as UpdateRentalTenantDto };
+export type { UpdateTenantDto as UpdateRentalTenantDto };

@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 import { contractCalendarDateSchema } from "./create-contract.dto.js";
@@ -22,8 +21,8 @@ export const checkContractAvailabilitySchema = z
     }
   });
 
-/** 检查合同空间可用性请求 DTO。 */
-export class CheckContractAvailabilityDto extends createZodDto(checkContractAvailabilitySchema) {}
+/** 检查合同空间可用性请求 DTO，由 checkContractAvailabilitySchema 校验并转换。 */
+export type CheckContractAvailabilityDto = z.output<typeof checkContractAvailabilitySchema>;
 
 export const checkRentalContractAvailabilitySchema = checkContractAvailabilitySchema;
-export { CheckContractAvailabilityDto as CheckRentalContractAvailabilityDto };
+export type { CheckContractAvailabilityDto as CheckRentalContractAvailabilityDto };

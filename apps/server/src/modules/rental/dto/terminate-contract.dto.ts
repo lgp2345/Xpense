@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 import { contractCalendarDateSchema } from "./create-contract.dto.js";
@@ -12,8 +11,8 @@ export const terminateContractSchema = z
   })
   .strict();
 
-/** 提前终止租赁合同请求 DTO。 */
-export class TerminateContractDto extends createZodDto(terminateContractSchema) {}
+/** 提前终止租赁合同请求 DTO，由 terminateContractSchema 校验并转换。 */
+export type TerminateContractDto = z.output<typeof terminateContractSchema>;
 
 export const terminateRentalContractSchema = terminateContractSchema;
-export { TerminateContractDto as TerminateRentalContractDto };
+export type { TerminateContractDto as TerminateRentalContractDto };

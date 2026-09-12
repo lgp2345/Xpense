@@ -1,5 +1,4 @@
 import { rentalPropertyTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const queryBoolean = z.union([
@@ -21,9 +20,9 @@ export const listPropertiesSchema = z
   })
   .strict();
 
-/** 租赁房产列表查询 DTO。 */
-export class ListPropertiesDto extends createZodDto(listPropertiesSchema) {}
+/** 租赁房产列表查询 DTO，由 listPropertiesSchema 校验并转换。 */
+export type ListPropertiesDto = z.output<typeof listPropertiesSchema>;
 
 /** 兼容按复数资源名称命名的 schema 导出。 */
 export const listRentalPropertiesSchema = listPropertiesSchema;
-export { ListPropertiesDto as ListRentalPropertiesDto };
+export type { ListPropertiesDto as ListRentalPropertiesDto };

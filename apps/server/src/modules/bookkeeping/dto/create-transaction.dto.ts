@@ -1,5 +1,4 @@
 import { transactionTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 /** 创建和更新普通交易共用的业务输入校验规则。 */
@@ -20,5 +19,5 @@ export const transactionInputSchema = z
 /** 创建普通交易请求校验规则。 */
 export const createTransactionSchema = transactionInputSchema;
 
-/** 创建普通交易请求 DTO。 */
-export class CreateTransactionDto extends createZodDto(createTransactionSchema) {}
+/** 创建普通交易请求 DTO，由 createTransactionSchema 校验并转换。 */
+export type CreateTransactionDto = z.output<typeof createTransactionSchema>;

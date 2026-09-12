@@ -4,12 +4,15 @@ import type { AuthorizedMenuNode, MenuConfigurationNode } from "@xpense/shared";
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
 import { RequirePermission } from "./decorators/require-permission.decorator.js";
-import { AddMenuDto } from "./dto/add-menu.dto.js";
-import { DeleteMenuDto } from "./dto/delete-menu.dto.js";
-import { EditMenuDto } from "./dto/edit-menu.dto.js";
-import { EditMenuOrderDto } from "./dto/edit-menu-order.dto.js";
-import { ResetOrganizationMenusDto } from "./dto/reset-organization-menus.dto.js";
-import { ResolveMenuDto } from "./dto/resolve-menu.dto.js";
+import { type AddMenuDto, addMenuSchema } from "./dto/add-menu.dto.js";
+import { type DeleteMenuDto, deleteMenuSchema } from "./dto/delete-menu.dto.js";
+import { type EditMenuDto, editMenuSchema } from "./dto/edit-menu.dto.js";
+import { type EditMenuOrderDto, editMenuOrderSchema } from "./dto/edit-menu-order.dto.js";
+import {
+  type ResetOrganizationMenusDto,
+  resetOrganizationMenusSchema,
+} from "./dto/reset-organization-menus.dto.js";
+import { type ResolveMenuDto, resolveMenuSchema } from "./dto/resolve-menu.dto.js";
 import { AuthGuard } from "./guards/auth.guard.js";
 import { RbacGuard } from "./guards/rbac.guard.js";
 import type { MenuRow } from "./menu.repository.js";
@@ -23,7 +26,7 @@ export class MenuController {
   @Get("menus/resolve")
   resolveRoute(
     @CurrentAuthContext() authContext: AuthContext,
-    @Query() dto: ResolveMenuDto,
+    @Query({ schema: resolveMenuSchema }) dto: ResolveMenuDto,
   ): Promise<AuthorizedMenuNode> {
     return this.menuService.resolveRoute(authContext, dto.path);
   }
@@ -48,7 +51,7 @@ export class MenuController {
   @RequirePermission("menus:create")
   addMenu(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: AddMenuDto,
+    @Body({ schema: addMenuSchema }) dto: AddMenuDto,
   ): Promise<MenuRow> {
     return this.menuService.addMenu(authContext, dto);
   }
@@ -58,7 +61,7 @@ export class MenuController {
   @RequirePermission("menus:update")
   editMenu(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: EditMenuDto,
+    @Body({ schema: editMenuSchema }) dto: EditMenuDto,
   ): Promise<MenuRow> {
     return this.menuService.editMenu(authContext, dto);
   }
@@ -68,7 +71,7 @@ export class MenuController {
   @RequirePermission("menus:delete")
   deleteMenu(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: DeleteMenuDto,
+    @Body({ schema: deleteMenuSchema }) dto: DeleteMenuDto,
   ): Promise<void> {
     return this.menuService.deleteMenu(authContext, dto);
   }
@@ -78,7 +81,7 @@ export class MenuController {
   @RequirePermission("menus:update")
   editMenuOrder(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: EditMenuOrderDto,
+    @Body({ schema: editMenuOrderSchema }) dto: EditMenuOrderDto,
   ): Promise<void> {
     return this.menuService.editMenuOrder(authContext, dto);
   }
@@ -87,7 +90,7 @@ export class MenuController {
   @HttpCode(200)
   resetOrganizationMenus(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: ResetOrganizationMenusDto,
+    @Body({ schema: resetOrganizationMenusSchema }) dto: ResetOrganizationMenusDto,
   ): Promise<void> {
     return this.menuService.resetOrganizationMenus(authContext, dto);
   }

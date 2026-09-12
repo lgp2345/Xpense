@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 import { contractCalendarDateSchema } from "./create-contract.dto.js";
@@ -12,10 +11,8 @@ export const revealContractPartySensitiveSchema = z
   })
   .strict();
 
-/** 查看合同历史承租方敏感快照请求 DTO。 */
-export class RevealContractPartySensitiveDto extends createZodDto(
-  revealContractPartySensitiveSchema,
-) {}
+/** 经过历史承租方敏感快照 schema 校验并转换后的业务输入。 */
+export type RevealContractPartySensitiveDto = z.output<typeof revealContractPartySensitiveSchema>;
 
 export const revealRentalContractPartySensitiveSchema = revealContractPartySensitiveSchema;
-export { RevealContractPartySensitiveDto as RevealRentalContractPartySensitiveDto };
+export type { RevealContractPartySensitiveDto as RevealRentalContractPartySensitiveDto };

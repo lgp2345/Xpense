@@ -1,5 +1,4 @@
 import { rentalSpaceTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const itemNameSchema = z.string().trim().min(1).max(120);
@@ -45,9 +44,9 @@ export const batchCreateRentalSpacesSchema = z
     }
   });
 
-/** 批量创建租赁空间请求 DTO。 */
-export class BatchCreateSpacesDto extends createZodDto(batchCreateRentalSpacesSchema) {}
+/** 批量创建租赁空间请求 DTO，由 batchCreateRentalSpacesSchema 校验并转换。 */
+export type BatchCreateSpacesDto = z.output<typeof batchCreateRentalSpacesSchema>;
 
 /** 兼容按动作名称命名的 schema 导出。 */
 export const batchCreateSpacesSchema = batchCreateRentalSpacesSchema;
-export { BatchCreateSpacesDto as BatchCreateRentalSpacesDto };
+export type { BatchCreateSpacesDto as BatchCreateRentalSpacesDto };

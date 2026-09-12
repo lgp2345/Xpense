@@ -1,5 +1,4 @@
 import { categoryTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const iconSchema = z
@@ -38,5 +37,5 @@ export const updateCategorySchema = z
     { message: "至少需要提供一项分类信息" },
   );
 
-/** 更新分类请求 DTO。 */
-export class UpdateCategoryDto extends createZodDto(updateCategorySchema) {}
+/** 更新分类请求 DTO，由 updateCategorySchema 校验并转换。 */
+export type UpdateCategoryDto = z.output<typeof updateCategorySchema>;

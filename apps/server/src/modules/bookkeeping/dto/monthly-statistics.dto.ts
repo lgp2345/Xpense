@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const calendarMonthPattern = /^(?!0000)(\d{4})-(0[1-9]|1[0-2])$/;
@@ -11,5 +10,5 @@ export const monthlyStatisticsSchema = z
   })
   .strict();
 
-/** 月度统计查询 DTO。 */
-export class MonthlyStatisticsDto extends createZodDto(monthlyStatisticsSchema) {}
+/** 月度统计查询 DTO，由 monthlyStatisticsSchema 校验并转换。 */
+export type MonthlyStatisticsDto = z.output<typeof monthlyStatisticsSchema>;

@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 /** 租赁空间搜索查询校验规则。 */
@@ -11,9 +10,9 @@ export const searchSpacesSchema = z
   })
   .strict();
 
-/** 租赁空间搜索查询 DTO。 */
-export class SearchSpacesDto extends createZodDto(searchSpacesSchema) {}
+/** 租赁空间搜索查询 DTO，由 searchSpacesSchema 校验并转换。 */
+export type SearchSpacesDto = z.output<typeof searchSpacesSchema>;
 
 /** 兼容按资源名称命名的 schema 导出。 */
 export const searchRentalSpacesSchema = searchSpacesSchema;
-export { SearchSpacesDto as SearchRentalSpacesDto };
+export type { SearchSpacesDto as SearchRentalSpacesDto };

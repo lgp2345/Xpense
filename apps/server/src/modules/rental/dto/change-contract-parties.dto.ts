@@ -1,4 +1,3 @@
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 import { contractCalendarDateSchema, contractPartyInputSchema } from "./create-contract.dto.js";
@@ -21,8 +20,8 @@ export const changeContractPartiesSchema = z
     }
   });
 
-/** 变更合同承租方请求 DTO。 */
-export class ChangeContractPartiesDto extends createZodDto(changeContractPartiesSchema) {}
+/** 变更合同承租方请求 DTO，由 changeContractPartiesSchema 校验并转换。 */
+export type ChangeContractPartiesDto = z.output<typeof changeContractPartiesSchema>;
 
 export const changeRentalContractPartiesSchema = changeContractPartiesSchema;
-export { ChangeContractPartiesDto as ChangeRentalContractPartiesDto };
+export type { ChangeContractPartiesDto as ChangeRentalContractPartiesDto };

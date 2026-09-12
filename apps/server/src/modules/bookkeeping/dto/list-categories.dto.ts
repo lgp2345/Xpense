@@ -1,5 +1,4 @@
 import { categoryTypes } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 /** 分类列表查询校验规则。 */
@@ -10,5 +9,5 @@ export const listCategoriesSchema = z
   })
   .strict();
 
-/** 分类列表查询 DTO。 */
-export class ListCategoriesDto extends createZodDto(listCategoriesSchema) {}
+/** 分类列表查询 DTO，由 listCategoriesSchema 校验并转换。 */
+export type ListCategoriesDto = z.output<typeof listCategoriesSchema>;

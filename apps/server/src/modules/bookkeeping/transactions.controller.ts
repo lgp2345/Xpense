@@ -6,11 +6,23 @@ import { CurrentAuthContext } from "../../common/auth/current-auth-context.decor
 import { RequirePermission } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
-import { CreateTransactionDto } from "./dto/create-transaction.dto.js";
-import { DeleteTransactionDto } from "./dto/delete-transaction.dto.js";
-import { ListTransactionsDto } from "./dto/list-transactions.dto.js";
-import { TransactionDetailDto } from "./dto/transaction-detail.dto.js";
-import { UpdateTransactionDto } from "./dto/update-transaction.dto.js";
+import {
+  type CreateTransactionDto,
+  createTransactionSchema,
+} from "./dto/create-transaction.dto.js";
+import {
+  type DeleteTransactionDto,
+  deleteTransactionSchema,
+} from "./dto/delete-transaction.dto.js";
+import { type ListTransactionsDto, listTransactionsSchema } from "./dto/list-transactions.dto.js";
+import {
+  type TransactionDetailDto,
+  transactionDetailSchema,
+} from "./dto/transaction-detail.dto.js";
+import {
+  type UpdateTransactionDto,
+  updateTransactionSchema,
+} from "./dto/update-transaction.dto.js";
 import { TransactionsService } from "./transactions.service.js";
 
 /** 暴露普通交易分页、详情、创建、完整更新与软删除接口。 */
@@ -24,7 +36,7 @@ export class TransactionsController {
   @RequirePermission("transactions:read")
   list(
     @CurrentAuthContext() authContext: AuthContext,
-    @Query() dto: ListTransactionsDto,
+    @Query({ schema: listTransactionsSchema }) dto: ListTransactionsDto,
   ): Promise<TransactionPage> {
     return this.service.list(authContext, dto);
   }
@@ -34,7 +46,7 @@ export class TransactionsController {
   @RequirePermission("transactions:read")
   detail(
     @CurrentAuthContext() authContext: AuthContext,
-    @Query() dto: TransactionDetailDto,
+    @Query({ schema: transactionDetailSchema }) dto: TransactionDetailDto,
   ): Promise<TransactionRecord> {
     return this.service.detail(authContext, dto);
   }
@@ -45,7 +57,7 @@ export class TransactionsController {
   @RequirePermission("transactions:create")
   create(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: CreateTransactionDto,
+    @Body({ schema: createTransactionSchema }) dto: CreateTransactionDto,
   ): Promise<TransactionRecord> {
     return this.service.create(authContext, dto);
   }
@@ -56,7 +68,7 @@ export class TransactionsController {
   @RequirePermission("transactions:update")
   update(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: UpdateTransactionDto,
+    @Body({ schema: updateTransactionSchema }) dto: UpdateTransactionDto,
   ): Promise<TransactionRecord> {
     return this.service.update(authContext, dto);
   }
@@ -67,7 +79,7 @@ export class TransactionsController {
   @RequirePermission("transactions:delete")
   delete(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: DeleteTransactionDto,
+    @Body({ schema: deleteTransactionSchema }) dto: DeleteTransactionDto,
   ): Promise<void> {
     return this.service.delete(authContext, dto);
   }

@@ -7,7 +7,6 @@ import {
   ROUTE_DEFINITIONS,
   type RouteKey,
 } from "@xpense/shared";
-import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 
 const menuNameSchema = z.string().trim().min(1).max(120);
@@ -89,4 +88,5 @@ export type MenuMutationDtoShape = {
 
 export const addMenuSchema = addMenuNodeSchema.transform((value): MenuMutationDtoShape => value);
 
-export class AddMenuDto extends createZodDto(addMenuSchema) {}
+/** 经过 addMenuSchema 校验并转换后的业务输入。 */
+export type AddMenuDto = z.output<typeof addMenuSchema>;

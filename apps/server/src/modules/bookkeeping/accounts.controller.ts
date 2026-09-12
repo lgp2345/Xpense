@@ -7,9 +7,9 @@ import { RequirePermission } from "../iam/decorators/require-permission.decorato
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import { AccountsService } from "./accounts.service.js";
-import { CreateAccountDto } from "./dto/create-account.dto.js";
-import { DeleteAccountDto } from "./dto/delete-account.dto.js";
-import { UpdateAccountDto } from "./dto/update-account.dto.js";
+import { type CreateAccountDto, createAccountSchema } from "./dto/create-account.dto.js";
+import { type DeleteAccountDto, deleteAccountSchema } from "./dto/delete-account.dto.js";
+import { type UpdateAccountDto, updateAccountSchema } from "./dto/update-account.dto.js";
 
 /** 暴露账户查询与管理接口。 */
 @Controller("accounts")
@@ -30,7 +30,7 @@ export class AccountsController {
   @RequirePermission("accounts:create")
   create(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: CreateAccountDto,
+    @Body({ schema: createAccountSchema }) dto: CreateAccountDto,
   ): Promise<AccountSummary> {
     return this.service.create(authContext, dto);
   }
@@ -41,7 +41,7 @@ export class AccountsController {
   @RequirePermission("accounts:update")
   update(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: UpdateAccountDto,
+    @Body({ schema: updateAccountSchema }) dto: UpdateAccountDto,
   ): Promise<AccountSummary> {
     return this.service.update(authContext, dto);
   }
@@ -52,7 +52,7 @@ export class AccountsController {
   @RequirePermission("accounts:delete")
   delete(
     @CurrentAuthContext() authContext: AuthContext,
-    @Body() dto: DeleteAccountDto,
+    @Body({ schema: deleteAccountSchema }) dto: DeleteAccountDto,
   ): Promise<void> {
     return this.service.delete(authContext, dto);
   }
