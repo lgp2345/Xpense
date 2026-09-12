@@ -94,6 +94,7 @@ type ButtonMenuInput = Omit<MenuInputBase, "parentId"> & {
   permissionCode: PermissionKey;
 };
 
+/** 通过 type 与 isExternal 区分目录、内部菜单、外链和按钮各自允许的字段。 */
 export type AddMenuRequest =
   | DirectoryMenuInput
   | InternalMenuInput
@@ -145,6 +146,14 @@ export type ListAuditLogsQuery = {
   pageSize?: number;
 };
 
+/**
+ * 封装成员、角色、菜单、权限与审计接口，统一处理路径和请求参数映射。
+ * 遵循服务端动作式协议：写操作使用 POST，资源 ID 通常放入请求体。
+ * 普通组织范围接口由服务端从认证上下文确定组织，重置菜单等显式目标操作除外。
+ *
+ * @param client 由当前会话组装的请求客户端。
+ * @returns 权限管理领域接口；不直接维护页面或会话状态。
+ */
 export function createIamApi(client: ApiClient) {
   return {
     listMembers: () => client.get<IamMember[]>("/members/list"),
@@ -162,8 +171,10 @@ export function createIamApi(client: ApiClient) {
         name: input.name,
         description: input.description,
       }),
+    /** 权限变更使用独立端点，与角色名称、描述等元数据更新分开。 */
     editRolePermissions: (input: EditRolePermissionsRequest) =>
       client.post<void>("/roles/permissions/edit", input),
+    /** 关闭网络自动重试，让菜单状态及时反映失败；仍保留客户端的认证刷新机制。 */
     getAuthorizedMenus: () => client.get<AuthorizedMenuNode[]>("/menus", { retry: false }),
     resolveMenuRoute: (path: string) =>
       client.get<AuthorizedMenuNode>(`/menus/resolve?path=${encodeURIComponent(path)}`),
@@ -182,6 +193,7 @@ export function createIamApi(client: ApiClient) {
   };
 }
 
+/** 将审计筛选编码为查询串，日期转换为 UTC ISO 字符串，省略 undefined 字段。 */
 function toQueryString(query: ListAuditLogsQuery): string {
   const params = new URLSearchParams();
 
