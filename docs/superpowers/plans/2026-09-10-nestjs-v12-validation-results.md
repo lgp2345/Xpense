@@ -30,3 +30,13 @@
 - 将 64 个 `@Body()` / `@Query()` 入口改为显式 schema 绑定，保留 Zod 默认值、强制转换与 transform 输出。
 - 完整测试暴露 3 个少一位的 UUID 测试夹具；修正为合法 UUID 后，原有续租业务层 404 契约恢复。
 - 服务端 check、lint、1027 项通过且 2 项跳过、build 成功；`git diff --check` 成功。
+
+## 阶段 4：HTTP 与启动兼容性
+
+- 新增 5 项 Fastify HTTP 回归，覆盖非法 JSON、统一 404、带凭据 CORS 预检、Cookie、request id 和原型相关特殊字段。
+- 原型相关字段由 Fastify 在控制器前拒绝为结构化 400，保留框架安全防护。
+- 新增 3 项权限同步测试，通过 Nest TestingModule 初始化验证生命周期调用、重复同步输入一致以及失败日志参数格式；测试不连接真实数据库。
+- 开发 watch 在隔离的不可连接数据库地址下成功完成编译、依赖注入、路由注册和监听；权限同步失败按既有行为记录警告，未阻止启动。
+- 首次编译后启动发现 `@xpense/shared` 仍导出 TypeScript 源入口；增加失败测试后将运行时导出指向 `dist/index.js`，生产启动随后成功完成 ESM 加载、依赖注入、路由注册和监听。
+- Argon2 哈希与验证冒烟成功。
+- 服务端 check、lint、1036 项通过且 2 项跳过、build 成功；根级 check、lint、test 成功，Web 仍只有既有 React `act(...)` 与受控状态警告；`git diff --check` 成功。
