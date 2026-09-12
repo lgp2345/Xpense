@@ -15,6 +15,8 @@ pnpm --version
 
 Node.js 应输出 `v26.8.2`。支持 `.node-version` 的版本管理工具可直接读取项目声明；切换版本不会修改系统默认 Node.js。
 
+生产方式本地启动前先运行根级 `pnpm build`。该构建会先生成 `@xpense/shared` 的 `dist` 入口，再生成并启动服务端 ESM 产物。
+
 ## 初始化配置
 
 1. 将根 `.env.example` 复制为根 `.env`。

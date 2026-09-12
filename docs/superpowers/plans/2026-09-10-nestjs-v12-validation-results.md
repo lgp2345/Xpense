@@ -40,3 +40,24 @@
 - 首次编译后启动发现 `@xpense/shared` 仍导出 TypeScript 源入口；增加失败测试后将运行时导出指向 `dist/index.js`，生产启动随后成功完成 ESM 加载、依赖注入、路由注册和监听。
 - Argon2 哈希与验证冒烟成功。
 - 服务端 check、lint、1036 项通过且 2 项跳过、build 成功；根级 check、lint、test 成功，Web 仍只有既有 React `act(...)` 与受控状态警告；`git diff --check` 成功。
+
+## 阶段 5：规范与最终验收
+
+- 执行环境为 Node.js `v26.8.2`、pnpm `10.30.2`。
+- 服务端规范和架构文档已更新为 NestJS 12、Zod 4、原生 Standard Schema pipe、`z.output` DTO、显式 body/query schema 绑定及中文 JSDoc 约定。
+- 保留手写业务 schema；本次未引入 `drizzle-zod`，避免把数据库表结构直接扩散到 API 输入边界。
+- `CI=true pnpm install --frozen-lockfile` 成功，Argon2 安装脚本、哈希和验证均成功。
+- 根级 `pnpm check`、`pnpm lint`、`pnpm test`、`pnpm build` 全部成功；服务端 1036 项通过且 2 项跳过，shared 26 项通过，web 562 项通过。
+- Web 测试仍输出迁移前已有的 React `act(...)`、受控状态及 localStorage 实验性警告，不影响退出状态。
+- 源码扫描未发现 `nestjs-zod`、`createZodDto`、`ZodValidationException`、`NestJS 11` 或新增 `console.log/warn/error`；`git diff --check` 成功。
+- Docker server/web 构建均在基础镜像元数据阶段被本机镜像代理 `docker.1panel.live` 的 HTTP 403 阻断；本机没有缓存 `node:26.8.2-alpine`，因此两份最终镜像未能完成构建。这是唯一未完成的外部验证项。
+
+## 阶段提交
+
+| 阶段 | 提交 |
+| --- | --- |
+| 迁移前契约基线 | `54afcd3` |
+| Node.js 26.8.2 | `f6d49dc` |
+| NestJS 12 与原生 Zod | `31f2705` |
+| HTTP 与启动兼容性 | `74c270b` |
+| 规范与最终验收 | 本文档所在提交 |

@@ -10,11 +10,12 @@
 
 ## 技术栈
 
-- NestJS
+- NestJS 12
 - Fastify
 - Drizzle ORM
 - PostgreSQL
 - TypeScript
+- Zod 4
 
 ## 目录结构
 
@@ -33,7 +34,7 @@
 - `*.controller.ts`：HTTP 接口层
 - `*.service.ts`：业务逻辑层
 - `*.repository.ts`：数据库访问层
-- `dto/*.dto.ts`：请求 DTO
+- `dto/*.dto.ts`：请求 schema 与校验后的业务输入类型
 - `entities` 或 `types`：模块内类型
 
 ## 分层边界
@@ -43,6 +44,8 @@
 - service 负责业务规则、权限边界和事务编排。
 - repository 负责 Drizzle 查询，不向 controller 暴露数据库细节。
 - 全局启用请求校验 pipe。
+- 请求 schema 使用 Zod 定义，DTO 使用 `z.output<typeof schema>`；controller 的 body/query 参数必须显式绑定对应 schema。
+- 全局使用 NestJS 原生 `StandardSchemaValidationPipe` 保留默认值、强制转换和 transform 输出；校验错误由统一异常过滤器收敛为稳定中文响应。
 - 异常通过 NestJS exception/filter 体系处理，不直接返回临时错误对象。
 - 依赖注入优先使用 provider token，避免跨模块直接 new 实例。
 - 事务边界应放在 service 层统一编排。
@@ -81,7 +84,7 @@
 - 例外：当前用户范围接口（`GET /user`、`GET /auth/sessions`、`GET /user/organizations`、`GET /menus`）与 auth 动作类接口（login/refresh/logout/revoke/current-organization）保持路径现状，不套用上述模板。
 - 前端路由 path（seed-rbac 中 `path` 字段）与 API 路径是两回事，互不影响。
 - 新增资源接口遵循上述模板，需要例外时先在评审中说明理由。
-- 请求 DTO 和响应类型必须显式定义。
+- 请求 DTO、运行时 schema 和响应类型必须显式定义。
 - 分页、排序、筛选参数必须统一命名和行为。
 - 列表接口默认分页，禁止无上限返回大列表。
 - 错误响应必须结构稳定，便于客户端统一处理。

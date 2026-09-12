@@ -21,13 +21,15 @@
 ## NestJS 技能规范
 
 - 编写、评审或重构 NestJS module、controller、service、repository、guard、pipe、filter、interceptor 和后台任务时，必须使用 `$nestjs-best-practices` 进行约束检查
-- 项目 `AGENTS.md`、本文件和同目录 `ARCHITECTURE.md` 的现有边界优先于通用技能；当前项目固定使用 NestJS 11、Fastify、Drizzle ORM 和 `nestjs-zod`
+- 项目 `AGENTS.md`、本文件和同目录 `ARCHITECTURE.md` 的现有边界优先于通用技能；当前项目固定使用 NestJS 12、Fastify、Drizzle ORM 和 Zod 4
 - 业务能力按 feature module 组织；module 只导出其他模块真实需要的 provider，禁止重复注册 provider 或通过全局模块隐藏依赖关系
 - 禁止以 `forwardRef()` 作为默认方式掩盖循环依赖；发现循环关系时优先调整职责、提取稳定边界或通过明确的业务事件解耦
 - controller 只承担协议适配；service 负责业务规则、权限和事务编排；repository 负责查询与数据映射，不得形成跨层调用或万能 service
 - 禁止 service locator 模式；除框架适配、动态插件等明确基础设施场景外，不使用 `ModuleRef.get()` 在运行时查找业务依赖
 - 自定义接口依赖使用集中定义的 Symbol 或字符串 token，并通过 `@Inject(TOKEN)` 注入；provider scope 必须显式评估，默认保持 singleton，不为方便访问请求对象切换为 request scope
-- 输入校验继续使用项目既有的 Zod DTO 与全局校验 pipe；`$nestjs-best-practices` 中的 `class-validator` 示例不构成引入新校验体系的要求
+- 输入校验使用手写 Zod schema 与 NestJS 原生 `StandardSchemaValidationPipe`；DTO 使用 `z.output<typeof schema>` 表达校验后的业务输入，controller 必须通过 `@Body({ schema })` 或 `@Query({ schema })` 显式绑定运行时 schema
+- 校验失败统一返回 HTTP 400、`VALIDATION_FAILED` 和中文 `参数校验失败`；不得向客户端暴露具体 schema 或内部校验细节
+- 新增或修改 DTO 类型、复杂 schema 转换和校验基础设施时使用中文 JSDoc 说明业务输入或转换目的
 - 认证使用 guard，授权必须在 guard 或明确的权限策略层完成；controller 内零散的角色布尔判断不得替代统一权限模型
 - 领域错误应在稳定边界转换为 NestJS exception，并由统一 filter 生成结构化错误响应；不得吞掉异步错误、重复记录同一错误或把内部异常直接暴露给客户端
 - 多表写入和权限敏感写操作由 service 统一控制事务；repository 不得私自开启与业务流程不一致的事务，也不得在事务外发送依赖提交结果的事件
