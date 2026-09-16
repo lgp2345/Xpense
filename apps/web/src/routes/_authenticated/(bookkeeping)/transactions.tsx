@@ -28,7 +28,6 @@ export const Route = createFileRoute("/_authenticated/(bookkeeping)/transactions
   }),
   component: RegisteredRouteLeaf,
   pendingComponent: RouteAccessPending,
-  pendingMs: 0,
   validateSearch: validateTransactionSearch,
 });
 

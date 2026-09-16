@@ -39,6 +39,9 @@ export function createAppRouter(options: CreateAppRouterOptions = {}) {
     trailingSlash: "never",
     defaultNotFoundComponent: NotFoundPage,
     defaultPendingComponent: RouteAccessPending,
+    defaultPendingMs: 150,
+    defaultPendingMinMs: 200,
+    defaultPreload: "intent",
   });
   sessionsByRouter.set(appRouter, routerSession);
   return appRouter;

@@ -16,7 +16,6 @@ export type AppRouterContext = {
 export const Route = createRootRouteWithContext<AppRouterContext>()({
   component: Outlet,
   pendingComponent: RouteAccessPending,
-  pendingMs: 0,
 });
 
 declare module "@tanstack/react-router" {

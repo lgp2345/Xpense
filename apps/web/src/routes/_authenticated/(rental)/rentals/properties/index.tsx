@@ -28,7 +28,6 @@ export const Route = createFileRoute("/_authenticated/(rental)/rentals/propertie
   }),
   component: RegisteredRouteLeaf,
   pendingComponent: RouteAccessPending,
-  pendingMs: 0,
 });
 
 export function validateRentalPropertiesSearch(

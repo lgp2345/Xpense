@@ -29,7 +29,6 @@ export const Route = createFileRoute("/_authenticated/(rental)/rentals/tenants/$
   }),
   component: RegisteredRouteLeaf,
   pendingComponent: RouteAccessPending,
-  pendingMs: 0,
 });
 
 type RentalRoutePageContext = {

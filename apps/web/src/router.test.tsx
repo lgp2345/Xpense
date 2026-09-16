@@ -134,6 +134,28 @@ describe("file router foundation", () => {
     expect(router.history).toBe(history);
   });
 
+  it("delays pending feedback and preloads links from user intent", () => {
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+      session: createSession(),
+    });
+
+    expect(router.options.defaultPendingMs).toBe(150);
+    expect(router.options.defaultPendingMinMs).toBe(200);
+    expect(router.options.defaultPreload).toBe("intent");
+  });
+
+  it("does not let individual routes force immediate pending feedback", () => {
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+      session: createSession(),
+    });
+
+    expect(Object.values(router.routesById).some((route) => route.options.pendingMs === 0)).toBe(
+      false,
+    );
+  });
+
   it("builds canonical no-trailing-slash URLs for rental index routes", () => {
     const router = createAppRouter({
       history: createMemoryHistory({ initialEntries: ["/"] }),

@@ -23,7 +23,6 @@ export const Route = createFileRoute("/_authenticated/(iam)/sessions")({
   }),
   component: RegisteredRouteLeaf,
   pendingComponent: RouteAccessPending,
-  pendingMs: 0,
 });
 
 function SessionsRoutePage({ session }: { session: WebSessionDependency }) {

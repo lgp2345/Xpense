@@ -51,7 +51,6 @@ export const Route = createFileRoute("/_authenticated/(iam)/menus")({
   }),
   component: RegisteredRouteLeaf,
   pendingComponent: RouteAccessPending,
-  pendingMs: 0,
 });
 
 function MenusRoutePage({ session }: { session: WebSessionDependency }) {

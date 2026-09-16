@@ -23,7 +23,6 @@ export const Route = createFileRoute("/_authenticated/(iam)/roles")({
   }),
   component: RegisteredRouteLeaf,
   pendingComponent: RouteAccessPending,
-  pendingMs: 0,
 });
 
 function RolesRoutePage({ session }: { session: WebSessionDependency }) {

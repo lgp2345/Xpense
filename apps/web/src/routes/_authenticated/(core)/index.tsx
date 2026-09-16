@@ -19,7 +19,6 @@ export const Route = createFileRoute("/_authenticated/(core)/")({
   }),
   component: RegisteredRouteLeaf,
   pendingComponent: RouteAccessPending,
-  pendingMs: 0,
 });
 
 const DashboardPageLazy = lazy(() =>

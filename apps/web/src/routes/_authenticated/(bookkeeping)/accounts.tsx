@@ -25,7 +25,6 @@ export const Route = createFileRoute("/_authenticated/(bookkeeping)/accounts")({
   }),
   component: RegisteredRouteLeaf,
   pendingComponent: RouteAccessPending,
-  pendingMs: 0,
 });
 
 function AccountsRoutePage({ session }: { session: WebSessionDependency }) {

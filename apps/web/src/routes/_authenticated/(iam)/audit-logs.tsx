@@ -26,7 +26,6 @@ export const Route = createFileRoute("/_authenticated/(iam)/audit-logs")({
   }),
   component: RegisteredRouteLeaf,
   pendingComponent: RouteAccessPending,
-  pendingMs: 0,
 });
 
 export function validateAuditLogSearch(search: Record<string, unknown>): AuditLogSearch {
