@@ -1,24 +1,29 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
-import { lazy } from "react";
 import { useStore } from "zustand";
 import type { RegisteredPageInput } from "@/components/layout/page-cache-host";
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { RentalApi } from "@/services/rental-api";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const TenantDetailPage = lazy(() =>
-  import("@/features/rental/tenants/tenant-detail-page").then((module) => ({
-    default: module.TenantDetailPage,
-  })),
+const TenantDetailPage = lazyRouteComponent(
+  () => import("@/features/rental/tenants/tenant-detail-page"),
+  "TenantDetailPage",
 );
 
 export const Route = createFileRoute("/_authenticated/(rental)/rentals/tenants/$tenantId")({
   staticData: { routeKey: "RentalTenantDetail" },
   beforeLoad: async ({ context, location, params }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "RentalTenantDetail")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "RentalTenantDetail"),
+      TenantDetailPage,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "RentalTenantDetail",
       cacheParams: { tenantId: params.tenantId },
@@ -79,5 +84,5 @@ function TenantDetailRoutePage({
     { organizationId, permissions },
   );
 
-  return renderLazyPage(<TenantDetailPage {...props} />);
+  return <TenantDetailPage {...props} />;
 }

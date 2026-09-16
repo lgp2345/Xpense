@@ -1,27 +1,32 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
-import { lazy } from "react";
 import { useStore } from "zustand";
 
 import type { RegisteredPageInput } from "@/components/layout/page-cache-host";
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
 import { readSearchDate, readSearchPage, readTrimmedSearchString } from "@/routes/-shared/search";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { ListRentalContractsQuery, RentalApi } from "@/services/rental-api";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const ContractsPage = lazy(() =>
-  import("@/features/rental/contracts/contracts-page").then((module) => ({
-    default: module.ContractsPage,
-  })),
+const ContractsPage = lazyRouteComponent(
+  () => import("@/features/rental/contracts/contracts-page"),
+  "ContractsPage",
 );
 
 export const Route = createFileRoute("/_authenticated/(rental)/rentals/contracts/")({
   staticData: { routeKey: "RentalContracts" },
   validateSearch: validateRentalContractsSearch,
   beforeLoad: async ({ context, location, params, search }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "RentalContracts")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "RentalContracts"),
+      ContractsPage,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "RentalContracts",
       cacheParams: params,
@@ -108,14 +113,14 @@ function ContractsRoutePage({
     { organizationId, permissions },
   );
 
-  return renderLazyPage(
+  return (
     <ContractsPage
       {...props}
       onSearchChange={(nextSearch) => void navigate({ search: nextSearch, replace: true } as never)}
       onNavigate={(contractId) =>
         void navigate({ to: "/rentals/contracts/$contractId", params: { contractId } })
       }
-    />,
+    />
   );
 }
 

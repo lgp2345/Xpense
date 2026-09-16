@@ -18,6 +18,15 @@ import { createWebSession, type WebSessionDependency } from "./services/web-sess
 import { createAuthStore } from "./stores/auth-store";
 import { createMenuStore } from "./stores/menu-store";
 
+const { dashboardPageModuleLoaded } = vi.hoisted(() => ({
+  dashboardPageModuleLoaded: vi.fn(),
+}));
+
+vi.mock("@/pages/dashboard-page", () => {
+  dashboardPageModuleLoaded();
+  return { DashboardPage: () => null };
+});
+
 const routePermissions = {
   Dashboard: "dashboard:read",
   Members: "members:read",
@@ -154,6 +163,22 @@ describe("file router foundation", () => {
     expect(Object.values(router.routesById).some((route) => route.options.pendingMs === 0)).toBe(
       false,
     );
+  });
+
+  it("preloads registered page code while preloading its route", async () => {
+    const harness = await createReadySession(
+      [authorizedMenu("Dashboard", 1)],
+      createAuthenticatedStore(["dashboard:read"]),
+    );
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/login"] }),
+      session: harness.session,
+    });
+
+    dashboardPageModuleLoaded.mockClear();
+    await router.preloadRoute({ to: "/" });
+
+    expect(dashboardPageModuleLoaded).toHaveBeenCalledOnce();
   });
 
   it("builds canonical no-trailing-slash URLs for rental index routes", () => {
@@ -438,7 +463,7 @@ describe("generated router integration gate", () => {
     });
     await waitFor(() => expect(loadMenus).toHaveBeenCalledOnce());
     expect(loadForOrganization).toHaveBeenCalledWith("org-2", expect.any(Function));
-    expect(await screen.findByText("正在验证页面访问权限...")).toBeInTheDocument();
+    expect(await screen.findByText("正在加载页面...")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "页面不存在" })).not.toBeInTheDocument();
     await act(async () => finishMenus());
     expect(await screen.findByRole("heading", { name: "角色管理" })).toBeInTheDocument();
@@ -479,7 +504,7 @@ describe("generated router integration gate", () => {
       .getState()
       .loadMenusForOrganization("org-1", harness.session.iamApi.getAuthorizedMenus);
     await waitFor(() => expect(loadMenus).toHaveBeenCalledOnce());
-    expect(await screen.findByText("正在验证页面访问权限...")).toBeInTheDocument();
+    expect(await screen.findByText("正在加载页面...")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "角色管理" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "页面不存在" })).not.toBeInTheDocument();
     await act(async () => finishMenus());

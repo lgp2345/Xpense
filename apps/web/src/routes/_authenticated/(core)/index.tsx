@@ -1,16 +1,22 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { lazy } from "react";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import { useStore } from "zustand";
 
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { WebSessionDependency } from "@/services/web-session";
 
 export const Route = createFileRoute("/_authenticated/(core)/")({
   staticData: { routeKey: "Dashboard" },
   beforeLoad: async ({ context, location, params }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "Dashboard")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "Dashboard"),
+      DashboardPageLazy,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "Dashboard",
       cacheParams: params,
@@ -21,8 +27,9 @@ export const Route = createFileRoute("/_authenticated/(core)/")({
   pendingComponent: RouteAccessPending,
 });
 
-const DashboardPageLazy = lazy(() =>
-  import("@/pages/dashboard-page").then((module) => ({ default: module.DashboardPage })),
+const DashboardPageLazy = lazyRouteComponent(
+  () => import("@/pages/dashboard-page"),
+  "DashboardPage",
 );
 
 function DashboardRoutePage({ session }: { session: WebSessionDependency }) {
@@ -31,7 +38,5 @@ function DashboardRoutePage({ session }: { session: WebSessionDependency }) {
     (state) => state.currentOrganization?.id ?? "",
   );
 
-  return renderLazyPage(
-    <DashboardPageLazy api={session.bookkeepingApi} organizationId={organizationId} />,
-  );
+  return <DashboardPageLazy api={session.bookkeepingApi} organizationId={organizationId} />;
 }

@@ -1,20 +1,27 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { lazy } from "react";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import { useStore } from "zustand";
 
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const SessionsPage = lazy(() =>
-  import("@/features/sessions/sessions-page").then((module) => ({ default: module.SessionsPage })),
+const SessionsPage = lazyRouteComponent(
+  () => import("@/features/sessions/sessions-page"),
+  "SessionsPage",
 );
 
 export const Route = createFileRoute("/_authenticated/(iam)/sessions")({
   staticData: { routeKey: "Sessions" },
   beforeLoad: async ({ context, location, params }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "Sessions")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "Sessions"),
+      SessionsPage,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "Sessions",
       cacheParams: params,
@@ -30,7 +37,7 @@ function SessionsRoutePage({ session }: { session: WebSessionDependency }) {
   const permissions = useStore(session.authStore, (state) => state.permissions);
   const currentSessionId = useStore(session.authStore, (state) => state.session?.id);
 
-  return renderLazyPage(
+  return (
     <SessionsPage
       api={session.authApi}
       currentSessionId={currentSessionId}
@@ -39,6 +46,6 @@ function SessionsRoutePage({ session }: { session: WebSessionDependency }) {
         void navigate({ to: "/login", search: { redirect: "/" }, replace: true });
       }}
       permissions={permissions}
-    />,
+    />
   );
 }

@@ -1,22 +1,27 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { lazy } from "react";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import { useStore } from "zustand";
 
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const PropertyDetailPage = lazy(() =>
-  import("@/features/rental/spaces/property-detail-page").then((module) => ({
-    default: module.PropertyDetailPage,
-  })),
+const PropertyDetailPage = lazyRouteComponent(
+  () => import("@/features/rental/spaces/property-detail-page"),
+  "PropertyDetailPage",
 );
 
 export const Route = createFileRoute("/_authenticated/(rental)/rentals/properties/$propertyId")({
   staticData: { routeKey: "RentalPropertyDetail" },
   beforeLoad: async ({ context, location, params }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "RentalPropertyDetail")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "RentalPropertyDetail"),
+      PropertyDetailPage,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "RentalPropertyDetail",
       cacheParams: { propertyId: params.propertyId },
@@ -43,7 +48,7 @@ function PropertyDetailRoutePage({
   );
   const navigate = Route.useNavigate();
 
-  return renderLazyPage(
+  return (
     <PropertyDetailPage
       api={session.rentalApi}
       organizationId={organizationId}
@@ -55,6 +60,6 @@ function PropertyDetailRoutePage({
       onNavigateContract={(contractId) =>
         void navigate({ to: "/rentals/contracts/$contractId", params: { contractId } })
       }
-    />,
+    />
   );
 }

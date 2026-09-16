@@ -1,22 +1,27 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { lazy } from "react";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import { useStore } from "zustand";
 
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const CategoriesPage = lazy(() =>
-  import("@/features/bookkeeping/categories/categories-page").then((module) => ({
-    default: module.CategoriesPage,
-  })),
+const CategoriesPage = lazyRouteComponent(
+  () => import("@/features/bookkeeping/categories/categories-page"),
+  "CategoriesPage",
 );
 
 export const Route = createFileRoute("/_authenticated/(bookkeeping)/categories")({
   staticData: { routeKey: "Categories" },
   beforeLoad: async ({ context, location, params }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "Categories")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "Categories"),
+      CategoriesPage,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "Categories",
       cacheParams: params,
@@ -34,11 +39,11 @@ function CategoriesRoutePage({ session }: { session: WebSessionDependency }) {
     (state) => state.currentOrganization?.id ?? "",
   );
 
-  return renderLazyPage(
+  return (
     <CategoriesPage
       api={session.bookkeepingApi}
       organizationId={organizationId}
       permissions={permissions}
-    />,
+    />
   );
 }

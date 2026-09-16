@@ -21,6 +21,18 @@ export function defineRegisteredPage<const TCacheParams extends Readonly<Record<
   return descriptor;
 }
 
+type PreloadableRegisteredPage = {
+  preload?: () => Promise<unknown> | undefined;
+};
+
+export async function preloadRegisteredRoutePage<TAccess>(
+  access: Promise<TAccess>,
+  page: PreloadableRegisteredPage,
+): Promise<TAccess> {
+  const [resolvedAccess] = await Promise.all([access, page.preload?.()]);
+  return resolvedAccess;
+}
+
 export function RegisteredRouteLeaf(): null {
   return null;
 }

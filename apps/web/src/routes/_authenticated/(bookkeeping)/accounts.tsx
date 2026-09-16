@@ -1,22 +1,27 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { lazy } from "react";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import { useStore } from "zustand";
 
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const AccountsPage = lazy(() =>
-  import("@/features/bookkeeping/accounts/accounts-page").then((module) => ({
-    default: module.AccountsPage,
-  })),
+const AccountsPage = lazyRouteComponent(
+  () => import("@/features/bookkeeping/accounts/accounts-page"),
+  "AccountsPage",
 );
 
 export const Route = createFileRoute("/_authenticated/(bookkeeping)/accounts")({
   staticData: { routeKey: "Accounts" },
   beforeLoad: async ({ context, location, params }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "Accounts")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "Accounts"),
+      AccountsPage,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "Accounts",
       cacheParams: params,
@@ -34,11 +39,11 @@ function AccountsRoutePage({ session }: { session: WebSessionDependency }) {
     (state) => state.currentOrganization?.id ?? "",
   );
 
-  return renderLazyPage(
+  return (
     <AccountsPage
       api={session.bookkeepingApi}
       organizationId={organizationId}
       permissions={permissions}
-    />,
+    />
   );
 }

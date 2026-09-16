@@ -1,25 +1,30 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
-import { lazy } from "react";
 import { useStore } from "zustand";
 
 import type { RegisteredPageInput } from "@/components/layout/page-cache-host";
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { RentalApi } from "@/services/rental-api";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const ContractDetailPage = lazy(() =>
-  import("@/features/rental/contracts/contract-detail-page").then((module) => ({
-    default: module.ContractDetailPage,
-  })),
+const ContractDetailPage = lazyRouteComponent(
+  () => import("@/features/rental/contracts/contract-detail-page"),
+  "ContractDetailPage",
 );
 
 export const Route = createFileRoute("/_authenticated/(rental)/rentals/contracts/$contractId")({
   staticData: { routeKey: "RentalContractDetail" },
   beforeLoad: async ({ context, location, params, search }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "RentalContractDetail")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "RentalContractDetail"),
+      ContractDetailPage,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "RentalContractDetail",
       cacheParams: { contractId: params.contractId },
@@ -79,5 +84,5 @@ function ContractDetailRoutePage({
     { organizationId, permissions },
   );
 
-  return renderLazyPage(<ContractDetailPage {...props} />);
+  return <ContractDetailPage {...props} />;
 }

@@ -1,25 +1,30 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import { type TransactionType, transactionTypes } from "@xpense/shared";
-import { lazy } from "react";
 import { useStore } from "zustand";
 
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
 import { readSearchDate, readSearchPage, readTrimmedSearchString } from "@/routes/-shared/search";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { ListTransactionsQuery } from "@/services/bookkeeping-api";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const TransactionsPage = lazy(() =>
-  import("@/features/bookkeeping/transactions/transactions-page").then((module) => ({
-    default: module.TransactionsPage,
-  })),
+const TransactionsPage = lazyRouteComponent(
+  () => import("@/features/bookkeeping/transactions/transactions-page"),
+  "TransactionsPage",
 );
 
 export const Route = createFileRoute("/_authenticated/(bookkeeping)/transactions")({
   staticData: { routeKey: "Transactions" },
   beforeLoad: async ({ context, location, params, search }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "Transactions")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "Transactions"),
+      TransactionsPage,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "Transactions",
       cacheParams: params,
@@ -45,14 +50,14 @@ export function TransactionsRoutePage({
     (state) => state.currentOrganization?.id ?? "",
   );
 
-  return renderLazyPage(
+  return (
     <TransactionsPage
       api={session.bookkeepingApi}
       organizationId={organizationId}
       permissions={permissions}
       search={search}
       onSearchChange={(nextSearch) => void navigate({ search: nextSearch, replace: true })}
-    />,
+    />
   );
 }
 

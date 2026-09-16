@@ -1,23 +1,30 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { lazy } from "react";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import { useStore } from "zustand";
 import type { AuditLogSearch } from "@/features/audit/audit-log-filters";
 
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
 import { readSearchDate, readSearchPage, readSearchString } from "@/routes/-shared/search";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const AuditLogsPage = lazy(() =>
-  import("@/features/audit/audit-logs-page").then((module) => ({ default: module.AuditLogsPage })),
+const AuditLogsPage = lazyRouteComponent(
+  () => import("@/features/audit/audit-logs-page"),
+  "AuditLogsPage",
 );
 
 export const Route = createFileRoute("/_authenticated/(iam)/audit-logs")({
   staticData: { routeKey: "AuditLogs" },
   validateSearch: validateAuditLogSearch,
   beforeLoad: async ({ context, location, params, search }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "AuditLogs")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "AuditLogs"),
+      AuditLogsPage,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "AuditLogs",
       cacheParams: params,
@@ -49,12 +56,12 @@ function AuditLogsRoutePage({
   const permissions = useStore(session.authStore, (state) => state.permissions);
   const navigate = Route.useNavigate();
 
-  return renderLazyPage(
+  return (
     <AuditLogsPage
       api={session.iamApi}
       permissions={permissions}
       search={search}
       onSearchChange={(nextSearch) => void navigate({ search: nextSearch, replace: true })}
-    />,
+    />
   );
 }

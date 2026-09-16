@@ -1,17 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import { ROUTE_DEFINITIONS, type RouteKey } from "@xpense/shared";
-import { lazy } from "react";
 import { useStore } from "zustand";
 
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const MenuManagementPage = lazy(() =>
-  import("@/features/menus/menu-management-page").then((module) => ({
-    default: module.MenuManagementPage,
-  })),
+const MenuManagementPage = lazyRouteComponent(
+  () => import("@/features/menus/menu-management-page"),
+  "MenuManagementPage",
 );
 
 const ROUTE_LABELS = {
@@ -42,7 +44,10 @@ const ROUTE_OPTIONS = (Object.keys(ROUTE_DEFINITIONS) as RouteKey[]).map((key) =
 export const Route = createFileRoute("/_authenticated/(iam)/menus")({
   staticData: { routeKey: "Menus" },
   beforeLoad: async ({ context, location, params }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "Menus")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "Menus"),
+      MenuManagementPage,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "Menus",
       cacheParams: params,
@@ -56,7 +61,7 @@ export const Route = createFileRoute("/_authenticated/(iam)/menus")({
 function MenusRoutePage({ session }: { session: WebSessionDependency }) {
   const permissions = useStore(session.authStore, (state) => state.permissions);
 
-  return renderLazyPage(
+  return (
     <MenuManagementPage
       api={session.iamApi}
       permissions={permissions}
@@ -77,6 +82,6 @@ function MenusRoutePage({ session }: { session: WebSessionDependency }) {
           throw new Error("Authorized menus could not be synchronized");
         }
       }}
-    />,
+    />
   );
 }

@@ -1,26 +1,31 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
-import { lazy } from "react";
 import { useStore } from "zustand";
 import type { RegisteredPageInput } from "@/components/layout/page-cache-host";
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
 import { readSearchPage, readSearchString, readTrimmedSearchString } from "@/routes/-shared/search";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { ListRentalTenantsQuery, RentalApi } from "@/services/rental-api";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const TenantsPage = lazy(() =>
-  import("@/features/rental/tenants/tenants-page").then((module) => ({
-    default: module.TenantsPage,
-  })),
+const TenantsPage = lazyRouteComponent(
+  () => import("@/features/rental/tenants/tenants-page"),
+  "TenantsPage",
 );
 
 export const Route = createFileRoute("/_authenticated/(rental)/rentals/tenants/")({
   staticData: { routeKey: "RentalTenants" },
   validateSearch: validateRentalTenantsSearch,
   beforeLoad: async ({ context, location, params, search }) => ({
-    ...(await requireRegisteredRouteAccess(context, location, "RentalTenants")),
+    ...(await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "RentalTenants"),
+      TenantsPage,
+    )),
     registeredPage: defineRegisteredPage({
       routeKey: "RentalTenants",
       cacheParams: params,
@@ -103,14 +108,14 @@ function TenantsRoutePage({
     { organizationId, permissions },
   );
 
-  return renderLazyPage(
+  return (
     <TenantsPage
       {...props}
       onSearchChange={(nextSearch) => void navigate({ search: nextSearch, replace: true } as never)}
       onNavigate={(tenantId) =>
         void navigate({ to: "/rentals/tenants/$tenantId", params: { tenantId } })
       }
-    />,
+    />
   );
 }
 

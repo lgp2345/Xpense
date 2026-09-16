@@ -1,6 +1,5 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, lazyRouteComponent, redirect } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
-import { lazy } from "react";
 import { useStore } from "zustand";
 
 import type { RegisteredPageInput } from "@/components/layout/page-cache-host";
@@ -9,22 +8,28 @@ import type {
   ContractFormSearch,
 } from "@/features/rental/contracts/contract-form-page";
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
-import { defineRegisteredPage, RegisteredRouteLeaf } from "@/routes/-shared/registered-page";
+import {
+  defineRegisteredPage,
+  preloadRegisteredRoutePage,
+  RegisteredRouteLeaf,
+} from "@/routes/-shared/registered-page";
 import { readTrimmedSearchString } from "@/routes/-shared/search";
-import { RouteAccessPending, renderLazyPage } from "@/routes/-shared/status";
+import { RouteAccessPending } from "@/routes/-shared/status";
 import type { WebSessionDependency } from "@/services/web-session";
 
-const ContractFormPage = lazy(() =>
-  import("@/features/rental/contracts/contract-form-page").then((module) => ({
-    default: module.ContractFormPage,
-  })),
+const ContractFormPage = lazyRouteComponent(
+  () => import("@/features/rental/contracts/contract-form-page"),
+  "ContractFormPage",
 );
 
 export const Route = createFileRoute("/_authenticated/(rental)/rentals/contracts/new")({
   staticData: { routeKey: "RentalContractCreate" },
   validateSearch: validateRentalContractCreateSearch,
   beforeLoad: async ({ context, location, params, search }) => {
-    const access = await requireRegisteredRouteAccess(context, location, "RentalContracts");
+    const access = await preloadRegisteredRoutePage(
+      requireRegisteredRouteAccess(context, location, "RentalContracts"),
+      ContractFormPage,
+    );
     if (!context.session.authStore.getState().permissions.includes("rental_contracts:create")) {
       throw redirect({ to: "/forbidden" });
     }
@@ -105,7 +110,7 @@ function RentalContractCreateRoutePage({
     { organizationId, permissions },
   );
 
-  return renderLazyPage(
+  return (
     <ContractFormPage
       {...props}
       onNonDraft={(detail) =>
@@ -115,7 +120,7 @@ function RentalContractCreateRoutePage({
           replace: true,
         })
       }
-    />,
+    />
   );
 }
 

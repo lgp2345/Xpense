@@ -1,14 +1,6 @@
-import { type ReactNode, Suspense } from "react";
+import type { ReactNode } from "react";
 
 export function RouteAccessPending() {
-  return <RouteStatus>正在验证页面访问权限...</RouteStatus>;
-}
-
-export function renderLazyPage(page: ReactNode): ReactNode {
-  return <Suspense fallback={<PageLoading />}>{page}</Suspense>;
-}
-
-function PageLoading() {
   return <RouteStatus>正在加载页面...</RouteStatus>;
 }
 
