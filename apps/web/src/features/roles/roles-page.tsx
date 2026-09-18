@@ -1,9 +1,8 @@
 import type { PermissionKey, PermissionTreeNode } from "@xpense/shared";
 import { useEffect, useState } from "react";
 
+import { ListPageSkeleton } from "@/components/list-loading-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import type {
   CreateRoleRequest,
   IamApi,
@@ -210,14 +209,7 @@ export function RolesPage({
       ) : null}
 
       {isLoading ? (
-        <Card>
-          <CardContent className="space-y-3 p-4" aria-live="polite">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <span className="sr-only">正在加载角色和权限...</span>
-          </CardContent>
-        </Card>
+        <ListPageSkeleton label="正在加载角色和权限..." />
       ) : (
         <RoleTable
           canUpdatePermissions={canUpdatePermissions}

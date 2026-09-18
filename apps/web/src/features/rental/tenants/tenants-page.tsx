@@ -8,9 +8,8 @@ import type {
 } from "@xpense/shared";
 import { useState } from "react";
 
+import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ApiError } from "../../../services/api-client";
 import type { ListRentalTenantsQuery, RentalApi } from "../../../services/rental-api";
@@ -164,13 +163,7 @@ export function TenantsPage({
         </div>
       ) : null}
       {forbiddenError ? null : tenantsQuery.isPending && !hasData ? (
-        <Card>
-          <CardContent className="space-y-3 p-4" aria-live="polite">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <span className="sr-only">正在加载租客...</span>
-          </CardContent>
-        </Card>
+        <ListPageSkeleton label="正在加载租客..." />
       ) : tenantsQuery.isError && !hasData ? null : items.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">当前没有匹配的租客。</p>
       ) : isMobile ? (
@@ -178,11 +171,10 @@ export function TenantsPage({
       ) : (
         <TenantTable items={items} onNavigate={onNavigate} {...actions} />
       )}
-      {tenantsQuery.isFetching && hasData ? (
-        <p className="text-right text-xs text-muted-foreground" aria-live="polite">
-          正在更新列表...
-        </p>
-      ) : null}
+      <ListRefreshIndicator
+        active={tenantsQuery.isFetching && hasData}
+        label="正在更新租客列表..."
+      />
       {!forbiddenError && tenantsQuery.data && (items.length > 0 || tenantsQuery.data.page > 1) ? (
         <Pagination
           page={tenantsQuery.data.page}

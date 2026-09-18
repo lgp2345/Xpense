@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AccountSummary, PermissionKey } from "@xpense/shared";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +16,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -129,14 +129,12 @@ export function AccountsPage({
           {errorMessage ?? queryErrorMessage}
         </div>
       ) : null}
+      <ListRefreshIndicator
+        active={accountsQuery.isFetching && Boolean(accountsQuery.data)}
+        label="正在更新账户列表..."
+      />
       {accountsQuery.isPending ? (
-        <Card>
-          <CardContent className="space-y-3 p-4" aria-live="polite">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <span className="sr-only">正在加载账户...</span>
-          </CardContent>
-        </Card>
+        <ListPageSkeleton label="正在加载账户..." />
       ) : accounts.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">当前没有账户。</p>
       ) : (

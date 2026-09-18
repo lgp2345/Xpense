@@ -154,6 +154,30 @@ describe("file router foundation", () => {
     expect(router.options.defaultPreload).toBe("intent");
   });
 
+  it("animates page-path navigation without animating search-only updates", () => {
+    const router = createAppRouter({
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+      session: createSession(),
+    });
+    const viewTransition = router.options.defaultViewTransition;
+
+    expect(viewTransition).toEqual({ types: expect.any(Function) });
+    if (typeof viewTransition !== "object" || typeof viewTransition.types !== "function") {
+      throw new Error("Expected path-aware view transition options");
+    }
+
+    const locationChange = {
+      fromLocation: undefined,
+      toLocation: router.state.location,
+      hrefChanged: true,
+      hashChanged: false,
+    };
+    expect(viewTransition.types({ ...locationChange, pathChanged: true })).toEqual([
+      "page-navigation",
+    ]);
+    expect(viewTransition.types({ ...locationChange, pathChanged: false })).toBe(false);
+  });
+
   it("does not let individual routes force immediate pending feedback", () => {
     const router = createAppRouter({
       history: createMemoryHistory({ initialEntries: ["/"] }),

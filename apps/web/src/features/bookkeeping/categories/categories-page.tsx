@@ -3,7 +3,7 @@ import type { CategoryNode, CategoryType, PermissionKey } from "@xpense/shared";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import {
   Select,
   SelectContent,
@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   BookkeepingApi,
@@ -161,14 +160,15 @@ export function CategoriesPage({
           {errorMessage ?? queryErrorMessage}
         </div>
       ) : null}
+      <ListRefreshIndicator
+        active={
+          (ledgersQuery.isFetching && Boolean(ledgersQuery.data)) ||
+          (categoriesQuery.isFetching && Boolean(categoriesQuery.data))
+        }
+        label="正在更新分类列表..."
+      />
       {ledgersQuery.isPending || (ledgerId.length > 0 && categoriesQuery.isPending) ? (
-        <Card>
-          <CardContent className="space-y-3 p-4" aria-live="polite">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <span className="sr-only">正在加载分类...</span>
-          </CardContent>
-        </Card>
+        <ListPageSkeleton label="正在加载分类..." />
       ) : visibleRoots.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
           当前没有{type === "expense" ? "支出" : "收入"}分类。

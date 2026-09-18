@@ -8,9 +8,8 @@ import type {
 } from "@xpense/shared";
 import { toast } from "sonner";
 
+import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ApiError } from "../../../services/api-client";
 import type { ListRentalPropertiesQuery, RentalApi } from "../../../services/rental-api";
@@ -126,6 +125,10 @@ export function PropertiesPage({
         {canCreate ? <PropertyFormDialog onCreate={handleCreate} /> : null}
       </header>
       <PropertyFilters search={search} onApply={onSearchChange} />
+      <ListRefreshIndicator
+        active={propertiesQuery.isFetching && Boolean(propertiesQuery.data)}
+        label="正在更新房产列表..."
+      />
       {errorMessage ? (
         <div
           role="alert"
@@ -135,13 +138,7 @@ export function PropertiesPage({
         </div>
       ) : null}
       {isLoading ? (
-        <Card>
-          <CardContent className="space-y-3 p-4" aria-live="polite">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <span className="sr-only">正在加载房产...</span>
-          </CardContent>
-        </Card>
+        <ListPageSkeleton label="正在加载房产..." />
       ) : propertiesQuery.isError ? null : items.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">当前没有房产。</p>
       ) : isMobile ? (
@@ -180,7 +177,7 @@ export function PropertiesPage({
           </span>
           <Button
             variant="outline"
-            disabled={page.page <= 1}
+            disabled={propertiesQuery.isFetching || page.page <= 1}
             onClick={() =>
               onSearchChange({
                 ...search,
@@ -193,7 +190,7 @@ export function PropertiesPage({
           </Button>
           <Button
             variant="outline"
-            disabled={page.page * page.pageSize >= page.total}
+            disabled={propertiesQuery.isFetching || page.page * page.pageSize >= page.total}
             onClick={() =>
               onSearchChange({
                 ...search,

@@ -8,9 +8,8 @@ import {
 import type { PermissionKey, TransactionRecord, UpsertTransactionRequest } from "@xpense/shared";
 import { toast } from "sonner";
 
+import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { BookkeepingApi, ListTransactionsQuery } from "../../../services/bookkeeping-api";
 import {
   bookkeepingQueryOptions,
@@ -138,6 +137,10 @@ export function TransactionsPage({
         search={search}
         onApply={onSearchChange}
       />
+      <ListRefreshIndicator
+        active={transactionQuery.isFetching && Boolean(transactionQuery.data)}
+        label="正在更新交易列表..."
+      />
       {dependencyError ? (
         <div
           role="alert"
@@ -158,13 +161,7 @@ export function TransactionsPage({
         </p>
       ) : null}
       {!hasReadError && isReadPending ? (
-        <Card>
-          <CardContent className="space-y-3 p-4" aria-live="polite">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <span className="sr-only">正在加载交易...</span>
-          </CardContent>
-        </Card>
+        <ListPageSkeleton label="正在加载交易..." />
       ) : !hasReadError && data && data.items.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">没有符合条件的交易。</p>
       ) : !hasReadError && data ? (
@@ -187,7 +184,7 @@ export function TransactionsPage({
             </span>
             <Button
               variant="outline"
-              disabled={data.page <= 1}
+              disabled={transactionQuery.isFetching || data.page <= 1}
               onClick={() =>
                 onSearchChange({ ...search, page: data.page - 1, pageSize: data.pageSize })
               }
@@ -196,7 +193,7 @@ export function TransactionsPage({
             </Button>
             <Button
               variant="outline"
-              disabled={data.page * data.pageSize >= data.total}
+              disabled={transactionQuery.isFetching || data.page * data.pageSize >= data.total}
               onClick={() =>
                 onSearchChange({ ...search, page: data.page + 1, pageSize: data.pageSize })
               }

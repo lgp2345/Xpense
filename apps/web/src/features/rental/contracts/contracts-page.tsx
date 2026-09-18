@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import type { PermissionKey } from "@xpense/shared";
 
+import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ApiError } from "../../../services/api-client";
 import type { ListRentalContractsQuery, RentalApi } from "../../../services/rental-api";
@@ -71,13 +70,7 @@ export function ContractsPage({
       <main className="space-y-4 p-4 sm:p-6 lg:p-8">
         <PageHeader />
         <ContractFilters search={normalizedSearch} onApply={changeSearch} />
-        <Card>
-          <CardContent className="space-y-3 p-4" aria-live="polite">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <span className="sr-only">正在加载合同...</span>
-          </CardContent>
-        </Card>
+        <ListPageSkeleton label="正在加载合同..." />
       </main>
     );
   if (query.isError && !query.data)
@@ -101,11 +94,7 @@ export function ContractsPage({
       ) : (
         <ContractTable items={items} onNavigate={openDetail} />
       )}
-      {query.isFetching ? (
-        <p className="text-right text-xs text-muted-foreground" aria-live="polite">
-          正在更新列表...
-        </p>
-      ) : null}
+      <ListRefreshIndicator active={query.isFetching} label="正在更新合同列表..." />
       {query.data && (items.length > 0 || query.data.page > 1) ? (
         <Pagination
           page={query.data.page}

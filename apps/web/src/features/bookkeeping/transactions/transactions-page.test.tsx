@@ -310,6 +310,27 @@ describe("TransactionsPage", () => {
     });
   });
 
+  it("keeps existing transactions visible while refreshing in the background", async () => {
+    const refresh = deferred<TransactionPage>();
+    const api = createApi({
+      listTransactions: vi
+        .fn()
+        .mockResolvedValueOnce({ ...page(), total: 41 })
+        .mockReturnValueOnce(refresh.promise),
+    });
+    const { queryClient } = renderPage({ api });
+
+    expect(await screen.findByText("午餐")).toBeInTheDocument();
+    void queryClient.invalidateQueries({
+      queryKey: bookkeepingKeys.transactionsRoot("org-a"),
+    });
+
+    expect(await screen.findByRole("status", { name: "正在更新交易列表..." })).toBeInTheDocument();
+    expect(screen.getByText("午餐")).toBeInTheDocument();
+    expect(screen.queryByText("正在加载交易...")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "下一页" })).toBeDisabled();
+  });
+
   it("creates an expense with an expense category, account, and exact decimal minor amount", async () => {
     const user = userEvent.setup();
     const api = createApi({

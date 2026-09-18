@@ -174,12 +174,35 @@ describe("PropertiesPage", () => {
     });
     renderPage({ api: pendingApi });
     expect(screen.getByText("正在加载房产...")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "正在加载房产..." })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
     resolve?.(page([]));
     expect(await screen.findByText("当前没有房产。")).toBeInTheDocument();
     renderPage({
       api: createApi({ listProperties: vi.fn().mockRejectedValue(new Error("offline")) }),
     });
     expect(await screen.findByRole("alert")).toHaveTextContent("加载房产失败");
+  });
+
+  it("keeps existing properties visible while refreshing in the background", async () => {
+    const refresh = new Promise<RentalPropertyPage>(() => undefined);
+    const api = createApi({
+      listProperties: vi
+        .fn()
+        .mockResolvedValueOnce({ ...page(), total: 41 })
+        .mockReturnValueOnce(refresh),
+    });
+    const { queryClient } = renderPage({ api });
+
+    expect(await screen.findByText("阳光公寓")).toBeInTheDocument();
+    void queryClient.invalidateQueries({ queryKey: rentalKeys.propertiesListRoot("org-a") });
+
+    expect(await screen.findByRole("status", { name: "正在更新房产列表..." })).toBeInTheDocument();
+    expect(screen.getByText("阳光公寓")).toBeInTheDocument();
+    expect(screen.queryByText("正在加载房产...")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "下一页" })).toBeDisabled();
   });
 
   it("renders desktop table without exposing ledger IDs", async () => {

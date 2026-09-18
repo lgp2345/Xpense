@@ -4,12 +4,48 @@
 
 @custom-variant dark (&:is(.dark *));
 
+#main-content {
+  view-transition-name: page-content;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-old(page-content) {
+  animation: page-content-out 120ms ease-out both;
+}
+
+::view-transition-new(page-content) {
+  animation: page-content-in 160ms ease-out both;
+}
+
+@keyframes page-content-out {
+  to {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes page-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     scroll-behavior: auto;
     transition-duration: 0.01ms;
+  }
+
+  ::view-transition-old(page-content),
+  ::view-transition-new(page-content) {
+    animation-duration: 0.01ms;
   }
 }
 

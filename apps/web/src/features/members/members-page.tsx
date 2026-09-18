@@ -2,9 +2,8 @@ import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { ListPageSkeleton } from "@/components/list-loading-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { IamApi, IamMember, IamRole } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
 import { MemberFormDialog } from "./member-form-dialog";
@@ -160,14 +159,7 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
       ) : null}
 
       {isLoading ? (
-        <Card>
-          <CardContent className="space-y-3 p-4" aria-live="polite">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <span className="sr-only">正在加载成员...</span>
-          </CardContent>
-        </Card>
+        <ListPageSkeleton label="正在加载成员..." />
       ) : (
         <MemberTable
           isMutating={isMutating}

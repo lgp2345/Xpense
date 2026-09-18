@@ -1,6 +1,7 @@
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useState } from "react";
 
+import { ListPageSkeleton } from "@/components/list-loading-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,8 +14,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { AuthApi } from "../../services/auth-api";
 import { webAuthApi } from "../../services/web-session";
 import { type SessionListItem, SessionTable } from "./session-table";
@@ -190,14 +189,7 @@ export function SessionsPage({
       ) : null}
 
       {isLoading ? (
-        <Card>
-          <CardContent className="space-y-3 p-4" aria-live="polite">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <span className="sr-only">正在加载会话...</span>
-          </CardContent>
-        </Card>
+        <ListPageSkeleton label="正在加载会话..." />
       ) : (
         <SessionTable
           canRevoke={canRevoke}

@@ -1,9 +1,8 @@
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useState } from "react";
 
+import { ListPageSkeleton } from "@/components/list-loading-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { AuditLogRecord, IamApi, ListAuditLogsQuery } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
 import { AuditLogFilters, type AuditLogSearch } from "./audit-log-filters";
@@ -108,14 +107,7 @@ export function AuditLogsPage({
       ) : null}
 
       {isLoading ? (
-        <Card>
-          <CardContent className="space-y-3 p-4" aria-live="polite">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <span className="sr-only">正在加载审计日志...</span>
-          </CardContent>
-        </Card>
+        <ListPageSkeleton label="正在加载审计日志..." />
       ) : (
         <>
           <AuditLogTable logs={logItems} />

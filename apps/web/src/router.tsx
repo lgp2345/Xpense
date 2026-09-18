@@ -42,6 +42,9 @@ export function createAppRouter(options: CreateAppRouterOptions = {}) {
     defaultPendingMs: 150,
     defaultPendingMinMs: 200,
     defaultPreload: "intent",
+    defaultViewTransition: {
+      types: ({ pathChanged }) => (pathChanged ? ["page-navigation"] : false),
+    },
   });
   sessionsByRouter.set(appRouter, routerSession);
   return appRouter;

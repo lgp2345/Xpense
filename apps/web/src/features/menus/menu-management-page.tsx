@@ -1,9 +1,8 @@
 import type { MenuConfigurationNode, PermissionKey } from "@xpense/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { ListPageSkeleton } from "@/components/list-loading-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { IamApi } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
 import { MenuFormDialog } from "./menu-form-dialog";
@@ -252,15 +251,7 @@ export function MenuManagementPage({
       ) : null}
 
       {isLoading ? (
-        <Card>
-          <CardContent className="space-y-3 p-4" aria-live="polite">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-            <span className="sr-only">正在加载菜单配置...</span>
-          </CardContent>
-        </Card>
+        <ListPageSkeleton label="正在加载菜单配置..." />
       ) : (
         <MenuTreeTable
           canCreate={canCreate}
