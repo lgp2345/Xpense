@@ -9,6 +9,7 @@ import type {
 } from "@xpense/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { LoadMoreButton } from "@/components/load-more-button";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -578,18 +579,16 @@ export function SpaceTreeTable({
                 {hasMoreChildren(tree, null) ? (
                   <TableRow>
                     <TableCell colSpan={5}>
-                      <Button
+                      <LoadMoreButton
                         aria-label="加载更多根空间"
                         size="sm"
-                        type="button"
-                        variant="outline"
                         onClick={() => {
                           const page = childPage(treeRef.current, null);
                           if (page) void loadPage(null, page.page + 1);
                         }}
                       >
                         加载更多
-                      </Button>
+                      </LoadMoreButton>
                     </TableCell>
                   </TableRow>
                 ) : null}
@@ -650,9 +649,9 @@ function TreeRows({
           ? [
               <TableRow key={`${id}-more`}>
                 <TableCell colSpan={5}>
-                  <Button size="sm" type="button" variant="outline" onClick={() => onLoadMore(id)}>
+                  <LoadMoreButton size="sm" onClick={() => onLoadMore(id)}>
                     加载更多
-                  </Button>
+                  </LoadMoreButton>
                 </TableCell>
               </TableRow>,
             ]

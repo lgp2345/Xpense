@@ -164,6 +164,17 @@ describe("Dashboard and IAM file routes", () => {
     await waitFor(() => expect(session.iamApi.listMembers).toHaveBeenCalledOnce());
   });
 
+  it("restores a valid audit page size from the URL and rejects out-of-range sizes", async () => {
+    const { validateAuditLogSearch } = await import("./audit-logs");
+    expect(validateAuditLogSearch({ page: "2", pageSize: "20" })).toMatchObject({
+      page: 2,
+      pageSize: 20,
+    });
+    for (const pageSize of [0, -1, 101, "bad", 1.5]) {
+      expect(validateAuditLogSearch({ pageSize }).pageSize).toBeUndefined();
+    }
+  });
+
   it("validates AuditLogs search and replaces the URL on filter changes", async () => {
     const user = userEvent.setup();
     await import("@/features/audit/audit-logs-page");

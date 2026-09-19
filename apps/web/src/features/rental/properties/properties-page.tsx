@@ -7,9 +7,8 @@ import type {
   UpdateRentalPropertyRequest,
 } from "@xpense/shared";
 import { toast } from "sonner";
-
 import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
-import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/pagination";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ApiError } from "../../../services/api-client";
 import type { ListRentalPropertiesQuery, RentalApi } from "../../../services/rental-api";
@@ -171,37 +170,16 @@ export function PropertiesPage({
         />
       )}
       {page && items.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
-          <span>
-            第 {page.page} 页，共 {page.total} 个房产
-          </span>
-          <Button
-            variant="outline"
-            disabled={propertiesQuery.isFetching || page.page <= 1}
-            onClick={() =>
-              onSearchChange({
-                ...search,
-                page: page.page - 1,
-                pageSize: page.pageSize,
-              })
-            }
-          >
-            上一页
-          </Button>
-          <Button
-            variant="outline"
-            disabled={propertiesQuery.isFetching || page.page * page.pageSize >= page.total}
-            onClick={() =>
-              onSearchChange({
-                ...search,
-                page: page.page + 1,
-                pageSize: page.pageSize,
-              })
-            }
-          >
-            下一页
-          </Button>
-        </div>
+        <Pagination
+          page={page.page}
+          pageSize={page.pageSize}
+          total={page.total}
+          pending={propertiesQuery.isFetching}
+          onPageSizeChange={(pageSize) => onSearchChange({ ...search, page: 1, pageSize })}
+          onPageChange={(nextPage) =>
+            onSearchChange({ ...search, page: nextPage, pageSize: page.pageSize })
+          }
+        />
       ) : null}
     </main>
   );

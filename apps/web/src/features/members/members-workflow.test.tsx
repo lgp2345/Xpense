@@ -79,6 +79,26 @@ function renderMembersPage(
 }
 
 describe("MembersPage", () => {
+  it("filters all members before paging and resets the page when page size changes", async () => {
+    const user = userEvent.setup();
+    const members = Array.from({ length: 25 }, (_, index) => ({
+      ...member,
+      id: `member-${index}`,
+      email: `member${index}@example.com`,
+    }));
+    renderMembersPage(["members:read"], { members });
+    await user.click(screen.getByRole("button", { name: "下一页" }));
+    expect(screen.getByText("第 2 页，共 3 页")).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("搜索邮箱..."), "member24@");
+    expect(screen.getByText("member24@example.com")).toBeInTheDocument();
+    expect(screen.getByText("第 1 页，共 1 页")).toBeInTheDocument();
+    await user.clear(screen.getByPlaceholderText("搜索邮箱..."));
+    await user.click(screen.getByRole("button", { name: "下一页" }));
+    await user.click(screen.getByRole("combobox", { name: "每页行数" }));
+    await user.click(screen.getByRole("option", { name: "20" }));
+    expect(screen.getByText("第 1 页，共 2 页")).toBeInTheDocument();
+  });
+
   it("loads the member list without requesting roles when roles.read is unavailable", async () => {
     const api = createIamApi({
       listRoles: vi.fn().mockRejectedValue(new Error("forbidden")),

@@ -1,6 +1,6 @@
-import type { ColumnDef } from "@tanstack/react-table";
 import type { PermissionKey } from "@xpense/shared";
 import { DataTableColumnHeader } from "@/components/data-table";
+import type { ClientColumnDef } from "@/components/data-table/use-client-table";
 import type { IamMember, IamRole } from "../../services/iam-api";
 import { MemberActions } from "./member-actions";
 
@@ -12,8 +12,7 @@ type MemberColumnsOptions = {
   onStatusChange: (memberId: string, status: "active" | "disabled") => Promise<void>;
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: ColumnDef needs features type, using any for flexibility
-type MemberColumnDef = ColumnDef<any, IamMember>;
+type MemberColumnDef = ClientColumnDef<IamMember>;
 
 export function createMemberColumns({
   isMutating,

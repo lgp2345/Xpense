@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PermissionKey, RentalTenantSummary } from "@xpense/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LoadMoreButton } from "@/components/load-more-button";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -176,14 +177,12 @@ export function ContractPartiesStep({
         </div>
       )}
       {canLoadMore ? (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={query.isFetching}
+        <LoadMoreButton
+          pending={query.isFetching}
           onClick={() => setPage((current) => current + 1)}
         >
           加载更多租户
-        </Button>
+        </LoadMoreButton>
       ) : null}
       {selectedTenants.length ? (
         <fieldset className="grid gap-2" aria-label="已选承租方">

@@ -1,4 +1,5 @@
 import type { RentalSpaceSearchResult } from "@xpense/shared";
+import { LoadMoreButton } from "@/components/load-more-button";
 
 import { Button } from "@/components/ui/button";
 
@@ -56,9 +57,9 @@ export function SpaceSearchResults({
       ))}
       {hasMore ? (
         <li>
-          <Button disabled={isLoadingMore} type="button" variant="outline" onClick={onLoadMore}>
-            {isLoadingMore ? "正在加载..." : "加载更多"}
-          </Button>
+          <LoadMoreButton pending={isLoadingMore} pendingLabel="正在加载..." onClick={onLoadMore}>
+            加载更多
+          </LoadMoreButton>
         </li>
       ) : null}
       {loadMoreError ? (

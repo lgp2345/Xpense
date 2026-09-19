@@ -56,6 +56,47 @@ function renderAuditLogsPage(
 }
 
 describe("AuditLogsPage", () => {
+  it("keeps pagination disabled while retrying a failed page request", async () => {
+    const user = userEvent.setup();
+    let resolveRetry!: (rows: AuditLogRecord[]) => void;
+    const api = createAuditLogsApi({
+      listAuditLogs: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("unavailable"))
+        .mockImplementationOnce(
+          () =>
+            new Promise<AuditLogRecord[]>((resolve) => {
+              resolveRetry = resolve;
+            }),
+        ),
+    });
+    renderAuditLogsPage(["audit_logs:read"], { api, search: { page: 2 } });
+    await screen.findByRole("alert");
+    await user.click(screen.getByRole("button", { name: "重试" }));
+    expect(screen.queryByRole("button", { name: "上一页" })).not.toBeInTheDocument();
+    expect(screen.getByText("正在加载审计日志...")).toBeInTheDocument();
+    resolveRetry([auditLog]);
+    expect(await screen.findByRole("button", { name: "上一页" })).toBeEnabled();
+  });
+
+  it("uses page-owned page size and only organization-wide audit filters", async () => {
+    const user = userEvent.setup();
+    const onSearchChange = vi.fn();
+    renderAuditLogsPage(["audit_logs:read"], {
+      logs: [auditLog],
+      search: { page: 3, action: "role.permissions.changed" },
+      onSearchChange,
+    });
+    expect(screen.queryByPlaceholderText("搜索操作...")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "每页行数" }));
+    await user.click(screen.getByRole("option", { name: "20" }));
+    expect(onSearchChange).toHaveBeenLastCalledWith({
+      page: 1,
+      pageSize: 20,
+      action: "role.permissions.changed",
+    });
+  });
+
   it("renders audit actions and target fields without sensitive metadata", () => {
     renderAuditLogsPage(["audit_logs:read"], { logs: [auditLog] });
 

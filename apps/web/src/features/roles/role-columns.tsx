@@ -1,6 +1,6 @@
-import type { ColumnDef } from "@tanstack/react-table";
 import type { PermissionKey, PermissionTreeNode } from "@xpense/shared";
 import { DataTableColumnHeader } from "@/components/data-table";
+import type { ClientColumnDef } from "@/components/data-table/use-client-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,8 +25,7 @@ type RoleColumnsOptions = {
   onUpdate: (roleId: string, input: UpdateRoleRequest) => Promise<boolean>;
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: ColumnDef needs features type, using any for flexibility
-type RoleColumnDef = ColumnDef<any, IamRoleWithPermissions>;
+type RoleColumnDef = ClientColumnDef<IamRoleWithPermissions>;
 
 export function createRoleColumns({
   canUpdatePermissions,

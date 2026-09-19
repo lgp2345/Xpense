@@ -36,7 +36,9 @@ export const Route = createFileRoute("/_authenticated/(iam)/audit-logs")({
 });
 
 export function validateAuditLogSearch(search: Record<string, unknown>): AuditLogSearch {
+  const pageSize = readSearchPage(search.pageSize);
   return {
+    ...(pageSize && pageSize <= 100 ? { pageSize } : {}),
     action: readSearchString(search.action),
     actorUserId: readSearchString(search.actorUserId),
     from: readSearchDate(search.from),

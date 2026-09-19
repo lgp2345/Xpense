@@ -1,6 +1,6 @@
-import type { ColumnDef } from "@tanstack/react-table";
 import type { ClientType } from "@xpense/shared";
 import { DataTableColumnHeader } from "@/components/data-table";
+import type { ClientColumnDef } from "@/components/data-table/use-client-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,8 +23,7 @@ type SessionColumnsOptions = {
   onRevoke: (sessionId: string) => Promise<void>;
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: ColumnDef needs features type, using any for flexibility
-type SessionColumnDef = ColumnDef<any, SessionListItem>;
+type SessionColumnDef = ClientColumnDef<SessionListItem>;
 
 export function createSessionColumns({
   canRevoke,

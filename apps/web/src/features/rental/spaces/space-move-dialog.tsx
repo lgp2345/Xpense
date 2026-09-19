@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { RentalSpaceNode } from "@xpense/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LoadMoreButton } from "@/components/load-more-button";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -211,18 +212,16 @@ export function SpaceMoveDialog({
               </div>
               {isExpanded ? renderCandidates(node.id, targetParentLevel + 1) : null}
               {isExpanded && hasMoreChildren(candidateTree, node.id) ? (
-                <Button
-                  disabled={loading}
+                <LoadMoreButton
+                  pending={loading}
                   onClick={() => {
                     const nextPage = (childPage(candidateTree, node.id)?.page ?? 0) + 1;
                     void loadCandidatePage(node.id, nextPage);
                   }}
                   size="sm"
-                  type="button"
-                  variant="outline"
                 >
                   加载更多 {node.name} 的候选
-                </Button>
+                </LoadMoreButton>
               ) : null}
               {errors[node.id] ? (
                 <Button
@@ -309,18 +308,16 @@ export function SpaceMoveDialog({
               ) : null}
               <div className="mt-2">{renderCandidates(null, 1)}</div>
               {hasMoreChildren(candidateTree, null) ? (
-                <Button
-                  disabled={rootIsLoading}
+                <LoadMoreButton
+                  pending={rootIsLoading}
                   onClick={() => {
                     const nextPage = (childPage(candidateTree, null)?.page ?? 0) + 1;
                     void loadCandidatePage(null, nextPage);
                   }}
                   size="sm"
-                  type="button"
-                  variant="outline"
                 >
                   加载更多可移动根空间
-                </Button>
+                </LoadMoreButton>
               ) : null}
               {errors[ROOT_TARGET] ? (
                 <Button

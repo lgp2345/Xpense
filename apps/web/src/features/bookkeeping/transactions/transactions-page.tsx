@@ -7,8 +7,8 @@ import {
 } from "@tanstack/react-query";
 import type { PermissionKey, TransactionRecord, UpsertTransactionRequest } from "@xpense/shared";
 import { toast } from "sonner";
-
 import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
+import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import type { BookkeepingApi, ListTransactionsQuery } from "../../../services/bookkeeping-api";
 import {
@@ -178,29 +178,14 @@ export function TransactionsPage({
             onDelete={handleDelete}
             onUpdate={handleUpdate}
           />
-          <div className="flex items-center justify-end gap-3 text-sm">
-            <span>
-              第 {data.page} 页，共 {data.total} 笔
-            </span>
-            <Button
-              variant="outline"
-              disabled={transactionQuery.isFetching || data.page <= 1}
-              onClick={() =>
-                onSearchChange({ ...search, page: data.page - 1, pageSize: data.pageSize })
-              }
-            >
-              上一页
-            </Button>
-            <Button
-              variant="outline"
-              disabled={transactionQuery.isFetching || data.page * data.pageSize >= data.total}
-              onClick={() =>
-                onSearchChange({ ...search, page: data.page + 1, pageSize: data.pageSize })
-              }
-            >
-              下一页
-            </Button>
-          </div>
+          <Pagination
+            page={data.page}
+            pageSize={data.pageSize}
+            total={data.total}
+            pending={transactionQuery.isFetching}
+            onPageSizeChange={(pageSize) => onSearchChange({ ...search, page: 1, pageSize })}
+            onPageChange={(page) => onSearchChange({ ...search, page, pageSize: data.pageSize })}
+          />
         </>
       ) : null}
     </main>

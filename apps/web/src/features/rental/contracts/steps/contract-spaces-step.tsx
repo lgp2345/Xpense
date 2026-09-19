@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { PermissionKey, RentalPropertySummary, RentalSpaceNode } from "@xpense/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LoadMoreButton } from "@/components/load-more-button";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -340,16 +341,14 @@ export function ContractSpacesStep({
             </div>
           )}
           {canLoadMore ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={activeQuery.isFetching}
+            <LoadMoreButton
+              pending={activeQuery.isFetching}
               onClick={() =>
                 keyword.trim() ? setSearchPage(activePage + 1) : setChildrenPage(activePage + 1)
               }
             >
               加载更多空间
-            </Button>
+            </LoadMoreButton>
           ) : null}
           {values.spaces.length ? (
             <fieldset aria-label="已选空间" className="space-y-2">

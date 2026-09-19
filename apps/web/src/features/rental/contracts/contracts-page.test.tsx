@@ -177,7 +177,7 @@ describe("ContractsPage", () => {
     expect(await screen.findByText("你没有查看合同的权限。")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "RC-2026-000001" })).not.toBeInTheDocument();
-    expect(screen.queryByText("第 2 页，共 41 个合同")).not.toBeInTheDocument();
+    expect(screen.queryByText("第 2 页，共 3 页")).not.toBeInTheDocument();
   });
 
   it("renders every server display status label without deriving lifecycle from browser time", async () => {

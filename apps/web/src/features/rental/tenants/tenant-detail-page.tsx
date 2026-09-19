@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PermissionKey, SetRentalTenantStatusRequest } from "@xpense/shared";
 import { useState } from "react";
+import { Pagination } from "@/components/pagination";
 
 import {
   AlertDialog,
@@ -43,6 +44,7 @@ export function TenantDetailPage({
   const canUpdate = permissions.includes("rental_tenants:update");
   const canDelete = permissions.includes("rental_tenants:delete");
   const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(20);
   const [editing, setEditing] = useState(false);
   const detailQuery = useQuery({
     ...rentalQueryOptions.tenant(api, organizationId, tenantId),
@@ -52,7 +54,7 @@ export function TenantDetailPage({
     ...rentalQueryOptions.contracts(api, organizationId, {
       tenantId,
       page: historyPage,
-      pageSize: 20,
+      pageSize: historyPageSize,
     }),
     enabled: canRead && Boolean(organizationId && tenantId),
   });
@@ -255,11 +257,16 @@ export function TenantDetailPage({
                 </Card>
               ))}
             </div>
-            <HistoryPagination
+            <Pagination
               page={historyQuery.data?.page ?? historyPage}
-              pageSize={historyQuery.data?.pageSize ?? 20}
+              pageSize={historyQuery.data?.pageSize ?? historyPageSize}
               total={historyQuery.data?.total ?? 0}
-              onChange={setHistoryPage}
+              pending={historyQuery.isFetching}
+              onPageSizeChange={(pageSize) => {
+                setHistoryPageSize(pageSize);
+                setHistoryPage(1);
+              }}
+              onPageChange={setHistoryPage}
             />
           </>
         )}
@@ -301,32 +308,6 @@ function Info({ label, value }: { label: string; value: string | null }) {
     <div>
       <span className="text-muted-foreground">{label}</span>
       <p className="mt-1">{value ?? "未填写"}</p>
-    </div>
-  );
-}
-function HistoryPagination({
-  page,
-  pageSize,
-  total,
-  onChange,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-  onChange: (page: number) => void;
-}) {
-  return (
-    <div className="flex justify-end gap-2">
-      <Button variant="outline" disabled={page <= 1} onClick={() => onChange(page - 1)}>
-        上一页
-      </Button>
-      <Button
-        variant="outline"
-        disabled={page * pageSize >= total}
-        onClick={() => onChange(page + 1)}
-      >
-        下一页
-      </Button>
     </div>
   );
 }

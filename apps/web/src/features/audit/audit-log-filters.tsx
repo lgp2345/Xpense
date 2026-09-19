@@ -7,6 +7,7 @@ export type AuditLogSearch = {
   actorUserId?: string;
   from?: string;
   page?: number;
+  pageSize?: number;
   targetType?: string;
   to?: string;
 };
@@ -16,7 +17,7 @@ type AuditLogFiltersProps = {
   search: AuditLogSearch;
 };
 
-type FilterField = Exclude<keyof AuditLogSearch, "page">;
+type FilterField = Exclude<keyof AuditLogSearch, "page" | "pageSize">;
 
 const fields = [
   { key: "action", label: "操作", type: "text" },

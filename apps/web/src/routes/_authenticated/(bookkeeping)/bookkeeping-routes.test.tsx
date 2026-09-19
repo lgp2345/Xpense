@@ -245,20 +245,25 @@ describe("bookkeeping file routes", () => {
     expect(
       await screen.findByRole("heading", { name: "交易记录" }, { timeout: 3_000 }),
     ).toBeInTheDocument();
-    expect(
-      await screen.findByText("第 1 页，共 40 笔", {}, { timeout: 3_000 }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("第 1 页，共 2 页", {}, { timeout: 3_000 })).toBeInTheDocument();
     const keywordInput = screen.getByLabelText("关键词");
     expect(keywordInput).toHaveValue("房租");
     await user.click(screen.getByRole("button", { name: "下一页" }));
 
     await waitFor(() => {
       expect(router.state.location.search).toEqual({ keyword: "房租", page: 2, pageSize: 20 });
-      expect(screen.getByText("第 2 页，共 40 笔")).toBeInTheDocument();
+      expect(screen.getByText("第 2 页，共 2 页")).toBeInTheDocument();
     });
     expect(screen.getByLabelText("关键词")).toBe(keywordInput);
     expect(screen.getByLabelText("关键词")).toHaveValue("房租");
     expect(listTransactions).toHaveBeenLastCalledWith({ keyword: "房租", page: 2, pageSize: 20 });
+    await user.click(screen.getByRole("combobox", { name: "每页行数" }));
+    await user.click(screen.getByRole("option", { name: "10" }));
+    await waitFor(() => {
+      expect(router.state.location.search).toEqual({ keyword: "房租", page: 1, pageSize: 10 });
+      expect(screen.getByText("第 1 页，共 4 页")).toBeInTheDocument();
+    });
+    expect(listTransactions).toHaveBeenLastCalledWith({ keyword: "房租", page: 1, pageSize: 10 });
     expect(session.authStore.getState().currentOrganization?.id).toBe("org-bookkeeping");
   });
 });

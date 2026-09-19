@@ -1,11 +1,14 @@
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-
+import { DataTableToolbar } from "@/components/data-table/toolbar";
+import { useClientTable } from "@/components/data-table/use-client-table";
 import { ListPageSkeleton } from "@/components/list-loading-state";
+import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import type { IamApi, IamMember, IamRole } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
+import { createMemberColumns } from "./member-columns";
 import { MemberFormDialog } from "./member-form-dialog";
 import type { MemberFormValues } from "./member-form-schema";
 import { MemberTable } from "./member-table";
@@ -136,6 +139,17 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
     ? permissions
     : permissions.filter((permission) => permission !== "members:update");
 
+  const table = useClientTable(
+    memberItems,
+    createMemberColumns({
+      isMutating,
+      permissions: memberActionPermissions,
+      roles: roleItems,
+      onRoleChange: handleRoleChange,
+      onStatusChange: handleStatusChange,
+    }),
+  );
+
   return (
     <main className="space-y-4 p-4 sm:p-6 lg:p-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -160,15 +174,44 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
 
       {isLoading ? (
         <ListPageSkeleton label="正在加载成员..." />
+      ) : memberItems.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">当前没有成员。</p>
       ) : (
-        <MemberTable
-          isMutating={isMutating}
-          members={memberItems}
-          permissions={memberActionPermissions}
-          roles={roleItems}
-          onRoleChange={handleRoleChange}
-          onStatusChange={handleStatusChange}
-        />
+        <>
+          <DataTableToolbar
+            table={table}
+            searchKey="email"
+            searchPlaceholder="搜索邮箱..."
+            filters={[
+              {
+                columnId: "roleName",
+                title: "角色",
+                options: roleItems.map((role) => ({
+                  label: role.name,
+                  value: role.name,
+                })),
+              },
+              {
+                columnId: "status",
+                title: "状态",
+                options: [
+                  { label: "已启用", value: "active" },
+                  { label: "已禁用", value: "disabled" },
+                ],
+              },
+            ]}
+          />
+
+          <MemberTable table={table} />
+          <Pagination
+            page={table.state.pagination.pageIndex + 1}
+            pageSize={table.state.pagination.pageSize}
+            total={table.getFilteredRowModel().rows.length}
+            pending={isMutating}
+            onPageChange={(page) => table.setPageIndex(page - 1)}
+            onPageSizeChange={(pageSize) => table.setPageSize(pageSize)}
+          />
+        </>
       )}
     </main>
   );

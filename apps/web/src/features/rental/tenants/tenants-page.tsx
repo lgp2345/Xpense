@@ -7,8 +7,8 @@ import type {
   UpdateRentalTenantRequest,
 } from "@xpense/shared";
 import { useState } from "react";
-
 import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
+import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ApiError } from "../../../services/api-client";
@@ -84,7 +84,8 @@ export function TenantsPage({
         </p>
       </main>
     );
-  const items = tenantsQuery.data?.items ?? [];
+  const pageData = tenantsQuery.data;
+  const items = pageData?.items ?? [];
   const hasData = Boolean(tenantsQuery.data);
   const forbiddenError =
     tenantsQuery.isError &&
@@ -175,14 +176,19 @@ export function TenantsPage({
         active={tenantsQuery.isFetching && hasData}
         label="正在更新租客列表..."
       />
-      {!forbiddenError && tenantsQuery.data && (items.length > 0 || tenantsQuery.data.page > 1) ? (
+      {!forbiddenError && pageData && (items.length > 0 || pageData.page > 1) ? (
         <Pagination
-          page={tenantsQuery.data.page}
-          pageSize={tenantsQuery.data.pageSize}
-          total={tenantsQuery.data.total}
+          page={pageData.page}
+          pageSize={pageData.pageSize}
+          total={pageData.total}
           pending={tenantsQuery.isFetching || mutationsPending}
-          search={normalizedSearch}
-          onChange={onSearchChange}
+          onPageSizeChange={(pageSize) =>
+            onSearchChange({ ...normalizedSearch, page: 1, pageSize })
+          }
+          onPageChange={(page) =>
+            onSearchChange({ ...normalizedSearch, page, pageSize: pageData.pageSize })
+          }
+          pendingLabel="加载中"
         />
       ) : null}
       {editingTenant ? (
@@ -210,47 +216,6 @@ export function TenantsPage({
         />
       ) : null}
     </main>
-  );
-}
-
-function Pagination({
-  page,
-  pageSize,
-  total,
-  pending,
-  search,
-  onChange,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-  pending: boolean;
-  search: ListRentalTenantsQuery;
-  onChange: (search: ListRentalTenantsQuery) => void;
-}) {
-  const hasPrevious = page > 1;
-  const hasNext = page * pageSize < total;
-  return (
-    <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
-      <span>
-        第 {page} 页，共 {total} 个租客
-      </span>
-      {pending ? <span aria-live="polite">加载中</span> : null}
-      <Button
-        variant="outline"
-        disabled={!hasPrevious || pending}
-        onClick={() => onChange({ ...search, page: page - 1, pageSize })}
-      >
-        上一页
-      </Button>
-      <Button
-        variant="outline"
-        disabled={!hasNext || pending}
-        onClick={() => onChange({ ...search, page: page + 1, pageSize })}
-      >
-        下一页
-      </Button>
-    </div>
   );
 }
 

@@ -1,7 +1,9 @@
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useState } from "react";
-
+import { DataTableToolbar } from "@/components/data-table/toolbar";
+import { useClientTable } from "@/components/data-table/use-client-table";
 import { ListPageSkeleton } from "@/components/list-loading-state";
+import { Pagination } from "@/components/pagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { AuthApi } from "../../services/auth-api";
 import { webAuthApi } from "../../services/web-session";
+import { createSessionColumns } from "./session-columns";
 import { type SessionListItem, SessionTable } from "./session-table";
 
 type SessionsApi = Pick<AuthApi, "listSessions" | "revokeAllSessions" | "revokeSession">;
@@ -146,6 +149,11 @@ export function SessionsPage({
 
   const canRevoke = permissions.includes("sessions:revoke");
 
+  const table = useClientTable(
+    sessionItems,
+    createSessionColumns({ canRevoke, currentSessionId, isMutating, onRevoke: handleRevoke }),
+  );
+
   return (
     <main className="space-y-4 p-4 sm:p-6 lg:p-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -190,14 +198,35 @@ export function SessionsPage({
 
       {isLoading ? (
         <ListPageSkeleton label="正在加载会话..." />
+      ) : sessionItems.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">当前没有可管理的会话。</p>
       ) : (
-        <SessionTable
-          canRevoke={canRevoke}
-          currentSessionId={currentSessionId}
-          isMutating={isMutating}
-          sessions={sessionItems}
-          onRevoke={handleRevoke}
-        />
+        <>
+          <DataTableToolbar
+            table={table}
+            searchPlaceholder="搜索..."
+            filters={[
+              {
+                columnId: "status",
+                title: "状态",
+                options: [
+                  { label: "有效", value: "active" },
+                  { label: "已撤销", value: "revoked" },
+                ],
+              },
+            ]}
+          />
+
+          <SessionTable table={table} />
+          <Pagination
+            page={table.state.pagination.pageIndex + 1}
+            pageSize={table.state.pagination.pageSize}
+            total={table.getFilteredRowModel().rows.length}
+            pending={isMutating}
+            onPageChange={(page) => table.setPageIndex(page - 1)}
+            onPageSizeChange={(pageSize) => table.setPageSize(pageSize)}
+          />
+        </>
       )}
     </main>
   );

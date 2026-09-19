@@ -2,6 +2,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import type { PermissionKey, RentalContractPage } from "@xpense/shared";
 import { useEffect, useState } from "react";
+import { Pagination } from "@/components/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +36,7 @@ export function PropertyDetailPage({
     permissions.includes("rental_contracts:read") &&
     permissions.includes("rental_contracts:update");
   const [contractsPage, setContractsPage] = useState(1);
+  const [contractsPageSize, setContractsPageSize] = useState(10);
   // biome-ignore lint/correctness/useExhaustiveDependencies: route scope is the local pagination session
   useEffect(() => {
     setContractsPage(1);
@@ -43,7 +45,7 @@ export function PropertyDetailPage({
     ...rentalQueryOptions.contracts(api, organizationId, {
       propertyId,
       page: contractsPage,
-      pageSize: 10,
+      pageSize: contractsPageSize,
     }),
     enabled: canReadContracts && Boolean(api.listContracts),
     placeholderData: (previousData, previousQuery) =>
@@ -143,6 +145,10 @@ export function PropertyDetailPage({
       <PropertyContractsSection
         query={contractsQuery}
         canRead={canReadContracts}
+        onPageSizeChange={(pageSize) => {
+          setContractsPageSize(pageSize);
+          setContractsPage(1);
+        }}
         onPageChange={setContractsPage}
         onNavigateContract={onNavigateContract}
       />
@@ -162,11 +168,13 @@ function PropertyContractsSection({
   query,
   canRead,
   onPageChange,
+  onPageSizeChange,
   onNavigateContract,
 }: {
   query: UseQueryResult<RentalContractPage, Error>;
   canRead: boolean;
   onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
   onNavigateContract?: (contractId: string) => void;
 }) {
   if (!canRead)
@@ -248,27 +256,14 @@ function PropertyContractsSection({
         <p className="rounded-md border p-3 text-sm text-muted-foreground">当前房产没有合同。</p>
       )}
       {page ? (
-        <div className="flex flex-wrap items-center justify-end gap-3 text-xs text-muted-foreground">
-          <span>
-            显示第 {page.page} 页，共 {page.total} 个合同
-          </span>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={query.isFetching || page.page <= 1}
-            onClick={() => onPageChange(page.page - 1)}
-          >
-            上一页
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={query.isFetching || page.page * page.pageSize >= page.total}
-            onClick={() => onPageChange(page.page + 1)}
-          >
-            下一页
-          </Button>
-        </div>
+        <Pagination
+          page={page.page}
+          pageSize={page.pageSize}
+          total={page.total}
+          pending={query.isFetching}
+          onPageSizeChange={onPageSizeChange}
+          onPageChange={onPageChange}
+        />
       ) : null}
     </section>
   );

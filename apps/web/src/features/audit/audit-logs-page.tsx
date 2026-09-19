@@ -1,12 +1,15 @@
+import { type ColumnVisibilityState, useTable } from "@tanstack/react-table";
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useState } from "react";
-
+import { DataTableViewOptions } from "@/components/data-table/view-options";
 import { ListPageSkeleton } from "@/components/list-loading-state";
+import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import type { AuditLogRecord, IamApi, ListAuditLogsQuery } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
+import { createAuditLogColumns } from "./audit-log-columns";
 import { AuditLogFilters, type AuditLogSearch } from "./audit-log-filters";
-import { AuditLogTable } from "./audit-log-table";
+import { AuditLogTable, auditTableFeatures } from "./audit-log-table";
 
 type AuditLogsApi = Pick<IamApi, "listAuditLogs">;
 
@@ -32,19 +35,25 @@ export function AuditLogsPage({
   const [logItems, setLogItems] = useState(() => logs ?? []);
   const [isLoading, setIsLoading] = useState(canRead && !hasInitialLogs);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
 
-  async function refreshLogs() {
-    const nextLogs = await api.listAuditLogs(toAuditLogQuery(search));
-    setLogItems(nextLogs);
-  }
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibilityState>({});
+  const table = useTable({
+    features: auditTableFeatures,
+    data: logItems,
+    columns: createAuditLogColumns(),
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+  });
 
   useEffect(() => {
-    if (!canRead || hasInitialLogs) {
+    if (!canRead || (hasInitialLogs && retryVersion === 0)) {
       return;
     }
 
     let isActive = true;
     setIsLoading(true);
+    setErrorMessage(null);
 
     void api
       .listAuditLogs(toAuditLogQuery(search))
@@ -67,7 +76,7 @@ export function AuditLogsPage({
     return () => {
       isActive = false;
     };
-  }, [api, canRead, hasInitialLogs, search]);
+  }, [api, canRead, hasInitialLogs, search, retryVersion]);
 
   if (!canRead) {
     return (
@@ -96,43 +105,31 @@ export function AuditLogsPage({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
-              setErrorMessage(null);
-              void refreshLogs().catch(() => setErrorMessage("加载审计日志失败，请稍后重试。"));
-            }}
+            onClick={() => setRetryVersion((version) => version + 1)}
           >
             重试
           </Button>
         </div>
       ) : null}
 
-      {isLoading ? (
+      {isLoading && logItems.length === 0 ? (
         <ListPageSkeleton label="正在加载审计日志..." />
       ) : (
         <>
-          <AuditLogTable logs={logItems} />
-          <nav
+          <div className="flex justify-end">
+            <DataTableViewOptions table={table} />
+          </div>
+          <AuditLogTable table={table} />
+          <Pagination
             aria-label="审计日志分页"
-            className="flex items-center justify-end gap-3 text-sm text-muted-foreground"
-          >
-            <Button
-              disabled={(search.page ?? 1) <= 1}
-              size="sm"
-              variant="outline"
-              onClick={() => onSearchChange?.({ ...search, page: (search.page ?? 1) - 1 })}
-            >
-              上一页
-            </Button>
-            <span>第 {search.page ?? 1} 页</span>
-            <Button
-              disabled={logItems.length === 0}
-              size="sm"
-              variant="outline"
-              onClick={() => onSearchChange?.({ ...search, page: (search.page ?? 1) + 1 })}
-            >
-              下一页
-            </Button>
-          </nav>
+            page={search.page ?? 1}
+            pageSize={search.pageSize ?? 50}
+            pending={isLoading}
+            pendingLabel="加载中"
+            hasNextPage={logItems.length > 0}
+            onPageSizeChange={(pageSize) => onSearchChange?.({ ...search, page: 1, pageSize })}
+            onPageChange={(page) => onSearchChange?.({ ...search, page })}
+          />
         </>
       )}
     </main>
@@ -145,6 +142,7 @@ function toAuditLogQuery(search: AuditLogSearch): ListAuditLogsQuery {
     actorUserId: search.actorUserId,
     from: search.from ? new Date(`${search.from}T00:00:00.000Z`) : undefined,
     page: search.page ?? 1,
+    ...(search.pageSize ? { pageSize: search.pageSize } : {}),
     targetType: search.targetType,
     to: search.to ? new Date(`${search.to}T23:59:59.999Z`) : undefined,
   };

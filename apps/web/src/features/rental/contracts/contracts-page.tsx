@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { PermissionKey } from "@xpense/shared";
-
 import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
+import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ApiError } from "../../../services/api-client";
@@ -81,7 +81,8 @@ export function ContractsPage({
         <QueryError error={query.error} retry={() => void query.refetch()} />
       </main>
     );
-  const items = query.data?.items ?? [];
+  const pageData = query.data;
+  const items = pageData?.items ?? [];
   return (
     <main className="space-y-4 p-4 sm:p-6 lg:p-8">
       <PageHeader />
@@ -95,14 +96,16 @@ export function ContractsPage({
         <ContractTable items={items} onNavigate={openDetail} />
       )}
       <ListRefreshIndicator active={query.isFetching} label="正在更新合同列表..." />
-      {query.data && (items.length > 0 || query.data.page > 1) ? (
+      {pageData && (items.length > 0 || pageData.page > 1) ? (
         <Pagination
-          page={query.data.page}
-          pageSize={query.data.pageSize}
-          total={query.data.total}
+          page={pageData.page}
+          pageSize={pageData.pageSize}
+          total={pageData.total}
           pending={query.isFetching}
-          search={normalizedSearch}
-          onChange={changeSearch}
+          onPageSizeChange={(pageSize) => changeSearch({ ...normalizedSearch, page: 1, pageSize })}
+          onPageChange={(page) =>
+            changeSearch({ ...normalizedSearch, page, pageSize: pageData.pageSize })
+          }
         />
       ) : null}
     </main>
@@ -128,43 +131,6 @@ function QueryError({ error, retry }: { error: unknown; retry: () => void }) {
         : "加载合同失败，请稍后重试。"}
       <Button variant="link" className="ml-2 px-0" onClick={retry}>
         重试
-      </Button>
-    </div>
-  );
-}
-function Pagination({
-  page,
-  pageSize,
-  total,
-  pending,
-  search,
-  onChange,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-  pending: boolean;
-  search: ListRentalContractsQuery;
-  onChange: (search: ListRentalContractsQuery) => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
-      <span>
-        第 {page} 页，共 {total} 个合同
-      </span>
-      <Button
-        variant="outline"
-        disabled={page <= 1 || pending}
-        onClick={() => onChange({ ...search, page: page - 1, pageSize })}
-      >
-        上一页
-      </Button>
-      <Button
-        variant="outline"
-        disabled={page * pageSize >= total || pending}
-        onClick={() => onChange({ ...search, page: page + 1, pageSize })}
-      >
-        下一页
       </Button>
     </div>
   );

@@ -202,14 +202,14 @@ describe("TenantsPage", () => {
     });
     const { queryClient } = renderPage({ api });
     expect(await screen.findByRole("link", { name: "张三" })).toBeInTheDocument();
-    expect(screen.getByText("第 2 页，共 41 个租客")).toBeInTheDocument();
+    expect(screen.getByText("第 2 页，共 3 页")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "上一页" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "下一页" })).toBeInTheDocument();
     await queryClient.refetchQueries({ queryKey: ["rental", "org-a", "tenants"] });
     expect(await screen.findByText("你没有查看租客的权限。")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "张三" })).not.toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.queryByText("第 2 页，共 41 个租客")).not.toBeInTheDocument();
+    expect(screen.queryByText("第 2 页，共 3 页")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "上一页" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "下一页" })).not.toBeInTheDocument();
   });

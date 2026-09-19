@@ -1,16 +1,14 @@
 import type { ColumnDef } from "@tanstack/react-table";
-
-import { DataTableColumnHeader } from "@/components/data-table";
 import type { AuditLogRecord } from "../../services/iam-api";
+import type { auditTableFeatures } from "./audit-log-table";
 
-// biome-ignore lint/suspicious/noExplicitAny: ColumnDef needs features type, using any for flexibility
-type AuditLogColumnDef = ColumnDef<any, AuditLogRecord>;
+type AuditLogColumnDef = ColumnDef<typeof auditTableFeatures, AuditLogRecord>;
 
 export function createAuditLogColumns(): AuditLogColumnDef[] {
   return [
     {
       accessorKey: "createdAt",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="发生时间" />,
+      header: () => <span>发生时间</span>,
       cell: ({ row }) => (
         <span className="font-medium">
           {dateTimeFormatter.format(new Date(row.original.createdAt))}
@@ -19,7 +17,7 @@ export function createAuditLogColumns(): AuditLogColumnDef[] {
     },
     {
       accessorKey: "action",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="操作" />,
+      header: () => <span>操作</span>,
     },
     {
       accessorKey: "actorUserId",
@@ -28,7 +26,7 @@ export function createAuditLogColumns(): AuditLogColumnDef[] {
     },
     {
       accessorKey: "targetType",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="目标类型" />,
+      header: () => <span>目标类型</span>,
     },
     {
       accessorKey: "targetId",
@@ -37,18 +35,13 @@ export function createAuditLogColumns(): AuditLogColumnDef[] {
     },
     {
       accessorKey: "result",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="结果" />,
+      header: () => <span>结果</span>,
       cell: ({ row }) => (row.original.result === "succeeded" ? "成功" : "失败"),
-      filterFn: (row, _columnId, filterValue: unknown) => {
-        if (!filterValue) return true;
-        return row.original.result === filterValue;
-      },
     },
     {
       accessorKey: "metadata",
       header: () => <span>元数据摘要</span>,
       cell: ({ row }) => getMetadataSummary(row.original.metadata),
-      enableSorting: false,
     },
   ];
 }

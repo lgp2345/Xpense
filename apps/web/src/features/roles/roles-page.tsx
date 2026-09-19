@@ -1,7 +1,9 @@
 import type { PermissionKey, PermissionTreeNode } from "@xpense/shared";
 import { useEffect, useState } from "react";
-
+import { DataTableToolbar } from "@/components/data-table/toolbar";
+import { useClientTable } from "@/components/data-table/use-client-table";
 import { ListPageSkeleton } from "@/components/list-loading-state";
+import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import type {
   CreateRoleRequest,
@@ -10,6 +12,7 @@ import type {
   UpdateRoleRequest,
 } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
+import { createRoleColumns } from "./role-columns";
 import { RoleEditorDialog, type RoleEditorInput, RoleEditorSaveError } from "./role-editor-dialog";
 import { RoleTable } from "./role-table";
 
@@ -179,6 +182,18 @@ export function RolesPage({
 
   const canCreate = permissions.includes("roles:create");
 
+  const table = useClientTable(
+    roles,
+    createRoleColumns({
+      canUpdatePermissions,
+      isMutating,
+      permissions,
+      permissionTree: availablePermissionTree,
+      onDelete: handleDelete,
+      onUpdate: handleUpdate,
+    }),
+  );
+
   return (
     <main className="space-y-4 p-4 sm:p-6 lg:p-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -210,16 +225,35 @@ export function RolesPage({
 
       {isLoading ? (
         <ListPageSkeleton label="正在加载角色和权限..." />
+      ) : roles.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">当前没有角色。</p>
       ) : (
-        <RoleTable
-          canUpdatePermissions={canUpdatePermissions}
-          isMutating={isMutating}
-          permissionTree={availablePermissionTree}
-          permissions={permissions}
-          roles={roles}
-          onDelete={handleDelete}
-          onUpdate={handleUpdate}
-        />
+        <>
+          <DataTableToolbar
+            table={table}
+            searchPlaceholder="搜索角色..."
+            filters={[
+              {
+                columnId: "isSystem",
+                title: "类型",
+                options: [
+                  { label: "系统角色", value: "true" },
+                  { label: "自定义角色", value: "false" },
+                ],
+              },
+            ]}
+          />
+
+          <RoleTable table={table} />
+          <Pagination
+            page={table.state.pagination.pageIndex + 1}
+            pageSize={table.state.pagination.pageSize}
+            total={table.getFilteredRowModel().rows.length}
+            pending={isMutating}
+            onPageChange={(page) => table.setPageIndex(page - 1)}
+            onPageSizeChange={(pageSize) => table.setPageSize(pageSize)}
+          />
+        </>
       )}
     </main>
   );
