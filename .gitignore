@@ -40,3 +40,5 @@ Thumbs.db
 
 # drizzle
 drizzle/meta
+# Added by code-review-graph
+.code-review-graph/
