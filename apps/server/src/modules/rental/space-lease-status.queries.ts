@@ -80,8 +80,8 @@ export function buildSpaceLeaseStatusQuery(input: SpaceLeaseStatusQueryInput): S
       COALESCE(bool_or("relations"."relation" = 'own' AND "candidate_contracts"."start_date" <= ${input.today}::date AND ${input.today}::date < "candidate_contracts"."actual_end" - INTERVAL '30 days'), FALSE) AS "hasOwnActive",
       COALESCE(bool_or("relations"."relation" = 'own' AND "candidate_contracts"."start_date" <= ${input.today}::date AND ${input.today}::date >= "candidate_contracts"."actual_end" - INTERVAL '30 days' AND ${input.today}::date <= "candidate_contracts"."actual_end"), FALSE) AS "hasOwnExpiringSoon",
       COALESCE(bool_or("relations"."relation" = 'own' AND "candidate_contracts"."start_date" > ${input.today}::date), FALSE) AS "hasOwnUpcoming",
-      COALESCE(bool_or("relations"."relation" = 'ancestor'), FALSE) AS "hasAncestorCurrentOrUpcoming",
-      COALESCE(bool_or("relations"."relation" = 'descendant'), FALSE) AS "hasDescendantCurrentOrUpcoming"
+      COALESCE(bool_or("relations"."relation" = 'ancestor' AND "candidate_contracts"."id" IS NOT NULL), FALSE) AS "hasAncestorCurrentOrUpcoming",
+      COALESCE(bool_or("relations"."relation" = 'descendant' AND "candidate_contracts"."id" IS NOT NULL), FALSE) AS "hasDescendantCurrentOrUpcoming"
     FROM "requested"
     LEFT JOIN "relations" ON "relations"."requested_id" = "requested"."space_id"
     LEFT JOIN ${rentalContractSpaces} AS "contract_space"

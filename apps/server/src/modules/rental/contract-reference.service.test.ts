@@ -170,6 +170,25 @@ describe("ContractReferenceService", () => {
     expect(stateSql.params).toEqual(expect.arrayContaining(["org-1", "property-1", "2026-08-31"]));
   });
 
+  it.each([
+    ["ancestor", "hasAncestorCurrentOrUpcoming"],
+    ["descendant", "hasDescendantCurrentOrUpcoming"],
+  ])("requires a matching eligible contract before %s spaces block leasing", (relation, field) => {
+    const { sql } = new PgDialect().sqlToQuery(
+      buildSpaceLeaseStatusQuery({
+        organizationId: "org-1",
+        propertyId: "property-1",
+        spaceIds: ["space-1"],
+        today: "2026-08-31",
+      }),
+    );
+
+    // LEFT JOIN 保留无合同、草稿及已过期合同的空间，不能仅凭层级关系阻塞出租。
+    expect(sql).toContain(
+      `bool_or("relations"."relation" = '${relation}' AND "candidate_contracts"."id" IS NOT NULL), FALSE) AS "${field}"`,
+    );
+  });
+
   it("includes the root ancestor when deriving descendant blocking", () => {
     const sql = new PgDialect()
       .sqlToQuery(
