@@ -139,8 +139,8 @@ const spaces = sql<RentalContractSpaceRecord[]>`COALESCE((
     ON "space"."organization_id" = "contract_space"."organization_id"
     AND "space"."property_id" = "contract_space"."property_id"
     AND "space"."id" = "contract_space"."space_id"
-  WHERE "contract_space"."organization_id" = ${rentalContracts.organizationId}
-    AND "contract_space"."contract_id" = ${rentalContracts.id}
+  WHERE "contract_space"."organization_id" = "rental_contracts"."organization_id"
+    AND "contract_space"."contract_id" = "rental_contracts"."id"
 ), '[]'::jsonb)`;
 
 const parties = sql<RentalContractPartyPeriodRecord[]>`COALESCE((
@@ -164,8 +164,8 @@ const parties = sql<RentalContractPartyPeriodRecord[]>`COALESCE((
   LEFT JOIN ${rentalTenants} AS "tenant"
     ON "tenant"."organization_id" = "period"."organization_id"
     AND "tenant"."id" = "period"."tenant_id"
-  WHERE "period"."organization_id" = ${rentalContracts.organizationId}
-    AND "period"."contract_id" = ${rentalContracts.id}
+  WHERE "period"."organization_id" = "rental_contracts"."organization_id"
+    AND "period"."contract_id" = "rental_contracts"."id"
 ), '[]'::jsonb)`;
 
 const depositTerms = sql<RentalContractDepositRecord[]>`COALESCE((
@@ -180,8 +180,8 @@ const depositTerms = sql<RentalContractDepositRecord[]>`COALESCE((
     'sortOrder', "deposit"."sort_order"
   ) ORDER BY "deposit"."sort_order", "deposit"."id")
   FROM ${rentalContractDepositTerms} AS "deposit"
-  WHERE "deposit"."organization_id" = ${rentalContracts.organizationId}
-    AND "deposit"."contract_id" = ${rentalContracts.id}
+  WHERE "deposit"."organization_id" = "rental_contracts"."organization_id"
+    AND "deposit"."contract_id" = "rental_contracts"."id"
 ), '[]'::jsonb)`;
 
 /** 合同聚合详情字段；草稿回退到当前主档，确认后优先读取固化快照。 */

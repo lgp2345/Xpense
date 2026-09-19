@@ -112,6 +112,25 @@ describe("ContractsRepository queries", () => {
     expect(sql).toContain('"contract_space"."contract_id" = "rental_contracts"."id"');
   });
 
+  it.each([
+    "contract_space",
+    "period",
+    "deposit",
+  ])("qualifies outer contract columns in the %s detail subquery", (alias) => {
+    const query = buildContractDetailQuery(
+      new QueryBuilder() as never,
+      "organization-1",
+      "contract-1",
+      "2026-08-30",
+    ).toSQL();
+    const sql = normalizeSql(query.sql);
+
+    expect(sql).toContain(`"${alias}"."organization_id" = "rental_contracts"."organization_id"`);
+    expect(sql).toContain(`"${alias}"."contract_id" = "rental_contracts"."id"`);
+    expect(sql).not.toContain(`"${alias}"."organization_id" = "organization_id"`);
+    expect(sql).not.toContain(`"${alias}"."contract_id" = "id"`);
+  });
+
   it("reads confirmed tenant and space names from frozen snapshots after source records are renamed", () => {
     const detail = buildContractDetailQuery(
       new QueryBuilder() as never,
