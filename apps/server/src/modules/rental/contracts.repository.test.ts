@@ -91,6 +91,27 @@ describe("ContractsRepository queries", () => {
     expect(normalizeSql(query.sql)).toContain('"termination_date"');
   });
 
+  it("qualifies correlated contract columns in list summary subqueries", () => {
+    const query = buildContractListQuery(
+      new QueryBuilder() as never,
+      "organization-1",
+      "2026-08-20",
+      { page: 1, pageSize: 20 },
+    ).toSQL();
+    const sql = normalizeSql(query.sql);
+
+    expect(sql).toContain(
+      '"rental_properties"."organization_id" = "rental_contracts"."organization_id"',
+    );
+    expect(sql).toContain('"rental_properties"."id" = "rental_contracts"."property_id"');
+    expect(sql).toContain('"period"."organization_id" = "rental_contracts"."organization_id"');
+    expect(sql).toContain('"period"."contract_id" = "rental_contracts"."id"');
+    expect(sql).toContain(
+      '"contract_space"."organization_id" = "rental_contracts"."organization_id"',
+    );
+    expect(sql).toContain('"contract_space"."contract_id" = "rental_contracts"."id"');
+  });
+
   it("reads confirmed tenant and space names from frozen snapshots after source records are renamed", () => {
     const detail = buildContractDetailQuery(
       new QueryBuilder() as never,

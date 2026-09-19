@@ -74,8 +74,8 @@ export const contractPartySensitiveSnapshotFields = {
 const propertyName = sql<string>`(
   SELECT ${rentalProperties.name}
   FROM ${rentalProperties}
-  WHERE ${rentalProperties.organizationId} = ${rentalContracts.organizationId}
-    AND ${rentalProperties.id} = ${rentalContracts.propertyId}
+  WHERE "rental_properties"."organization_id" = "rental_contracts"."organization_id"
+    AND "rental_properties"."id" = "rental_contracts"."property_id"
   LIMIT 1
 )`;
 
@@ -85,8 +85,8 @@ const tenantNames = sql<string[]>`COALESCE(ARRAY(
   LEFT JOIN ${rentalTenants} AS "tenant"
     ON "tenant"."organization_id" = "period"."organization_id"
     AND "tenant"."id" = "period"."tenant_id"
-  WHERE "period"."organization_id" = ${rentalContracts.organizationId}
-    AND "period"."contract_id" = ${rentalContracts.id}
+  WHERE "period"."organization_id" = "rental_contracts"."organization_id"
+    AND "period"."contract_id" = "rental_contracts"."id"
   ORDER BY COALESCE("period"."tenant_name_snapshot", "tenant"."name")
 ), ARRAY[]::text[])`;
 
@@ -97,8 +97,8 @@ const spaceNames = sql<string[]>`COALESCE(ARRAY(
     ON "space"."organization_id" = "contract_space"."organization_id"
     AND "space"."property_id" = "contract_space"."property_id"
     AND "space"."id" = "contract_space"."space_id"
-  WHERE "contract_space"."organization_id" = ${rentalContracts.organizationId}
-    AND "contract_space"."contract_id" = ${rentalContracts.id}
+  WHERE "contract_space"."organization_id" = "rental_contracts"."organization_id"
+    AND "contract_space"."contract_id" = "rental_contracts"."id"
   ORDER BY COALESCE("contract_space"."space_name_snapshot", "space"."name")
 ), ARRAY[]::text[])`;
 
