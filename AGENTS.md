@@ -1,126 +1,73 @@
 # AGENTS.md
 
-## 项目与规则范围
+## 范围与文档职责
 
-个人记账系统，包括 APP 端、WEB 端和 API 服务。
+- 默认使用中文沟通，保持现有代码风格和目录约定。
+- 本文件规定全项目 Agent 执行规则；子目录 `AGENTS.md` 继承本文件并补充局部约束。
+- 修改前阅读目标目录适用的 `AGENTS.md` 和 `ARCHITECTURE.md`；架构、技术栈、目录职责与系统边界以架构文档为准。
+- 项目规范优先于通用技能；技能不得单独授权写入、安装依赖、Git 操作或扩大任务范围。规范冲突影响当前任务时先说明并确认。
 
-- 本文件只记录 Agent 执行规则；架构、技术栈、目录职责和系统边界详见同目录 `ARCHITECTURE.md`。
-- 默认使用中文沟通、说明和评审。
-- 本文件、目标目录下更具体的 `AGENTS.md` 和 `ARCHITECTURE.md` 优先于通用技能；技能不得单独授权写入、安装依赖、执行 Git 操作或扩大任务范围。
-- 执行任务时保持现有代码风格和目录约定。
+## 任务范围与授权
 
-## 动手前与授权
+- 动手前明确目标、范围和验收方式；非简单的多步骤任务给出简短计划，说明关键假设。
+- 仅当歧义会影响行为、接口、数据、安全、外部操作或造成大量返工时提问；低风险、可逆细节按现有模式处理。
+- 有更简单的方案或需求代价明显过高时，说明理由与取舍。
+- 明确的实施请求即授权范围内的可逆文件修改，无需重复确认；审阅、诊断和解释请求不授权写入。
+- 删除或移动文件、执行 migration、安装依赖、修改 lockfile、暂存、提交、推送和创建 PR，若未获当前请求明确授权，须说明范围和影响并等待确认；范围外或其他具有外部副作用的操作同样处理。
+- 新发现的稳定约定，先询问是否沉淀，再修改公共规范；用户已要求修改规范时按授权范围执行。
 
-- 先明确目标、范围、成功标准和不做什么；非简单的多步骤任务给出简短计划和对应验证方式。
-- 显式说明关键假设。只有歧义会实质影响验收标准、用户可见行为、公共接口、数据、安全边界、破坏性或外部操作，或可能造成大量返工时，才停止并提问；其他低风险、可逆细节依据现有模式作出合理假设，说明后继续。
-- 如果有明显更简单的方案，应主动提出；发现需求不合理或代价过高时说明理由和取舍。
-- 用户明确要求实施或修改且范围清晰时，该请求即授权任务范围内的可逆文件修改，无需重复确认；审阅、诊断和解释请求不授权写入。
-- 删除或移动文件、执行 migration、安装依赖、修改 lockfile、`git add`、提交、推送、创建 PR，以及任务范围外或具有外部副作用的操作，如未在当前请求中被明确授权，必须先说明目标和影响并等待确认。
-- 新发现的稳定约定，应先询问是否沉淀到公共规范，再修改 `AGENTS.md` 或相关架构文档。
+## 修改与架构边界
 
-## 简单且精准地修改
-
-- 只实现请求范围内的最小改动，不增加未要求的功能、配置项、扩展点或单次使用的抽象。
-- 不为已由类型、schema 或前置校验明确排除的场景增加防御分支；外部输入、I/O、网络和数据库失败不得视为不可能。实现明显可以更短、更直接时先简化。
-- 不顺手重构、清理或格式化相邻代码。发现无关问题可以说明，但未经要求不处理。
-- 每一处改动都应能直接追溯到用户请求，包括保持仓库一致所必需的相关测试、类型、调用方、文档和 migration；不得借机清理或重构无关代码。
-- 更改既有功能、公共 API、数据结构、数据库表结构、接口路径或响应、金额或时间策略、权限边界，必须由用户明确要求，或由已批准方案准确覆盖其影响。
-- 只清理由本次改动产生的无用 import、变量、函数和文件；发现既有死代码只报告，不擅自删除。
-- 类型治理应服务于架构边界和业务表达，不把“修 TypeScript 类型”作为脱离业务边界的独立主线。
-
-## 架构边界
-
-- 不得为完成局部任务绕过 `ARCHITECTURE.md` 定义的边界；架构调整须遵守“动手前”的确认要求。
-- 前端不得直接依赖服务端内部实现或数据库层；APP 和 WEB 只通过服务端 API 访问业务数据。
-- 服务端是业务规则、权限边界、事务一致性和数据访问的唯一入口。
-- `packages/shared` 只放跨端稳定共享的类型、常量、纯工具函数，以及运行环境无关的校验和格式化逻辑。
-- 项目未上线阶段可以调整不合理的目录或路径，但迁移必须保持当前功能行为不变。
+- 只做请求及保持仓库一致所必需的改动，包括相关测试、类型、调用方、文档和 migration；不增加未要求的功能、配置项或单次使用的抽象。
+- 不顺手重构、格式化或清理无关代码；只清理由本次改动产生的无用内容，既有问题仅报告。
+- 不为类型、schema 或前置校验已排除的场景增加防御分支；外部输入、I/O、网络和数据库失败必须处理。
+- 行为、公共 API、数据结构、金额或时间策略、权限及架构边界的变更，必须由请求或已批准方案明确覆盖。
+- 遵守适用的 `ARCHITECTURE.md`，不得为局部任务绕过边界；目录或路径迁移保持行为不变，除非任务明确要求改变。
+- 类型治理服务于业务和架构边界，不作为脱离业务的独立重构主线。
 
 ## 文件体量与拆分
 
-- 文件行数是健康信号，不是机械 KPI；拆分应提升可读性、边界清晰度或可测试性。
-- 业务源文件原则上不超过 300 行。职责单一、阅读连续且拆分会增加跳转成本时可以保留，并在交付时说明。
-- 测试、schema、migration、lockfile、快照、生成文件和配置聚合文件可以例外，但仍应按语义分组。
-- 拆分优先级：可复用或可单测的纯函数 → 职责完整的展示组件 → 能降低主流程复杂度的 hook、service 或 use case → 必要的跨包抽象。
-- 不得为了压低行数创建只透传 props 的组件、含义模糊的 `helpers2`、`misc`、`common`、`utils`，或把连续业务流程拆成大量靠参数串联的小文件。
+- 业务源文件原则上不超过 300 行；职责单一且拆分增加阅读成本时可保留，并在交付时说明。
+- 测试、schema、migration、lockfile、快照、生成文件和配置聚合文件可例外，仍须按语义分组。
+- 仅为改善职责、可读性或可测试性拆分，优先纯函数和完整展示组件，再考虑 hook、service 或跨包抽象。
+- 不为压低行数创建透传组件、含义模糊的工具文件，或把连续业务流程拆成靠大量参数串联的小文件。
 
 ## 测试与验证
 
-- 新增业务逻辑必须有单元测试；金额计算、日期处理和权限判断必须覆盖对应规则。
-- 修复 bug 时先添加能复现问题的失败测试，再实现修复；重构前后相关测试都应通过。
-- API 关键流程需要集成测试。测试不得依赖真实外部服务，也不得为通过测试删除或弱化有效断言。
-- 将任务转化为可验证目标并持续验证。局部改动先运行目标文件或子项目检查，再按风险扩大范围。
-- 文档或配置改动至少检查 diff；代码改动按影响面选择 `pnpm lint`、`pnpm test`、`pnpm check`、`pnpm build`。
-- 验证范围必须支持实际声明，不得用局部结果声称全量通过。全量检查无法运行或存在与本次无关的既有失败时，可以交付已完成范围，但必须说明验证边界、失败来源和剩余风险，不得擅自修复无关失败。
-- 交付前运行 `git diff --check`，并确认相关测试通过；无法运行的检查必须说明原因。
+- 新增业务逻辑必须有单元测试；金额、日期和权限规则必须覆盖。
+- 修复 bug 先补充能复现问题的失败测试，再实现修复；重构前后相关测试均应通过。
+- API 关键流程需要集成测试；测试不依赖真实外部服务，不删除或弱化有效断言。
+- 先验证目标文件或子项目，再按风险扩大范围；文档改动检查 diff，代码和配置改动按影响选择 lint、test、check、build。
+- 交付前运行 `git diff --check`；验证结论限于实际执行范围，未运行项及既有失败须说明原因、边界和风险，不擅自修复无关失败。
 
 ## 开发命令与文档查询
 
-- 默认使用 pnpm，通过 Turborepo 编排任务。常用命令：`pnpm dev`、`pnpm build`、`pnpm test`、`pnpm lint`、`pnpm check`。
-- 子项目命令以对应 `package.json` scripts 和 `turbo.json` pipeline 为准。
-- 涉及库、框架、SDK、API、CLI 工具或云服务时，必须使用 ctx7 查询当前文档。
+- 使用 pnpm，通过 Turborepo 编排；具体命令以对应 `package.json` scripts 和 `turbo.json` 为准。
+- 涉及第三方库、框架、SDK、外部 API、CLI 或云服务的当前用法时，必须使用 ctx7 查询文档。
 
 ## 日志与敏感信息
 
-- 禁止使用 `console.log`、`console.warn`、`console.error`；服务端必须使用结构化 logger。
-- 不得在代码、配置、文档、测试或日志中写入真实密码、token、银行卡号、连接串、JWT secret 或第三方密钥。
-- 错误日志应包含可追踪上下文，但不得泄露用户隐私。
+- 禁止 `console.log`、`console.warn`、`console.error`；服务端使用结构化 logger。
+- 代码、配置、文档、测试和日志不得写入真实密码、token、银行卡号、连接串或密钥。
+- 错误日志包含可追踪上下文，不泄露用户隐私。
 
 ## Git 与协作安全
 
-- 不得执行 `git reset --hard`、`git checkout --`、`git restore` 等可能覆盖改动的命令，除非用户明确要求。
-- 工作区存在未提交改动时，必须区分本次与既有改动，不得回滚、覆盖或格式化无关文件。
-- 多 Agent 并行时必须划分互不重叠的写入范围；Agent 之间不得回滚、覆盖或格式化彼此改动。
-- 主线程负责最终集成、冲突判断、验证收口和剩余风险统计。
+- 未经明确要求，不执行 `git reset --hard`、`git checkout --`、`git restore` 等可能覆盖改动的命令。
+- 区分本次与既有未提交改动，不回滚、覆盖或格式化无关文件。
+- 多 Agent 并行须划分互不重叠的写入范围；主线程负责集成、冲突判断、验证和剩余风险统计。
 
 ## 交付与提交
 
-- 交付时说明修改文件、验证命令及结果、未执行项和剩余风险；较大改动还需说明值得继续治理的热点。
-- 提交前确认已满足“测试与验证”及“日志与敏感信息”规则。
-- 提交信息前缀：`feat` 新功能、`fix` 修复、`refactor` 重构、`docs` 文档、`test` 测试、`chore` 工具链/依赖/配置、`ci` CI/CD、`perf` 性能优化。
+- 交付说明修改文件、验证结果、未执行项和剩余风险；较大改动补充值得继续治理的热点。
+- 提交前满足测试、验证与敏感信息规则。
+- 提交前缀：`feat` 功能、`fix` 修复、`refactor` 重构、`docs` 文档、`test` 测试、`chore` 工具链/依赖/配置、`ci` CI/CD、`perf` 性能。
 
 <!-- code-review-graph MCP tools -->
-## MCP Tools: code-review-graph
+## 代码图导航
 
-**This project has a knowledge graph. Start with the code-review-graph
-MCP tools to narrow scope, then read the source.** The graph is cheaper than scanning files and
-gives you structural context (callers, dependents, test coverage) that file search cannot.
-
-### When to use graph tools FIRST
-
-- **Exploring code**: `semantic_search_nodes_tool` or `query_graph_tool` instead of Grep
-- **Understanding impact**: `get_impact_radius_tool` instead of manually tracing imports
-- **Code review**: `detect_changes_tool` + `get_review_context_tool` instead of reading entire files
-- **Finding relationships**: `query_graph_tool` with callers_of/callees_of/imports_of/tests_for
-- **Architecture questions**: `get_architecture_overview_tool` + `list_communities_tool`
-
-### Verify in the source
-
-- Narrow scope with the graph, then read the source. Do not change code from graph output alone.
-- For any non-trivial change, read the implementation and the relevant tests before concluding.
-- Verify the exact source when touching behavior, database logic, migrations, retries, fallbacks,
-  recovery, or compatibility code.
-- When the graph and the source disagree, the source wins. The graph may be stale or may not
-  model that relationship.
-- An empty graph result can mean "not indexed" or "not statically visible", not "does not exist".
-
-### Key Tools
-
-| Tool | Use when |
-| ------ | ---------- |
-| `detect_changes_tool` | Reviewing code changes — gives risk-scored analysis |
-| `get_review_context_tool` | Need source snippets for review — token-efficient |
-| `get_impact_radius_tool` | Understanding blast radius of a change |
-| `get_affected_flows_tool` | Finding which execution paths are impacted |
-| `query_graph_tool` | Tracing callers, callees, imports, tests, dependencies |
-| `semantic_search_nodes_tool` | Finding functions/classes by name or keyword |
-| `get_architecture_overview_tool` | Understanding high-level codebase structure |
-| `refactor_tool` | Planning renames, finding dead code |
-
-### Workflow
-
-1. The graph auto-updates on file changes (via hooks).
-2. Use `detect_changes_tool` for code review.
-3. Use `get_affected_flows_tool` to understand impact.
-4. Use `query_graph_tool` pattern="tests_for" to check coverage.
+- 探索代码和分析调用关系先用 `semantic_search_nodes_tool` 或 `query_graph_tool`；架构问题用 `get_architecture_overview_tool`。
+- 代码评审先用 `detect_changes_tool` 和 `get_review_context_tool`；影响分析用 `get_impact_radius_tool`、`get_affected_flows_tool`，测试关系用 `query_graph_tool` 的 `tests_for`。
+- 图只用于缩小范围；结论须核对源码，非简单变更还须阅读相关测试。图与源码不一致时以源码为准。
+- 图过期、不可用或未索引目标时，说明限制并直接检索源码；空结果不表示目标不存在。纯文档任务可直接检索文件。
 <!-- /code-review-graph MCP tools -->
