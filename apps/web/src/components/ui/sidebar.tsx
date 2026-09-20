@@ -25,6 +25,15 @@ const SIDEBAR_WIDTH_MOBILE = '18rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+
+  return (
+    target.isContentEditable ||
+    target.closest('input, textarea, select, [contenteditable=true]') !== null
+  )
+}
+
 type SidebarContextValue = {
   state: 'expanded' | 'collapsed'
   open: boolean
@@ -80,12 +89,15 @@ function SidebarProvider({
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         typeof event.key !== 'string' ||
-        (event.key.toLowerCase() === SIDEBAR_KEYBOARD_SHORTCUT &&
-          (event.metaKey || event.ctrlKey))
+        event.key.toLowerCase() !== SIDEBAR_KEYBOARD_SHORTCUT ||
+        (!event.metaKey && !event.ctrlKey) ||
+        isEditableTarget(event.target)
       ) {
-        event.preventDefault()
-        toggleSidebar()
+        return
       }
+
+      event.preventDefault()
+      toggleSidebar()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
