@@ -179,13 +179,10 @@ export function PageCacheHost({
       }
 
       const target = currentStore.getCloseTarget(identity);
-
-      if (!target) {
-        return;
-      }
+      const targetHref = target?.href ?? "/";
 
       void Promise.resolve()
-        .then(() => navigate(target.href))
+        .then(() => navigate(targetHref))
         .then(() => {
           currentStore.remove(identity);
           rerender();

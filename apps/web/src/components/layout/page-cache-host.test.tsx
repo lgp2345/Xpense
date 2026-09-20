@@ -95,7 +95,9 @@ function createPage({
   };
 }
 
-function createRegisteredPageDescriptor(routeKey: "Members" | "Roles"): RegisteredPageDescriptor {
+function createRegisteredPageDescriptor(
+  routeKey: "Dashboard" | "Members" | "Roles",
+): RegisteredPageDescriptor {
   return {
     routeKey,
     cacheParams: {},
@@ -108,7 +110,12 @@ function cacheableMenus(...menuIds: number[]): ReadonlySet<number> {
 }
 
 function authorizedMenu(routeKey: RouteKey, id: number, keepAlive = true): AuthorizedMenuNode {
-  const permissionCode = routeKey === "Members" ? "members:read" : "roles:read";
+  const permissionCode =
+    routeKey === "Dashboard"
+      ? "dashboard:read"
+      : routeKey === "Members"
+        ? "members:read"
+        : "roles:read";
 
   return {
     id,
@@ -119,7 +126,7 @@ function authorizedMenu(routeKey: RouteKey, id: number, keepAlive = true): Autho
     icon: null,
     isVisible: true,
     routeKey,
-    path: routeKey === "Members" ? "/members" : "/roles",
+    path: routeKey === "Dashboard" ? "/" : routeKey === "Members" ? "/members" : "/roles",
     url: null,
     permissionCode,
     isExternal: false,
@@ -213,6 +220,27 @@ describe("PageCacheHost", () => {
     await act(async () => Promise.resolve());
 
     expect(screen.getByRole("button", { name: "roles" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "members" })).toBeInTheDocument();
+  });
+
+  it("keeps the last tab when navigation to the home page fails", async () => {
+    const user = userEvent.setup();
+    const navigate = vi.fn().mockRejectedValue(new Error("navigation failed"));
+
+    render(
+      <PageCacheHost
+        activePage={createPage({ label: "members", menuId: 1 })}
+        authorizationVersion={AUTHORIZATION_VERSION_1}
+        cacheableMenuIds={cacheableMenus(1)}
+        navigate={navigate}
+        scopeKey="org-1"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "关闭“members”" }));
+    await act(async () => Promise.resolve());
+
+    expect(navigate).toHaveBeenCalledWith("/");
     expect(screen.getByRole("button", { name: "members" })).toBeInTheDocument();
   });
 
@@ -352,6 +380,118 @@ describe("PageCacheHost", () => {
 
     expect(navigate).toHaveBeenNthCalledWith(1, "/roles");
     expect(navigate).toHaveBeenNthCalledWith(2, "/members?page=2");
+  });
+
+  it("navigates between cached tabs through the real router", async () => {
+    const user = userEvent.setup();
+    const membersMenu = authorizedMenu("Members", 1);
+    const rolesMenu = authorizedMenu("Roles", 2);
+    const authStore = createAuthStore({ accessToken: "access-token" });
+    authStore.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock
+      .onGet(/\/menus$/)
+      .reply(200, { code: "OK", message: "ok", data: [membersMenu, rolesMenu] });
+    mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
+    const session = createWebSession({ authStore, baseUrl: "http://localhost:4000", instance });
+    await vi.waitFor(() => expect(session.menuStore.getState().status).toBe("ready"));
+    const rootRoute = createRootRoute({
+      component: () => <AuthenticatedLayout session={session} />,
+    });
+    const membersRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/members",
+      staticData: { routeKey: "Members" },
+      beforeLoad: () => ({ registeredPage: createRegisteredPageDescriptor("Members") }),
+      component: () => null,
+    });
+    const rolesRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/roles",
+      staticData: { routeKey: "Roles" },
+      beforeLoad: () => ({ registeredPage: createRegisteredPageDescriptor("Roles") }),
+      component: () => null,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([membersRoute, rolesRoute]),
+      history: createMemoryHistory({ initialEntries: ["/members"] }),
+    });
+
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByTestId("page-Members")).toBeVisible();
+    await act(async () => router.navigate({ to: "/roles" } as never));
+    expect(await screen.findByTestId("page-Roles")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Members" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/members"));
+    expect(screen.getByTestId("page-Members")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Members" })).toHaveAttribute("aria-current", "page");
+
+    await user.click(screen.getByRole("button", { name: "Roles" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/roles"));
+    expect(screen.getByTestId("page-Roles")).toBeVisible();
+  });
+
+  it("closes the last cached tab and navigates to the dashboard", async () => {
+    const user = userEvent.setup();
+    const dashboardMenu = authorizedMenu("Dashboard", 1);
+    const membersMenu = authorizedMenu("Members", 2);
+    const authStore = createAuthStore({ accessToken: "access-token" });
+    authStore.getState().setCurrentUserContext(userContext);
+    const instance = axios.create();
+    const mock = new MockAdapter(instance);
+    mock
+      .onGet(/\/menus$/)
+      .reply(200, { code: "OK", message: "ok", data: [dashboardMenu, membersMenu] });
+    mock.onAny().reply(200, { code: "OK", message: "ok", data: [] });
+    const session = createWebSession({ authStore, baseUrl: "http://localhost:4000", instance });
+    await vi.waitFor(() => expect(session.menuStore.getState().status).toBe("ready"));
+    const rootRoute = createRootRoute({
+      component: () => <AuthenticatedLayout session={session} />,
+    });
+    const dashboardRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/",
+      staticData: { routeKey: "Dashboard" },
+      beforeLoad: () => ({ registeredPage: createRegisteredPageDescriptor("Dashboard") }),
+      component: () => null,
+    });
+    const membersRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/members",
+      staticData: { routeKey: "Members" },
+      beforeLoad: () => ({ registeredPage: createRegisteredPageDescriptor("Members") }),
+      component: () => null,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([dashboardRoute, membersRoute]),
+      history: createMemoryHistory({ initialEntries: ["/members"] }),
+    });
+
+    render(
+      <AppProviders>
+        <RouterProvider router={router} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByTestId("page-Members")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Dashboard" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "关闭“Members”" }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    expect(await screen.findByTestId("page-Dashboard")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Members" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dashboard" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 
   it("switches cached pages between visible and hidden while preserving React and DOM state", async () => {

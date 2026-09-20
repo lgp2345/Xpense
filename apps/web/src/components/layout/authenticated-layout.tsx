@@ -1,4 +1,4 @@
-import { Outlet, useLocation, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { RouteKey } from "@xpense/shared";
 import { type JSX, useCallback, useMemo } from "react";
 import { useStore } from "zustand";
@@ -23,7 +23,9 @@ export function AuthenticatedLayout({
   session,
   requiresMenuBootstrap = true,
 }: AuthenticatedLayoutProps): JSX.Element {
-  const href = useLocation({ select: (location) => location.href });
+  const href = useRouterState({
+    select: (state) => state.resolvedLocation?.href ?? state.location.href,
+  });
   const navigate = useNavigate();
   const leafMatch = useRouterState({ select: (state) => state.matches.at(-1) });
   const leafContext =

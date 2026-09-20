@@ -37,26 +37,32 @@ describe("PageTabs", () => {
     expect(onClose).toHaveBeenCalledWith("Members:{}");
   });
 
-  it("prevents closing the last remaining page", () => {
+  it("allows closing the last remaining page", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+
     render(
       <PageTabs
         activeIdentity="Members:{}"
         onActivate={vi.fn()}
-        onClose={vi.fn()}
+        onClose={onClose}
         tabs={[tabs[0]]}
       />,
     );
 
-    expect(screen.getByRole("button", { name: "关闭“成员管理”" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "关闭“成员管理”" }));
+
+    expect(onClose).toHaveBeenCalledWith("Members:{}");
   });
 
-  it("does not render an empty navigation landmark", () => {
+  it("reserves the tab strip height without rendering an empty navigation landmark", () => {
     render(<PageTabs activeIdentity={null} onActivate={vi.fn()} onClose={vi.fn()} tabs={[]} />);
 
     expect(screen.queryByRole("navigation", { name: "已打开页面" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("page-tabs-spacer")).toHaveClass("h-10");
   });
 
-  it("keeps the active tab visible when selection changes", () => {
+  it("keeps the active tab visible without scrolling the document", () => {
     const scrollIntoView = vi.fn();
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
@@ -65,12 +71,38 @@ describe("PageTabs", () => {
     const view = render(
       <PageTabs activeIdentity="Members:{}" onActivate={vi.fn()} onClose={vi.fn()} tabs={tabs} />,
     );
+    const navigation = screen.getByRole("navigation", { name: "已打开页面" });
+    const rolesTab = screen.getByRole("button", { name: "角色管理" }).parentElement;
+
+    Object.defineProperty(navigation, "scrollLeft", {
+      configurable: true,
+      value: 0,
+      writable: true,
+    });
+    navigation.getBoundingClientRect = () => createRect(0, 100);
+    if (!rolesTab) throw new Error("角色管理标签容器不存在");
+    rolesTab.getBoundingClientRect = () => createRect(120, 200);
 
     view.rerender(
       <PageTabs activeIdentity="Roles:{}" onActivate={vi.fn()} onClose={vi.fn()} tabs={tabs} />,
     );
 
-    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest", inline: "nearest" });
+    expect(navigation.scrollLeft).toBe(100);
+    expect(scrollIntoView).not.toHaveBeenCalled();
     Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
   });
 });
+
+function createRect(left: number, right: number): DOMRect {
+  return {
+    bottom: 40,
+    height: 40,
+    left,
+    right,
+    top: 0,
+    width: right - left,
+    x: left,
+    y: 0,
+    toJSON: () => ({}),
+  };
+}

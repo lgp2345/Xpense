@@ -1,21 +1,21 @@
-import { X } from "lucide-react";
-import { type JSX, useCallback } from "react";
+import { X } from 'lucide-react'
+import { type JSX, useLayoutEffect, useRef } from 'react'
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 export type PageTabItem = {
-  href: string;
-  identity: string;
-  title: string;
-};
+  href: string
+  identity: string
+  title: string
+}
 
 type PageTabsProps = {
-  activeIdentity: string | null;
-  onActivate: (identity: string) => void;
-  onClose: (identity: string) => void;
-  tabs: readonly PageTabItem[];
-};
+  activeIdentity: string | null
+  onActivate: (identity: string) => void
+  onClose: (identity: string) => void
+  tabs: readonly PageTabItem[]
+}
 
 export function PageTabs({
   activeIdentity,
@@ -23,37 +23,66 @@ export function PageTabs({
   onClose,
   tabs,
 }: PageTabsProps): JSX.Element | null {
-  const scrollActiveTabIntoView = useCallback((node: HTMLDivElement | null) => {
-    node?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, []);
+  const navigationRef = useRef<HTMLElement>(null)
+  const activeTabRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (activeIdentity === null) {
+      return
+    }
+
+    const navigation = navigationRef.current
+    const activeTab = activeTabRef.current
+
+    if (!navigation || !activeTab) {
+      return
+    }
+
+    const navigationRect = navigation.getBoundingClientRect()
+    const activeTabRect = activeTab.getBoundingClientRect()
+
+    if (activeTabRect.left < navigationRect.left) {
+      navigation.scrollLeft -= navigationRect.left - activeTabRect.left
+    } else if (activeTabRect.right > navigationRect.right) {
+      navigation.scrollLeft += activeTabRect.right - navigationRect.right
+    }
+  }, [activeIdentity])
 
   if (tabs.length === 0) {
-    return null;
+    return (
+      <div
+        aria-hidden="true"
+        className="border-b border-border bg-muted/30 shrink-0"
+        data-testid="page-tabs-spacer"
+      />
+    )
   }
 
-  const canClose = tabs.length > 1;
-
   return (
-    <nav aria-label="已打开页面" className="overflow-x-auto border-b border-border bg-muted/30">
-      <div className="flex h-10 min-w-max items-end gap-1 px-2 pt-1">
+    <nav
+      aria-label="已打开页面"
+      className="border-b border-border bg-muted/30 h-10 overflow-x-auto shrink-0"
+      ref={navigationRef}
+    >
+      <div className="flex min-w-max h-10 px-2 pt-1 gap-1 items-end">
         {tabs.map((tab) => {
-          const isActive = tab.identity === activeIdentity;
+          const isActive = tab.identity === activeIdentity
 
           return (
             <div
               className={cn(
-                "group flex h-9 max-w-56 items-center rounded-t-md border border-b-0 border-transparent text-sm text-muted-foreground",
+                'group flex h-9 max-w-56 items-center rounded-t-md border border-b-0 border-transparent text-sm text-muted-foreground',
                 isActive
-                  ? "border-border bg-background text-foreground"
-                  : "hover:bg-accent/70 hover:text-foreground",
+                  ? 'border-border bg-background text-foreground'
+                  : 'hover:bg-accent/70 hover:text-foreground',
               )}
               data-active={isActive || undefined}
               key={tab.identity}
-              ref={isActive ? scrollActiveTabIntoView : undefined}
+              ref={isActive ? activeTabRef : undefined}
             >
               <button
-                aria-current={isActive ? "page" : undefined}
-                className="h-full min-w-0 flex-1 truncate px-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                aria-current={isActive ? 'page' : undefined}
+                className="h-full outline-none flex-1 text-left min-w-0 px-3 truncate focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-2"
                 onClick={() => onActivate(tab.identity)}
                 title={tab.title}
                 type="button"
@@ -62,8 +91,7 @@ export function PageTabs({
               </button>
               <Button
                 aria-label={`关闭“${tab.title}”`}
-                className="mr-1 size-6 rounded-sm opacity-60 hover:opacity-100"
-                disabled={!canClose}
+                className="rounded-sm mr-1 opacity-60 size-6 hover:opacity-100"
                 onClick={() => onClose(tab.identity)}
                 size="icon"
                 type="button"
@@ -72,9 +100,9 @@ export function PageTabs({
                 <X aria-hidden="true" className="size-3.5" />
               </Button>
             </div>
-          );
+          )
         })}
       </div>
     </nav>
-  );
+  )
 }
