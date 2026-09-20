@@ -8,6 +8,7 @@ import type {
   UpsertTransactionRequest,
 } from "@xpense/shared";
 import { useState } from "react";
+import { DatePickerInput } from "@/components/date-picker";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -248,15 +249,27 @@ function TextField({
         return (
           <div className="grid gap-2">
             <Label htmlFor={field.name}>{label}</Label>
-            <Input
-              id={field.name}
-              inputMode={inputMode}
-              type={type}
-              value={field.state.value}
-              aria-invalid={Boolean(error)}
-              onBlur={field.handleBlur}
-              onChange={(event) => field.handleChange(event.target.value)}
-            />
+            {type === "datetime-local" ? (
+              <DatePickerInput
+                id={field.name}
+                withTime
+                value={field.state.value}
+                aria-invalid={Boolean(error)}
+                onBlur={field.handleBlur}
+                onChange={(value) => field.handleChange(value ?? "")}
+                buttonLabel={`选择${label}`}
+              />
+            ) : (
+              <Input
+                id={field.name}
+                inputMode={inputMode}
+                type={type}
+                value={field.state.value}
+                aria-invalid={Boolean(error)}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.target.value)}
+              />
+            )}
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
           </div>
         );

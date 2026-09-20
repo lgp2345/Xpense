@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { DatePickerInput } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type ContractFormValues, isValidDate } from "../contract-form-schema";
@@ -49,22 +50,18 @@ export function ContractTermsStep({
         </label>
         <label className="grid gap-2 text-sm" htmlFor="contract-start-date">
           开始日期
-          <Input
+          <DatePickerInput
             id="contract-start-date"
-            type="text"
-            placeholder="YYYY-MM-DD"
             value={values.startDate}
-            onChange={(event) => set("startDate", event.target.value)}
+            onChange={(value) => set("startDate", value ?? "")}
           />
         </label>
         <label className="grid gap-2 text-sm" htmlFor="contract-end-date">
           结束日期
-          <Input
+          <DatePickerInput
             id="contract-end-date"
-            type="text"
-            placeholder="YYYY-MM-DD"
             value={values.endDate}
-            onChange={(event) => set("endDate", event.target.value)}
+            onChange={(value) => set("endDate", value ?? "")}
           />
         </label>
       </div>

@@ -579,7 +579,9 @@ describe("TransactionsPage", () => {
     ).padStart(2, "0")}-${String(localOccurredAt.getDate()).padStart(2, "0")}T${String(
       localOccurredAt.getHours(),
     ).padStart(2, "0")}:${String(localOccurredAt.getMinutes()).padStart(2, "0")}`;
-    expect(screen.getByLabelText("发生时间")).toHaveValue(expectedLocalDateTime);
+    expect(screen.getByLabelText("发生时间")).toHaveValue(
+      expectedLocalDateTime.replaceAll("-", "/").replace("T", " "),
+    );
     const note = screen.getByRole("textbox", { name: "备注" });
     await user.clear(note);
     await user.type(note, "修改后");

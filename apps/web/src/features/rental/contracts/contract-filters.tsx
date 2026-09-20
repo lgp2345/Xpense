@@ -1,5 +1,6 @@
 import type { RentalContractDisplayStatus } from "@xpense/shared";
 import { useEffect, useState } from "react";
+import { DatePickerInput } from "@/components/date-picker";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -185,13 +186,13 @@ function DateField({
   return (
     <label htmlFor={`contract-filter-${label}`} className="space-y-1 text-sm">
       <span>{label}</span>
-      <Input
+      <DatePickerInput
         id={`contract-filter-${label}`}
         name={label}
         aria-label={label}
-        type="date"
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(value) => onChange(value ?? "")}
+        buttonLabel={`选择${label}`}
       />
     </label>
   );

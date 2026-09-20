@@ -7,6 +7,7 @@ import type {
 } from "@xpense/shared";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { DatePickerInput } from "@/components/date-picker";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -313,7 +314,7 @@ function ActionFields({
           error={state.fieldErrors.terminationDate}
           errorId="contract-action-termination-date-error"
         >
-          <Input
+          <DatePickerInput
             id="contract-action-termination-date"
             aria-label="终止日期"
             aria-invalid={Boolean(state.fieldErrors.terminationDate)}
@@ -322,9 +323,8 @@ function ActionFields({
                 ? "contract-action-termination-date-error"
                 : undefined
             }
-            type="date"
             value={state.terminationDate}
-            onChange={(event) => onChange({ terminationDate: event.target.value })}
+            onChange={(value) => onChange({ terminationDate: value ?? "" })}
           />
         </Field>
         <ReasonField
@@ -342,16 +342,15 @@ function ActionFields({
           error={state.fieldErrors.effectiveDate}
           errorId="contract-action-effective-date-error"
         >
-          <Input
+          <DatePickerInput
             id="contract-action-effective-date"
             aria-label="生效日期"
             aria-invalid={Boolean(state.fieldErrors.effectiveDate)}
             aria-describedby={
               state.fieldErrors.effectiveDate ? "contract-action-effective-date-error" : undefined
             }
-            type="date"
             value={state.effectiveDate}
-            onChange={(event) => onChange({ effectiveDate: event.target.value })}
+            onChange={(value) => onChange({ effectiveDate: value ?? "" })}
           />
         </Field>
         <ReasonField

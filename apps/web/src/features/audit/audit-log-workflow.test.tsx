@@ -310,6 +310,7 @@ describe("AuditLogsPage", () => {
     render(<SearchHarness />);
 
     await user.click(screen.getByRole("button", { name: "选择开始日期" }));
+    await screen.findByRole("grid");
 
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);

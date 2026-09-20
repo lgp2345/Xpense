@@ -8,6 +8,7 @@ import type {
 } from "@xpense/shared";
 import { useEffect, useState } from "react";
 
+import { DatePickerInput } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -350,6 +351,16 @@ function Field({
                 value={field.state.value}
                 onBlur={field.handleBlur}
                 onChange={(event) => field.handleChange(event.target.value)}
+                aria-invalid={Boolean(message)}
+                aria-describedby={describedBy}
+              />
+            ) : type === "date" ? (
+              <DatePickerInput
+                id={field.name}
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(value) => field.handleChange(value ?? "")}
+                buttonLabel={`选择${label}`}
                 aria-invalid={Boolean(message)}
                 aria-describedby={describedBy}
               />
