@@ -26,6 +26,10 @@ const base = () => ({
 });
 
 describe("contract form schema", () => {
+  it("defaults the expiration reminder to 30 days", () => {
+    expect(defaultContractFormValues().dueDaysBeforeText).toBe("30");
+  });
+
   it.each([
     "0",
     "0.00",

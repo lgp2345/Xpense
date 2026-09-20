@@ -71,6 +71,12 @@ function tenant(id: string, isActive = true): RentalTenantSummary {
 }
 
 describe("contract form step domains", () => {
+  it("labels the expiration reminder days clearly", () => {
+    render(<ContractTermsStep values={defaultContractFormValues(propertyId)} onChange={vi.fn()} />);
+
+    expect(screen.getByLabelText("到期提醒提前天数")).toBeInTheDocument();
+  });
+
   it.each([
     ["2026-02-30", "2026-03-01", 1],
     ["2026-03-02", "2026-03-01", 1],

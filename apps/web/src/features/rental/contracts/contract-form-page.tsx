@@ -1,6 +1,6 @@
-import { useBlocker } from "@tanstack/react-router";
-import type { PermissionKey, RentalContractAvailability } from "@xpense/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useBlocker } from '@tanstack/react-router'
+import type { PermissionKey, RentalContractAvailability } from '@xpense/shared'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   AlertDialog,
@@ -11,53 +11,58 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { RentalApi } from "@/services/rental-api";
-import { type ContractFormValues, defaultContractFormValues } from "./contract-form-schema";
-import { ContractPartiesStep } from "./steps/contract-parties-step";
-import { ContractReviewStep } from "./steps/contract-review-step";
-import { ContractSpacesStep } from "./steps/contract-spaces-step";
-import { ContractTermsStep } from "./steps/contract-terms-step";
-import { useContractDraft } from "./use-contract-draft";
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import type { RentalApi } from '@/services/rental-api'
+import {
+  type ContractFormValues,
+  defaultContractFormValues,
+} from './contract-form-schema'
+import { ContractPartiesStep } from './steps/contract-parties-step'
+import { ContractReviewStep } from './steps/contract-review-step'
+import { ContractSpacesStep } from './steps/contract-spaces-step'
+import { ContractTermsStep } from './steps/contract-terms-step'
+import { useContractDraft } from './use-contract-draft'
 
 export type ContractFormSearch = {
-  draftId?: string;
-  propertyId?: string;
-  spaceIds?: string[];
-};
+  draftId?: string
+  propertyId?: string
+  spaceIds?: string[]
+}
 
 export type ContractFormNavigate = (
   options:
     | {
-        search: { draftId: string };
-        replace: true;
+        search: { draftId: string }
+        replace: true
       }
     | {
-        to: "/rentals/contracts/$contractId";
-        params: { contractId: string };
-        replace: true;
+        to: '/rentals/contracts/$contractId'
+        params: { contractId: string }
+        replace: true
       },
-) => Promise<unknown> | unknown;
+) => Promise<unknown> | unknown
 
 export type ContractFormPageInput = {
-  api: RentalApi;
-  organizationId: string;
-  permissions: readonly PermissionKey[];
-  canCreate: boolean;
-  navigate: ContractFormNavigate;
-  search: ContractFormSearch;
-};
+  api: RentalApi
+  organizationId: string
+  permissions: readonly PermissionKey[]
+  canCreate: boolean
+  navigate: ContractFormNavigate
+  search: ContractFormSearch
+}
 
 export type ContractFormPageProps = ContractFormPageInput & {
   onNonDraft?: (
-    detail: Parameters<NonNullable<Parameters<typeof useContractDraft>[0]["onNonDraft"]>>[0],
-  ) => void;
-};
+    detail: Parameters<
+      NonNullable<Parameters<typeof useContractDraft>[0]['onNonDraft']>
+    >[0],
+  ) => void
+}
 
-const labels = ["房产与空间", "承租方", "条款", "复核"] as const;
+const labels = ['房产与空间', '承租方', '条款', '复核'] as const
 
 export function ContractFormPage({
   api,
@@ -68,97 +73,112 @@ export function ContractFormPage({
   search,
   onNonDraft,
 }: ContractFormPageProps) {
-  const canRead = permissions.includes("rental_contracts:read");
-  const canUpdate = permissions.includes("rental_contracts:update");
+  const canRead = permissions.includes('rental_contracts:read')
+  const canUpdate = permissions.includes('rental_contracts:update')
   const [values, setValues] = useState<ContractFormValues>(() =>
     defaultContractFormValues(search.propertyId),
-  );
-  const valuesRef = useRef(values);
-  valuesRef.current = values;
-  const [propertyValidationPending, setPropertyValidationPending] = useState(false);
-  const [propertyValidationError, setPropertyValidationError] = useState<string | null>(null);
-  const [nonDraft, setNonDraft] = useState<string | null>(null);
-  const hydratedDraftId = useRef<string | undefined>(undefined);
-  const createdDraftId = useRef<string | undefined>(undefined);
-  const pendingDraftRouteId = useRef<string | undefined>(undefined);
-  const previousOrganizationId = useRef(organizationId);
-  const seenBaselineVersion = useRef(0);
-  const seenCanonicalResetVersion = useRef(0);
+  )
+  const valuesRef = useRef(values)
+  valuesRef.current = values
+  const [propertyValidationPending, setPropertyValidationPending] =
+    useState(false)
+  const [propertyValidationError, setPropertyValidationError] = useState<
+    string | null
+  >(null)
+  const [nonDraft, setNonDraft] = useState<string | null>(null)
+  const hydratedDraftId = useRef<string | undefined>(undefined)
+  const createdDraftId = useRef<string | undefined>(undefined)
+  const pendingDraftRouteId = useRef<string | undefined>(undefined)
+  const previousOrganizationId = useRef(organizationId)
+  const seenBaselineVersion = useRef(0)
+  const seenCanonicalResetVersion = useRef(0)
   useEffect(() => {
-    setNonDraft(null);
-    hydratedDraftId.current = undefined;
-    seenBaselineVersion.current = 0;
-    seenCanonicalResetVersion.current = 0;
-    const isOwnCreate = Boolean(search.draftId && createdDraftId.current === search.draftId);
+    setNonDraft(null)
+    hydratedDraftId.current = undefined
+    seenBaselineVersion.current = 0
+    seenCanonicalResetVersion.current = 0
+    const isOwnCreate = Boolean(
+      search.draftId && createdDraftId.current === search.draftId,
+    )
     if (previousOrganizationId.current !== organizationId || !isOwnCreate) {
-      setValues(defaultContractFormValues(search.propertyId));
+      setValues(defaultContractFormValues(search.propertyId))
     }
-    previousOrganizationId.current = organizationId;
-    if (isOwnCreate) createdDraftId.current = undefined;
-  }, [organizationId, search.draftId, search.propertyId]);
+    previousOrganizationId.current = organizationId
+    if (isOwnCreate) createdDraftId.current = undefined
+  }, [organizationId, search.draftId, search.propertyId])
   const handleDraftId = useCallback(
     (id: string) => {
-      createdDraftId.current = id;
-      pendingDraftRouteId.current = id;
+      createdDraftId.current = id
+      pendingDraftRouteId.current = id
       void Promise.resolve(
         navigate({
           search: { draftId: id },
           replace: true,
         }),
       ).finally(() => {
-        if (pendingDraftRouteId.current === id) pendingDraftRouteId.current = undefined;
-      });
+        if (pendingDraftRouteId.current === id)
+          pendingDraftRouteId.current = undefined
+      })
     },
     [navigate],
-  );
+  )
   const handleConfirmed = useCallback(
     (id: string) =>
       void navigate({
-        to: "/rentals/contracts/$contractId",
+        to: '/rentals/contracts/$contractId',
         params: { contractId: id },
         replace: true,
       }),
     [navigate],
-  );
+  )
   const handleNonDraft = useCallback(
-    (detail: Parameters<NonNullable<Parameters<typeof useContractDraft>[0]["onNonDraft"]>>[0]) => {
-      setNonDraft(detail.id);
-      onNonDraft?.(detail);
+    (
+      detail: Parameters<
+        NonNullable<Parameters<typeof useContractDraft>[0]['onNonDraft']>
+      >[0],
+    ) => {
+      setNonDraft(detail.id)
+      onNonDraft?.(detail)
     },
     [onNonDraft],
-  );
+  )
   const draft = useContractDraft({
     api,
     organizationId,
     draftId: search.draftId,
-    seed: search.propertyId ? { propertyId: search.propertyId, spaces: [] } : undefined,
+    seed: search.propertyId
+      ? { propertyId: search.propertyId, spaces: [] }
+      : undefined,
     canRead,
     canCreate,
     canUpdate,
     onDraftId: handleDraftId,
     onConfirmed: handleConfirmed,
     onNonDraft: handleNonDraft,
-  });
+  })
 
   useEffect(() => {
-    if (!draft.serverDraft || search.draftId !== draft.serverDraft.id) return;
+    if (!draft.serverDraft || search.draftId !== draft.serverDraft.id) return
     if (draft.canonicalResetVersion !== seenCanonicalResetVersion.current) {
-      seenCanonicalResetVersion.current = draft.canonicalResetVersion;
-      setValues(draft.initialValues);
-      hydratedDraftId.current = draft.serverDraft.id;
-      return;
+      seenCanonicalResetVersion.current = draft.canonicalResetVersion
+      setValues(draft.initialValues)
+      hydratedDraftId.current = draft.serverDraft.id
+      return
     }
     if (draft.baselineVersion !== seenBaselineVersion.current) {
-      seenBaselineVersion.current = draft.baselineVersion;
-      if (hydratedDraftId.current !== draft.serverDraft.id || !draft.isDirty(values)) {
-        setValues(draft.initialValues);
+      seenBaselineVersion.current = draft.baselineVersion
+      if (
+        hydratedDraftId.current !== draft.serverDraft.id ||
+        !draft.isDirty(values)
+      ) {
+        setValues(draft.initialValues)
       }
-      hydratedDraftId.current = draft.serverDraft.id;
-      return;
+      hydratedDraftId.current = draft.serverDraft.id
+      return
     }
     if (hydratedDraftId.current !== draft.serverDraft.id) {
-      setValues(draft.initialValues);
-      hydratedDraftId.current = draft.serverDraft.id;
+      setValues(draft.initialValues)
+      hydratedDraftId.current = draft.serverDraft.id
     }
   }, [
     draft.initialValues,
@@ -168,136 +188,162 @@ export function ContractFormPage({
     draft.isDirty,
     search.draftId,
     values,
-  ]);
+  ])
 
-  const isOwnCreatedRoute = Boolean(search.draftId && createdDraftId.current === search.draftId);
+  const isOwnCreatedRoute = Boolean(
+    search.draftId && createdDraftId.current === search.draftId,
+  )
   const hydrationPending = Boolean(
     search.draftId &&
-      draft.serverDraft &&
-      !isOwnCreatedRoute &&
-      hydratedDraftId.current !== draft.serverDraft.id,
-  );
-  const dirty = hydrationPending ? false : draft.isDirty(values);
-  const hasUnsavedWork = !hydrationPending && (dirty || draft.operation !== "idle");
+    draft.serverDraft &&
+    !isOwnCreatedRoute &&
+    hydratedDraftId.current !== draft.serverDraft.id,
+  )
+  const dirty = hydrationPending ? false : draft.isDirty(values)
+  const hasUnsavedWork =
+    !hydrationPending && (dirty || draft.operation !== 'idle')
   const shouldBlockNavigation = useCallback(
-    (args: { action?: string; next?: { fullPath?: string; search?: unknown } }) => {
+    (args: {
+      action?: string
+      next?: { fullPath?: string; search?: unknown }
+    }) => {
       const nextSearch =
-        args.next?.search && typeof args.next.search === "object"
+        args.next?.search && typeof args.next.search === 'object'
           ? (args.next.search as { draftId?: unknown })
-          : undefined;
+          : undefined
       const isOwnDraftRouteReplace =
-        args.action === "REPLACE" &&
-        args.next?.fullPath === "/rentals/contracts/new" &&
-        nextSearch?.draftId === pendingDraftRouteId.current;
+        args.action === 'REPLACE' &&
+        args.next?.fullPath === '/rentals/contracts/new' &&
+        nextSearch?.draftId === pendingDraftRouteId.current
       if (isOwnDraftRouteReplace) {
-        pendingDraftRouteId.current = undefined;
-        return false;
+        pendingDraftRouteId.current = undefined
+        return false
       }
-      return hasUnsavedWork;
+      return hasUnsavedWork
     },
     [hasUnsavedWork],
-  );
+  )
   const blocker = useBlocker({
     shouldBlockFn: shouldBlockNavigation,
     enableBeforeUnload: hasUnsavedWork,
     withResolver: true,
-  });
-  const blockedFocusRef = useRef<HTMLElement | null>(null);
+  })
+  const blockedFocusRef = useRef<HTMLElement | null>(null)
   useEffect(() => {
     const headingId = [
-      "contract-spaces-title",
-      "contract-parties-title",
-      "contract-terms-title",
-      "contract-review-title",
-    ][draft.step];
-    const heading = headingId ? document.getElementById(headingId) : null;
+      'contract-spaces-title',
+      'contract-parties-title',
+      'contract-terms-title',
+      'contract-review-title',
+    ][draft.step]
+    const heading = headingId ? document.getElementById(headingId) : null
     if (heading instanceof HTMLElement) {
-      heading.tabIndex = -1;
-      heading.focus();
+      heading.tabIndex = -1
+      heading.focus()
     }
-  }, [draft.step]);
+  }, [draft.step])
 
-  if (!canCreate || !canRead || !canUpdate) return <PermissionNotice />;
-  if (!draft.requestReady) return <ApiUnavailableNotice />;
-  if (draft.isLoading) return <Loading />;
+  if (!canCreate || !canRead || !canUpdate) return <PermissionNotice />
+  if (!draft.requestReady) return <ApiUnavailableNotice />
+  if (draft.isLoading) return <Loading />
   if (draft.loadError)
-    return <LoadError message={draft.error?.message} onRetry={draft.retryLoad} />;
-  if (hydrationPending) return <Loading />;
-  if (nonDraft) return <NonDraftNotice contractId={nonDraft} />;
+    return (
+      <LoadError message={draft.error?.message} onRetry={draft.retryLoad} />
+    )
+  if (hydrationPending) return <Loading />
+  if (nonDraft) return <NonDraftNotice contractId={nonDraft} />
 
-  const step = draft.step;
-  const busy = draft.operation !== "idle" || propertyValidationPending;
-  const creationPending = draft.operation === "creating" && !draft.draftId;
+  const step = draft.step
+  const busy = draft.operation !== 'idle' || propertyValidationPending
+  const creationPending = draft.operation === 'creating' && !draft.draftId
   async function next() {
     if (step === 0 && !draft.draftId) {
-      const propertyId = values.propertyId;
-      setPropertyValidationError(null);
+      const propertyId = values.propertyId
+      setPropertyValidationError(null)
       if (!propertyId) {
-        await draft.saveAndNext(values);
-        return;
+        await draft.saveAndNext(values)
+        return
       }
       if (!api.getProperty) {
-        setPropertyValidationError("房产验证失败，请稍后重试。");
-        return;
+        setPropertyValidationError('房产验证失败，请稍后重试。')
+        return
       }
-      setPropertyValidationPending(true);
+      setPropertyValidationPending(true)
       try {
-        const property = await api.getProperty(propertyId);
-        if (valuesRef.current.propertyId !== propertyId || property.id !== propertyId) return;
+        const property = await api.getProperty(propertyId)
+        if (
+          valuesRef.current.propertyId !== propertyId ||
+          property.id !== propertyId
+        )
+          return
         if (!property.isActive) {
-          setPropertyValidationError("房产不可用，请重新选择启用房产。");
-          return;
+          setPropertyValidationError('房产不可用，请重新选择启用房产。')
+          return
         }
-        await draft.saveAndNext(values);
+        await draft.saveAndNext(values)
       } catch {
-        setPropertyValidationError("房产验证失败，请稍后重试。");
+        setPropertyValidationError('房产验证失败，请稍后重试。')
       } finally {
-        setPropertyValidationPending(false);
+        setPropertyValidationPending(false)
       }
-      return;
+      return
     }
-    await draft.saveAndNext(values);
+    await draft.saveAndNext(values)
   }
   return (
-    <main className="mx-auto max-w-4xl space-y-5 p-4 sm:p-6 lg:p-8" aria-busy={busy}>
+    <main
+      className="mx-auto space-y-5 max-w-4xl p-4 sm:p-6 lg:p-8"
+      aria-busy={busy}
+    >
       <header>
-        <h1 className="text-2xl font-medium tracking-tight">新建合同</h1>
+        <h1 className="font-medium tracking-tight text-2xl">新建合同</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           每一步都会先保存草稿，确认前服务端会再次检查空间可用性。
         </p>
       </header>
       <ol
         aria-label="合同创建步骤"
-        className="grid grid-cols-4 gap-2 text-center text-xs sm:text-sm"
+        className="text-center text-xs grid gap-2 grid-cols-4 sm:text-sm"
       >
         {labels.map((label, index) => (
           <li
             key={label}
-            aria-current={step === index ? "step" : undefined}
-            className={`rounded-md border p-2 ${step === index ? "border-primary bg-primary/10 font-medium" : "text-muted-foreground"}`}
+            aria-current={step === index ? 'step' : undefined}
+            className={`rounded-md border p-2 ${step === index ? 'border-primary bg-primary/10 font-medium' : 'text-muted-foreground'}`}
           >
             {index + 1}. {label}
           </li>
         ))}
       </ol>
-      {propertyValidationError || (draft.error && draft.error.kind !== "availability") ? (
+      {propertyValidationError ||
+      (draft.error && draft.error.kind !== 'availability') ? (
         <ErrorSummary
           key={propertyValidationError ?? draft.error?.message}
-          message={propertyValidationError ?? draft.error?.message ?? "操作失败，请稍后重试。"}
+          message={
+            propertyValidationError ??
+            draft.error?.message ??
+            '操作失败，请稍后重试。'
+          }
           onRetry={
-            draft.error?.kind === "save" && draft.canRetrySave
+            draft.error?.kind === 'save' && draft.canRetrySave
               ? () => void draft.retrySave(values)
               : undefined
           }
           onEditTerms={
-            step === 0 && draft.error?.kind === "confirm" ? () => draft.setStep(2) : undefined
+            step === 0 && draft.error?.kind === 'confirm'
+              ? () => draft.setStep(2)
+              : undefined
           }
           onEditSpaces={
-            step === 0 && draft.error?.kind === "confirm" ? () => draft.setStep(0) : undefined
+            step === 0 && draft.error?.kind === 'confirm'
+              ? () => draft.setStep(0)
+              : undefined
           }
         />
       ) : null}
-      {step === 0 && draft.availability && !draft.availability.result.available ? (
+      {step === 0 &&
+      draft.availability &&
+      !draft.availability.result.available ? (
         <AvailabilitySummary
           availability={draft.availability.result}
           onEditTerms={() => draft.setStep(2)}
@@ -331,7 +377,10 @@ export function ContractFormPage({
               serverDraft={draft.serverDraft}
               availability={draft.availability?.result ?? null}
               dirty={dirty}
-              confirming={draft.operation === "checking" || draft.operation === "confirming"}
+              confirming={
+                draft.operation === 'checking' ||
+                draft.operation === 'confirming'
+              }
               onConfirm={() => void draft.checkAndConfirm(values)}
               onEdit={(nextStep) => draft.setStep(nextStep)}
             />
@@ -339,7 +388,7 @@ export function ContractFormPage({
         </CardContent>
       </Card>
       {step < 3 ? (
-        <div className="flex justify-between gap-3">
+        <div className="flex gap-3 justify-between">
           <Button
             type="button"
             variant="outline"
@@ -350,63 +399,72 @@ export function ContractFormPage({
           </Button>
           <Button type="button" disabled={busy} onClick={() => void next()}>
             {busy
-              ? "保存中..."
+              ? '保存中...'
               : step === 0 && !draft.draftId
-                ? "创建草稿"
+                ? '创建草稿'
                 : step === 0
-                  ? "保存空间并下一步"
-                  : "保存并继续"}
+                  ? '保存空间并下一步'
+                  : '保存并继续'}
           </Button>
         </div>
       ) : null}
       {busy ? (
-        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+        <p
+          role="status"
+          aria-live="polite"
+          className="text-sm text-muted-foreground"
+        >
           正在保存合同草稿，请稍候。
         </p>
       ) : null}
-      {blocker.status === "blocked" ? (
+      {blocker.status === 'blocked' ? (
         <AlertDialog open>
           <AlertDialogContent
             onOpenAutoFocus={(event) => {
-              if (!blockedFocusRef.current && document.activeElement instanceof HTMLElement) {
-                blockedFocusRef.current = document.activeElement;
+              if (
+                !blockedFocusRef.current &&
+                document.activeElement instanceof HTMLElement
+              ) {
+                blockedFocusRef.current = document.activeElement
               }
-              event.preventDefault();
+              event.preventDefault()
             }}
             onCloseAutoFocus={(event) => {
-              event.preventDefault();
-              blockedFocusRef.current?.focus();
-              blockedFocusRef.current = null;
+              event.preventDefault()
+              blockedFocusRef.current?.focus()
+              blockedFocusRef.current = null
             }}
           >
             <AlertDialogHeader>
               <AlertDialogTitle>离开合同创建？</AlertDialogTitle>
               <AlertDialogDescription>
                 {draft.draftId
-                  ? "当前表单有未保存内容或正在保存，离开后可以从草稿继续。"
+                  ? '当前表单有未保存内容或正在保存，离开后可以从草稿继续。'
                   : creationPending
-                    ? "正在创建草稿，请等待创建完成后再离开；离开将丢弃未保存内容。"
-                    : "当前表单尚未创建草稿，离开将丢弃未保存内容。"}
+                    ? '正在创建草稿，请等待创建完成后再离开；离开将丢弃未保存内容。'
+                    : '当前表单尚未创建草稿，离开将丢弃未保存内容。'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => blocker.reset()}>取消</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => blocker.reset()}>
+                取消
+              </AlertDialogCancel>
               <AlertDialogAction
                 disabled={creationPending}
                 onClick={() => {
-                  if (creationPending) return;
-                  draft.cancelSession();
-                  blocker.proceed();
+                  if (creationPending) return
+                  draft.cancelSession()
+                  blocker.proceed()
                 }}
               >
-                {draft.draftId ? "离开并保留草稿" : "离开并丢弃"}
+                {draft.draftId ? '离开并保留草稿' : '离开并丢弃'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       ) : null}
     </main>
-  );
+  )
 }
 
 function ErrorSummary({
@@ -415,25 +473,29 @@ function ErrorSummary({
   onEditTerms,
   onEditSpaces,
 }: {
-  message: string;
-  onRetry?: () => void;
-  onEditTerms?: () => void;
-  onEditSpaces?: () => void;
+  message: string
+  onRetry?: () => void
+  onEditTerms?: () => void
+  onEditSpaces?: () => void
 }) {
-  const summaryRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    summaryRef.current?.focus();
-  }, []);
+    summaryRef.current?.focus()
+  }, [])
   return (
     <div
       ref={summaryRef}
       role="alert"
       tabIndex={-1}
-      className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+      className="border rounded-md bg-destructive/10 border-destructive/30 text-sm text-destructive p-3"
     >
       {message}
       {onRetry ? (
-        <Button variant="link" className="ml-2 px-0" onClick={() => void onRetry()}>
+        <Button
+          variant="link"
+          className="ml-2 px-0"
+          onClick={() => void onRetry()}
+        >
           重试保存
         </Button>
       ) : null}
@@ -448,38 +510,38 @@ function ErrorSummary({
         </Button>
       ) : null}
     </div>
-  );
+  )
 }
 function PermissionNotice() {
   return (
     <main className="p-4 sm:p-6 lg:p-8">
-      <p className="rounded-md border bg-muted p-4 text-sm text-muted-foreground">
+      <p className="bg-muted border rounded-md text-sm text-muted-foreground p-4">
         你没有完成合同创建所需的权限。
       </p>
     </main>
-  );
+  )
 }
 function ApiUnavailableNotice() {
   return (
     <main className="p-4 sm:p-6 lg:p-8">
-      <p className="rounded-md border bg-muted p-4 text-sm text-muted-foreground">
+      <p className="bg-muted border rounded-md text-sm text-muted-foreground p-4">
         合同服务暂不可用，请稍后重试。
       </p>
     </main>
-  );
+  )
 }
 
 function AvailabilitySummary({
   availability,
   onEditTerms,
 }: {
-  availability: RentalContractAvailability;
-  onEditTerms: () => void;
+  availability: RentalContractAvailability
+  onEditTerms: () => void
 }) {
   return (
     <div
       role="alert"
-      className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+      className="border rounded-md bg-destructive/10 border-destructive/30 text-sm text-destructive p-3"
     >
       <p>存在空间合同冲突，请返回修改。</p>
       {availability.conflicts.map((conflict) => (
@@ -491,7 +553,7 @@ function AvailabilitySummary({
         返回修改条款
       </Button>
     </div>
-  );
+  )
 }
 function Loading() {
   return (
@@ -505,40 +567,48 @@ function Loading() {
         </CardContent>
       </Card>
     </main>
-  );
+  )
 }
-function LoadError({ message, onRetry }: { message?: string; onRetry: () => void }) {
+function LoadError({
+  message,
+  onRetry,
+}: {
+  message?: string
+  onRetry: () => void
+}) {
   return (
     <main className="space-y-4 p-4 sm:p-6 lg:p-8">
       <div
         role="alert"
-        className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+        className="border rounded-md bg-destructive/10 border-destructive/30 text-sm text-destructive p-3"
       >
-        {message ?? "合同草稿加载失败。"}
+        {message ?? '合同草稿加载失败。'}
         <Button variant="link" className="ml-2 px-0" onClick={onRetry}>
           重试
         </Button>
       </div>
     </main>
-  );
+  )
 }
 function NonDraftNotice({ contractId }: { contractId: string }) {
   return (
     <main className="p-4 sm:p-6 lg:p-8">
-      <div role="alert" className="rounded-md border bg-muted p-4 text-sm">
+      <div role="alert" className="bg-muted border rounded-md text-sm p-4">
         该合同已不是草稿，无法继续编辑。
         <a className="ml-2 underline" href={`/rentals/contracts/${contractId}`}>
           查看合同详情
         </a>
       </div>
     </main>
-  );
+  )
 }
 
-export function canCreateRentalContract(permissions: readonly PermissionKey[]): boolean {
+export function canCreateRentalContract(
+  permissions: readonly PermissionKey[],
+): boolean {
   return (
-    permissions.includes("rental_contracts:create") &&
-    permissions.includes("rental_contracts:read") &&
-    permissions.includes("rental_contracts:update")
-  );
+    permissions.includes('rental_contracts:create') &&
+    permissions.includes('rental_contracts:read') &&
+    permissions.includes('rental_contracts:update')
+  )
 }

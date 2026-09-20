@@ -117,7 +117,7 @@ export function ContractTermsStep({
         </select>
       </label>
       <label className="grid gap-2 text-sm" htmlFor="contract-due-days">
-        提前到期天数
+        到期提醒提前天数
         <Input
           id="contract-due-days"
           inputMode="numeric"

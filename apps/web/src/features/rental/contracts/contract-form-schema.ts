@@ -185,7 +185,7 @@ export function defaultContractFormValues(propertyId = ""): ContractFormValues {
     rentAmountText: "",
     billingAnchor: "",
     paymentIntervalMonths: "",
-    dueDaysBeforeText: "",
+    dueDaysBeforeText: "30",
     deposits: [],
     note: "",
   };
