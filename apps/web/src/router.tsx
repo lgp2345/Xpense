@@ -2,6 +2,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createRouter, type RouterHistory, RouterProvider } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  clearPageWorkspacesForUser,
+  getBrowserPageWorkspaceStorage,
+  type PageWorkspaceStorage,
+} from "@/components/layout/page-workspace-persistence";
 import { didBookkeepingScopeChange } from "@/routes/-shared/bookkeeping-cache-scope";
 import { didRentalScopeChange } from "@/routes/-shared/rental-cache-scope";
 import { RouteAccessPending } from "@/routes/-shared/status";
@@ -60,11 +65,16 @@ declare module "@tanstack/react-router" {
 }
 
 export type AppRouterProps = {
+  pageWorkspaceStorage?: PageWorkspaceStorage | null;
   router?: AppRouterInstance;
   restoreSession?: () => Promise<boolean>;
 };
 
-export function AppRouter({ router: activeRouter = router, restoreSession }: AppRouterProps = {}) {
+export function AppRouter({
+  pageWorkspaceStorage,
+  router: activeRouter = router,
+  restoreSession,
+}: AppRouterProps = {}) {
   const [isInitialized, setIsInitialized] = useState(false);
   const restoreRef = useRef<{
     router: AppRouterInstance;
@@ -73,6 +83,8 @@ export function AppRouter({ router: activeRouter = router, restoreSession }: App
   } | null>(null);
   const activeSession = sessionsByRouter.get(activeRouter) ?? webSession;
   const activeRestoreSession = restoreSession ?? activeSession.restoreSession;
+  const activePageWorkspaceStorage =
+    pageWorkspaceStorage === undefined ? getBrowserPageWorkspaceStorage() : pageWorkspaceStorage;
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -108,6 +120,14 @@ export function AppRouter({ router: activeRouter = router, restoreSession }: App
 
   useEffect(() => {
     const unsubscribeAuth = activeSession.authStore.subscribe((state, previousState) => {
+      if (
+        previousState.status === "authenticated" &&
+        state.status !== "authenticated" &&
+        previousState.currentUser &&
+        activePageWorkspaceStorage
+      ) {
+        clearPageWorkspacesForUser(activePageWorkspaceStorage, previousState.currentUser.id);
+      }
       if (didBookkeepingScopeChange(state, previousState)) {
         clearBookkeepingQueries(queryClient);
       }
@@ -132,7 +152,7 @@ export function AppRouter({ router: activeRouter = router, restoreSession }: App
       unsubscribeAuth();
       unsubscribeMenus();
     };
-  }, [activeRouter, activeSession, queryClient]);
+  }, [activePageWorkspaceStorage, activeRouter, activeSession, queryClient]);
 
   if (!isInitialized) {
     return (

@@ -1,55 +1,143 @@
 import { describe, expect, it } from "vitest";
 
-import { PageCacheStore, toPageCacheIdentity } from "./page-cache-store";
+import { PageWorkspaceStore, toPageCacheIdentity } from "./page-cache-store";
 
-describe("PageCacheStore", () => {
-  it("builds the same identity for equivalent route params regardless of key order", () => {
-    expect(toPageCacheIdentity(7, { memberId: "member-1", tab: "profile" })).toBe(
-      toPageCacheIdentity(7, { tab: "profile", memberId: "member-1" }),
+type TestPage = {
+  label: string;
+};
+
+function page(routeKey: "Members" | "Roles" | "Sessions" | "AuditLogs", menuId: number) {
+  return {
+    cacheParams: {},
+    href: `/${routeKey.toLowerCase()}`,
+    menuId,
+    routeKey,
+    title: routeKey,
+    value: { label: routeKey },
+  } as const;
+}
+
+describe("toPageCacheIdentity", () => {
+  it("builds the same identity for equivalent cache params regardless of key order", () => {
+    expect(toPageCacheIdentity("Members", { memberId: "member-1", tab: "profile" })).toBe(
+      toPageCacheIdentity("Members", { tab: "profile", memberId: "member-1" }),
     );
   });
 
-  it("keeps search changes outside the cache identity", () => {
-    expect(toPageCacheIdentity(7, { memberId: "member-1" })).toBe('7:{"memberId":"member-1"}');
+  it("uses the stable route key instead of a database menu id", () => {
+    expect(toPageCacheIdentity("Members", { memberId: "member-1" })).toBe(
+      'Members:{"memberId":"member-1"}',
+    );
+  });
+});
+
+describe("PageWorkspaceStore", () => {
+  it("keeps display order stable while using visits only for LRU eviction", () => {
+    const store = new PageWorkspaceStore<TestPage>(3);
+
+    store.upsert(page("Members", 1));
+    store.upsert(page("Roles", 2));
+    store.upsert(page("Sessions", 3));
+    store.upsert({ ...page("Members", 1), href: "/members?page=2" });
+    store.upsert(page("AuditLogs", 4));
+
+    expect(store.values().map(({ routeKey }) => routeKey)).toEqual([
+      "Members",
+      "Sessions",
+      "AuditLogs",
+    ]);
+    expect(store.values()[0]).toMatchObject({
+      href: "/members?page=2",
+      value: { label: "Members" },
+    });
   });
 
-  it("retains the ten most recently used entries", () => {
-    const store = new PageCacheStore<string>(10);
+  it("selects the right neighbor before the left when closing a tab", () => {
+    const store = new PageWorkspaceStore<TestPage>();
 
-    for (let menuId = 1; menuId <= 10; menuId += 1) {
-      store.upsert({
-        identity: toPageCacheIdentity(menuId, {}),
-        menuId,
-        value: `page-${menuId}`,
-      });
-    }
+    store.upsert(page("Members", 1));
+    store.upsert(page("Roles", 2));
+    store.upsert(page("Sessions", 3));
 
-    store.upsert({
-      identity: toPageCacheIdentity(1, {}),
-      menuId: 1,
-      value: "page-1-updated",
-    });
-    store.upsert({
-      identity: toPageCacheIdentity(11, {}),
-      menuId: 11,
-      value: "page-11",
-    });
-
-    expect(store.values().map(({ menuId }) => menuId)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 1, 11]);
-    expect(store.values().find(({ menuId }) => menuId === 1)?.value).toBe("page-1-updated");
+    expect(store.getCloseTarget(toPageCacheIdentity("Roles", {}))?.routeKey).toBe("Sessions");
+    expect(store.getCloseTarget(toPageCacheIdentity("Sessions", {}))?.routeKey).toBe("Roles");
   });
 
-  it("removes entries that are no longer authorized and can clear the whole scope", () => {
-    const store = new PageCacheStore<string>();
-    store.upsert({ identity: toPageCacheIdentity(1, {}), menuId: 1, value: "members" });
-    store.upsert({ identity: toPageCacheIdentity(2, {}), menuId: 2, value: "roles" });
+  it("does not provide a close target for the last tab", () => {
+    const store = new PageWorkspaceStore<TestPage>();
+    store.upsert(page("Members", 1));
+
+    expect(store.getCloseTarget(toPageCacheIdentity("Members", {}))).toBeNull();
+  });
+
+  it("refreshes menu metadata without making the tab recently used", () => {
+    const store = new PageWorkspaceStore<TestPage>(2);
+    store.upsert(page("Members", 1));
+    store.upsert(page("Roles", 2));
+
+    store.updateMenu("Members:{}", { id: 101, title: "成员与用户" });
+    store.upsert(page("Sessions", 3));
+
+    expect(store.values().map(({ routeKey }) => routeKey)).toEqual(["Roles", "Sessions"]);
+  });
+
+  it("removes unauthorized entries and clears the whole workspace", () => {
+    const store = new PageWorkspaceStore<TestPage>();
+    store.upsert(page("Members", 1));
+    store.upsert(page("Roles", 2));
 
     store.retain(({ menuId }) => menuId === 2);
 
-    expect(store.values().map(({ value }) => value)).toEqual(["roles"]);
+    expect(store.values().map(({ routeKey }) => routeKey)).toEqual(["Roles"]);
 
     store.clear();
 
     expect(store.values()).toEqual([]);
+  });
+
+  it("restores only entries accepted by the current authorized menu resolver", () => {
+    const source = new PageWorkspaceStore<TestPage>();
+    source.upsert(page("Members", 1));
+    source.upsert(page("Roles", 2));
+    source.upsert({ ...page("Members", 1), href: "/members?page=2" });
+    const snapshot = source.snapshot();
+    const restored = new PageWorkspaceStore<TestPage>();
+
+    restored.restore(snapshot, (tab) =>
+      tab.routeKey === "Members" ? { menuId: 101, title: "成员管理", value: null } : null,
+    );
+
+    expect(restored.values()).toEqual([
+      expect.objectContaining({
+        href: "/members?page=2",
+        menuId: 101,
+        routeKey: "Members",
+        title: "成员管理",
+        value: null,
+      }),
+    ]);
+  });
+
+  it("trims an oversized restored workspace by persisted recency without reordering tabs", () => {
+    const restored = new PageWorkspaceStore<TestPage>(2);
+
+    restored.restore(
+      {
+        recency: [
+          toPageCacheIdentity("Members", {}),
+          toPageCacheIdentity("Roles", {}),
+          toPageCacheIdentity("Sessions", {}),
+        ],
+        tabs: [
+          { cacheParams: {}, href: "/members", routeKey: "Members", title: "Members" },
+          { cacheParams: {}, href: "/roles", routeKey: "Roles", title: "Roles" },
+          { cacheParams: {}, href: "/sessions", routeKey: "Sessions", title: "Sessions" },
+        ],
+        version: 1,
+      },
+      (tab) => ({ menuId: tab.routeKey.length, title: tab.title, value: null }),
+    );
+
+    expect(restored.values().map(({ routeKey }) => routeKey)).toEqual(["Roles", "Sessions"]);
   });
 });

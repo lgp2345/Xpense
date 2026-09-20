@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from "vitest";
 import { useStore } from "zustand";
 
 import { AppProviders } from "@/components/app-providers";
-import type { RegisteredPageDescriptor } from "@/routes/-shared/registered-page";
+import type { PageCacheParams, RegisteredPageDescriptor } from "@/routes/-shared/registered-page";
 import { createWebSession, type WebSessionDependency } from "@/services/web-session";
 import { createAuthStore } from "@/stores/auth-store";
 
@@ -165,7 +165,7 @@ function registeredMenu(routeKey: "Members" | "Transactions", id: number): Autho
 
 function createDescriptor(
   search: string,
-  cacheParams: Readonly<Record<string, unknown>> = {},
+  cacheParams: PageCacheParams = {},
 ): RegisteredPageDescriptor {
   return {
     routeKey: "Transactions",
@@ -223,6 +223,10 @@ describe("AuthenticatedLayout", () => {
     );
 
     const originalNode = await screen.findByTestId("cached-probe");
+    expect(screen.getByRole("button", { name: "Transactions" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     await user.type(screen.getByRole("textbox", { name: "descriptor input" }), "retained state");
 
     await act(async () => router.navigate({ to: "/transactions", search: { page: 2 } } as never));

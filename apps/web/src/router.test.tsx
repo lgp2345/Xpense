@@ -13,6 +13,12 @@ import { StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AppProviders } from "./components/app-providers";
+import type { PersistedPageWorkspaceV1 } from "./components/layout/page-cache-store";
+import {
+  loadPageWorkspace,
+  type PageWorkspaceStorage,
+  savePageWorkspace,
+} from "./components/layout/page-workspace-persistence";
 import { AppRouter, createAppRouter } from "./router";
 import { createWebSession, type WebSessionDependency } from "./services/web-session";
 import { createAuthStore } from "./stores/auth-store";
@@ -21,6 +27,30 @@ import { createMenuStore } from "./stores/menu-store";
 const { dashboardPageModuleLoaded } = vi.hoisted(() => ({
   dashboardPageModuleLoaded: vi.fn(),
 }));
+
+class MemoryStorage implements PageWorkspaceStorage {
+  readonly values = new Map<string, string>();
+
+  get length(): number {
+    return this.values.size;
+  }
+
+  getItem(key: string): string | null {
+    return this.values.get(key) ?? null;
+  }
+
+  key(index: number): string | null {
+    return [...this.values.keys()][index] ?? null;
+  }
+
+  removeItem(key: string): void {
+    this.values.delete(key);
+  }
+
+  setItem(key: string, value: string): void {
+    this.values.set(key, value);
+  }
+}
 
 vi.mock("@/pages/dashboard-page", () => {
   dashboardPageModuleLoaded();
@@ -409,14 +439,28 @@ describe("generated router integration gate", () => {
       history: createMemoryHistory({ initialEntries: ["/roles"] }),
       session: harness.session,
     });
+    const storage = new MemoryStorage();
+    const workspace = {
+      recency: ["Roles:{}"],
+      tabs: [{ cacheParams: {}, href: "/roles", routeKey: "Roles", title: "角色管理" }],
+      version: 1,
+    } satisfies PersistedPageWorkspaceV1;
+    savePageWorkspace(storage, { organizationId: "org-1", userId: "user-1" }, workspace);
+    savePageWorkspace(storage, { organizationId: "org-2", userId: "user-1" }, workspace);
     render(
       <AppProviders>
-        <AppRouter router={router} restoreSession={async () => true} />
+        <AppRouter
+          pageWorkspaceStorage={storage}
+          router={router}
+          restoreSession={async () => true}
+        />
       </AppProviders>,
     );
     expect(await screen.findByRole("heading", { name: "角色管理" })).toBeInTheDocument();
     act(() => harness.store.getState().clearAuth());
     await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
+    expect(loadPageWorkspace(storage, { organizationId: "org-1", userId: "user-1" })).toBeNull();
+    expect(loadPageWorkspace(storage, { organizationId: "org-2", userId: "user-1" })).toBeNull();
   });
 
   it("automatically invalidates the super-admin menu-reset boundary", async () => {

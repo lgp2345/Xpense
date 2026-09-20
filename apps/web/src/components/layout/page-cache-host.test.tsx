@@ -5,7 +5,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AuthorizedMenuNode, CurrentUserResponse, RouteKey } from "@xpense/shared";
 import axios from "axios";
@@ -20,9 +20,35 @@ import { createAuthStore } from "@/stores/auth-store";
 
 import { AuthenticatedLayout } from "./authenticated-layout";
 import { PageCacheHost, type PageCacheHostPage } from "./page-cache-host";
+import type { PageCacheParams } from "./page-cache-store";
+import type { PageWorkspaceStorage } from "./page-workspace-persistence";
 
 const AUTHORIZATION_VERSION_1 = {};
 const AUTHORIZATION_VERSION_2 = {};
+
+class MemoryStorage implements PageWorkspaceStorage {
+  readonly values = new Map<string, string>();
+
+  get length(): number {
+    return this.values.size;
+  }
+
+  getItem(key: string): string | null {
+    return this.values.get(key) ?? null;
+  }
+
+  key(index: number): string | null {
+    return [...this.values.keys()][index] ?? null;
+  }
+
+  removeItem(key: string): void {
+    this.values.delete(key);
+  }
+
+  setItem(key: string, value: string): void {
+    this.values.set(key, value);
+  }
+}
 
 function StatefulPage({ label, query }: { label: string; query?: string }) {
   const [count, setCount] = useState(0);
@@ -47,20 +73,25 @@ function createPage({
   menuId,
   params = {},
   query,
+  routeKey = menuId === 2 ? "Roles" : menuId === 3 ? "AuditLogs" : "Members",
 }: {
   authorizationSource?: "local" | "resolved";
   keepAlive?: boolean;
   label: string;
   menuId: number;
-  params?: Record<string, unknown>;
+  params?: PageCacheParams;
   query?: string;
+  routeKey?: RouteKey;
 }): PageCacheHostPage {
   return {
     authorizationSource,
+    href: `/${label}${query ? `?${query}` : ""}`,
     keepAlive,
     menuId,
     params,
     render: () => <StatefulPage label={label} query={query} />,
+    routeKey,
+    title: label,
   };
 }
 
@@ -106,6 +137,223 @@ const userContext: CurrentUserResponse = {
 };
 
 describe("PageCacheHost", () => {
+  it("closes the active tab by navigating to its right neighbor first", async () => {
+    const user = userEvent.setup();
+
+    function Harness() {
+      const [routeKey, setRouteKey] = useState<"Members" | "Roles" | "Sessions">("Members");
+      const active =
+        routeKey === "Members"
+          ? createPage({ label: "members", menuId: 1, routeKey })
+          : routeKey === "Roles"
+            ? createPage({ label: "roles", menuId: 2, routeKey })
+            : createPage({ label: "sessions", menuId: 3, routeKey });
+
+      return (
+        <>
+          <button onClick={() => setRouteKey("Roles")} type="button">
+            访问角色
+          </button>
+          <button onClick={() => setRouteKey("Sessions")} type="button">
+            访问会话
+          </button>
+          <PageCacheHost
+            activePage={active}
+            authorizationVersion={AUTHORIZATION_VERSION_1}
+            cacheableMenuIds={cacheableMenus(1, 2, 3)}
+            navigate={async (href) => {
+              setRouteKey(
+                href === "/members" ? "Members" : href === "/roles" ? "Roles" : "Sessions",
+              );
+            }}
+            scopeKey="org-1"
+          />
+        </>
+      );
+    }
+
+    render(<Harness />);
+    await user.click(screen.getByRole("button", { name: "访问角色" }));
+    await user.click(screen.getByRole("button", { name: "访问会话" }));
+    await user.click(screen.getByRole("button", { name: "roles" }));
+    await user.click(screen.getByRole("button", { name: "关闭“roles”" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "sessions" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      ),
+    );
+    expect(screen.queryByRole("button", { name: "roles" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the active tab when navigation to its close target fails", async () => {
+    const user = userEvent.setup();
+    const navigate = vi.fn().mockRejectedValue(new Error("navigation failed"));
+    const view = render(
+      <PageCacheHost
+        activePage={createPage({ label: "members", menuId: 1 })}
+        authorizationVersion={AUTHORIZATION_VERSION_1}
+        cacheableMenuIds={cacheableMenus(1, 2)}
+        navigate={navigate}
+        scopeKey="org-1"
+      />,
+    );
+    view.rerender(
+      <PageCacheHost
+        activePage={createPage({ label: "roles", menuId: 2 })}
+        authorizationVersion={AUTHORIZATION_VERSION_1}
+        cacheableMenuIds={cacheableMenus(1, 2)}
+        navigate={navigate}
+        scopeKey="org-1"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "关闭“roles”" }));
+    await act(async () => Promise.resolve());
+
+    expect(screen.getByRole("button", { name: "roles" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "members" })).toBeInTheDocument();
+  });
+
+  it("restores persisted tabs as metadata and navigates to their latest href", async () => {
+    const user = userEvent.setup();
+    const storage = new MemoryStorage();
+    const workspaceScope = { organizationId: "org-1", userId: "user-1" };
+    const restorableMenus = new Map([["Members" as const, { id: 1, title: "成员管理" }]]);
+    const firstView = render(
+      <PageCacheHost
+        activePage={createPage({ label: "members", menuId: 1, query: "page=2" })}
+        authorizationVersion={AUTHORIZATION_VERSION_1}
+        cacheableMenuIds={cacheableMenus(1)}
+        cacheableMenus={restorableMenus}
+        scopeKey="org-1"
+        storage={storage}
+        workspaceScope={workspaceScope}
+      />,
+    );
+
+    await waitFor(() => expect(storage.length).toBe(1));
+    firstView.unmount();
+    const navigate = vi.fn();
+
+    render(
+      <PageCacheHost
+        activePage={null}
+        authorizationVersion={AUTHORIZATION_VERSION_2}
+        cacheableMenuIds={cacheableMenus(1)}
+        cacheableMenus={restorableMenus}
+        fallback={<p>当前没有活动缓存页</p>}
+        navigate={navigate}
+        scopeKey="org-1"
+        storage={storage}
+        workspaceScope={workspaceScope}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "成员管理" })).toBeInTheDocument();
+    expect(screen.queryByTestId("page-members")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "成员管理" }));
+
+    expect(navigate).toHaveBeenCalledWith("/members?page=2");
+  });
+
+  it("removes unauthorized tabs from runtime and persisted workspace", async () => {
+    const storage = new MemoryStorage();
+    const workspaceScope = { organizationId: "org-1", userId: "user-1" };
+    const allMenus = new Map([
+      ["Members" as const, { id: 1, title: "members" }],
+      ["Roles" as const, { id: 2, title: "roles" }],
+    ]);
+    const rolesOnly = new Map([["Roles" as const, { id: 2, title: "roles" }]]);
+    const view = render(
+      <PageCacheHost
+        activePage={createPage({ label: "members", menuId: 1 })}
+        authorizationVersion={AUTHORIZATION_VERSION_1}
+        cacheableMenuIds={cacheableMenus(1, 2)}
+        cacheableMenus={allMenus}
+        scopeKey="org-1"
+        storage={storage}
+        workspaceScope={workspaceScope}
+      />,
+    );
+    view.rerender(
+      <PageCacheHost
+        activePage={createPage({ label: "roles", menuId: 2 })}
+        authorizationVersion={AUTHORIZATION_VERSION_1}
+        cacheableMenuIds={cacheableMenus(1, 2)}
+        cacheableMenus={allMenus}
+        scopeKey="org-1"
+        storage={storage}
+        workspaceScope={workspaceScope}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "members" })).toBeInTheDocument();
+
+    view.rerender(
+      <PageCacheHost
+        activePage={createPage({ label: "roles", menuId: 2 })}
+        authorizationVersion={AUTHORIZATION_VERSION_2}
+        cacheableMenuIds={cacheableMenus(2)}
+        cacheableMenus={rolesOnly}
+        scopeKey="org-1"
+        storage={storage}
+        workspaceScope={workspaceScope}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "members" })).not.toBeInTheDocument();
+      expect(JSON.parse([...storage.values.values()][0] ?? "null")?.tabs).toEqual([
+        expect.objectContaining({ routeKey: "Roles" }),
+      ]);
+    });
+  });
+
+  it("shows cached pages as stable tabs and refreshes the active tab href", async () => {
+    const user = userEvent.setup();
+    const navigate = vi.fn();
+    const view = render(
+      <PageCacheHost
+        activePage={createPage({ label: "members", menuId: 1 })}
+        authorizationVersion={AUTHORIZATION_VERSION_1}
+        cacheableMenuIds={cacheableMenus(1, 2)}
+        navigate={navigate}
+        scopeKey="org-1"
+      />,
+    );
+
+    view.rerender(
+      <PageCacheHost
+        activePage={createPage({ label: "roles", menuId: 2 })}
+        authorizationVersion={AUTHORIZATION_VERSION_1}
+        cacheableMenuIds={cacheableMenus(1, 2)}
+        navigate={navigate}
+        scopeKey="org-1"
+      />,
+    );
+    view.rerender(
+      <PageCacheHost
+        activePage={createPage({ label: "members", menuId: 1, query: "page=2" })}
+        authorizationVersion={AUTHORIZATION_VERSION_1}
+        cacheableMenuIds={cacheableMenus(1, 2)}
+        navigate={navigate}
+        scopeKey="org-1"
+      />,
+    );
+
+    expect(screen.getAllByRole("button", { name: "members" })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "members" })).toHaveAttribute("aria-current", "page");
+
+    await user.click(screen.getByRole("button", { name: "roles" }));
+    await user.click(screen.getByRole("button", { name: "members" }));
+
+    expect(navigate).toHaveBeenNthCalledWith(1, "/roles");
+    expect(navigate).toHaveBeenNthCalledWith(2, "/members?page=2");
+  });
+
   it("switches cached pages between visible and hidden while preserving React and DOM state", async () => {
     const user = userEvent.setup();
     const view = render(
@@ -236,16 +484,21 @@ describe("PageCacheHost", () => {
       <PageCacheHost
         activePage={{
           authorizationSource: "local",
+          href: "/temporary",
           keepAlive: false,
           menuId: 5,
           params: {},
           render: () => <DisposablePage />,
+          routeKey: "Members",
+          title: "临时页面",
         }}
         authorizationVersion={AUTHORIZATION_VERSION_1}
         cacheableMenuIds={cacheableMenus()}
         scopeKey="org-1"
       />,
     );
+
+    expect(screen.queryByRole("navigation", { name: "已打开页面" })).not.toBeInTheDocument();
 
     view.rerender(
       <PageCacheHost
@@ -359,10 +612,13 @@ describe("PageCacheHost", () => {
       <PageCacheHost
         activePage={{
           authorizationSource: "local",
+          href: "/members",
           keepAlive: true,
           menuId: 1,
           params: {},
           render: () => <CountedPage />,
+          routeKey: "Members",
+          title: "成员管理",
         }}
         authorizationVersion={AUTHORIZATION_VERSION_1}
         cacheableMenuIds={cacheableMenus(1)}
