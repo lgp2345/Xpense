@@ -2,6 +2,7 @@ import { format, isValid, parse } from "date-fns";
 import { zhCN } from "date-fns/locale/zh-CN";
 import { Calendar as CalendarIcon } from "lucide-react";
 import * as React from "react";
+import type { DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,21 @@ type DatePickerInputProps = Omit<
   onChange?: (value: string | undefined) => void;
   buttonLabel?: string;
   withTime?: boolean;
+};
+
+export type DateRangeValue = {
+  from?: string;
+  to?: string;
+};
+
+type DateRangePickerProps = {
+  id?: string;
+  "aria-label": string;
+  value?: DateRangeValue;
+  onChange?: (value: DateRangeValue) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
 };
 
 // Adapted from Shadcn Studio date-picker-04 (input) and date-picker-10 (time).
@@ -158,6 +174,75 @@ export function DatePickerInput({
       </Popover>
     </div>
   );
+}
+
+// Adapted from Shadcn Studio date-picker-13 (range selection).
+// https://github.com/shadcnstudio/shadcn-studio/tree/main/src/components/shadcn-studio/date-picker
+export function DateRangePicker({
+  id,
+  "aria-label": ariaLabel,
+  value,
+  onChange,
+  placeholder = "选择日期范围",
+  disabled,
+  className,
+}: DateRangePickerProps) {
+  const from = parseStrictDate(value?.from ?? "", "yyyy-MM-dd");
+  const to = parseStrictDate(value?.to ?? "", "yyyy-MM-dd");
+  const selected: DateRange | undefined = from || to ? { from, to } : undefined;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          id={id}
+          type="button"
+          variant="outline"
+          aria-label={ariaLabel}
+          disabled={disabled}
+          className={cn(
+            "w-full justify-start text-left font-normal",
+            !from && !to && "text-muted-foreground",
+            className,
+          )}
+        >
+          <CalendarIcon />
+          <span className="truncate">{formatRange(from, to, placeholder)}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+        <React.Suspense
+          fallback={<p className="p-3 text-sm text-muted-foreground">正在加载日历…</p>}
+        >
+          <Calendar
+            mode="range"
+            locale={zhCN}
+            captionLayout="dropdown"
+            startMonth={new Date(1900, 0)}
+            endMonth={new Date(2100, 11)}
+            defaultMonth={from ?? to}
+            selected={selected}
+            onSelect={(range) =>
+              onChange?.({
+                from: range?.from ? format(range.from, "yyyy-MM-dd") : undefined,
+                to: range?.to ? format(range.to, "yyyy-MM-dd") : undefined,
+              })
+            }
+            formatters={{ formatMonthDropdown: (date) => format(date, "M月") }}
+            fixedWeeks
+            autoFocus
+          />
+        </React.Suspense>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function formatRange(from: Date | undefined, to: Date | undefined, placeholder: string): string {
+  if (from && to) return `${format(from, "yyyy/MM/dd")} - ${format(to, "yyyy/MM/dd")}`;
+  if (from) return `${format(from, "yyyy/MM/dd")} -`;
+  if (to) return `- ${format(to, "yyyy/MM/dd")}`;
+  return placeholder;
 }
 
 function parseStrictDate(text: string, dateFormat: string): Date | undefined {

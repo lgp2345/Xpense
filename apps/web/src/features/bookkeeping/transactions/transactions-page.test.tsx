@@ -282,15 +282,32 @@ describe("TransactionsPage", () => {
       })),
     });
 
-    renderPage({ api, initialSearch: { keyword: "房租", page: 2, pageSize: 20 }, onSearchChange });
+    renderPage({
+      api,
+      initialSearch: {
+        keyword: "房租",
+        from: "2026-08-01",
+        to: "2026-08-31",
+        page: 2,
+        pageSize: 20,
+      },
+      onSearchChange,
+    });
     expect(await screen.findByText("午餐")).toBeInTheDocument();
-    expect(api.listTransactions).toHaveBeenCalledWith({ keyword: "房租", page: 2, pageSize: 20 });
+    expect(api.listTransactions).toHaveBeenCalledWith({
+      keyword: "房租",
+      from: "2026-08-01",
+      to: "2026-08-31",
+      page: 2,
+      pageSize: 20,
+    });
+    expect(screen.getByRole("button", { name: "日期范围" })).toHaveTextContent(
+      "2026/08/01 - 2026/08/31",
+    );
 
     const keyword = screen.getByRole("textbox", { name: "关键词" });
     await user.clear(keyword);
     await user.type(keyword, "餐饮");
-    await user.type(screen.getByRole("textbox", { name: "开始日期" }), "2026/08/01");
-    await user.type(screen.getByRole("textbox", { name: "结束日期" }), "2026/08/31");
     await user.click(screen.getByRole("button", { name: "应用筛选" }));
     expect(onSearchChange).toHaveBeenLastCalledWith({
       from: "2026-08-01",

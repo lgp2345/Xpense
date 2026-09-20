@@ -218,12 +218,13 @@ describe("AuditLogsPage", () => {
     );
   });
 
-  it("filters by a typed date and keeps the ISO value in search", async () => {
+  it("filters with a date range and keeps other search values", async () => {
     const user = userEvent.setup();
     const onSearchChange = vi.fn();
     function SearchHarness() {
       const [search, setSearch] = useState<AuditLogSearch>({
         action: "role.created",
+        from: "2026-08-01",
       });
 
       return (
@@ -241,23 +242,32 @@ describe("AuditLogsPage", () => {
 
     render(<SearchHarness />);
 
-    await user.type(screen.getByRole("textbox", { name: "开始日期" }), "2026/08/01");
+    const trigger = screen.getByRole("button", { name: "日期范围" });
+    expect(trigger).toHaveTextContent("2026/08/01 -");
+    await user.click(trigger);
+    await screen.findByRole("grid");
+    const endDay = screen
+      .getAllByRole("button")
+      .find((button) => button.dataset.day === new Date(2026, 7, 15).toLocaleDateString());
+    await user.click(endDay as HTMLButtonElement);
 
     expect(onSearchChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
         action: "role.created",
         from: "2026-08-01",
+        to: "2026-08-15",
         page: undefined,
       }),
     );
   });
 
-  it("clears a date filter when its input is emptied", async () => {
+  it("clears both date range bounds", async () => {
     const user = userEvent.setup();
     const onSearchChange = vi.fn();
     function SearchHarness() {
       const [search, setSearch] = useState<AuditLogSearch>({
         from: "2026-07-04",
+        to: "2026-07-31",
       });
 
       return (
@@ -275,20 +285,21 @@ describe("AuditLogsPage", () => {
 
     render(<SearchHarness />);
 
-    const fromInput = screen.getByRole("textbox", { name: "开始日期" });
-    expect(fromInput).toHaveValue("2026/07/04");
-
-    await user.clear(fromInput);
+    expect(screen.getByRole("button", { name: "日期范围" })).toHaveTextContent(
+      "2026/07/04 - 2026/07/31",
+    );
+    await user.click(screen.getByRole("button", { name: "清除日期范围" }));
 
     expect(onSearchChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
         from: undefined,
+        to: undefined,
         page: undefined,
       }),
     );
   });
 
-  it("selects a date from the calendar popover", async () => {
+  it("selects a date range from the calendar popover", async () => {
     const user = userEvent.setup();
     const onSearchChange = vi.fn();
     function SearchHarness() {
@@ -309,21 +320,28 @@ describe("AuditLogsPage", () => {
 
     render(<SearchHarness />);
 
-    await user.click(screen.getByRole("button", { name: "选择开始日期" }));
+    await user.click(screen.getByRole("button", { name: "日期范围" }));
     await screen.findByRole("grid");
 
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const dayButton = screen
+    const secondOfMonth = new Date(now.getFullYear(), now.getMonth(), 2);
+    const startDay = screen
       .getAllByRole("button")
       .find((button) => button.getAttribute("data-day") === firstOfMonth.toLocaleDateString());
-    expect(dayButton).toBeDefined();
+    expect(startDay).toBeDefined();
+    await user.click(startDay as HTMLButtonElement);
 
-    await user.click(dayButton as HTMLButtonElement);
+    const endDay = screen
+      .getAllByRole("button")
+      .find((button) => button.getAttribute("data-day") === secondOfMonth.toLocaleDateString());
+    expect(endDay).toBeDefined();
+    await user.click(endDay as HTMLButtonElement);
 
     expect(onSearchChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
         from: format(firstOfMonth, "yyyy-MM-dd"),
+        to: format(secondOfMonth, "yyyy-MM-dd"),
         page: undefined,
       }),
     );

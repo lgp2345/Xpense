@@ -2,12 +2,24 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { DatePickerInput } from "./date-picker";
+import { DatePickerInput, DateRangePicker, type DateRangeValue } from "./date-picker";
 
 function Harness({ initial = "2024-02-29", withTime = false }) {
   const [value, setValue] = useState<string | undefined>(initial);
   return (
     <DatePickerInput aria-label="日期" value={value} onChange={setValue} withTime={withTime} />
+  );
+}
+
+function RangeHarness() {
+  const [value, setValue] = useState<DateRangeValue>({ from: "2024-02-01" });
+  return (
+    <DateRangePicker
+      aria-label="账期范围"
+      value={value}
+      onChange={setValue}
+      placeholder="选择账期"
+    />
   );
 }
 
@@ -83,5 +95,46 @@ describe("DatePickerInput", () => {
     expect(screen.getByLabelText("日期")).toHaveValue("2030/01/01");
     rerender(<DatePickerInput aria-label="日期" value="" />);
     expect(screen.getByLabelText("日期")).toHaveValue("");
+  });
+});
+
+describe("DateRangePicker", () => {
+  it("selects a date range and emits canonical ISO dates", async () => {
+    const user = userEvent.setup();
+    render(<RangeHarness />);
+
+    const trigger = screen.getByRole("button", { name: "账期范围" });
+    expect(trigger).toHaveTextContent("2024/02/01 -");
+    await user.click(trigger);
+    await screen.findByRole("grid");
+    const endDay = screen
+      .getAllByRole("button")
+      .find((button) => button.dataset.day === new Date(2024, 1, 15).toLocaleDateString());
+    await user.click(endDay as HTMLButtonElement);
+
+    expect(trigger).toHaveTextContent("2024/02/01 - 2024/02/15");
+  });
+
+  it("shows both open range bounds and follows external resets", () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <DateRangePicker
+        aria-label="账期范围"
+        value={{ to: "2026-12-31" }}
+        onChange={onChange}
+        placeholder="选择账期"
+      />,
+    );
+    expect(screen.getByRole("button", { name: "账期范围" })).toHaveTextContent("- 2026/12/31");
+
+    rerender(
+      <DateRangePicker
+        aria-label="账期范围"
+        value={{}}
+        onChange={onChange}
+        placeholder="选择账期"
+      />,
+    );
+    expect(screen.getByRole("button", { name: "账期范围" })).toHaveTextContent("选择账期");
   });
 });

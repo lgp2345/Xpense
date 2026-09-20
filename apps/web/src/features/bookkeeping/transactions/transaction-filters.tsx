@@ -1,6 +1,6 @@
 import type { AccountSummary, CategoryNode, LedgerSummary, TransactionType } from "@xpense/shared";
 import { useEffect, useState } from "react";
-import { DatePickerInput } from "@/components/date-picker";
+import { DateRangePicker } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -96,24 +96,17 @@ export function TransactionFilters({
             onChange={(value) => update("categoryId", value)}
           />
           <div className="grid gap-1">
-            <Label htmlFor="transaction-from">开始日期</Label>
-            <DatePickerInput
-              id="transaction-from"
-              value={draft.from || undefined}
-              buttonLabel="选择开始日期"
-              onChange={(value) => update("from", value ?? "")}
+            <Label htmlFor="transaction-date-range">日期范围</Label>
+            <DateRangePicker
+              id="transaction-date-range"
+              aria-label="日期范围"
+              value={{ from: draft.from || undefined, to: draft.to || undefined }}
+              onChange={({ from, to }) =>
+                setDraft((current) => ({ ...current, from: from ?? "", to: to ?? "" }))
+              }
             />
           </div>
-          <div className="grid gap-1">
-            <Label htmlFor="transaction-to">结束日期</Label>
-            <DatePickerInput
-              id="transaction-to"
-              value={draft.to || undefined}
-              buttonLabel="选择结束日期"
-              onChange={(value) => update("to", value ?? "")}
-            />
-          </div>
-          <div className="flex items-end gap-2 lg:col-span-3">
+          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-2">
             <Button
               onClick={() =>
                 onApply({

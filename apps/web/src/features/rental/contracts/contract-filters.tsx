@@ -1,6 +1,6 @@
 import type { RentalContractDisplayStatus } from "@xpense/shared";
 import { useEffect, useState } from "react";
-import { DatePickerInput } from "@/components/date-picker";
+import { DateRangePicker, type DateRangeValue } from "@/components/date-picker";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,25 +109,19 @@ export function ContractFilters({
           ))}
         </select>
       </label>
-      <DateField
-        label="开始日期（从）"
-        value={draft.startDateFrom}
-        onChange={(value) => setDraft((draft) => ({ ...draft, startDateFrom: value }))}
+      <DateRangeField
+        label="开始日期范围"
+        value={{ from: draft.startDateFrom, to: draft.startDateTo }}
+        onChange={({ from, to }) =>
+          setDraft((draft) => ({ ...draft, startDateFrom: from ?? "", startDateTo: to ?? "" }))
+        }
       />
-      <DateField
-        label="开始日期（至）"
-        value={draft.startDateTo}
-        onChange={(value) => setDraft((draft) => ({ ...draft, startDateTo: value }))}
-      />
-      <DateField
-        label="结束日期（从）"
-        value={draft.endDateFrom}
-        onChange={(value) => setDraft((draft) => ({ ...draft, endDateFrom: value }))}
-      />
-      <DateField
-        label="结束日期（至）"
-        value={draft.endDateTo}
-        onChange={(value) => setDraft((draft) => ({ ...draft, endDateTo: value }))}
+      <DateRangeField
+        label="结束日期范围"
+        value={{ from: draft.endDateFrom, to: draft.endDateTo }}
+        onChange={({ from, to }) =>
+          setDraft((draft) => ({ ...draft, endDateFrom: from ?? "", endDateTo: to ?? "" }))
+        }
       />
       <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
         <Button type="submit">应用筛选</Button>
@@ -174,25 +168,24 @@ function compact(draft: FilterDraft): ListRentalContractsQuery {
   ) as ListRentalContractsQuery;
 }
 
-function DateField({
+function DateRangeField({
   label,
   value,
   onChange,
 }: {
   label: string;
-  value: string;
-  onChange: (value: string) => void;
+  value: DateRangeValue;
+  onChange: (value: DateRangeValue) => void;
 }) {
   return (
     <label htmlFor={`contract-filter-${label}`} className="space-y-1 text-sm">
       <span>{label}</span>
-      <DatePickerInput
+      <DateRangePicker
         id={`contract-filter-${label}`}
-        name={label}
         aria-label={label}
         value={value}
-        onChange={(value) => onChange(value ?? "")}
-        buttonLabel={`选择${label}`}
+        onChange={onChange}
+        placeholder={`选择${label}`}
       />
     </label>
   );
