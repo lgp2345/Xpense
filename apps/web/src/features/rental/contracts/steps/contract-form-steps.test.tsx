@@ -93,6 +93,51 @@ describe("contract form step domains", () => {
     expect(calendarPreview(start, end, "calendar_month", interval)[0]).toBe(firstPeriod);
   });
 
+  it("updates both contract dates from one lease range", async () => {
+    const user = userEvent.setup();
+    const values = {
+      ...defaultContractFormValues(propertyId),
+      startDate: "2026-09-01",
+      endDate: "",
+    };
+    const onChange = vi.fn();
+    render(<ContractTermsStep values={values} onChange={onChange} />);
+
+    const trigger = screen.getByRole("button", { name: "租期范围" });
+    expect(trigger).toHaveTextContent("2026/09/01 -");
+    await user.click(trigger);
+    await screen.findByRole("grid");
+    const endDay = screen
+      .getAllByRole("button")
+      .find((button) => button.dataset.day === new Date(2026, 8, 15).toLocaleDateString());
+    await user.click(endDay as HTMLButtonElement);
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...values,
+      startDate: "2026-09-01",
+      endDate: "2026-09-15",
+    });
+  });
+
+  it("clears both contract dates together", async () => {
+    const user = userEvent.setup();
+    const values = {
+      ...defaultContractFormValues(propertyId),
+      startDate: "2026-09-01",
+      endDate: "2027-08-31",
+    };
+    const onChange = vi.fn();
+    render(<ContractTermsStep values={values} onChange={onChange} />);
+
+    await user.click(screen.getByRole("button", { name: "清除租期" }));
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...values,
+      startDate: "",
+      endDate: "",
+    });
+  });
+
   it("keeps the deposit input mounted while editable values change", async () => {
     const user = userEvent.setup();
     const values = defaultContractFormValues(propertyId);

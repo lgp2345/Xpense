@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { DatePickerInput } from "@/components/date-picker";
+import { DateRangePicker } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type ContractFormValues, isValidDate } from "../contract-form-schema";
@@ -48,22 +48,30 @@ export function ContractTermsStep({
             onChange={(event) => set("rentAmountText", event.target.value)}
           />
         </label>
-        <label className="grid gap-2 text-sm" htmlFor="contract-start-date">
-          开始日期
-          <DatePickerInput
-            id="contract-start-date"
-            value={values.startDate}
-            onChange={(value) => set("startDate", value ?? "")}
-          />
-        </label>
-        <label className="grid gap-2 text-sm" htmlFor="contract-end-date">
-          结束日期
-          <DatePickerInput
-            id="contract-end-date"
-            value={values.endDate}
-            onChange={(value) => set("endDate", value ?? "")}
-          />
-        </label>
+        <div className="grid gap-2 text-sm sm:col-span-2">
+          <label htmlFor="contract-date-range">租期范围</label>
+          <div className="flex gap-2">
+            <DateRangePicker
+              id="contract-date-range"
+              aria-label="租期范围"
+              value={{ from: values.startDate, to: values.endDate }}
+              onChange={({ from, to }) =>
+                onChange({ ...values, startDate: from ?? "", endDate: to ?? "" })
+              }
+              className="min-w-0 flex-1"
+            />
+            {values.startDate || values.endDate ? (
+              <Button
+                type="button"
+                variant="outline"
+                aria-label="清除租期"
+                onClick={() => onChange({ ...values, startDate: "", endDate: "" })}
+              >
+                清除
+              </Button>
+            ) : null}
+          </div>
+        </div>
       </div>
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">计费方式</legend>

@@ -998,7 +998,7 @@ describe("ContractFormPage route leave protection", () => {
     await screen.findByRole("heading", { name: "复核并确认" });
     await user.click(screen.getByRole("button", { name: "返回修改条款" }));
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "设置合同条款" }));
-    await user.clear(screen.getByLabelText("开始日期"));
+    await user.click(screen.getByRole("button", { name: "清除租期" }));
     await user.click(screen.getByRole("button", { name: "保存并继续" }));
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("alert")));
   });
