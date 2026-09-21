@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
+import { showApiErrorToast } from "@/services/api-error-toast";
 import type { BookkeepingApi, ListTransactionsQuery } from "../../../services/bookkeeping-api";
 import {
   bookkeepingQueryOptions,
@@ -108,8 +109,8 @@ export function TransactionsPage({
     try {
       await deleteMutation.mutateAsync(transaction.id);
       toast.success("交易已删除");
-    } catch {
-      toast.error("删除交易失败，请稍后重试。");
+    } catch (error) {
+      showApiErrorToast(error, "删除交易失败，请稍后重试。");
     }
   }
 

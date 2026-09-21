@@ -1,8 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import type { AccountSummary } from "@xpense/shared";
 import { useState } from "react";
-import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { showApiErrorToast } from "@/services/api-error-toast";
 import type { CreateAccountRequest, UpdateAccountRequest } from "../../../services/bookkeeping-api";
 import {
   type AccountFormValues,
@@ -218,8 +217,8 @@ function useAccountDialogForm({
         }
         setOpen(false);
         form.reset();
-      } catch {
-        toast.error("保存账户失败，请检查输入后重试。");
+      } catch (error) {
+        showApiErrorToast(error, "保存账户失败，请检查输入后重试。");
         setSubmitError("保存账户失败，请检查输入后重试。");
       }
     },

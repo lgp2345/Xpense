@@ -108,7 +108,7 @@ describe("Foundation API", () => {
     expect(response.statusCode).toBe(503);
     expect(response.json()).toEqual({
       code: "SERVICE_UNAVAILABLE",
-      message: "服务未就绪",
+      message: "服务暂时不可用，请稍后重试",
       data: null,
     });
     expect(response.body).not.toContain("connection refused");

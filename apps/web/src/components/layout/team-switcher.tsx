@@ -1,8 +1,6 @@
 import { ChevronsUpDown, Landmark } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { useStore } from "zustand";
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +15,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { showApiErrorToast } from "@/services/api-error-toast";
 import { switchWebOrganization, type WebSessionDependency } from "@/services/web-session";
 
 type Organization = { id: string; name: string };
@@ -58,8 +57,8 @@ export function TeamSwitcher({ session }: { session: WebSessionDependency }) {
     setIsSwitching(true);
     try {
       await switchWebOrganization(authApi, authStore, organizationId);
-    } catch {
-      toast.error("切换组织失败，请稍后重试。");
+    } catch (error) {
+      showApiErrorToast(error, "切换组织失败，请稍后重试。");
     } finally {
       setIsSwitching(false);
     }

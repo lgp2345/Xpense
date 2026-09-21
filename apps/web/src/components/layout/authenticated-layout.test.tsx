@@ -719,6 +719,8 @@ describe("AuthenticatedLayout", () => {
 
     await act(async () => rejectLogout(new Error("logout failed")));
 
-    expect(await screen.findByText("退出登录失败，请稍后重试。")).toBeInTheDocument();
+    expect(await screen.findByText("网络异常，请检查网络连接")).toBeInTheDocument();
+    expect(screen.getAllByText("网络异常，请检查网络连接")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "复制错误编号" })).not.toBeInTheDocument();
   });
 });

@@ -10,6 +10,12 @@ export function Toaster({ ...props }: ToasterProps) {
     <Sonner
       className="toaster group [&_div[data-content]]:w-full"
       theme={theme}
+      position="top-center"
+      closeButton
+      toastOptions={{
+        descriptionClassName: "break-all select-text",
+        closeButtonAriaLabel: "关闭提示",
+      }}
       style={
         {
           "--normal-bg": "var(--popover)",

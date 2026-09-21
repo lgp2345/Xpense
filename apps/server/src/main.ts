@@ -1,5 +1,6 @@
 import "reflect-metadata";
 
+import { ConsoleLogger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 
@@ -9,7 +10,7 @@ import { configureHttpApplication } from "./configure-http-application.js";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
-    bufferLogs: true,
+    logger: new ConsoleLogger({ json: process.env.NODE_ENV === "production" }),
   });
   const config = app.get(ServerConfigService);
   app.setGlobalPrefix(config.apiPrefix);

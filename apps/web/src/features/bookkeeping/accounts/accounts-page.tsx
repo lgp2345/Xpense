@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { showApiErrorToast } from "@/services/api-error-toast";
 import type {
   BookkeepingApi,
   CreateAccountRequest,
@@ -94,8 +95,8 @@ export function AccountsPage({
     try {
       await deleteMutation.mutateAsync(account.id);
       toast.success("账户已删除");
-    } catch {
-      toast.error("删除账户失败，请确认账户没有被有效交易引用。");
+    } catch (error) {
+      showApiErrorToast(error, "删除账户失败，请确认账户没有被有效交易引用。");
       setErrorMessage("删除账户失败，请确认账户没有被有效交易引用。");
       return;
     }

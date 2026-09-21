@@ -1,10 +1,9 @@
-import { API_CODES, isApiResponse } from "@xpense/shared";
-import axios, {
-  type AxiosError,
-  type AxiosInstance,
-  type AxiosRequestConfig,
-  CanceledError,
-} from "axios";
+import axios, { type AxiosInstance, type AxiosRequestConfig, CanceledError } from "axios";
+
+import { ApiError } from "./api-error";
+import { configureApiResponse } from "./api-response";
+
+export { ApiError } from "./api-error";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
@@ -24,6 +23,8 @@ type RetryConfig = {
 export type ApiClientOptions = {
   /** 接口前缀或基础地址；未提供时在发起请求时抛错。 */
   baseUrl?: string;
+  /** 仅通知重试耗尽后的最终失败，取消不通知。 */
+  onError?: (error: ApiError) => void;
   /** 每次请求读取当前访问令牌，避免固化创建客户端时的旧值。 */
   getAccessToken: () => string | null;
   /** 可注入独立实例以便测试；创建客户端时会向此实例注册响应拦截器。 */
@@ -38,6 +39,8 @@ export type ApiClientOptions = {
 export type ApiRequestOptions = {
   /** 默认通知最终 401；ignore 仅跳过通知，不吞掉请求错误。 */
   authFailure?: "ignore" | "notify";
+  /** 内部认证刷新由原请求负责反馈。 */
+  errorFeedback?: "ignore";
   /** 默认允许符合条件的 401 刷新后重放一次；ignore 禁用此行为。 */
   authRefresh?: "ignore" | "retry";
   /** GET 默认额外重试两次，写请求默认关闭；attempts 不含首次请求。 */
@@ -49,19 +52,6 @@ export type ApiRequestOptions = {
   /** 每次实际请求的超时时间，单位毫秒，默认 30 秒。 */
   timeout?: number;
 };
-
-/** 统一协议、业务和网络错误；status 为 0 表示未收到 HTTP 响应，取消错误另行透传。 */
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-    readonly data?: unknown,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
 
 function isGetMethod(method: string): boolean {
   return method.toUpperCase() === "GET";
@@ -157,27 +147,6 @@ function generateRequestId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function codeForHttpStatus(status: number): string {
-  switch (status) {
-    case 400:
-      return API_CODES.validationFailed;
-    case 401:
-      return API_CODES.unauthenticated;
-    case 403:
-      return API_CODES.forbidden;
-    case 404:
-      return API_CODES.notFound;
-    case 409:
-      return API_CODES.conflict;
-    case 429:
-      return API_CODES.tooManyRequests;
-    case 503:
-      return API_CODES.serviceUnavailable;
-    default:
-      return API_CODES.internalError;
-  }
-}
-
 /**
  * 创建统一请求客户端，处理鉴权头、响应解包、错误转换、重试、取消和请求追踪。
  *
@@ -206,43 +175,7 @@ export function createApiClient(options: ApiClientOptions) {
       }
     | undefined;
 
-  instance.interceptors.response.use(
-    (response) => {
-      const payload = response.data;
-
-      if (!isApiResponse(payload)) {
-        return Promise.reject(
-          new ApiError(response.status, API_CODES.internalError, "服务端响应格式异常"),
-        );
-      }
-      if (payload.code === API_CODES.ok) {
-        response.data = payload.data;
-        return response;
-      }
-
-      return Promise.reject(
-        new ApiError(response.status, payload.code, payload.message, payload.data),
-      );
-    },
-    (error: unknown) => {
-      if (axios.isCancel(error)) {
-        return Promise.reject(error);
-      }
-
-      const axiosError = error as AxiosError;
-      const status = axiosError.response?.status ?? 0;
-      const payload = axiosError.response?.data;
-
-      if (isApiResponse(payload)) {
-        return Promise.reject(new ApiError(status, payload.code, payload.message, payload.data));
-      }
-
-      const message =
-        status === 0 ? "网络异常，请检查网络连接" : (axiosError.message ?? "请求失败");
-
-      return Promise.reject(new ApiError(status, codeForHttpStatus(status), message));
-    },
-  );
+  configureApiResponse(instance);
 
   /**
    * 按旧访问令牌复用刷新任务，并记录成功映射。
@@ -398,6 +331,18 @@ export function createApiClient(options: ApiClientOptions) {
             continue;
           }
 
+          const expectedMissingSession =
+            error instanceof ApiError &&
+            error.status === 401 &&
+            requestOptions.authFailure === "ignore" &&
+            requestOptions.authRefresh === "ignore";
+          if (
+            error instanceof ApiError &&
+            requestOptions.errorFeedback !== "ignore" &&
+            !expectedMissingSession
+          ) {
+            options.onError?.(error);
+          }
           throw error;
         }
       }

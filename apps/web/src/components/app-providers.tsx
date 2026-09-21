@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { SearchProvider } from "@/context/search-provider";
 import { ThemeProvider } from "@/context/theme-provider";
+import { ApiError } from "@/services/api-error";
 
 import { Toaster } from "./ui/sonner";
 import { TooltipProvider } from "./ui/tooltip";
@@ -17,7 +18,10 @@ export function AppProviders({ children, queryClient }: AppProvidersProps) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { retry: 1, staleTime: 30_000 },
+          queries: {
+            retry: (failureCount, error) => !(error instanceof ApiError) && failureCount < 1,
+            staleTime: 30_000,
+          },
         },
       }),
   );

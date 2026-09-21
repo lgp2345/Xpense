@@ -93,7 +93,10 @@ function exposeThroughGlobalFilter(exception: unknown) {
     httpAdapter: { reply } as unknown as AbstractHttpAdapter,
   } as unknown as HttpAdapterHost);
   const host = {
-    switchToHttp: () => ({ getResponse: () => response }),
+    switchToHttp: () => ({
+      getResponse: () => response,
+      getRequest: () => ({ method: "POST", routeOptions: { url: "/tenants/create" } }),
+    }),
   } as unknown as ArgumentsHost;
   filter.catch(exception, host);
   return { logger, reply };

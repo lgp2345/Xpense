@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import { Pagination } from "@/components/pagination";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { showApiErrorToast } from "@/services/api-error-toast";
 import { ApiError } from "../../../services/api-client";
 import type { ListRentalPropertiesQuery, RentalApi } from "../../../services/rental-api";
 import {
@@ -89,8 +90,8 @@ export function PropertiesPage({
     try {
       await statusMutation.mutateAsync({ id: property.id, isActive });
       toast.success(isActive ? "房产已启用" : "房产已停用");
-    } catch {
-      toast.error("更新房产状态失败，请稍后重试。");
+    } catch (error) {
+      showApiErrorToast(error, "更新房产状态失败，请稍后重试。");
     }
   }
   async function handleDelete(property: RentalPropertySummary) {
@@ -102,7 +103,7 @@ export function PropertiesPage({
         error instanceof ApiError && error.status === 409
           ? "该房产存在空间或账务关联，请改为停用"
           : "删除房产失败，请稍后重试。";
-      toast.error(message);
+      showApiErrorToast(error, message);
     }
   }
   const errorMessage = propertiesQuery.isError

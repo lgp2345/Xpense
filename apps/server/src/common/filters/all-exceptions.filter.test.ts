@@ -20,7 +20,10 @@ function createHarness() {
   } as unknown as HttpAdapterHost);
   const response = {};
   const host = {
-    switchToHttp: () => ({ getResponse: () => response }),
+    switchToHttp: () => ({
+      getResponse: () => response,
+      getRequest: () => ({ method: "GET", routeOptions: { url: "/test" } }),
+    }),
   } as unknown as ArgumentsHost;
 
   return { filter, host, reply, response };
@@ -103,7 +106,7 @@ describe("AllExceptionsFilter", () => {
     filter.catch(new ServiceUnavailableException("服务未就绪"), host);
     expect(reply.mock.calls[1]?.[1]).toEqual({
       code: "SERVICE_UNAVAILABLE",
-      message: "服务未就绪",
+      message: "服务暂时不可用，请稍后重试",
       data: null,
     });
   });

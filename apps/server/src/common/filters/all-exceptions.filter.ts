@@ -9,6 +9,7 @@ import { HttpAdapterHost } from "@nestjs/core";
 
 import { apiErrorCodes } from "../errors/api-error.js";
 import { createRequestLogger } from "../logging/request-logger.js";
+import { safeError } from "../logging/safe-error.js";
 
 function codeForHttpStatus(status: number): string {
   switch (status) {
@@ -93,10 +94,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (status !== HttpStatus.INTERNAL_SERVER_ERROR && code === apiErrorCodes.internalError) {
         code = codeForHttpStatus(status);
       }
-    } else {
+    }
+
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      const request = ctx.getRequest<{ method: string; routeOptions?: { url?: string } }>();
+      code = codeForHttpStatus(status);
+      message =
+        status === HttpStatus.SERVICE_UNAVAILABLE ? "服务暂时不可用，请稍后重试" : "服务器内部错误";
       this.logger.error({
-        message: "未捕获异常",
-        error: exception instanceof Error ? exception.message : String(exception),
+        event: "request.failed",
+        method: request.method,
+        route: request.routeOptions?.url ?? "[unmatched]",
+        statusCode: status,
+        error: safeError(exception),
       });
     }
 

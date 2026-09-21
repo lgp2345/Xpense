@@ -6,9 +6,7 @@ import type {
   RentalContractDetail,
 } from "@xpense/shared";
 import { useRef, useState } from "react";
-import { toast } from "sonner";
 import { DatePickerInput } from "@/components/date-picker";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { showApiErrorToast } from "@/services/api-error-toast";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
 import {
@@ -227,7 +226,7 @@ export function ContractActions({
       if (liveContextRef.current === state.target.contextKey) setDialog({ tag: "closed" });
     } catch (error) {
       const message = actionErrorMessage(error);
-      if (error instanceof ApiError && error.status === 409) toast.error(message);
+      if (error instanceof ApiError && error.status === 409) showApiErrorToast(error, message);
       if (error instanceof ApiError && error.status === 404)
         await invalidateDeletedContractMutation(
           queryClient,

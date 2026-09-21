@@ -1,6 +1,5 @@
 import type { AuthTokensResponse, CurrentUserResponse } from "@xpense/shared";
 import type { AxiosInstance } from "axios";
-
 import { API_BASE_URL } from "../lib/env";
 import { type AuthStoreApi, authStore } from "../stores/auth-store";
 import {
@@ -9,6 +8,7 @@ import {
   type MenuStoreApi,
 } from "../stores/menu-store";
 import { ApiError, createApiClient } from "./api-client";
+import { showApiErrorToast } from "./api-error-toast";
 import { type AuthApi, createAuthApi, type LoginRequest, type UserOrganization } from "./auth-api";
 import { type BookkeepingApi, createBookkeepingApi } from "./bookkeeping-api";
 import { createIamApi, type IamApi } from "./iam-api";
@@ -417,6 +417,7 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
   const sessionMenuStore = options.menuStore ?? createMenuStore();
   const apiClient = createApiClient({
     baseUrl: options.baseUrl,
+    onError: showApiErrorToast,
     getAccessToken: () => options.authStore.getState().accessToken,
     instance: options.instance,
     onAuthFailure: (_error, requestAccessToken) => {
@@ -429,6 +430,7 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
       const { accessToken } = await apiClient.post<AuthTokensResponse>("/auth/refresh", undefined, {
         authFailure: "ignore",
         authRefresh: "ignore",
+        errorFeedback: "ignore",
       });
 
       if (options.authStore.getState().accessToken !== requestAccessToken) {

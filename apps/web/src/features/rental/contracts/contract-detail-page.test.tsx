@@ -253,7 +253,7 @@ describe("ContractDetailPage", () => {
     await user.type(screen.getByLabelText("原因"), "冲突复核");
     await user.click(screen.getByRole("button", { name: "确认撤销预定终止" }));
     expect(await screen.findByText(conflict)).toBeInTheDocument();
-    expect(toast.error).toHaveBeenCalledWith(conflict);
+    expect(toast.error).toHaveBeenCalledWith(conflict, { closeButton: true, duration: 6000 });
     expect(api.revokeContractTermination).toHaveBeenCalledWith({
       id: "contract-1",
       reason: "冲突复核",
