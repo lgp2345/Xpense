@@ -1,6 +1,5 @@
 import { ChevronsUpDown, LogOut, RefreshCw } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { useStore } from "zustand";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -17,7 +16,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { showApiErrorToast } from "@/services/api-error-toast";
+import { toast } from "@/lib/toast";
 import { logoutWebSession, type WebSessionDependency } from "@/services/web-session";
 
 function initials(email: string) {
@@ -40,7 +39,7 @@ export function NavUser({ session }: { session: WebSessionDependency }) {
       authStore.getState().setCurrentUserContext(currentUser);
       toast.success("权限已刷新");
     } catch (error) {
-      showApiErrorToast(error, "刷新权限失败，请稍后重试。");
+      toast.error(error, "刷新权限失败，请稍后重试。");
     } finally {
       setIsRefreshing(false);
     }
@@ -52,7 +51,7 @@ export function NavUser({ session }: { session: WebSessionDependency }) {
     try {
       await logoutWebSession(authApi, authStore);
     } catch (error) {
-      showApiErrorToast(error, "退出登录失败，请稍后重试。");
+      toast.error(error, "退出登录失败，请稍后重试。");
     } finally {
       setIsLoggingOut(false);
     }

@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { showApiErrorToast } from "@/services/api-error-toast";
+import { toast } from "@/lib/toast";
 import type {
   CreateCategoryRequest,
   UpdateCategoryRequest,
@@ -252,7 +252,7 @@ function useCategoryDialogForm({
         setOpen(false);
         form.reset();
       } catch (error) {
-        showApiErrorToast(error, "保存分类失败，请检查名称和层级后重试。");
+        toast.error(error, "保存分类失败，请检查名称和层级后重试。");
         setSubmitError("保存分类失败，请检查名称和层级后重试。");
       }
     },

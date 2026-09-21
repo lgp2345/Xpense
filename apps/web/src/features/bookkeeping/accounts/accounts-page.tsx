@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AccountSummary, PermissionKey } from "@xpense/shared";
 import { useState } from "react";
-import { toast } from "sonner";
 import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import {
   AlertDialog,
@@ -24,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { showApiErrorToast } from "@/services/api-error-toast";
+import { toast } from "@/lib/toast";
 import type {
   BookkeepingApi,
   CreateAccountRequest,
@@ -96,7 +95,7 @@ export function AccountsPage({
       await deleteMutation.mutateAsync(account.id);
       toast.success("账户已删除");
     } catch (error) {
-      showApiErrorToast(error, "删除账户失败，请确认账户没有被有效交易引用。");
+      toast.error(error, "删除账户失败，请确认账户没有被有效交易引用。");
       setErrorMessage("删除账户失败，请确认账户没有被有效交易引用。");
       return;
     }

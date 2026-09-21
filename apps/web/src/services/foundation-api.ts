@@ -1,6 +1,6 @@
 import { type HelloResponse, HelloResponseSchema } from "@xpense/shared";
+import { toast } from "@/lib/toast";
 import { type ApiClient, createApiClient } from "./api-client";
-import { showApiErrorToast } from "./api-error-toast";
 
 type FetchHelloOptions = {
   apiBaseUrl: string;
@@ -23,7 +23,7 @@ export async function fetchHello({
     createApiClient({
       baseUrl: apiBaseUrl,
       getAccessToken: () => null,
-      onError: showApiErrorToast,
+      onError: toast.error,
     });
   const data = await apiClient.get<unknown>("/foundation/hello");
 

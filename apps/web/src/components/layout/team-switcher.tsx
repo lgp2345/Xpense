@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { showApiErrorToast } from "@/services/api-error-toast";
+import { toast } from "@/lib/toast";
 import { switchWebOrganization, type WebSessionDependency } from "@/services/web-session";
 
 type Organization = { id: string; name: string };
@@ -58,7 +58,7 @@ export function TeamSwitcher({ session }: { session: WebSessionDependency }) {
     try {
       await switchWebOrganization(authApi, authStore, organizationId);
     } catch (error) {
-      showApiErrorToast(error, "切换组织失败，请稍后重试。");
+      toast.error(error, "切换组织失败，请稍后重试。");
     } finally {
       setIsSwitching(false);
     }

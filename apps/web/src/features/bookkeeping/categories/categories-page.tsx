@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CategoryNode, CategoryType, PermissionKey } from "@xpense/shared";
 import { useState } from "react";
-import { toast } from "sonner";
 import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import {
   Select,
@@ -11,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { showApiErrorToast } from "@/services/api-error-toast";
+import { toast } from "@/lib/toast";
 import type {
   BookkeepingApi,
   CreateCategoryRequest,
@@ -95,7 +94,7 @@ export function CategoriesPage({
       await deleteMutation.mutateAsync(category.id);
       toast.success("分类已删除");
     } catch (error) {
-      showApiErrorToast(error, "删除分类失败，请先处理其子分类或交易引用。");
+      toast.error(error, "删除分类失败，请先处理其子分类或交易引用。");
       setErrorMessage("删除分类失败，请先处理其子分类或交易引用。");
       return;
     }

@@ -6,11 +6,10 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import type { PermissionKey, TransactionRecord, UpsertTransactionRequest } from "@xpense/shared";
-import { toast } from "sonner";
 import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
-import { showApiErrorToast } from "@/services/api-error-toast";
+import { toast } from "@/lib/toast";
 import type { BookkeepingApi, ListTransactionsQuery } from "../../../services/bookkeeping-api";
 import {
   bookkeepingQueryOptions,
@@ -110,7 +109,7 @@ export function TransactionsPage({
       await deleteMutation.mutateAsync(transaction.id);
       toast.success("交易已删除");
     } catch (error) {
-      showApiErrorToast(error, "删除交易失败，请稍后重试。");
+      toast.error(error, "删除交易失败，请稍后重试。");
     }
   }
 

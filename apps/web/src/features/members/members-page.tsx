@@ -1,11 +1,11 @@
 import type { PermissionKey } from "@xpense/shared";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { DataTableToolbar } from "@/components/data-table/toolbar";
 import { useClientTable } from "@/components/data-table/use-client-table";
 import { ListPageSkeleton } from "@/components/list-loading-state";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/lib/toast";
 import type { IamApi, IamMember, IamRole } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
 import { createMemberColumns } from "./member-columns";

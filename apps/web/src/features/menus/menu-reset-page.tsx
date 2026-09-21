@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { z } from "zod";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "@/lib/toast";
 import type { UserOrganization } from "@/services/auth-api";
 import type { WebSessionDependency } from "@/services/web-session";
 

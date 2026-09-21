@@ -8,9 +8,7 @@ import type {
   UpdateRentalSpaceRequest,
 } from "@xpense/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { LoadMoreButton } from "@/components/load-more-button";
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "@/lib/toast";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
 import {

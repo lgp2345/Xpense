@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { showApiErrorToast } from "@/services/api-error-toast";
+import { toast } from "@/lib/toast";
 import type { CreateAccountRequest, UpdateAccountRequest } from "../../../services/bookkeeping-api";
 import {
   type AccountFormValues,
@@ -218,7 +218,7 @@ function useAccountDialogForm({
         setOpen(false);
         form.reset();
       } catch (error) {
-        showApiErrorToast(error, "保存账户失败，请检查输入后重试。");
+        toast.error(error, "保存账户失败，请检查输入后重试。");
         setSubmitError("保存账户失败，请检查输入后重试。");
       }
     },

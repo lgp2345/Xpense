@@ -6,7 +6,7 @@ import type {
   TransactionRecord,
   UpsertTransactionRequest,
 } from "@xpense/shared";
-import { showApiErrorToast } from "@/services/api-error-toast";
+import { toast } from "@/lib/toast";
 
 import {
   createTransactionFormValues,
@@ -59,7 +59,7 @@ export function useTransactionForm({
         else if (onCreate) await onCreate(input);
         onSaved();
       } catch (error) {
-        showApiErrorToast(error, "保存交易失败，请检查输入后重试。");
+        toast.error(error, "保存交易失败，请检查输入后重试。");
         setSubmitError("保存交易失败，请检查输入后重试。");
       }
     },
