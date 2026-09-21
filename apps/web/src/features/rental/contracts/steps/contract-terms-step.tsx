@@ -2,6 +2,13 @@ import { useRef } from "react";
 import { DateRangePicker } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { type ContractFormValues, isValidDate } from "../contract-form-schema";
 
 export function ContractTermsStep({
@@ -96,26 +103,31 @@ export function ContractTermsStep({
           自然月
         </label>
       </fieldset>
-      <label className="grid gap-2 text-sm" htmlFor="contract-payment-interval">
-        付款周期
-        <select
-          id="contract-payment-interval"
-          className="h-9 rounded-md border bg-background px-3"
-          value={values.paymentIntervalMonths}
-          onChange={(event) =>
+      <div className="grid gap-2 text-sm">
+        <label htmlFor="contract-payment-interval">付款周期</label>
+        <Select
+          value={values.paymentIntervalMonths || "none"}
+          onValueChange={(paymentIntervalMonths) =>
             set(
               "paymentIntervalMonths",
-              event.target.value as ContractFormValues["paymentIntervalMonths"],
+              (paymentIntervalMonths === "none"
+                ? ""
+                : paymentIntervalMonths) as ContractFormValues["paymentIntervalMonths"],
             )
           }
         >
-          <option value="">请选择</option>
-          <option value="1">每月</option>
-          <option value="3">每季</option>
-          <option value="6">每半年</option>
-          <option value="12">每年</option>
-        </select>
-      </label>
+          <SelectTrigger id="contract-payment-interval" aria-label="付款周期" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">请选择</SelectItem>
+            <SelectItem value="1">每月</SelectItem>
+            <SelectItem value="3">每季</SelectItem>
+            <SelectItem value="6">每半年</SelectItem>
+            <SelectItem value="12">每年</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <label className="grid gap-2 text-sm" htmlFor="contract-due-days">
         到期提醒提前天数
         <Input
@@ -159,26 +171,32 @@ export function ContractTermsStep({
         </Button>
         {values.deposits.map((deposit, index) => (
           <div key={depositKey(index)} className="mt-3 grid gap-2 sm:grid-cols-2">
-            <label className="grid gap-1 text-sm" htmlFor={`deposit-type-${index}`}>
-              类型
-              <select
-                id={`deposit-type-${index}`}
-                aria-label={`押金类型 ${index + 1}`}
-                className="h-9 rounded-md border bg-background px-2"
+            <div className="grid gap-1 text-sm">
+              <label htmlFor={`deposit-type-${index}`}>类型</label>
+              <Select
                 value={deposit.type}
-                onChange={(event) =>
+                onValueChange={(type) =>
                   updateDeposit(index, {
-                    type: event.target.value as typeof deposit.type,
-                    customName: event.target.value === "other" ? deposit.customName : "",
+                    type: type as typeof deposit.type,
+                    customName: type === "other" ? deposit.customName : "",
                   })
                 }
               >
-                <option value="rental">租金</option>
-                <option value="utility">水电</option>
-                <option value="access_card">门禁卡</option>
-                <option value="other">其他</option>
-              </select>
-            </label>
+                <SelectTrigger
+                  id={`deposit-type-${index}`}
+                  aria-label={`押金类型 ${index + 1}`}
+                  className="w-full"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rental">租金</SelectItem>
+                  <SelectItem value="utility">水电</SelectItem>
+                  <SelectItem value="access_card">门禁卡</SelectItem>
+                  <SelectItem value="other">其他</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             {deposit.type === "other" ? (
               <label className="grid gap-1 text-sm" htmlFor={`deposit-name-${index}`}>
                 押金名称

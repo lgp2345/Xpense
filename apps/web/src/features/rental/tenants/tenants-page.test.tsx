@@ -131,10 +131,21 @@ describe("TenantsPage", () => {
     });
   });
 
-  it("associates filter labels with native selects", () => {
-    renderPage();
-    expect(screen.getByLabelText("租客类型")).toHaveAttribute("id", "tenant-filter-租客类型");
-    expect(screen.getByLabelText("状态")).toHaveAttribute("id", "tenant-filter-状态");
+  it("opens tenant filters as accessible select popups and applies the selected value", async () => {
+    const user = userEvent.setup();
+    const onSearchChange = vi.fn();
+    renderPage({ onSearchChange });
+    const tenantType = screen.getByRole("combobox", { name: "租客类型" });
+    expect(tenantType).toHaveAttribute("id", "tenant-filter-租客类型");
+
+    await user.click(tenantType);
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "企业" }));
+    await user.click(screen.getByRole("button", { name: "应用筛选" }));
+
+    expect(onSearchChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "company", pageSize: 20 }),
+    );
   });
 
   it("shows an accessible loading state before the list resolves", () => {

@@ -4,6 +4,13 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { ListRentalTenantsQuery } from "../../../services/rental-api";
 import { normalizeRentalTenantsQuery } from "../../../services/rental-query";
 
@@ -61,7 +68,7 @@ export function TenantFilters({
   return (
     <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-3">
       <Text label="关键词" value={draft.keyword} onChange={(value) => update("keyword", value)} />
-      <Select
+      <FilterSelect
         label="租客类型"
         value={draft.type}
         options={[
@@ -71,7 +78,7 @@ export function TenantFilters({
         ]}
         onChange={(value) => update("type", value)}
       />
-      <Select
+      <FilterSelect
         label="状态"
         value={draft.isActive}
         options={[
@@ -86,7 +93,7 @@ export function TenantFilters({
         value={draft.documentCountryCode}
         onChange={(value) => update("documentCountryCode", value)}
       />
-      <Select
+      <FilterSelect
         label="证件类型"
         value={draft.documentType}
         options={[
@@ -135,7 +142,7 @@ function Text({
   );
 }
 
-function Select({
+function FilterSelect({
   label,
   value,
   options,
@@ -149,19 +156,18 @@ function Select({
   return (
     <div className="grid gap-1">
       <Label htmlFor={`tenant-filter-${label}`}>{label}</Label>
-      <select
-        id={`tenant-filter-${label}`}
-        aria-label={label}
-        className="h-9 rounded-md border bg-background px-3 text-sm"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {options.map(([key, text]) => (
-          <option key={key} value={key}>
-            {text}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={`tenant-filter-${label}`} aria-label={label} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map(([key, text]) => (
+            <SelectItem key={key} value={key}>
+              {text}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

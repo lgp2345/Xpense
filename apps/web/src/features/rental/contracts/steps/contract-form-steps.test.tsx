@@ -144,6 +144,40 @@ describe("contract form step domains", () => {
     });
   });
 
+  it("opens contract term selects as accessible popups and updates their values", async () => {
+    const user = userEvent.setup();
+    const values = {
+      ...defaultContractFormValues(propertyId),
+      deposits: [
+        {
+          type: "rental" as const,
+          customName: "",
+          calculationMode: "fixed_amount" as const,
+          fixedAmountText: "",
+          rentMultipleText: "",
+        },
+      ],
+    };
+    const onChange = vi.fn();
+    render(<ContractTermsStep values={values} onChange={onChange} />);
+
+    await user.click(screen.getByRole("combobox", { name: "付款周期" }));
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "每季" }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ paymentIntervalMonths: "3" }),
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "押金类型 1" }));
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "其他" }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        deposits: [expect.objectContaining({ type: "other", customName: "" })],
+      }),
+    );
+  });
+
   it("keeps the deposit input mounted while editable values change", async () => {
     const user = userEvent.setup();
     const values = defaultContractFormValues(propertyId);
@@ -364,7 +398,8 @@ describe("contract form step domains", () => {
     );
   });
 
-  it("loads an active property list for a property seed", async () => {
+  it("opens the property selector as an accessible popup and selects an active property", async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     const api = {
       listProperties: vi.fn().mockResolvedValue({
@@ -382,11 +417,15 @@ describe("contract form step domains", () => {
         api={api}
         organizationId="org-a"
         permissions={permissions}
-        values={defaultContractFormValues(propertyId)}
+        values={defaultContractFormValues()}
         onChange={onChange}
       />,
     );
-    expect(await screen.findByRole("option", { name: "种子房产" })).toBeInTheDocument();
+    const propertySelect = await screen.findByRole("combobox", { name: "房产" });
+    await user.click(propertySelect);
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "种子房产" }));
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ propertyId, spaces: [] }));
     expect(api.listProperties).toHaveBeenCalledWith(expect.objectContaining({ isActive: true }));
   });
 

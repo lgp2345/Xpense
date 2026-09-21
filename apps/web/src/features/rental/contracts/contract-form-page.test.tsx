@@ -300,8 +300,8 @@ describe("ContractFormPage", () => {
     renderPage(api);
 
     expect(await screen.findByRole("heading", { name: "选择房产与空间" })).toBeInTheDocument();
-    expect(await screen.findByRole("option", { name: "阳光公寓" })).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText("房产"), propertyId);
+    await user.click(screen.getByRole("combobox", { name: "房产" }));
+    await user.click(await screen.findByRole("option", { name: "阳光公寓" }));
     expect(screen.getByText("已选择房产：阳光公寓")).toBeInTheDocument();
   });
 
@@ -825,8 +825,8 @@ describe("ContractFormPage route leave protection", () => {
     const api = baseApi();
     const { forceRerender } = renderPageWithRerender(api);
     await screen.findByRole("heading", { name: "选择房产与空间" });
-    await screen.findByRole("option", { name: "阳光公寓" });
-    await user.selectOptions(screen.getByLabelText("房产"), propertyId);
+    await user.click(screen.getByRole("combobox", { name: "房产" }));
+    await user.click(await screen.findByRole("option", { name: "阳光公寓" }));
     await waitFor(async () =>
       expect(await latestBlockerOptions().shouldBlockFn({} as never)).toBe(true),
     );
@@ -1232,7 +1232,8 @@ describe("ContractFormPage step semantics", () => {
       deposits: [deposit],
     };
     view.rerender(<ContractTermsStep values={withDeposit} onChange={vi.fn()} />);
-    await user.selectOptions(screen.getByLabelText("押金类型 1"), "other");
+    await user.click(screen.getByRole("combobox", { name: "押金类型 1" }));
+    await user.click(screen.getByRole("option", { name: "其他" }));
     const withOther: ContractFormValues = {
       ...withDeposit,
       deposits: [{ ...deposit, type: "other" }],

@@ -6,6 +6,13 @@ import { LoadMoreButton } from "@/components/load-more-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { RentalApi } from "../../../../services/rental-api";
 import { rentalQueryOptions } from "../../../../services/rental-query";
 import type { ContractFormValues } from "../contract-form-schema";
@@ -213,27 +220,33 @@ export function ContractSpacesStep({
         选择房产与空间
       </h2>
       {showPropertySelector ? (
-        <label className="grid gap-2 text-sm" htmlFor="contract-property">
-          房产
-          <select
-            id="contract-property"
-            aria-label="房产"
-            className="h-9 rounded-md border bg-background px-3"
-            value={values.propertyId}
-            onChange={(event) =>
-              onChange({ ...values, propertyId: event.target.value, spaces: [] })
+        <div className="grid gap-2 text-sm">
+          <label htmlFor="contract-property">房产</label>
+          <Select
+            value={values.propertyId || "none"}
+            onValueChange={(propertyId) =>
+              onChange({
+                ...values,
+                propertyId: propertyId === "none" ? "" : propertyId,
+                spaces: [],
+              })
             }
           >
-            <option value="">请选择启用房产</option>
-            {propertyItems
-              .filter((property) => property.isActive)
-              .map((property) => (
-                <option key={property.id} value={property.id}>
-                  {property.name}
-                </option>
-              ))}
-          </select>
-        </label>
+            <SelectTrigger id="contract-property" aria-label="房产" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">请选择启用房产</SelectItem>
+              {propertyItems
+                .filter((property) => property.isActive)
+                .map((property) => (
+                  <SelectItem key={property.id} value={property.id}>
+                    {property.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
       ) : null}
       {propertyInactive ? <p role="alert">该房产已停用，无法创建合同。</p> : null}
       {propertyDetail.isError ? <p role="alert">房产验证失败，请重试加载。</p> : null}

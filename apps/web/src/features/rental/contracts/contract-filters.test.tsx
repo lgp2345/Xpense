@@ -4,6 +4,19 @@ import { describe, expect, it, vi } from "vitest";
 import { ContractFilters } from "./contract-filters";
 
 describe("contract date filters", () => {
+  it("opens the status filter as an accessible select popup and submits its value", async () => {
+    const user = userEvent.setup();
+    const onApply = vi.fn();
+    render(<ContractFilters search={{}} onApply={onApply} />);
+
+    await user.click(screen.getByRole("combobox", { name: "合同状态" }));
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "进行中" }));
+    await user.click(screen.getByRole("button", { name: "应用筛选" }));
+
+    expect(onApply).toHaveBeenLastCalledWith({ status: "active", page: 1, pageSize: 20 });
+  });
+
   it("maps the two date ranges to the existing contract query fields", async () => {
     const user = userEvent.setup();
     const onApply = vi.fn();

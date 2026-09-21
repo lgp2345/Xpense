@@ -4,6 +4,13 @@ import { DateRangePicker, type DateRangeValue } from "@/components/date-picker";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { ListRentalContractsQuery } from "../../../services/rental-api";
 import { CONTRACT_STATUS_LABELS } from "./contract-status";
 
@@ -86,29 +93,31 @@ export function ContractFilters({
           onChange={(event) => setDraft((value) => ({ ...value, tenantId: event.target.value }))}
         />
       </label>
-      <label htmlFor="contract-filter-status" className="space-y-1 text-sm">
+      <div className="space-y-1 text-sm">
         <span>状态</span>
-        <select
-          id="contract-filter-status"
+        <Select
           name="status"
-          aria-label="合同状态"
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-          value={draft.status}
-          onChange={(event) =>
+          value={draft.status || "all"}
+          onValueChange={(status) =>
             setDraft((value) => ({
               ...value,
-              status: event.target.value as RentalContractDisplayStatus | "",
+              status: status === "all" ? "" : (status as RentalContractDisplayStatus),
             }))
           }
         >
-          <option value="">全部状态</option>
-          {statuses.map((status) => (
-            <option key={status} value={status}>
-              {CONTRACT_STATUS_LABELS[status]}
-            </option>
-          ))}
-        </select>
-      </label>
+          <SelectTrigger id="contract-filter-status" aria-label="合同状态" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">全部状态</SelectItem>
+            {statuses.map((status) => (
+              <SelectItem key={status} value={status}>
+                {CONTRACT_STATUS_LABELS[status]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <DateRangeField
         label="开始日期范围"
         value={{ from: draft.startDateFrom, to: draft.startDateTo }}
