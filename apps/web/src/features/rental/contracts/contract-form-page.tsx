@@ -20,6 +20,7 @@ import {
   type ContractFormValues,
   defaultContractFormValues,
 } from './contract-form-schema'
+import { ContractLocalReviewStep } from './steps/contract-local-review-step'
 import { ContractPartiesStep } from './steps/contract-parties-step'
 import { ContractReviewStep } from './steps/contract-review-step'
 import { ContractSpacesStep } from './steps/contract-spaces-step'
@@ -80,55 +81,48 @@ export function ContractFormPage({
   )
   const valuesRef = useRef(values)
   valuesRef.current = values
-  const [propertyValidationPending, setPropertyValidationPending] =
-    useState(false)
+  const [propertyValidationGeneration, setPropertyValidationGeneration] =
+    useState<number | null>(null)
   const [propertyValidationError, setPropertyValidationError] = useState<
     string | null
   >(null)
   const [nonDraft, setNonDraft] = useState<string | null>(null)
   const hydratedDraftId = useRef<string | undefined>(undefined)
-  const createdDraftId = useRef<string | undefined>(undefined)
-  const pendingDraftRouteId = useRef<string | undefined>(undefined)
-  const previousOrganizationId = useRef(organizationId)
+  const completedContractId = useRef<string | undefined>(undefined)
+  const [selectionNames, setSelectionNames] = useState<Record<string, string>>({})
+  const captureNames = useCallback((names: Record<string, string>) => {
+    setSelectionNames((current) => ({ ...current, ...names }))
+  }, [])
+  const scope = `${organizationId}:${search.draftId ?? ''}:${search.propertyId ?? ''}:${canRead}:${canUpdate}:${canCreate}`
+  const scopeRef = useRef({ key: scope, generation: 0 })
+  if (scopeRef.current.key !== scope) {
+    scopeRef.current = { key: scope, generation: scopeRef.current.generation + 1 }
+  }
+  const propertyValidationPending =
+    propertyValidationGeneration === scopeRef.current.generation
   const seenBaselineVersion = useRef(0)
   const seenCanonicalResetVersion = useRef(0)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 组织或路由变化时重置整个表单会话
   useEffect(() => {
     setNonDraft(null)
     hydratedDraftId.current = undefined
     seenBaselineVersion.current = 0
     seenCanonicalResetVersion.current = 0
-    const isOwnCreate = Boolean(
-      search.draftId && createdDraftId.current === search.draftId,
-    )
-    if (previousOrganizationId.current !== organizationId || !isOwnCreate) {
-      setValues(defaultContractFormValues(search.propertyId))
-    }
-    previousOrganizationId.current = organizationId
-    if (isOwnCreate) createdDraftId.current = undefined
+    setValues(defaultContractFormValues(search.propertyId))
+    setSelectionNames({})
+    setPropertyValidationError(null)
+    setPropertyValidationGeneration(null)
+    completedContractId.current = undefined
   }, [organizationId, search.draftId, search.propertyId])
-  const handleDraftId = useCallback(
-    (id: string) => {
-      createdDraftId.current = id
-      pendingDraftRouteId.current = id
-      void Promise.resolve(
-        navigate({
-          search: { draftId: id },
-          replace: true,
-        }),
-      ).finally(() => {
-        if (pendingDraftRouteId.current === id)
-          pendingDraftRouteId.current = undefined
-      })
-    },
-    [navigate],
-  )
   const handleConfirmed = useCallback(
-    (id: string) =>
+    (id: string) => {
+      completedContractId.current = id
       void navigate({
         to: '/rentals/contracts/$contractId',
         params: { contractId: id },
         replace: true,
-      }),
+      })
+    },
     [navigate],
   )
   const handleNonDraft = useCallback(
@@ -152,7 +146,6 @@ export function ContractFormPage({
     canRead,
     canCreate,
     canUpdate,
-    onDraftId: handleDraftId,
     onConfirmed: handleConfirmed,
     onNonDraft: handleNonDraft,
   })
@@ -190,13 +183,9 @@ export function ContractFormPage({
     values,
   ])
 
-  const isOwnCreatedRoute = Boolean(
-    search.draftId && createdDraftId.current === search.draftId,
-  )
   const hydrationPending = Boolean(
     search.draftId &&
     draft.serverDraft &&
-    !isOwnCreatedRoute &&
     hydratedDraftId.current !== draft.serverDraft.id,
   )
   const dirty = hydrationPending ? false : draft.isDirty(values)
@@ -207,18 +196,10 @@ export function ContractFormPage({
       action?: string
       next?: { fullPath?: string; search?: unknown }
     }) => {
-      const nextSearch =
-        args.next?.search && typeof args.next.search === 'object'
-          ? (args.next.search as { draftId?: unknown })
-          : undefined
-      const isOwnDraftRouteReplace =
-        args.action === 'REPLACE' &&
-        args.next?.fullPath === '/rentals/contracts/new' &&
-        nextSearch?.draftId === pendingDraftRouteId.current
-      if (isOwnDraftRouteReplace) {
-        pendingDraftRouteId.current = undefined
-        return false
-      }
+      if (
+        completedContractId.current &&
+        args.next?.fullPath === '/rentals/contracts/$contractId'
+      ) return false
       return hasUnsavedWork
     },
     [hasUnsavedWork],
@@ -255,9 +236,10 @@ export function ContractFormPage({
 
   const step = draft.step
   const busy = draft.operation !== 'idle' || propertyValidationPending
-  const creationPending = draft.operation === 'creating' && !draft.draftId
+  const creationPending = !search.draftId && draft.operation === 'confirming'
   async function next() {
     if (step === 0 && !draft.draftId) {
+      const requestScope = scopeRef.current.generation
       const propertyId = values.propertyId
       setPropertyValidationError(null)
       if (!propertyId) {
@@ -268,10 +250,11 @@ export function ContractFormPage({
         setPropertyValidationError('房产验证失败，请稍后重试。')
         return
       }
-      setPropertyValidationPending(true)
+      setPropertyValidationGeneration(requestScope)
       try {
         const property = await api.getProperty(propertyId)
         if (
+          scopeRef.current.generation !== requestScope ||
           valuesRef.current.propertyId !== propertyId ||
           property.id !== propertyId
         )
@@ -282,9 +265,11 @@ export function ContractFormPage({
         }
         await draft.saveAndNext(values)
       } catch {
-        setPropertyValidationError('房产验证失败，请稍后重试。')
+        if (scopeRef.current.generation === requestScope)
+          setPropertyValidationError('房产验证失败，请稍后重试。')
       } finally {
-        setPropertyValidationPending(false)
+        if (scopeRef.current.generation === requestScope)
+          setPropertyValidationGeneration(null)
       }
       return
     }
@@ -298,7 +283,9 @@ export function ContractFormPage({
       <header>
         <h1 className="font-medium tracking-tight text-2xl">新建合同</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          每一步都会先保存草稿，确认前服务端会再次检查空间可用性。
+          {search.draftId
+            ? '继续填写已有草稿，确认前会再次检查空间可用性。'
+            : '按步骤填写合同资料，复核后创建合同。提交前的内容仅保留在当前页面。'}
         </p>
       </header>
       <ol
@@ -351,40 +338,52 @@ export function ContractFormPage({
       ) : null}
       <Card>
         <CardContent className="p-4 sm:p-6">
-          {step === 0 ? (
-            <ContractSpacesStep
-              api={api}
-              organizationId={organizationId}
-              values={values}
-              onChange={setValues}
-              permissions={permissions}
-              showPropertySelector={!search.draftId}
-              seedSpaceIds={search.draftId ? undefined : search.spaceIds}
-            />
-          ) : step === 1 ? (
-            <ContractPartiesStep
-              api={api}
-              organizationId={organizationId}
-              permissions={permissions}
-              values={values}
-              onChange={setValues}
-            />
-          ) : step === 2 ? (
-            <ContractTermsStep values={values} onChange={setValues} />
-          ) : (
-            <ContractReviewStep
-              values={values}
-              serverDraft={draft.serverDraft}
-              availability={draft.availability?.result ?? null}
-              dirty={dirty}
-              confirming={
-                draft.operation === 'checking' ||
-                draft.operation === 'confirming'
-              }
-              onConfirm={() => void draft.checkAndConfirm(values)}
-              onEdit={(nextStep) => draft.setStep(nextStep)}
-            />
-          )}
+          <fieldset disabled={creationPending} className="min-w-0">
+            {step === 0 ? (
+              <ContractSpacesStep
+                api={api}
+                organizationId={organizationId}
+                values={values}
+                onChange={setValues}
+                permissions={permissions}
+                onNames={captureNames}
+                showPropertySelector={!search.draftId}
+                seedSpaceIds={search.draftId ? undefined : search.spaceIds}
+              />
+            ) : step === 1 ? (
+              <ContractPartiesStep
+                api={api}
+                organizationId={organizationId}
+                permissions={permissions}
+                onNames={captureNames}
+                values={values}
+                onChange={setValues}
+              />
+            ) : step === 2 ? (
+              <ContractTermsStep values={values} onChange={setValues} />
+            ) : !search.draftId ? (
+              <ContractLocalReviewStep
+                values={values}
+                names={selectionNames}
+                busy={busy}
+                onConfirm={() => void draft.checkAndConfirm(values)}
+                onEdit={(nextStep) => draft.setStep(nextStep)}
+              />
+            ) : (
+              <ContractReviewStep
+                values={values}
+                serverDraft={draft.serverDraft}
+                availability={draft.availability?.result ?? null}
+                dirty={dirty}
+                confirming={
+                  draft.operation === 'checking' ||
+                  draft.operation === 'confirming'
+                }
+                onConfirm={() => void draft.checkAndConfirm(values)}
+                onEdit={(nextStep) => draft.setStep(nextStep)}
+              />
+            )}
+          </fieldset>
         </CardContent>
       </Card>
       {step < 3 ? (
@@ -399,9 +398,9 @@ export function ContractFormPage({
           </Button>
           <Button type="button" disabled={busy} onClick={() => void next()}>
             {busy
-              ? '保存中...'
-              : step === 0 && !draft.draftId
-                ? '创建草稿'
+              ? (search.draftId ? '保存中...' : '校验中...')
+              : !search.draftId
+                ? '下一步'
                 : step === 0
                   ? '保存空间并下一步'
                   : '保存并继续'}
@@ -414,7 +413,11 @@ export function ContractFormPage({
           aria-live="polite"
           className="text-sm text-muted-foreground"
         >
-          正在保存合同草稿，请稍候。
+          {search.draftId
+            ? '正在保存合同草稿，请稍候。'
+            : creationPending
+              ? '正在创建合同，请稍候。'
+              : '正在校验合同资料，请稍候。'}
         </p>
       ) : null}
       {blocker.status === 'blocked' ? (
@@ -441,8 +444,8 @@ export function ContractFormPage({
                 {draft.draftId
                   ? '当前表单有未保存内容或正在保存，离开后可以从草稿继续。'
                   : creationPending
-                    ? '正在创建草稿，请等待创建完成后再离开；离开将丢弃未保存内容。'
-                    : '当前表单尚未创建草稿，离开将丢弃未保存内容。'}
+                    ? '正在创建合同，请等待提交完成后再离开。'
+                    : '合同尚未提交，离开将丢弃当前填写内容。'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

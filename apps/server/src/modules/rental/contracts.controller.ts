@@ -35,7 +35,12 @@ import {
   revokeContractTerminationSchema,
 } from "./dto/contract-action.dto.js";
 import { type ContractDetailDto, contractDetailSchema } from "./dto/contract-detail.dto.js";
-import { type CreateContractDto, createContractSchema } from "./dto/create-contract.dto.js";
+import {
+  type CreateConfirmedContractDto,
+  type CreateContractDto,
+  createConfirmedContractSchema,
+  createContractSchema,
+} from "./dto/create-contract.dto.js";
 import { type ListContractsDto, listContractsSchema } from "./dto/list-contracts.dto.js";
 import {
   type RevealContractPartySensitiveDto,
@@ -83,6 +88,16 @@ export class ContractsController {
     @Body({ schema: createContractSchema }) dto: CreateContractDto,
   ): Promise<RentalContractDetail> {
     return this.contracts.create(authContext, dto);
+  }
+
+  @Post("create-confirmed")
+  @HttpCode(200)
+  @RequirePermission(["rental_contracts:create", "rental_contracts:update"])
+  createConfirmed(
+    @CurrentAuthContext() authContext: AuthContext,
+    @Body({ schema: createConfirmedContractSchema }) dto: CreateConfirmedContractDto,
+  ): Promise<RentalContractDetail> {
+    return this.contracts.createConfirmed(authContext, dto);
   }
 
   @Post("update")

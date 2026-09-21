@@ -5,6 +5,7 @@ import {
   defaultContractFormValues,
   parseMinor,
   stepSchemas,
+  toConfirmedContractRequest,
   toContractFormValues,
   toCreateContractRequest,
   toStepUpdateRequest,
@@ -26,6 +27,43 @@ const base = () => ({
 });
 
 describe("contract form schema", () => {
+  it("serializes all local steps together, preserving exact money and deposit terms", () => {
+    expect(
+      toConfirmedContractRequest({
+        ...base(),
+        rentAmountText: "12.30",
+        note: "  备注  ",
+        externalContractNumber: "  EXT-1  ",
+        spaces: [{ spaceId, rentAllocationText: "12.30" }],
+        deposits: [
+          {
+            type: "rental",
+            customName: "",
+            calculationMode: "rent_multiple",
+            fixedAmountText: "",
+            rentMultipleText: "2.5",
+          },
+        ],
+      }),
+    ).toEqual({
+      propertyId,
+      spaces: [{ spaceId, rentAllocationMinor: 1230 }],
+      parties: [{ tenantId, isPrimaryPayer: true }],
+      startDate: "2026-09-01",
+      endDate: "2026-09-30",
+      rentAmountMinor: 1230,
+      billingAnchor: "contract_start",
+      paymentIntervalMonths: 1,
+      dueDaysBefore: 0,
+      note: "备注",
+      externalContractNumber: "EXT-1",
+      depositTerms: [
+        { type: "rental", calculationMode: "rent_multiple", rentMultiple: "2.5", sortOrder: 0 },
+      ],
+    });
+    expect(() => toConfirmedContractRequest({ ...base(), rentAmountText: "0" })).toThrow();
+  });
+
   it("defaults the expiration reminder to 30 days", () => {
     expect(defaultContractFormValues().dueDaysBeforeText).toBe("30");
   });

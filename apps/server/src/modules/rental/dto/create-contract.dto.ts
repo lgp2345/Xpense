@@ -140,3 +140,23 @@ export type CreateContractDto = z.output<typeof createContractSchema>;
 export const createRentalContractSchema = createContractSchema;
 export type { CreateContractDto as CreateRentalContractDto };
 export { mutableShape as contractMutableShape };
+
+/** 完整录入后一次性创建正式合同，禁止缺失确认所需字段。 */
+export const createConfirmedContractSchema = z
+  .object({
+    ...mutableShape,
+    propertyId: z.string().uuid(),
+    startDate: contractCalendarDateSchema,
+    endDate: contractCalendarDateSchema,
+    rentAmountMinor: money,
+    billingAnchor: z.enum(rentalBillingAnchors),
+    paymentIntervalMonths: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(12)]),
+    dueDaysBefore: z.number().int().min(0).max(90),
+    spaces: z.array(contractSpaceInputSchema).min(1).max(100),
+    parties: z.array(contractPartyInputSchema).min(1).max(100),
+  })
+  .strict()
+  .superRefine(refineContractDtoCollections);
+
+/** 完整合同创建请求 DTO。 */
+export type CreateConfirmedContractDto = z.output<typeof createConfirmedContractSchema>;

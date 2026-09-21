@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { UseNavigateResult } from "@tanstack/react-router";
-import type { PermissionKey, RentalContractDetail } from "@xpense/shared";
+import type { PermissionKey } from "@xpense/shared";
+import { ArrowLeft, Building2, CalendarClock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,9 +10,14 @@ import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
 import { rentalQueryOptions } from "../../../services/rental-query";
 import { ContractActions } from "./contract-actions";
+import {
+  DepositSection,
+  LifecycleSection,
+  Overview,
+  SpaceSection,
+} from "./contract-detail-sections";
 import { ContractPartySection } from "./contract-party-reveal";
 import { ContractStatusBadge } from "./contract-status";
-import { formatMoney } from "./contract-table";
 
 export function ContractDetailPage({
   api,
@@ -46,190 +52,96 @@ export function ContractDetailPage({
   const contract = query.data;
   if (!contract) return null;
   return (
-    <main className="space-y-4 p-4 sm:p-6 lg:p-8">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Button
-            variant="link"
-            className="mb-2 px-0"
-            onClick={() =>
-              void navigate?.({ to: "/rentals/contracts" as never, search: search as never })
-            }
-          >
-            返回合同列表
-          </Button>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-medium tracking-tight">{contract.contractNumber}</h1>
-            <ContractStatusBadge status={contract.displayStatus} />
+    <main className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <header className="space-y-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2 text-muted-foreground hover:text-foreground"
+          onClick={() =>
+            void navigate?.({ to: "/rentals/contracts" as never, search: search as never })
+          }
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          返回合同列表
+        </Button>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="min-w-0 break-words text-2xl font-bold tracking-tight">
+                {contract.contractNumber}
+              </h1>
+              <ContractStatusBadge status={contract.displayStatus} />
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <Building2 aria-hidden="true" className="size-4 shrink-0" />
+                <span className="break-words">{contract.propertyName}</span>
+              </span>
+              <span className="min-w-0 break-words">
+                外部编号：{contract.externalContractNumber ?? "无外部合同编号"}
+              </span>
+            </div>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {contract.propertyName} · {contract.externalContractNumber ?? "无外部合同编号"}
-          </p>
+          <ContractActions
+            key={`${organizationId}:${contract.id}`}
+            api={api}
+            organizationId={organizationId}
+            contract={contract}
+            permissions={permissions}
+            search={search}
+            navigate={navigate}
+          />
         </div>
-        <ContractActions
-          key={`${organizationId}:${contract.id}`}
-          api={api}
-          organizationId={organizationId}
-          contract={contract}
-          permissions={permissions}
-          search={search}
-          navigate={navigate}
-        />
       </header>
       {contract.hasScheduledTermination ? (
         <div
           role="status"
-          className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"
+          className="flex items-start gap-3 rounded-lg border bg-muted/50 px-4 py-3 text-sm"
         >
-          已安排于 {contract.terminationDate ?? "指定日期"} 终止
-          {contract.terminationReason ? `：${contract.terminationReason}` : ""}。
+          <CalendarClock
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+          />
+          <p className="min-w-0 break-words leading-relaxed">
+            已安排于 {contract.terminationDate ?? "指定日期"} 终止
+            {contract.terminationReason ? `：${contract.terminationReason}` : ""}。
+          </p>
         </div>
       ) : null}
       <Overview contract={contract} />
-      <SpaceSection contract={contract} />
-      <ContractPartySection
-        key={`${organizationId}:${contractId}`}
-        api={api}
-        contract={contract}
-        permissions={permissions}
-      />
-      <DepositSection contract={contract} />
-      <LifecycleSection contract={contract} />
+      <div className="divide-y rounded-xl border bg-card text-card-foreground">
+        <SpaceSection contract={contract} />
+        <ContractPartySection
+          key={`${organizationId}:${contractId}`}
+          api={api}
+          contract={contract}
+          permissions={permissions}
+        />
+        <DepositSection contract={contract} />
+        <LifecycleSection contract={contract} />
+      </div>
     </main>
   );
 }
 
-function Overview({ contract }: { contract: RentalContractDetail }) {
-  return (
-    <Card>
-      <CardContent className="grid gap-3 p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-        <Info
-          label="合同期"
-          value={`${contract.startDate ?? "未开始"} 至 ${contract.endDate ?? "未结束"}`}
-        />
-        <Info label="实际结束日" value={contract.actualEndDate ?? "未结束"} />
-        <Info label="租金" value={formatMoney(contract.rentAmountMinor)} />
-        <Info
-          label="计费锚点"
-          value={
-            contract.billingAnchor === "contract_start"
-              ? "合同起始日"
-              : contract.billingAnchor === "calendar_month"
-                ? "自然月"
-                : "未设置"
-          }
-        />
-        <Info
-          label="付款周期"
-          value={
-            contract.paymentIntervalMonths ? `每 ${contract.paymentIntervalMonths} 个月` : "未设置"
-          }
-        />
-        <Info
-          label="提前几天到期"
-          value={contract.dueDaysBefore === null ? "未设置" : `${contract.dueDaysBefore} 天`}
-        />
-        <Info label="续租来源" value={contract.renewedFromContractId ?? "无"} />
-        {contract.note ? (
-          <div className="sm:col-span-2 lg:col-span-3">
-            <span className="text-muted-foreground">备注</span>
-            <p className="mt-1 whitespace-pre-wrap">{contract.note}</p>
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-function SpaceSection({ contract }: { contract: RentalContractDetail }) {
-  return (
-    <Section title="空间快照">
-      {contract.spaces.length === 0 ? (
-        <p className="text-sm text-muted-foreground">未指定空间。</p>
-      ) : (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {contract.spaces.map((space) => (
-            <Card key={space.spaceId}>
-              <CardContent className="p-4 text-sm">
-                <p className="font-medium">
-                  {space.spacePath.map((node) => node.name).join(" / ")}
-                </p>
-                <p className="mt-1 text-muted-foreground">
-                  空间：{space.spaceName}
-                  {space.spaceCode ? `（${space.spaceCode}）` : ""}
-                </p>
-                <p className="mt-1">租金分摊：{formatMoney(space.rentAllocationMinor)}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </Section>
-  );
-}
-function DepositSection({ contract }: { contract: RentalContractDetail }) {
-  return (
-    <Section title="押金">
-      <div className="grid gap-2 sm:grid-cols-2">
-        {contract.depositTerms.length === 0 ? (
-          <p className="text-sm text-muted-foreground">未设置押金。</p>
-        ) : (
-          contract.depositTerms.map((term) => (
-            <Card key={term.id}>
-              <CardContent className="p-4 text-sm">
-                <p className="font-medium">{term.customName ?? depositLabel(term.type)}</p>
-                <p>计算方式：{term.calculationMode === "fixed_amount" ? "固定金额" : "租金倍数"}</p>
-                <p>
-                  约定值：
-                  {term.calculationMode === "fixed_amount"
-                    ? formatMoney(term.fixedAmountMinor)
-                    : `${term.rentMultiple ?? "未设置"} 倍租金`}
-                </p>
-                <p>最终金额：{formatMoney(term.finalAmountMinor)}</p>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
-    </Section>
-  );
-}
-function LifecycleSection({ contract }: { contract: RentalContractDetail }) {
-  return (
-    <Section title="生命周期">
-      <div className="grid gap-3 text-sm sm:grid-cols-2">
-        <Info label="取消原因" value={contract.cancellationReason ?? "无"} />
-        <Info label="终止日期" value={contract.terminationDate ?? "无"} />
-        <Info label="终止原因" value={contract.terminationReason ?? "无"} />
-      </div>
-    </Section>
-  );
-}
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-medium">{title}</h2>
-      {children}
-    </section>
-  );
-}
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span className="text-muted-foreground">{label}</span>
-      <p className="mt-1 break-words">{value}</p>
-    </div>
-  );
-}
 function LoadingDetail() {
   return (
-    <main className="space-y-4 p-4 sm:p-6 lg:p-8">
-      <Skeleton className="h-8 w-64" />
+    <main className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8" aria-busy="true">
+      <Skeleton className="h-8 w-32" />
+      <Skeleton className="h-8 w-full max-w-64" />
       <Card>
-        <CardContent className="space-y-3 p-4">
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-8 w-full" />
+        <CardContent className="grid gap-4 p-5 md:grid-cols-3">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
         </CardContent>
       </Card>
+      <div className="space-y-6 rounded-xl border p-5">
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-36 w-full" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
+      </div>
       <span className="sr-only">正在加载合同详情...</span>
     </main>
   );
@@ -253,17 +165,5 @@ function DetailError({ error, retry }: { error: unknown; retry: () => void }) {
         </Button>
       </div>
     </main>
-  );
-}
-function depositLabel(type: string): string {
-  return (
-    (
-      {
-        rental: "租金押金",
-        utility: "水电押金",
-        access_card: "门禁卡押金",
-        other: "其他押金",
-      } as Record<string, string>
-    )[type] ?? "押金"
   );
 }

@@ -1064,6 +1064,184 @@ describe("Rental HTTP e2e", () => {
     return property;
   }
 
+  function directCreationFixture(setup: TestAppHarness) {
+    const payload = {
+      propertyId: rentalTestIds.property,
+      startDate: "2027-01-01",
+      endDate: "2027-12-31",
+      rentAmountMinor: 10000,
+      billingAnchor: "contract_start",
+      paymentIntervalMonths: 1,
+      dueDaysBefore: 0,
+      spaces: [{ spaceId: rentalTestIds.childSpace }],
+      parties: [{ tenantId: rentalTestIds.tenant, isPrimaryPayer: true }],
+      depositTerms: [],
+    } as const;
+    registerContractDetail(
+      setup,
+      generatedContractId,
+      rentalTestIds.property,
+      "RC-2026-000001",
+      payload,
+      { tenantId: rentalTestIds.tenant, spaceId: rentalTestIds.childSpace },
+      { lifecycleStatus: "confirmed", displayStatus: "upcoming" },
+    );
+    const template = setup.state.rental.contracts.get(rentalTestIds.contract);
+    if (!template) throw new Error("Missing contract fixture");
+    registerConfirmSnapshotsMutation(
+      setup,
+      generatedContractId,
+      rentalTestIds.childSpace,
+      payload.startDate,
+      payload.endDate,
+      {
+        ...template,
+        id: generatedContractId,
+        contractNumber: "RC-2026-000001",
+        status: "draft",
+        startDate: payload.startDate,
+        endDate: payload.endDate,
+        rentAmountMinor: 10000,
+        createdByUserId: testIds.ownerUser,
+        updatedByUserId: testIds.ownerUser,
+      },
+    );
+    setup.state.rentalQuery.registerSpaceConflict(
+      {
+        organizationId: testIds.organization,
+        propertyId: rentalTestIds.property,
+        spaceIds: [rentalTestIds.childSpace],
+        startDate: payload.startDate,
+        endDate: payload.endDate,
+        excludeContractId: generatedContractId,
+      },
+      [],
+    );
+    return payload;
+  }
+
+  it("creates a complete confirmed contract through one HTTP request", async () => {
+    const setup = await createHarness();
+    const payload = directCreationFixture(setup);
+    const headers = await authorization(setup.app, TEST_PHONES.owner);
+    const result = expectOk<RentalContractDetail>(
+      await setup.app.inject({
+        method: "POST",
+        url: "/api/rental-contracts/create-confirmed",
+        headers,
+        payload,
+      }),
+    );
+    expect(result.lifecycleStatus).toBe("confirmed");
+    expect(result.spaces.map((item) => item.spaceId)).toEqual([rentalTestIds.childSpace]);
+    expect(setup.state.rental.contracts.get(result.id)?.status).toBe("confirmed");
+    expect(setup.state.rental.snapshots.has(result.id)).toBe(true);
+    expect(setup.state.rental.contractCounters.get(`${testIds.organization}/2026`)).toBe(1);
+  });
+
+  it.each([
+    "conflict",
+    "snapshot",
+    "lifecycle",
+    "audit",
+  ])("atomic creation rolls back all writes on %s failure", async (fault) => {
+    const setup = await createHarness();
+    const payload = directCreationFixture(setup);
+    const headers = await authorization(setup.app, TEST_PHONES.owner);
+    if (fault === "conflict")
+      setup.state.rentalQuery.registerSpaceConflict(
+        {
+          organizationId: testIds.organization,
+          propertyId: rentalTestIds.property,
+          spaceIds: [rentalTestIds.childSpace],
+          startDate: payload.startDate,
+          endDate: payload.endDate,
+          excludeContractId: generatedContractId,
+        },
+        [
+          {
+            contractId: rentalTestIds.contract,
+            contractNumber: "RC-2026-000900",
+            spaceId: rentalTestIds.childSpace,
+          },
+        ],
+      );
+    if (fault === "snapshot")
+      setup.state.rental.failNextRepositoryOperation = "relations.confirmSnapshots";
+    if (fault === "lifecycle")
+      setup.state.rental.failNextRepositoryOperation = "contracts.setLifecycle";
+    if (fault === "audit") setup.state.failNextRequiredAuditAppendAfterPersist = true;
+    const before = cloneRentalTestState(setup.state.rental);
+    const audits = structuredClone(setup.state.auditLogs);
+    const response = await setup.app.inject({
+      method: "POST",
+      url: "/api/rental-contracts/create-confirmed",
+      headers,
+      payload,
+    });
+    expectApiError(
+      response,
+      fault === "conflict" ? 409 : 500,
+      fault === "conflict" ? "CONFLICT" : "INTERNAL_ERROR",
+    );
+    expect(cloneRentalTestState(setup.state.rental)).toEqual(before);
+    expect(setup.state.auditLogs).toEqual(audits);
+  });
+
+  it("requires authentication and write permissions for direct creation", async () => {
+    const setup = await createHarness();
+    const payload = directCreationFixture(setup);
+    expectApiError(
+      await setup.app.inject({
+        method: "POST",
+        url: "/api/rental-contracts/create-confirmed",
+        payload,
+      }),
+      401,
+      "UNAUTHENTICATED",
+    );
+    const headers = await authorization(setup.app, TEST_PHONES.viewer);
+    expectApiError(
+      await setup.app.inject({
+        method: "POST",
+        url: "/api/rental-contracts/create-confirmed",
+        headers,
+        payload,
+      }),
+      403,
+      "FORBIDDEN",
+    );
+    expect(setup.state.rental.contracts.has(generatedContractId)).toBe(false);
+  });
+
+  it.each([
+    { parties: [] },
+    { spaces: [] },
+    { rentAmountMinor: 0 },
+    { rentAmountMinor: 1.5 },
+    { startDate: "2027-02-30" },
+    { endDate: "2026-01-01" },
+    { billingAnchor: null },
+    { dueDaysBefore: 91 },
+    { paymentIntervalMonths: null },
+  ])("rejects incomplete or invalid direct creation input %j", async (patch) => {
+    const setup = await createHarness();
+    const payload = directCreationFixture(setup);
+    const headers = await authorization(setup.app, TEST_PHONES.owner);
+    const before = cloneRentalTestState(setup.state.rental);
+    expectApiError(
+      await setup.app.inject({
+        method: "POST",
+        url: "/api/rental-contracts/create-confirmed",
+        headers,
+        payload: { ...payload, ...patch },
+      }),
+      400,
+      "VALIDATION_FAILED",
+    );
+    expect(cloneRentalTestState(setup.state.rental)).toEqual(before);
+  });
+
   it("keeps contract reads available to member/viewer while only admin can write", async () => {
     const { app } = await createHarness();
     const adminHeaders = await authorization(app, "13800000007");

@@ -1,4 +1,5 @@
 import type {
+  CreateConfirmedRentalContractRequest,
   CreateRentalContractRequest,
   RentalContractDepositTermInput,
   RentalContractDetail,
@@ -381,5 +382,26 @@ export function allocationSummary(values: ContractFormValues): { total: number; 
   return {
     total: amounts.reduce<number>((sum, amount) => sum + (amount ?? 0), 0),
     valid: amounts.every((amount) => amount !== null),
+  };
+}
+
+/** 将全部已校验步骤转换为一次性正式合同创建请求。 */
+export function toConfirmedContractRequest(
+  values: ContractFormValues,
+): CreateConfirmedRentalContractRequest {
+  const parsed = contractFormSchema.parse(values);
+  return {
+    propertyId: parsed.propertyId,
+    externalContractNumber: nullable(parsed.externalContractNumber),
+    spaces: parsed.spaces.map(toSpaceInput),
+    parties: parsed.parties,
+    startDate: parsed.startDate,
+    endDate: parsed.endDate,
+    rentAmountMinor: parseMinor(parsed.rentAmountText) as number,
+    billingAnchor: parsed.billingAnchor,
+    paymentIntervalMonths: Number(parsed.paymentIntervalMonths) as RentalPaymentIntervalMonths,
+    dueDaysBefore: Number(parsed.dueDaysBeforeText),
+    depositTerms: parsed.deposits.map(toDepositInput),
+    note: nullable(parsed.note),
   };
 }

@@ -15,7 +15,11 @@ import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
 import { rentalKeys } from "../../../services/rental-query";
 import { ContractFormPage } from "./contract-form-page";
-import { type ContractFormValues, defaultContractFormValues } from "./contract-form-schema";
+import {
+  type ContractFormValues,
+  defaultContractFormValues,
+  toContractFormValues,
+} from "./contract-form-schema";
 import { ContractPartiesStep } from "./steps/contract-parties-step";
 import { ContractReviewStep } from "./steps/contract-review-step";
 import { ContractTermsStep, calendarPreview } from "./steps/contract-terms-step";
@@ -122,6 +126,7 @@ function renderPage(
     "rental_contracts:update",
     "rental_properties:read",
     "rental_spaces:read",
+    "rental_tenants:read",
   ],
   search: { draftId?: string; propertyId?: string; spaceIds?: string[] } = {},
 ) {
@@ -164,6 +169,7 @@ function renderPageWithRerender(
             "rental_contracts:update",
             "rental_properties:read",
             "rental_spaces:read",
+            "rental_tenants:read",
           ]}
           canCreate
           search={search}
@@ -226,6 +232,25 @@ function baseApi(overrides: Partial<RentalApi> = {}): RentalApi {
     searchSpaces: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
     contractDetail: vi.fn(),
     createContract: vi.fn(),
+    createConfirmedContract: vi
+      .fn()
+      .mockResolvedValue(
+        completeDetail({ lifecycleStatus: "confirmed", displayStatus: "upcoming" }),
+      ),
+    checkContractAvailability: vi.fn().mockResolvedValue({ available: true, conflicts: [] }),
+    listTenants: vi.fn().mockResolvedValue({
+      items: [
+        {
+          id: "44444444-4444-4444-8444-444444444444",
+          name: "张三",
+          type: "individual",
+          isActive: true,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    }),
     updateContract: vi.fn(),
     ...overrides,
   } as RentalApi;
@@ -252,6 +277,44 @@ function spaceNode() {
   };
 }
 
+function newFormApi(overrides: Partial<RentalApi> = {}) {
+  return baseApi({
+    listChildren: vi
+      .fn()
+      .mockResolvedValue({ items: [spaceNode()], total: 1, page: 1, pageSize: 50 }),
+    ...overrides,
+  });
+}
+
+async function fillNewContractToReview(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "选择" }));
+  await user.click(screen.getByRole("button", { name: "下一步" }));
+  await screen.findByRole("heading", { name: "选择承租方" });
+  await user.click(await screen.findByRole("button", { name: "选择" }));
+  await user.click(screen.getByRole("button", { name: "下一步" }));
+  await screen.findByRole("heading", { name: "设置合同条款" });
+  await user.type(screen.getByLabelText("月租（元）"), "8000");
+  await user.click(screen.getByRole("button", { name: "租期范围" }));
+  await screen.findByRole("grid");
+  const now = new Date();
+  for (const day of [10, 20]) {
+    const button = screen
+      .getAllByRole("button")
+      .find(
+        (item) =>
+          item.dataset.day ===
+          new Date(now.getFullYear(), now.getMonth(), day).toLocaleDateString(),
+      );
+    await user.click(button as HTMLButtonElement);
+  }
+  await user.keyboard("{Escape}");
+  await user.click(screen.getByLabelText("合同起始日"));
+  await user.click(screen.getByRole("combobox", { name: "付款周期" }));
+  await user.click(screen.getByRole("option", { name: "每月" }));
+  await user.click(screen.getByRole("button", { name: "下一步" }));
+  await screen.findByRole("heading", { name: "复核并创建" });
+}
+
 function latestBlockerOptions() {
   return blockerMock.mock.calls.at(-1)?.[0] as unknown as {
     shouldBlockFn: (args: never) => boolean | Promise<boolean>;
@@ -260,6 +323,65 @@ function latestBlockerOptions() {
 }
 
 describe("ContractFormPage", () => {
+  it("clears pending property validation when permissions are revoked and restored", async () => {
+    const user = userEvent.setup();
+    const resolvers: Array<(value: RentalPropertyDetail) => void> = [];
+    const api = newFormApi({
+      getProperty: vi.fn(
+        () => new Promise<RentalPropertyDetail>((resolve) => resolvers.push(resolve)),
+      ),
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const permissions: PermissionKey[] = [
+      "rental_contracts:create",
+      "rental_contracts:read",
+      "rental_contracts:update",
+      "rental_properties:read",
+      "rental_spaces:read",
+    ];
+    const page = (canCreate: boolean) => (
+      <QueryClientProvider client={queryClient}>
+        <ContractFormPage
+          api={api}
+          organizationId="org-a"
+          permissions={permissions}
+          canCreate={canCreate}
+          navigate={vi.fn()}
+          search={{ propertyId }}
+        />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(page(true));
+    await user.click(await screen.findByRole("button", { name: "选择" }));
+    await user.click(screen.getByRole("button", { name: "下一步" }));
+    expect(screen.getByRole("button", { name: "校验中..." })).toBeDisabled();
+    rerender(page(false));
+    await act(async () => {
+      for (const resolve of resolvers)
+        resolve({ id: propertyId, isActive: true, name: "阳光公寓" } as RentalPropertyDetail);
+    });
+    rerender(page(true));
+    expect(await screen.findByRole("button", { name: "下一步" })).toBeEnabled();
+    expect(screen.getByRole("heading", { name: "选择房产与空间" })).toBeInTheDocument();
+    expect(api.createConfirmedContract).not.toHaveBeenCalled();
+  });
+
+  it("advances from spaces to parties without creating or saving a contract", async () => {
+    const user = userEvent.setup();
+    const api = baseApi({
+      listChildren: vi
+        .fn()
+        .mockResolvedValue({ items: [spaceNode()], total: 1, page: 1, pageSize: 50 }),
+    });
+    const { navigate } = renderPage(api, undefined, { propertyId });
+    await user.click(await screen.findByRole("button", { name: "选择" }));
+    await user.click(screen.getByRole("button", { name: "下一步" }));
+    expect(await screen.findByRole("heading", { name: "选择承租方" })).toBeInTheDocument();
+    expect(api.createContract).not.toHaveBeenCalled();
+    expect(api.updateContract).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it("does not request anything when contract permissions are incomplete", () => {
     const api = baseApi();
     renderPage(api, []);
@@ -276,6 +398,7 @@ describe("ContractFormPage", () => {
     const api = baseApi({
       contractDetail: vi.fn(),
       createContract: vi.fn(),
+      createConfirmedContract: vi.fn(),
       updateContract: vi.fn(),
       checkContractAvailability: vi.fn(),
       confirmContract: vi.fn(),
@@ -370,6 +493,7 @@ describe("ContractFormPage", () => {
             "rental_contracts:update",
             "rental_properties:read",
             "rental_spaces:read",
+            "rental_tenants:read",
           ]}
           canCreate
           search={search}
@@ -387,105 +511,51 @@ describe("ContractFormPage", () => {
     expect(await screen.findByText(`已选择房产：${otherPropertyId}`)).toBeInTheDocument();
   });
 
-  it("adopts a created draft route once without refetching or re-creating", async () => {
+  it("keeps local selections when moving back from parties without changing the route", async () => {
     const user = userEvent.setup();
-    const createContract = vi.fn().mockResolvedValue(detail());
-    const contractDetail = vi.fn();
     const api = baseApi({
-      createContract,
-      contractDetail,
-      listChildren: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 50 }),
+      listChildren: vi
+        .fn()
+        .mockResolvedValue({ items: [spaceNode()], total: 1, page: 1, pageSize: 50 }),
     });
-    let setSearch: ((next: { draftId?: string; propertyId?: string }) => void) | undefined;
-    const navigate = vi.fn((input: { search?: { draftId?: string; propertyId?: string } }) => {
-      if (input.search) setSearch?.(input.search);
-      return Promise.resolve();
-    });
-    function Harness() {
-      const [search, updateSearch] = useState<{ draftId?: string; propertyId?: string }>({
-        propertyId,
-      });
-      setSearch = updateSearch;
-      return (
-        <ContractFormPage
-          api={api}
-          organizationId="org-a"
-          permissions={[
-            "rental_contracts:create",
-            "rental_contracts:read",
-            "rental_contracts:update",
-            "rental_properties:read",
-            "rental_spaces:read",
-          ]}
-          canCreate
-          search={search}
-          navigate={navigate as never}
-        />
-      );
-    }
-    render(
-      <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-      >
-        <Harness />
-      </QueryClientProvider>,
-    );
-    await screen.findByRole("button", { name: "创建草稿" });
-    await user.click(screen.getByRole("button", { name: "创建草稿" }));
-    await waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
-    expect(contractDetail).not.toHaveBeenCalled();
-    expect(createContract).toHaveBeenCalledTimes(1);
-    expect(await screen.findByRole("button", { name: "保存空间并下一步" })).toBeInTheDocument();
+    const { navigate } = renderPage(api, undefined, { propertyId });
+    await user.click(await screen.findByRole("button", { name: "选择" }));
+    await user.click(screen.getByRole("button", { name: "下一步" }));
+    await screen.findByRole("heading", { name: "选择承租方" });
+    await user.click(screen.getByRole("button", { name: "上一步" }));
+    expect(await screen.findByLabelText(`空间 ${spaceId}`)).toBeInTheDocument();
+    expect(api.createContract).not.toHaveBeenCalled();
+    expect(api.createConfirmedContract).not.toHaveBeenCalled();
+    expect(api.updateContract).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("does not offer save retry for a local validation error", async () => {
     const user = userEvent.setup();
     const api = baseApi();
     renderPage(api);
-    await screen.findByRole("button", { name: "创建草稿" });
-    await user.click(screen.getByRole("button", { name: "创建草稿" }));
+    await screen.findByRole("button", { name: "下一步" });
+    await user.click(screen.getByRole("button", { name: "下一步" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("请选择房产");
     expect(screen.queryByRole("button", { name: "重试保存" })).not.toBeInTheDocument();
   });
 
-  it("creates a property-only checkpoint before saving spaces", async () => {
+  it("requires a space before advancing and never writes a property-only checkpoint", async () => {
     const user = userEvent.setup();
-    const createContract = vi.fn().mockResolvedValue(detail());
-    const updateContract = vi.fn().mockResolvedValue(
-      detail({
-        spaces: [
-          {
-            spaceId,
-            spaceName: "101",
-            spaceCode: null,
-            spacePath: [],
-            rentAllocationMinor: null,
-          },
-        ],
-      }),
-    );
     const api = baseApi({
-      createContract,
-      updateContract,
       listChildren: vi
         .fn()
         .mockResolvedValue({ items: [spaceNode()], total: 1, page: 1, pageSize: 50 }),
     });
-    const { navigate } = renderPage(api, undefined, { propertyId });
-
-    expect(await screen.findByRole("heading", { name: "选择房产与空间" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "创建草稿" }));
-    expect(createContract).toHaveBeenCalledWith({ propertyId });
-    expect(updateContract).not.toHaveBeenCalled();
-    expect(screen.getByRole("heading", { name: "选择房产与空间" })).toBeInTheDocument();
-    expect(navigate).toHaveBeenCalledWith({ search: { draftId }, replace: true });
-
+    renderPage(api, undefined, { propertyId });
+    await user.click(await screen.findByRole("button", { name: "下一步" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("至少选择一个空间");
+    expect(api.createContract).not.toHaveBeenCalled();
+    expect(api.createConfirmedContract).not.toHaveBeenCalled();
     await user.click(await screen.findByRole("button", { name: "选择" }));
-    await user.click(screen.getByRole("button", { name: "保存空间并下一步" }));
-    expect(updateContract).toHaveBeenCalledWith({ id: draftId, propertyId, spaces: [{ spaceId }] });
-    expect(navigate.mock.invocationCallOrder[0] ?? 0).toBeLessThan(
-      updateContract.mock.invocationCallOrder[0] ?? 0,
-    );
+    await user.click(screen.getByRole("button", { name: "下一步" }));
+    expect(await screen.findByRole("heading", { name: "选择承租方" })).toBeInTheDocument();
+    expect(api.updateContract).not.toHaveBeenCalled();
   });
 
   it("keeps the draft after update failure and retry never creates a second draft", async () => {
@@ -495,15 +565,17 @@ describe("ContractFormPage", () => {
       .fn()
       .mockRejectedValueOnce(new Error("保存失败"))
       .mockResolvedValueOnce(detail({ spaces: [] }));
-    const api = baseApi({ createContract, updateContract });
+    const api = baseApi({
+      createContract,
+      updateContract,
+      contractDetail: vi.fn().mockResolvedValue(detail()),
+    });
     api.listChildren = vi
       .fn()
       .mockResolvedValue({ items: [spaceNode()], total: 1, page: 1, pageSize: 50 });
-    renderPage(api, undefined, { propertyId });
+    renderPage(api, undefined, { draftId });
 
     await screen.findByRole("heading", { name: "选择房产与空间" });
-    await user.click(screen.getByRole("button", { name: "创建草稿" }));
-    expect(createContract).toHaveBeenCalledTimes(1);
     expect(updateContract).not.toHaveBeenCalled();
     await user.click(await screen.findByRole("button", { name: "选择" }));
     await user.click(screen.getByRole("button", { name: "保存空间并下一步" }));
@@ -511,7 +583,7 @@ describe("ContractFormPage", () => {
     expect(screen.getByRole("alert")).not.toHaveTextContent("保存失败");
     await user.type(screen.getByLabelText(`空间 ${spaceId}`), "100");
     await user.click(screen.getByRole("button", { name: "重试保存" }));
-    expect(createContract).toHaveBeenCalledTimes(1);
+    expect(createContract).not.toHaveBeenCalled();
     expect(updateContract).toHaveBeenCalledTimes(2);
     expect(updateContract).toHaveBeenLastCalledWith({
       id: draftId,
@@ -527,8 +599,8 @@ describe("ContractFormPage", () => {
     const api = baseApi({ getProperty, createContract });
     renderPage(api, undefined, { propertyId });
 
-    await screen.findByRole("button", { name: "创建草稿" });
-    await user.click(screen.getByRole("button", { name: "创建草稿" }));
+    await screen.findByRole("button", { name: "下一步" });
+    await user.click(screen.getByRole("button", { name: "下一步" }));
 
     expect(getProperty).toHaveBeenCalledWith(propertyId);
     expect(createContract).not.toHaveBeenCalled();
@@ -544,8 +616,8 @@ describe("ContractFormPage", () => {
     const api = baseApi({ getProperty, createContract });
     renderPage(api, undefined, { propertyId });
 
-    await screen.findByRole("button", { name: "创建草稿" });
-    await user.click(screen.getByRole("button", { name: "创建草稿" }));
+    await screen.findByRole("button", { name: "下一步" });
+    await user.click(screen.getByRole("button", { name: "下一步" }));
     resolveProperty({ id: propertyId, isActive: false } as RentalPropertyDetail);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("房产不可用");
@@ -566,15 +638,15 @@ describe("ContractFormPage draft session", () => {
 
   it("ignores a deferred create result after the draft hook unmounts", async () => {
     let resolveCreate: (value: RentalContractDetail) => void = () => undefined;
-    const createContract = vi.fn(
+    const createConfirmedContract = vi.fn(
       () => new Promise<RentalContractDetail>((resolve) => (resolveCreate = resolve)),
     );
-    const onDraftId = vi.fn();
-    const api = baseApi({ createContract });
+    const onConfirmed = vi.fn();
+    const api = baseApi({ createConfirmedContract });
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
     );
-    const values = defaultContractFormValues(propertyId);
+    const values = toContractFormValues(completeDetail());
     const { result, unmount } = renderHook(
       () =>
         useContractDraft({
@@ -583,19 +655,20 @@ describe("ContractFormPage draft session", () => {
           canRead: true,
           canCreate: true,
           canUpdate: true,
-          onDraftId,
+          onConfirmed,
         }),
       { wrapper },
     );
     let savePromise: Promise<unknown> | undefined;
     await act(async () => {
-      savePromise = result.current.save({ ...values, propertyId }, 0);
+      savePromise = result.current.checkAndConfirm(values);
       await Promise.resolve();
     });
+    expect(createConfirmedContract).toHaveBeenCalledTimes(1);
     unmount();
     resolveCreate(detail());
     await savePromise;
-    expect(onDraftId).not.toHaveBeenCalled();
+    expect(onConfirmed).not.toHaveBeenCalled();
   });
 
   it("ignores deferred availability and confirmation results after unmount", async () => {
@@ -800,19 +873,21 @@ describe("ContractFormPage route leave protection", () => {
     });
   });
 
-  it("blocks navigation while a save operation is pending", async () => {
+  it("blocks navigation while an existing draft save is pending", async () => {
     const user = userEvent.setup();
-    const createContract = vi.fn(() => new Promise<RentalContractDetail>(() => undefined));
-    const api = baseApi({ createContract });
-    renderPage(api, undefined, { propertyId });
-    await screen.findByRole("button", { name: "创建草稿" });
-    await user.click(screen.getByRole("button", { name: "创建草稿" }));
-
-    await waitFor(async () => {
-      const options = latestBlockerOptions();
-      expect(options.enableBeforeUnload).toBe(true);
-      expect(await options.shouldBlockFn({} as never)).toBe(true);
+    const api = baseApi({
+      contractDetail: vi.fn().mockResolvedValue(detail()),
+      updateContract: vi.fn(() => new Promise<RentalContractDetail>(() => undefined)),
+      listChildren: vi
+        .fn()
+        .mockResolvedValue({ items: [spaceNode()], total: 1, page: 1, pageSize: 50 }),
     });
+    renderPage(api, undefined, { draftId });
+    await user.click(await screen.findByRole("button", { name: "选择" }));
+    await user.click(screen.getByRole("button", { name: "保存空间并下一步" }));
+    expect(api.updateContract).toHaveBeenCalledTimes(1);
+    expect(latestBlockerOptions().enableBeforeUnload).toBe(true);
+    expect(await latestBlockerOptions().shouldBlockFn({} as never)).toBe(true);
   });
 
   it("offers to leave and discard when dirty work has not created a draft", async () => {
@@ -833,33 +908,33 @@ describe("ContractFormPage route leave protection", () => {
 
     resolver = { status: "blocked", proceed, reset: vi.fn() };
     act(() => forceRerender());
-    expect(screen.getByText("当前表单尚未创建草稿，离开将丢弃未保存内容。")).toBeInTheDocument();
+    expect(screen.getByText("合同尚未提交，离开将丢弃当前填写内容。")).toBeInTheDocument();
     expect(screen.queryByText(/保留草稿/)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "离开并丢弃" }));
     expect(proceed).toHaveBeenCalledTimes(1);
   });
 
-  it("does not allow leaving while the initial draft is still being created", async () => {
+  it("does not allow leaving while the contract is still being created", async () => {
     const user = userEvent.setup();
     const proceed = vi.fn();
     const reset = vi.fn();
     let resolveCreate: (value: RentalContractDetail) => void = () => undefined;
-    const createContract = vi.fn(
+    const createConfirmedContract = vi.fn(
       () => new Promise<RentalContractDetail>((resolve) => (resolveCreate = resolve)),
     );
     let resolver:
       | typeof idleBlocker
       | { status: "blocked"; proceed: () => void; reset: () => void } = idleBlocker;
     blockerMock.mockImplementation(() => resolver as never);
-    const api = baseApi({ createContract });
+    const api = newFormApi({ createConfirmedContract });
     const { forceRerender } = renderPageWithRerender(api, { propertyId });
-    await screen.findByRole("button", { name: "创建草稿" });
-    await user.click(screen.getByRole("button", { name: "创建草稿" }));
-    await waitFor(() => expect(createContract).toHaveBeenCalledTimes(1));
+    await fillNewContractToReview(user);
+    await user.click(screen.getByRole("button", { name: "创建合同" }));
+    await waitFor(() => expect(createConfirmedContract).toHaveBeenCalledTimes(1));
 
     resolver = { status: "blocked", proceed, reset };
     act(() => forceRerender());
-    expect(screen.getByText(/正在创建草稿，请等待创建完成后再离开/)).toBeInTheDocument();
+    expect(screen.getByText(/正在创建合同，请等待提交完成后再离开/)).toBeInTheDocument();
     const leaveButton = screen.getByRole("button", { name: "离开并丢弃" });
     expect(leaveButton).toBeDisabled();
     await user.click(leaveButton);
@@ -867,54 +942,47 @@ describe("ContractFormPage route leave protection", () => {
     expect(reset).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "取消" }));
     expect(reset).toHaveBeenCalledTimes(1);
-    resolveCreate(detail());
+    await act(async () => resolveCreate(completeDetail({ lifecycleStatus: "confirmed" })));
   });
 
-  it("switches to preserving the draft after deferred creation and bypasses its replace", async () => {
+  it("navigates to the created contract without a draft route or a leave prompt", async () => {
     const user = userEvent.setup();
-    const proceed = vi.fn();
-    let resolveCreate: (value: RentalContractDetail) => void = () => undefined;
-    const createContract = vi.fn(
-      () => new Promise<RentalContractDetail>((resolve) => (resolveCreate = resolve)),
-    );
-    let resolver:
-      | typeof idleBlocker
-      | { status: "blocked"; proceed: () => void; reset: () => void } = idleBlocker;
-    blockerMock.mockImplementation(() => resolver as never);
     let internalReplaceCheck: boolean | Promise<boolean> | undefined;
     const navigate = vi.fn((input: unknown) => {
-      const navigation = input as { replace?: boolean; search?: { draftId?: string } };
-      if (navigation.replace && navigation.search?.draftId) {
-        internalReplaceCheck = latestBlockerOptions().shouldBlockFn({
-          current: {} as never,
-          next: {
-            fullPath: "/rentals/contracts/new",
-            search: navigation.search,
-          } as never,
-          action: "REPLACE",
-        } as never);
-      }
+      const navigation = input as { to?: string };
+      internalReplaceCheck = latestBlockerOptions().shouldBlockFn({
+        next: { fullPath: navigation.to },
+        action: "REPLACE",
+      } as never);
       return Promise.resolve();
     });
-    const api = baseApi({ createContract });
-    const { forceRerender } = renderPageWithRerender(api, { propertyId }, navigate);
-    await screen.findByRole("button", { name: "创建草稿" });
-    await user.click(screen.getByRole("button", { name: "创建草稿" }));
-    await waitFor(() => expect(createContract).toHaveBeenCalledTimes(1));
-
-    resolver = { status: "blocked", proceed, reset: vi.fn() };
-    act(() => forceRerender());
-    expect(screen.getByRole("button", { name: "离开并丢弃" })).toBeDisabled();
-    await act(async () => resolveCreate(detail()));
+    const api = newFormApi();
+    renderPageWithRerender(api, { propertyId }, navigate);
+    await fillNewContractToReview(user);
+    expect(screen.getByText("房产：阳光公寓")).toBeInTheDocument();
+    expect(screen.getByText("空间：101")).toBeInTheDocument();
+    expect(screen.getByText("承租方：张三")).toBeInTheDocument();
+    expect(screen.getByText("月租：8000 元")).toBeInTheDocument();
+    expect(api.createConfirmedContract).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "创建合同" }));
     await waitFor(() =>
-      expect(navigate).toHaveBeenCalledWith({ search: { draftId }, replace: true }),
+      expect(navigate).toHaveBeenCalledWith({
+        to: "/rentals/contracts/$contractId",
+        params: { contractId: draftId },
+        replace: true,
+      }),
     );
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "离开并保留草稿" })).toBeEnabled(),
+    expect(api.createConfirmedContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        propertyId,
+        spaces: [{ spaceId }],
+        parties: [{ tenantId: "44444444-4444-4444-8444-444444444444", isPrimaryPayer: true }],
+        rentAmountMinor: 800000,
+      }),
     );
+    expect(api.createContract).not.toHaveBeenCalled();
+    expect(api.updateContract).not.toHaveBeenCalled();
     expect(await internalReplaceCheck).toBe(false);
-    await user.click(screen.getByRole("button", { name: "离开并保留草稿" }));
-    expect(proceed).toHaveBeenCalledTimes(1);
   });
 
   it("confirms a blocked navigation through the resolver without deleting the draft", async () => {
@@ -1265,5 +1333,160 @@ describe("ContractFormPage step semantics", () => {
       "2026-02-01 至 2026-02-28",
       "2026-03-01 至 2026-03-10",
     ]);
+  });
+});
+
+describe("new contract final submission", () => {
+  function mount(api: RentalApi, onConfirmed = vi.fn()) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    return {
+      ...renderHook(
+        ({ organizationId }) =>
+          useContractDraft({
+            api,
+            organizationId,
+            canRead: true,
+            canCreate: true,
+            canUpdate: true,
+            onConfirmed,
+          }),
+        { wrapper, initialProps: { organizationId: "org-a" } },
+      ),
+      onConfirmed,
+    };
+  }
+
+  it("validates and advances all steps locally then submits all fields", async () => {
+    const api = baseApi();
+    const { result, onConfirmed } = mount(api);
+    const values = toContractFormValues(completeDetail());
+    for (const step of [1, 2, 3]) {
+      await act(async () => {
+        expect(await result.current.saveAndNext(values)).toBe(true);
+      });
+      expect(result.current.step).toBe(step);
+      expect(api.createContract).not.toHaveBeenCalled();
+      expect(api.createConfirmedContract).not.toHaveBeenCalled();
+      expect(api.updateContract).not.toHaveBeenCalled();
+    }
+    await act(async () => {
+      expect(await result.current.checkAndConfirm(values)).toBe(true);
+    });
+    expect(api.checkContractAvailability).toHaveBeenCalledWith({
+      propertyId,
+      spaceIds: [spaceId],
+      startDate: "2026-09-01",
+      endDate: "2027-08-31",
+    });
+    expect(api.createConfirmedContract).toHaveBeenCalledTimes(1);
+    expect(onConfirmed).toHaveBeenCalledWith(draftId);
+  });
+
+  it("does not create anything when availability conflicts, and allows correction", async () => {
+    const api = baseApi({
+      checkContractAvailability: vi
+        .fn()
+        .mockResolvedValueOnce({ available: false, conflicts: [] })
+        .mockResolvedValueOnce({ available: true, conflicts: [] }),
+    });
+    const { result } = mount(api);
+    const values = toContractFormValues(completeDetail());
+    await act(async () => {
+      expect(await result.current.checkAndConfirm(values)).toBe(false);
+    });
+    expect(api.createConfirmedContract).not.toHaveBeenCalled();
+    expect(api.createContract).not.toHaveBeenCalled();
+    expect(result.current.step).toBe(0);
+    expect(result.current.error?.kind).toBe("availability");
+    await act(async () => {
+      expect(await result.current.checkAndConfirm({ ...values, endDate: "2027-07-31" })).toBe(true);
+    });
+    expect(api.createConfirmedContract).toHaveBeenCalledWith(
+      expect.objectContaining({ endDate: "2027-07-31" }),
+    );
+  });
+
+  it("keeps values dirty after failed creation and retries the corrected data", async () => {
+    const api = baseApi({
+      createConfirmedContract: vi
+        .fn()
+        .mockRejectedValueOnce(new ApiError(409, "CONFLICT", "租期与现有空间合同冲突"))
+        .mockResolvedValueOnce(completeDetail({ lifecycleStatus: "confirmed" })),
+    });
+    const { result, onConfirmed } = mount(api);
+    const values = toContractFormValues(completeDetail());
+    await act(async () => {
+      expect(await result.current.checkAndConfirm(values)).toBe(false);
+    });
+    expect(result.current.error?.message).toBe("租期与现有空间合同冲突");
+    expect(result.current.isDirty(values)).toBe(true);
+    expect(result.current.draftId).toBeUndefined();
+    expect(onConfirmed).not.toHaveBeenCalled();
+    await act(async () => {
+      expect(await result.current.checkAndConfirm({ ...values, note: "调整后" })).toBe(true);
+    });
+    expect(api.createConfirmedContract).toHaveBeenLastCalledWith(
+      expect.objectContaining({ note: "调整后" }),
+    );
+    expect(api.createContract).not.toHaveBeenCalled();
+  });
+
+  it("does not duplicate a successfully created contract if navigation has not completed", async () => {
+    const api = baseApi();
+    const { result } = mount(api);
+    const values = toContractFormValues(completeDetail());
+    await act(async () => {
+      await result.current.checkAndConfirm(values);
+    });
+    await act(async () => {
+      await result.current.checkAndConfirm(values);
+    });
+    expect(api.createConfirmedContract).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores an old organization submission and prevents simultaneous double submit", async () => {
+    let resolve: (value: RentalContractDetail) => void = () => undefined;
+    const api = baseApi({
+      createConfirmedContract: vi.fn(
+        () =>
+          new Promise<RentalContractDetail>((done) => {
+            resolve = done;
+          }),
+      ),
+    });
+    const { result, rerender, onConfirmed } = mount(api);
+    let pending: Promise<boolean> | undefined;
+    const values = toContractFormValues(completeDetail());
+    await act(async () => {
+      pending = result.current.checkAndConfirm(values);
+    });
+    await act(async () => {
+      expect(await result.current.checkAndConfirm(values)).toBe(false);
+    });
+    expect(api.createConfirmedContract).toHaveBeenCalledTimes(1);
+    rerender({ organizationId: "org-b" });
+    await act(async () => {
+      resolve(completeDetail({ lifecycleStatus: "confirmed" }));
+      await pending;
+    });
+    expect(onConfirmed).not.toHaveBeenCalled();
+    expect(result.current.serverDraft).toBeNull();
+    expect(result.current.operation).toBe("idle");
+  });
+
+  it("rejects incomplete parties, invalid money and dates before any creation request", async () => {
+    const api = baseApi();
+    const { result } = mount(api);
+    const values = toContractFormValues(completeDetail());
+    for (const patch of [{ parties: [] }, { rentAmountText: "0" }, { endDate: "2026-02-30" }]) {
+      await act(async () => {
+        expect(await result.current.checkAndConfirm({ ...values, ...patch })).toBe(false);
+      });
+    }
+    expect(api.checkContractAvailability).not.toHaveBeenCalled();
+    expect(api.createConfirmedContract).not.toHaveBeenCalled();
   });
 });

@@ -10,12 +10,13 @@ import {
   contractFormSchema,
   defaultContractFormValues,
   stepSchemas,
+  toConfirmedContractRequest,
   toContractFormValues,
   toStepUpdateRequest,
 } from "./contract-form-schema";
 
 export type ContractStep = 0 | 1 | 2 | 3;
-export type DraftOperation = "idle" | "loading" | "creating" | "saving" | "checking" | "confirming";
+export type DraftOperation = "idle" | "loading" | "saving" | "checking" | "confirming";
 export type DraftErrorKind = "load" | "save" | "availability" | "confirm";
 export type DraftError = { kind: DraftErrorKind; message: string; status?: number };
 
@@ -27,7 +28,6 @@ type Options = {
   canRead: boolean;
   canCreate: boolean;
   canUpdate: boolean;
-  onDraftId?: (id: string) => void;
   onConfirmed?: (id: string) => void;
   onNonDraft?: (detail: RentalContractDetail) => void;
 };
@@ -42,13 +42,16 @@ export function useContractDraft(options: Options) {
     canRead,
     canCreate,
     canUpdate,
-    onDraftId,
     onConfirmed,
     onNonDraft,
   } = options;
   const queryClient = useQueryClient();
   const permissionsReady = canRead && canCreate && canUpdate;
-  const contractApiReady = Boolean(api.contractDetail && api.createContract && api.updateContract);
+  const contractApiReady = Boolean(
+    draftId
+      ? api.contractDetail && api.updateContract
+      : api.createConfirmedContract && api.checkContractAvailability,
+  );
   const requestReady = permissionsReady && contractApiReady;
   const permissionGate = `${canRead ? "1" : "0"}${canCreate ? "1" : "0"}${canUpdate ? "1" : "0"}`;
   const routeKey = `${organizationId}:${draftId ?? "new"}:${seed?.propertyId ?? ""}:${permissionGate}:${contractApiReady ? "1" : "0"}`;
@@ -56,8 +59,7 @@ export function useContractDraft(options: Options) {
   const generationRef = useRef(0);
   const requestRef = useRef<RequestToken | null>(null);
   const requestSequence = useRef(0);
-  const createdInSession = useRef<string | undefined>(undefined);
-  const createdRouteKey = useRef<string | undefined>(undefined);
+  const confirmedContractId = useRef<string | undefined>(undefined);
   const notifiedNonDraft = useRef<string | undefined>(undefined);
   const lastSave = useRef<{ step: ContractStep } | undefined>(undefined);
   const baseline = useRef(defaultContractFormValues(seed?.propertyId ?? ""));
@@ -66,25 +68,11 @@ export function useContractDraft(options: Options) {
   const editRevision = useRef(0);
   const mountedRef = useRef(false);
   if (sessionRef.current !== routeKey) {
-    const previousSessionKey = sessionRef.current;
-    const ownCreateRoute = Boolean(
-      createdInSession.current &&
-        draftId === createdInSession.current &&
-        createdRouteKey.current === previousSessionKey,
-    );
-    if (!ownCreateRoute) {
-      generationRef.current += 1;
-      requestRef.current = null;
-    } else {
-      createdRouteKey.current = routeKey;
-    }
+    generationRef.current += 1;
+    requestRef.current = null;
     sessionRef.current = routeKey;
+    confirmedContractId.current = undefined;
   }
-  const skipDraftRead = Boolean(
-    createdInSession.current &&
-      draftId === createdInSession.current &&
-      createdRouteKey.current === routeKey,
-  );
 
   const [step, setStep] = useState<ContractStep>(0);
   const [serverDraft, setServerDraft] = useState<RentalContractDetail | null>(null);
@@ -150,21 +138,13 @@ export function useContractDraft(options: Options) {
     queryKey: rentalKeys.contractDraft(organizationId, draftId ?? "none"),
     queryFn: () =>
       api.contractDetail?.(draftId ?? "") ?? Promise.reject(new Error("合同详情 API 不可用")),
-    enabled: Boolean(requestReady && organizationId && draftId && !skipDraftRead),
+    enabled: Boolean(requestReady && organizationId && draftId),
     retry: false,
   });
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: route key intentionally resets session state
   useEffect(() => {
     setOperation("idle");
-    const ownCreateRoute = Boolean(
-      createdInSession.current &&
-        draftId === createdInSession.current &&
-        createdRouteKey.current === sessionRef.current,
-    );
-    if (ownCreateRoute) {
-      return;
-    }
     setEffectiveDraftId(draftId);
     setServerDraft(null);
     setStep(0);
@@ -217,7 +197,12 @@ export function useContractDraft(options: Options) {
       baseline.current = toContractFormValues(detail);
       baselinePropertyId.current = detail.propertyId;
       setBaselineVersion((version) => version + 1);
-      queryClient.setQueryData(rentalKeys.contractDraft(organizationId, detail.id), detail);
+      queryClient.setQueryData(
+        detail.lifecycleStatus === "draft"
+          ? rentalKeys.contractDraft(organizationId, detail.id)
+          : rentalKeys.contract(organizationId, detail.id),
+        detail,
+      );
     },
     [organizationId, queryClient],
   );
@@ -229,27 +214,14 @@ export function useContractDraft(options: Options) {
         setError({ kind: "save", message: "你没有保存合同草稿的权限。" });
         return null;
       }
-      const existingId = effectiveDraftId;
-      const token = beginRequest(existingId ? "saving" : "creating");
+      const id = effectiveDraftId;
+      if (!id) return null;
+      const token = beginRequest("saving");
       if (!token) return null;
       lastSave.current = { step: saveStep };
       try {
         setError(null);
         setAvailability(null);
-        let id = existingId;
-        if (!id) {
-          if (!api.createContract) return null;
-          const created = await api.createContract({ propertyId: values.propertyId });
-          if (!tokenIsCurrent(token)) return null;
-          id = created.id;
-          createdInSession.current = id;
-          createdRouteKey.current = sessionRef.current;
-          setEffectiveDraftId(id);
-          resetBaseline(created);
-          onDraftId?.(id);
-          finishRequest(token);
-          return created;
-        }
         if (!tokenIsCurrent(token)) return null;
         const oldPropertyId = baselinePropertyId.current ?? serverDraft?.propertyId;
         const request = toStepUpdateRequest(id, values, saveStep === 3 ? 2 : saveStep);
@@ -280,7 +252,6 @@ export function useContractDraft(options: Options) {
       beginRequest,
       effectiveDraftId,
       finishRequest,
-      onDraftId,
       organizationId,
       queryClient,
       requestReady,
@@ -296,10 +267,8 @@ export function useContractDraft(options: Options) {
       if (!requestReady) return false;
       const hasDraft = Boolean(effectiveDraftId);
       const parsed =
-        step === 0 && !hasDraft
-          ? values.propertyId
-            ? { success: true as const }
-            : { success: false as const, error: { issues: [{ message: "请选择房产" }] } }
+        step === 0 && !values.propertyId
+          ? { success: false as const, error: { issues: [{ message: "请选择房产" }] } }
           : step === 0
             ? stepSchemas.spaces.safeParse({ propertyId: values.propertyId, spaces: values.spaces })
             : step === 1
@@ -310,9 +279,12 @@ export function useContractDraft(options: Options) {
         setError({ kind: "save", message: parsed.error.issues[0]?.message ?? "请检查当前步骤。" });
         return false;
       }
-      const result = await save(values, step);
-      if (!result) return false;
-      if (step === 0 && !hasDraft) return true;
+      setError(null);
+      setAvailability(null);
+      if (hasDraft) {
+        const result = await save(values, step);
+        if (!result) return false;
+      }
       setStep((current) => (current < 3 ? ((current + 1) as ContractStep) : current));
       return true;
     },
@@ -334,17 +306,21 @@ export function useContractDraft(options: Options) {
 
   const checkAndConfirm = useCallback(
     async (values: ContractFormValues) => {
-      if (!requestReady || !api.checkContractAvailability || !api.confirmContract) {
+      if (!requestReady || !api.checkContractAvailability) {
         setError({ kind: "confirm", message: "你没有确认合同的权限。" });
         return false;
       }
+      if (confirmedContractId.current) {
+        onConfirmed?.(confirmedContractId.current);
+        return true;
+      }
       const id = effectiveDraftId;
-      if (!id || !serverDraft || serverDraft.lifecycleStatus !== "draft") {
+      if (id && serverDraft?.lifecycleStatus !== "draft") {
         setError({ kind: "confirm", message: "请先保存合同草稿。" });
         return false;
       }
-      let canonical = toContractFormValues(serverDraft);
-      if (JSON.stringify(values) !== JSON.stringify(baseline.current)) {
+      let canonical = id && serverDraft ? toContractFormValues(serverDraft) : values;
+      if (id && JSON.stringify(values) !== JSON.stringify(baseline.current)) {
         const dirtyStep = inferDirtyStep(values, baseline.current);
         const saved = await save(values, dirtyStep);
         if (!saved) {
@@ -365,7 +341,15 @@ export function useContractDraft(options: Options) {
       }
       const checkAvailability = api.checkContractAvailability;
       const confirmContract = api.confirmContract;
-      if (!checkAvailability || !confirmContract) return false;
+      const createConfirmedContract = api.createConfirmedContract;
+      const submit = id
+        ? confirmContract && (() => confirmContract({ id }))
+        : createConfirmedContract &&
+          (() => createConfirmedContract(toConfirmedContractRequest(canonical)));
+      if (!submit) {
+        setError({ kind: "confirm", message: "合同服务暂不可用，请稍后重试。" });
+        return false;
+      }
       const token = beginRequest("checking");
       if (!token) return false;
       try {
@@ -377,7 +361,7 @@ export function useContractDraft(options: Options) {
           spaceIds: canonical.spaces.map((item) => item.spaceId),
           startDate: canonical.startDate,
           endDate: canonical.endDate,
-          excludeContractId: id,
+          ...(id ? { excludeContractId: id } : {}),
         });
         if (!tokenIsCurrent(token)) return false;
         setAvailability({ fingerprint, result });
@@ -393,13 +377,16 @@ export function useContractDraft(options: Options) {
           return false;
         }
         setOperation("confirming");
-        const confirmed = await confirmContract({ id });
+        const confirmed = await submit();
         if (!tokenIsCurrent(token)) return false;
+        confirmedContractId.current = confirmed.id;
         resetBaseline(confirmed);
-        queryClient.removeQueries({ queryKey: rentalKeys.contractDraft(organizationId, id) });
+        if (id)
+          queryClient.removeQueries({ queryKey: rentalKeys.contractDraft(organizationId, id) });
         await invalidateContractMutation(queryClient, organizationId, confirmed.id, [
           confirmed.propertyId,
         ]);
+        if (!tokenIsCurrent(token)) return false;
         finishRequest(token);
         onConfirmed?.(confirmed.id);
         return true;

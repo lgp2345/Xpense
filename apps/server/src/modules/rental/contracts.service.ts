@@ -23,7 +23,7 @@ import { ContractsPolicyService } from "./contracts-policy.service.js";
 import type { CheckContractAvailabilityDto } from "./dto/check-contract-availability.dto.js";
 import type { DeleteContractDto } from "./dto/contract-action.dto.js";
 import type { ContractDetailDto } from "./dto/contract-detail.dto.js";
-import type { CreateContractDto } from "./dto/create-contract.dto.js";
+import type { CreateConfirmedContractDto, CreateContractDto } from "./dto/create-contract.dto.js";
 import type { ListContractsDto } from "./dto/list-contracts.dto.js";
 import type { UpdateContractDto } from "./dto/update-contract.dto.js";
 
@@ -56,6 +56,22 @@ export class ContractsService {
 
   /** 创建只要求启用房产的合同草稿，并永久分配组织年度编号。 */
   create(authContext: AuthContext, dto: CreateContractDto): Promise<RentalContractDetail> {
+    return this.createWithLifecycle(authContext, dto, false);
+  }
+
+  /** 完整合同在单一事务内创建、校验和确认，失败不保留草稿。 */
+  createConfirmed(
+    authContext: AuthContext,
+    dto: CreateConfirmedContractDto,
+  ): Promise<RentalContractDetail> {
+    return this.createWithLifecycle(authContext, dto, true);
+  }
+
+  private createWithLifecycle(
+    authContext: AuthContext,
+    dto: CreateContractDto,
+    confirm: boolean,
+  ): Promise<RentalContractDetail> {
     return this.transactions.run(async (transaction) => {
       const { today } = await this.policy.lockOrganizationContext(
         authContext.organizationId,
@@ -99,6 +115,39 @@ export class ContractsService {
         contractAudit(authContext, contract.id, "draft_created", {}),
         transaction,
       );
+      if (confirm) {
+        await this.policy.validateConfirmationScope(
+          {
+            organizationId: authContext.organizationId,
+            contractId: contract.id,
+            property,
+            ...aggregate,
+            status: "confirmed",
+            terminationDate: null,
+          },
+          transaction,
+        );
+        await this.relations.confirmSnapshots(
+          {
+            organizationId: authContext.organizationId,
+            contractId: contract.id,
+          },
+          transaction,
+        );
+        await this.repository.setLifecycle(
+          {
+            organizationId: authContext.organizationId,
+            id: contract.id,
+            status: "confirmed",
+            updatedByUserId: authContext.userId,
+          },
+          transaction,
+        );
+        await this.auditService.appendRequired(
+          contractAudit(authContext, contract.id, "confirmed", {}),
+          transaction,
+        );
+      }
       return this.readDetail(authContext.organizationId, contract.id, today, transaction);
     });
   }

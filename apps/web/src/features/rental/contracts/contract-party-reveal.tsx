@@ -1,4 +1,5 @@
 import type { PermissionKey, RentalContractDetail, RentalContractParty } from "@xpense/shared";
+import { Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -18,9 +19,12 @@ export function ContractPartySection({
   permissions: readonly PermissionKey[];
 }) {
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-medium">承租方</h2>
-      <div className="grid gap-2 sm:grid-cols-2">
+    <section className="grid min-w-0 gap-4 p-5 lg:grid-cols-[9rem_minmax(0,1fr)] lg:gap-8 lg:p-6">
+      <div className="flex items-center gap-2 self-start lg:pt-1">
+        <Users aria-hidden="true" className="size-4 text-muted-foreground" />
+        <h2 className="text-sm font-semibold">承租方</h2>
+      </div>
+      <div className="min-w-0 divide-y">
         {contract.parties.map((party) => (
           <PartyRow
             key={`${party.tenantId}:${party.validFrom ?? "current"}`}
@@ -121,28 +125,37 @@ function PartyRow({
     ? (value?.documentNumber ?? party.maskedDocumentNumber)
     : party.maskedDocumentNumber;
   return (
-    <Card>
-      <CardContent className="space-y-2 p-4 text-sm">
+    <Card className="gap-0 rounded-none border-0 py-5 shadow-none first:pt-0 last:pb-0">
+      <CardContent className="space-y-4 p-0 text-sm">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{party.name}</span>
+          <span className="min-w-0 break-words text-base font-semibold">{party.name}</span>
           {party.isPrimaryPayer ? <Badge variant="outline">主付款人</Badge> : null}
           {party.validTo !== null ? <Badge variant="secondary">历史</Badge> : null}
         </div>
-        <p>
+        <p className="break-words text-xs text-muted-foreground tabular-nums">
           有效期：{party.validFrom ?? "合同开始"} 至 {party.validTo ?? "当前"}
         </p>
-        <p>联系人：{party.primaryContactName ?? "未填写"}</p>
-        <p>联系人电话：{party.primaryContactPhone ?? "未填写"}</p>
-        <p>
-          证件号：<span>{documentNumber}</span>
-        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <p className="min-w-0 break-words">
+            <span className="text-muted-foreground">联系人：</span>
+            {party.primaryContactName ?? "未填写"}
+          </p>
+          <p className="min-w-0 break-words tabular-nums">
+            <span className="text-muted-foreground">联系人电话：</span>
+            {party.primaryContactPhone ?? "未填写"}
+          </p>
+          <p className="min-w-0 break-words tabular-nums sm:col-span-2">
+            <span className="text-muted-foreground">证件号：</span>
+            <span>{documentNumber}</span>
+          </p>
+        </div>
         {canReveal ? (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => void revealSensitive()}>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => void revealSensitive()}>
               {loading ? "重新查看" : "查看完整身份"}
             </Button>
             {loading || value ? (
-              <Button variant="ghost" onClick={close}>
+              <Button size="sm" variant="ghost" onClick={close}>
                 {loading ? "取消查看" : "关闭"}
               </Button>
             ) : null}

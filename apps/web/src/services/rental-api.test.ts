@@ -143,6 +143,23 @@ describe("createRentalApi", () => {
     expect(client.get).toHaveBeenNthCalledWith(2, "/rental-contracts/detail?id=contract%2F1");
   });
 
+  it("submits a complete contract to the atomic creation endpoint", async () => {
+    const { api, client } = createHarness();
+    const input = {
+      propertyId: "property-1",
+      startDate: "2027-01-01",
+      endDate: "2027-12-31",
+      rentAmountMinor: 1230,
+      billingAnchor: "contract_start" as const,
+      paymentIntervalMonths: 1 as const,
+      dueDaysBefore: 30,
+      spaces: [{ spaceId: "space-1" }],
+      parties: [{ tenantId: "tenant-1", isPrimaryPayer: true }],
+    };
+    await api.createConfirmedContract(input);
+    expect(client.post).toHaveBeenCalledWith("/rental-contracts/create-confirmed", input);
+  });
+
   it("sends contract create, availability, lifecycle, delete, and reveal bodies unchanged", async () => {
     const response = { id: "contract-1", rentAmountMinor: 12345 };
     const { api, client } = createHarness();

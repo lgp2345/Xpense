@@ -26,12 +26,14 @@ export function ContractPartiesStep({
   permissions,
   values,
   onChange,
+  onNames,
 }: {
   api: RentalApi;
   organizationId: string;
   permissions: readonly PermissionKey[];
   values: ContractFormValues;
   onChange: (values: ContractFormValues) => void;
+  onNames?: (names: Record<string, string>) => void;
 }) {
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("");
@@ -111,6 +113,17 @@ export function ContractPartiesStep({
       remaining[0] = { ...first, isPrimaryPayer: true };
     onChange({ ...values, parties: remaining });
   }
+
+  useEffect(() => {
+    if (!onNames) return;
+    const names: Record<string, string> = {};
+    for (const tenant of items) names[tenant.id] = tenant.name;
+    for (const party of values.parties) {
+      const tenant = registry.current.get(party.tenantId);
+      if (tenant) names[tenant.id] = tenant.name;
+    }
+    onNames(names);
+  }, [onNames, values.parties, items]);
 
   return (
     <section aria-labelledby="contract-parties-title" className="space-y-4">

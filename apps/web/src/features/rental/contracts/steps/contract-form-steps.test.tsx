@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PermissionKey, RentalSpaceNode, RentalTenantSummary } from "@xpense/shared";
 import type { ReactNode } from "react";
@@ -71,6 +71,44 @@ function tenant(id: string, isActive = true): RentalTenantSummary {
 }
 
 describe("contract form step domains", () => {
+  it("captures a searched space path without duplicating its own name", async () => {
+    const user = userEvent.setup();
+    const onNames = vi.fn();
+    const api = {
+      listChildren: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 50 }),
+      searchSpaces: vi.fn().mockResolvedValue({
+        items: [
+          {
+            ...space(childId, parentId),
+            path: [
+              { id: parentId, name: "父级" },
+              { id: childId, name: "子级" },
+            ],
+          },
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      }),
+    } as unknown as RentalApi;
+    renderWithQuery(
+      <ContractSpacesStep
+        api={api}
+        organizationId="org-a"
+        permissions={permissions}
+        showPropertySelector={false}
+        values={{
+          ...defaultContractFormValues(propertyId),
+          spaces: [{ spaceId: childId, rentAllocationText: "" }],
+        }}
+        onChange={vi.fn()}
+        onNames={onNames}
+      />,
+    );
+    await user.type(screen.getByLabelText("搜索空间"), "子级");
+    await waitFor(() => expect(onNames).toHaveBeenLastCalledWith({ [childId]: "父级 / 子级" }));
+  });
+
   it("labels the expiration reminder days clearly", () => {
     render(<ContractTermsStep values={defaultContractFormValues(propertyId)} onChange={vi.fn()} />);
 

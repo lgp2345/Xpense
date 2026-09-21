@@ -4,6 +4,7 @@ import type {
   ChangeRentalContractPartiesRequest,
   CheckRentalContractAvailabilityRequest,
   ConfirmRentalContractRequest,
+  CreateConfirmedRentalContractRequest,
   CreateRentalContractRequest,
   CreateRentalPropertyRequest,
   CreateRentalSpaceRequest,
@@ -131,6 +132,8 @@ export function createRentalApi(client: ApiClient) {
       client.get<RentalContractDetail>(`/rental-contracts/detail${toDetailQueryString({ id })}`),
     createContract: (input: CreateRentalContractRequest) =>
       client.post<RentalContractDetail>("/rental-contracts/create", input),
+    createConfirmedContract: (input: CreateConfirmedRentalContractRequest) =>
+      client.post<RentalContractDetail>("/rental-contracts/create-confirmed", input),
     updateContract: (input: UpdateRentalContractRequest) =>
       client.post<RentalContractDetail>("/rental-contracts/update", input),
     checkContractAvailability: (input: CheckRentalContractAvailabilityRequest) =>
@@ -198,6 +201,7 @@ type RentalTenancyApi = Pick<
   | "listContracts"
   | "contractDetail"
   | "createContract"
+  | "createConfirmedContract"
   | "updateContract"
   | "checkContractAvailability"
   | "confirmContract"

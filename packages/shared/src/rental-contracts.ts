@@ -238,6 +238,18 @@ export type CreateRentalContractRequest = {
   propertyId: string;
 } & Partial<Omit<RentalContractMutableFields, "propertyId">>;
 
+/** 一次性创建并确认完整租赁合同的请求。 */
+export type CreateConfirmedRentalContractRequest = CreateRentalContractRequest & {
+  startDate: string;
+  endDate: string;
+  rentAmountMinor: number;
+  billingAnchor: RentalBillingAnchor;
+  paymentIntervalMonths: RentalPaymentIntervalMonths;
+  dueDaysBefore: number;
+  spaces: RentalContractSpaceInput[];
+  parties: RentalContractPartyInput[];
+};
+
 /** 更新租赁合同资料的请求。 */
 export type UpdateRentalContractRequest = { id: string } & AtLeastOne<RentalContractMutableFields>;
 

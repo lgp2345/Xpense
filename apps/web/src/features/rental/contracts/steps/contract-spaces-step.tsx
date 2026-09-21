@@ -28,6 +28,7 @@ export function ContractSpacesStep({
   onChange,
   showPropertySelector = true,
   seedSpaceIds,
+  onNames,
 }: {
   api: RentalApi;
   organizationId: string;
@@ -36,6 +37,7 @@ export function ContractSpacesStep({
   onChange: (values: ContractFormValues) => void;
   showPropertySelector?: boolean;
   seedSpaceIds?: string[];
+  onNames?: (names: Record<string, string>) => void;
 }) {
   const [keyword, setKeyword] = useState("");
   const [childrenPage, setChildrenPage] = useState(1);
@@ -189,6 +191,37 @@ export function ContractSpacesStep({
     if (!propertyInactive || !values.propertyId) return;
     onChange({ ...values, propertyId: "", spaces: [] });
   }, [onChange, propertyInactive, values]);
+
+  useEffect(() => {
+    if (!onNames) return;
+    const names: Record<string, string> = {};
+    const property =
+      propertyDetail.data ?? propertyList.data?.items.find((item) => item.id === values.propertyId);
+    if (property) names[property.id] = property.name;
+    for (const space of [...childrenItems, ...searchItems]) {
+      names[space.id] = [
+        ...(space.path ?? []).filter((node) => node.id !== space.id).map((node) => node.name),
+        space.name,
+      ].join(" / ");
+    }
+    for (const item of values.spaces) {
+      const space = registry.current.get(item.spaceId);
+      if (space)
+        names[space.id] = [
+          ...(space.path ?? []).filter((node) => node.id !== space.id).map((node) => node.name),
+          space.name,
+        ].join(" / ");
+    }
+    onNames(names);
+  }, [
+    onNames,
+    values.propertyId,
+    values.spaces,
+    propertyDetail.data,
+    propertyList.data,
+    childrenItems,
+    searchItems,
+  ]);
 
   function toggle(space: SpaceWithPath) {
     if (selected.has(space.id)) {

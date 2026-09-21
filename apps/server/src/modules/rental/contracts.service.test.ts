@@ -220,6 +220,66 @@ function serviceHarness(overrides: Record<string, unknown> = {}) {
 }
 
 describe("ContractsService", () => {
+  it("creates and confirms a complete contract in one transaction", async () => {
+    const h = serviceHarness({
+      repository: { setLifecycle: vi.fn().mockResolvedValue(undefined) },
+    });
+    await h.service.createConfirmed(auth, {
+      propertyId: "property-1",
+      spaces: [{ spaceId: "space-1" }],
+      parties: [{ tenantId: "tenant-1", isPrimaryPayer: true }],
+      startDate: "2026-09-01",
+      endDate: "2027-08-31",
+      rentAmountMinor: 10000,
+      billingAnchor: "contract_start",
+      paymentIntervalMonths: 1,
+      dueDaysBefore: 0,
+    });
+    expect(h.transactions.run).toHaveBeenCalledTimes(1);
+    expect(h.policy.validateConfirmationScope).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contractId: "contract-1",
+        status: "confirmed",
+        rentAmountMinor: 10000,
+      }),
+      transaction,
+    );
+    expect(h.relations.confirmSnapshots).toHaveBeenCalledWith(
+      { organizationId: auth.organizationId, contractId: "contract-1" },
+      transaction,
+    );
+    expect(h.persisted().headers).toBe(1);
+    expect(h.persisted().audits).toBe(2);
+  });
+
+  it.each([
+    "validation",
+    "snapshot",
+    "audit",
+  ])("rolls back direct creation on %s failure", async (fault) => {
+    const failure = vi.fn().mockRejectedValue(new ConflictException());
+    const h = serviceHarness({
+      repository: { setLifecycle: vi.fn().mockResolvedValue(undefined) },
+      ...(fault === "validation" ? { policy: { validateConfirmationScope: failure } } : {}),
+      ...(fault === "snapshot" ? { relations: { confirmSnapshots: failure } } : {}),
+      ...(fault === "audit" ? { audit: { appendRequired: failure } } : {}),
+    });
+    await expect(
+      h.service.createConfirmed(auth, {
+        propertyId: "property-1",
+        spaces: [{ spaceId: "space-1" }],
+        parties: [{ tenantId: "tenant-1", isPrimaryPayer: true }],
+        startDate: "2026-09-01",
+        endDate: "2027-08-31",
+        rentAmountMinor: 10000,
+        billingAnchor: "contract_start",
+        paymentIntervalMonths: 1,
+        dueDaysBefore: 0,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(h.persisted()).toEqual({ headers: 0, relations: 0, softDeletes: 0, audits: 0 });
+  });
+
   it("maps list/detail timestamps and hides cross-organization or deleted details as 404", async () => {
     const summary = contractDetail();
     const { service, repository } = serviceHarness({
