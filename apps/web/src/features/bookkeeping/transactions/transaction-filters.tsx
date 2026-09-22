@@ -1,8 +1,8 @@
 import type { AccountSummary, CategoryNode, LedgerSummary, TransactionType } from "@xpense/shared";
 import { useEffect, useState } from "react";
 import { DateRangePicker } from "@/components/date-picker";
+import { FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -31,7 +31,6 @@ export function TransactionFilters({
   onApply,
   search,
 }: TransactionFiltersProps) {
-  const [open, setOpen] = useState(true);
   const [draft, setDraft] = useState(() => toDraft(search));
 
   useEffect(() => setDraft(toDraft(search)), [search]);
@@ -42,98 +41,88 @@ export function TransactionFilters({
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="flex items-center justify-between md:hidden">
-        <span className="text-sm font-medium">筛选条件</span>
-        <CollapsibleTrigger asChild>
-          <Button size="sm" variant="outline">
-            {open ? "收起筛选" : "展开筛选"}
-          </Button>
-        </CollapsibleTrigger>
-      </div>
-      <CollapsibleContent>
-        <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="grid gap-1">
-            <Label htmlFor="transaction-keyword">关键词</Label>
-            <Input
-              id="transaction-keyword"
-              value={draft.keyword}
-              onChange={(event) => update("keyword", event.target.value)}
-            />
-          </div>
-          <FilterSelect
-            label="交易类型"
-            value={draft.type}
-            options={[
-              ["all", "全部"],
-              ["expense", "支出"],
-              ["income", "收入"],
-              ["transfer", "转账"],
-            ]}
-            onChange={(value) => update("type", value as TransactionType | "all")}
+    <FilterPanel>
+      <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-1">
+          <Label htmlFor="transaction-keyword">关键词</Label>
+          <Input
+            id="transaction-keyword"
+            value={draft.keyword}
+            onChange={(event) => update("keyword", event.target.value)}
           />
-          <FilterSelect
-            label="筛选账本"
-            value={draft.ledgerId}
-            options={[["all", "全部"], ...ledgers.map((item) => [item.id, item.name] as const)]}
-            onChange={(value) => update("ledgerId", value)}
-          />
-          <FilterSelect
-            label="筛选账户"
-            value={draft.accountId}
-            options={[["all", "全部"], ...accounts.map((item) => [item.id, item.name] as const)]}
-            onChange={(value) => update("accountId", value)}
-          />
-          <FilterSelect
-            label="筛选分类"
-            value={draft.categoryId}
-            options={[
-              ["all", "全部"],
-              ...categories
-                .flatMap((item) => [item, ...item.children])
-                .map((item) => [item.id, item.name] as const),
-            ]}
-            onChange={(value) => update("categoryId", value)}
-          />
-          <div className="grid gap-1">
-            <Label htmlFor="transaction-date-range">日期范围</Label>
-            <DateRangePicker
-              id="transaction-date-range"
-              aria-label="日期范围"
-              value={{ from: draft.from || undefined, to: draft.to || undefined }}
-              onChange={({ from, to }) =>
-                setDraft((current) => ({ ...current, from: from ?? "", to: to ?? "" }))
-              }
-            />
-          </div>
-          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-2">
-            <Button
-              onClick={() =>
-                onApply({
-                  ...(draft.keyword.trim() ? { keyword: draft.keyword.trim() } : {}),
-                  ...(draft.type !== "all" ? { type: draft.type } : {}),
-                  ...(draft.ledgerId !== "all" ? { ledgerId: draft.ledgerId } : {}),
-                  ...(draft.accountId !== "all" ? { accountId: draft.accountId } : {}),
-                  ...(draft.categoryId !== "all" ? { categoryId: draft.categoryId } : {}),
-                  ...(draft.from ? { from: draft.from } : {}),
-                  ...(draft.to ? { to: draft.to } : {}),
-                  page: undefined,
-                  pageSize: search.pageSize ?? 20,
-                })
-              }
-            >
-              应用筛选
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => onApply({ page: undefined, pageSize: search.pageSize ?? 20 })}
-            >
-              重置
-            </Button>
-          </div>
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+        <FilterSelect
+          label="交易类型"
+          value={draft.type}
+          options={[
+            ["all", "全部"],
+            ["expense", "支出"],
+            ["income", "收入"],
+            ["transfer", "转账"],
+          ]}
+          onChange={(value) => update("type", value as TransactionType | "all")}
+        />
+        <FilterSelect
+          label="筛选账本"
+          value={draft.ledgerId}
+          options={[["all", "全部"], ...ledgers.map((item) => [item.id, item.name] as const)]}
+          onChange={(value) => update("ledgerId", value)}
+        />
+        <FilterSelect
+          label="筛选账户"
+          value={draft.accountId}
+          options={[["all", "全部"], ...accounts.map((item) => [item.id, item.name] as const)]}
+          onChange={(value) => update("accountId", value)}
+        />
+        <FilterSelect
+          label="筛选分类"
+          value={draft.categoryId}
+          options={[
+            ["all", "全部"],
+            ...categories
+              .flatMap((item) => [item, ...item.children])
+              .map((item) => [item.id, item.name] as const),
+          ]}
+          onChange={(value) => update("categoryId", value)}
+        />
+        <div className="grid gap-1">
+          <Label htmlFor="transaction-date-range">日期范围</Label>
+          <DateRangePicker
+            id="transaction-date-range"
+            aria-label="日期范围"
+            value={{ from: draft.from || undefined, to: draft.to || undefined }}
+            onChange={({ from, to }) =>
+              setDraft((current) => ({ ...current, from: from ?? "", to: to ?? "" }))
+            }
+          />
+        </div>
+        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-2">
+          <Button
+            onClick={() =>
+              onApply({
+                ...(draft.keyword.trim() ? { keyword: draft.keyword.trim() } : {}),
+                ...(draft.type !== "all" ? { type: draft.type } : {}),
+                ...(draft.ledgerId !== "all" ? { ledgerId: draft.ledgerId } : {}),
+                ...(draft.accountId !== "all" ? { accountId: draft.accountId } : {}),
+                ...(draft.categoryId !== "all" ? { categoryId: draft.categoryId } : {}),
+                ...(draft.from ? { from: draft.from } : {}),
+                ...(draft.to ? { to: draft.to } : {}),
+                page: undefined,
+                pageSize: search.pageSize ?? 20,
+              })
+            }
+          >
+            应用筛选
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => onApply({ page: undefined, pageSize: search.pageSize ?? 20 })}
+          >
+            重置
+          </Button>
+        </div>
+      </div>
+    </FilterPanel>
   );
 }
 

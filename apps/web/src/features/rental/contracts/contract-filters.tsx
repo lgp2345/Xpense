@@ -1,6 +1,7 @@
 import type { RentalContractDisplayStatus } from "@xpense/shared";
 import { useEffect, useState } from "react";
 import { DateRangePicker, type DateRangeValue } from "@/components/date-picker";
+import { FilterPanel } from "@/components/filter-panel";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,93 +57,97 @@ export function ContractFilters({
     search.endDateTo,
   ]);
   return (
-    <form
-      className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onApply({ ...compact(draft), page: 1, pageSize: search.pageSize ?? 20 });
-      }}
-    >
-      <label htmlFor="contract-filter-keyword" className="space-y-1 text-sm">
-        <span>合同号或外部编号</span>
-        <Input
-          id="contract-filter-keyword"
-          name="keyword"
-          aria-label="合同号或外部编号"
-          value={draft.keyword}
-          onChange={(event) => setDraft((value) => ({ ...value, keyword: event.target.value }))}
-        />
-      </label>
-      <label htmlFor="contract-filter-property" className="space-y-1 text-sm">
-        <span>房产</span>
-        <Input
-          id="contract-filter-property"
-          name="propertyId"
-          aria-label="房产"
-          value={draft.propertyId}
-          onChange={(event) => setDraft((value) => ({ ...value, propertyId: event.target.value }))}
-        />
-      </label>
-      <label htmlFor="contract-filter-tenant" className="space-y-1 text-sm">
-        <span>租户</span>
-        <Input
-          id="contract-filter-tenant"
-          name="tenantId"
-          aria-label="租户"
-          value={draft.tenantId}
-          onChange={(event) => setDraft((value) => ({ ...value, tenantId: event.target.value }))}
-        />
-      </label>
-      <div className="space-y-1 text-sm">
-        <span>状态</span>
-        <Select
-          name="status"
-          value={draft.status || "all"}
-          onValueChange={(status) =>
-            setDraft((value) => ({
-              ...value,
-              status: status === "all" ? "" : (status as RentalContractDisplayStatus),
-            }))
+    <FilterPanel>
+      <form
+        className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onApply({ ...compact(draft), page: 1, pageSize: search.pageSize ?? 20 });
+        }}
+      >
+        <label htmlFor="contract-filter-keyword" className="space-y-1 text-sm">
+          <span>合同号或外部编号</span>
+          <Input
+            id="contract-filter-keyword"
+            name="keyword"
+            aria-label="合同号或外部编号"
+            value={draft.keyword}
+            onChange={(event) => setDraft((value) => ({ ...value, keyword: event.target.value }))}
+          />
+        </label>
+        <label htmlFor="contract-filter-property" className="space-y-1 text-sm">
+          <span>房产</span>
+          <Input
+            id="contract-filter-property"
+            name="propertyId"
+            aria-label="房产"
+            value={draft.propertyId}
+            onChange={(event) =>
+              setDraft((value) => ({ ...value, propertyId: event.target.value }))
+            }
+          />
+        </label>
+        <label htmlFor="contract-filter-tenant" className="space-y-1 text-sm">
+          <span>租户</span>
+          <Input
+            id="contract-filter-tenant"
+            name="tenantId"
+            aria-label="租户"
+            value={draft.tenantId}
+            onChange={(event) => setDraft((value) => ({ ...value, tenantId: event.target.value }))}
+          />
+        </label>
+        <div className="space-y-1 text-sm">
+          <span>状态</span>
+          <Select
+            name="status"
+            value={draft.status || "all"}
+            onValueChange={(status) =>
+              setDraft((value) => ({
+                ...value,
+                status: status === "all" ? "" : (status as RentalContractDisplayStatus),
+              }))
+            }
+          >
+            <SelectTrigger id="contract-filter-status" aria-label="合同状态" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部状态</SelectItem>
+              {statuses.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {CONTRACT_STATUS_LABELS[status]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <DateRangeField
+          label="开始日期范围"
+          value={{ from: draft.startDateFrom, to: draft.startDateTo }}
+          onChange={({ from, to }) =>
+            setDraft((draft) => ({ ...draft, startDateFrom: from ?? "", startDateTo: to ?? "" }))
           }
-        >
-          <SelectTrigger id="contract-filter-status" aria-label="合同状态" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部状态</SelectItem>
-            {statuses.map((status) => (
-              <SelectItem key={status} value={status}>
-                {CONTRACT_STATUS_LABELS[status]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <DateRangeField
-        label="开始日期范围"
-        value={{ from: draft.startDateFrom, to: draft.startDateTo }}
-        onChange={({ from, to }) =>
-          setDraft((draft) => ({ ...draft, startDateFrom: from ?? "", startDateTo: to ?? "" }))
-        }
-      />
-      <DateRangeField
-        label="结束日期范围"
-        value={{ from: draft.endDateFrom, to: draft.endDateTo }}
-        onChange={({ from, to }) =>
-          setDraft((draft) => ({ ...draft, endDateFrom: from ?? "", endDateTo: to ?? "" }))
-        }
-      />
-      <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
-        <Button type="submit">应用筛选</Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => onApply({ page: 1, pageSize: search.pageSize ?? 20 })}
-        >
-          清空
-        </Button>
-      </div>
-    </form>
+        />
+        <DateRangeField
+          label="结束日期范围"
+          value={{ from: draft.endDateFrom, to: draft.endDateTo }}
+          onChange={({ from, to }) =>
+            setDraft((draft) => ({ ...draft, endDateFrom: from ?? "", endDateTo: to ?? "" }))
+          }
+        />
+        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+          <Button type="submit">应用筛选</Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onApply({ page: 1, pageSize: search.pageSize ?? 20 })}
+          >
+            清空
+          </Button>
+        </div>
+      </form>
+    </FilterPanel>
   );
 }
 

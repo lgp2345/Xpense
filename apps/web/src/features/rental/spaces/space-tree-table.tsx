@@ -8,6 +8,7 @@ import type {
   UpdateRentalSpaceRequest,
 } from "@xpense/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FilterPanel } from "@/components/filter-panel";
 import { LoadMoreButton } from "@/components/load-more-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -403,15 +404,17 @@ export function SpaceTreeTable({
           </h2>
         </div>
         <div className="space-y-2">
-          <label className="sr-only" htmlFor="space-search">
-            搜索空间
-          </label>
-          <Input
-            id="space-search"
-            placeholder="按名称或编码搜索空间"
-            value={draftKeyword}
-            onChange={(event) => setDraftKeyword(event.target.value)}
-          />
+          <FilterPanel>
+            <label className="sr-only" htmlFor="space-search">
+              搜索空间
+            </label>
+            <Input
+              id="space-search"
+              placeholder="按名称或编码搜索空间"
+              value={draftKeyword}
+              onChange={(event) => setDraftKeyword(event.target.value)}
+            />
+          </FilterPanel>
         </div>
         <p className="rounded-lg border bg-muted p-3 text-sm text-muted-foreground">
           你没有查看空间的权限。
@@ -444,15 +447,17 @@ export function SpaceTreeTable({
         </div>
       ) : null}
       <div className="space-y-2">
-        <label className="sr-only" htmlFor="space-search">
-          搜索空间
-        </label>
-        <Input
-          id="space-search"
-          placeholder="按名称或编码搜索空间"
-          value={draftKeyword}
-          onChange={(event) => setDraftKeyword(event.target.value)}
-        />
+        <FilterPanel>
+          <label className="sr-only" htmlFor="space-search">
+            搜索空间
+          </label>
+          <Input
+            id="space-search"
+            placeholder="按名称或编码搜索空间"
+            value={draftKeyword}
+            onChange={(event) => setDraftKeyword(event.target.value)}
+          />
+        </FilterPanel>
         <SpaceSearchResults
           error={searchQuery.isError}
           loadMoreError={searchLoadMoreError}

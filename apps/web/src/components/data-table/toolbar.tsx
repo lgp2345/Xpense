@@ -1,5 +1,6 @@
 import { XIcon } from "lucide-react";
 
+import { FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTableFacetedFilter } from "./faceted-filter";
@@ -30,7 +31,7 @@ export function DataTableToolbar({
   const isFiltered = table.state.columnFilters.length > 0;
 
   return (
-    <div className="flex items-center justify-between">
+    <FilterPanel actions={<DataTableViewOptions table={table} />}>
       <div className="flex flex-1 flex-col-reverse items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-2">
         {searchKey ? (
           <Input
@@ -79,7 +80,6 @@ export function DataTableToolbar({
           </Button>
         ) : null}
       </div>
-      <DataTableViewOptions table={table} />
-    </div>
+    </FilterPanel>
   );
 }
