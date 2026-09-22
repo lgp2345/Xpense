@@ -1,5 +1,6 @@
 import { useBlocker } from '@tanstack/react-router'
 import type { PermissionKey, RentalContractAvailability } from '@xpense/shared'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
@@ -16,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { RentalApi } from '@/services/rental-api'
+import { ContractFormLayout } from './contract-form-layout'
 import {
   type ContractFormValues,
   defaultContractFormValues,
@@ -62,8 +64,6 @@ export type ContractFormPageProps = ContractFormPageInput & {
     >[0],
   ) => void
 }
-
-const labels = ['房产与空间', '承租方', '条款', '复核'] as const
 
 export function ContractFormPage({
   api,
@@ -276,198 +276,164 @@ export function ContractFormPage({
     await draft.saveAndNext(values)
   }
   return (
-    <main
-      className="mx-auto space-y-5 max-w-4xl p-4 sm:p-6 lg:p-8"
-      aria-busy={busy}
-    >
-      <header>
-        <h1 className="font-medium tracking-tight text-2xl">新建合同</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {search.draftId
-            ? '继续填写已有草稿，确认前会再次检查空间可用性。'
-            : '按步骤填写合同资料，复核后创建合同。提交前的内容仅保留在当前页面。'}
-        </p>
-      </header>
-      <ol
-        aria-label="合同创建步骤"
-        className="text-center text-xs grid gap-2 grid-cols-4 sm:text-sm"
-      >
-        {labels.map((label, index) => (
-          <li
-            key={label}
-            aria-current={step === index ? 'step' : undefined}
-            className={`rounded-md border p-2 ${step === index ? 'border-primary bg-primary/10 font-medium' : 'text-muted-foreground'}`}
-          >
-            {index + 1}. {label}
-          </li>
-        ))}
-      </ol>
-      {propertyValidationError ||
-      (draft.error && draft.error.kind !== 'availability') ? (
-        <ErrorSummary
-          key={propertyValidationError ?? draft.error?.message}
-          message={
-            propertyValidationError ??
-            draft.error?.message ??
-            '操作失败，请稍后重试。'
-          }
-          onRetry={
-            draft.error?.kind === 'save' && draft.canRetrySave
-              ? () => void draft.retrySave(values)
-              : undefined
-          }
-          onEditTerms={
-            step === 0 && draft.error?.kind === 'confirm'
-              ? () => draft.setStep(2)
-              : undefined
-          }
-          onEditSpaces={
-            step === 0 && draft.error?.kind === 'confirm'
-              ? () => draft.setStep(0)
-              : undefined
-          }
-        />
-      ) : null}
-      {step === 0 &&
-      draft.availability &&
-      !draft.availability.result.available ? (
-        <AvailabilitySummary
-          availability={draft.availability.result}
-          onEditTerms={() => draft.setStep(2)}
-        />
-      ) : null}
-      <Card>
-        <CardContent className="p-4 sm:p-6">
-          <fieldset disabled={creationPending} className="min-w-0">
-            {step === 0 ? (
-              <ContractSpacesStep
-                api={api}
-                organizationId={organizationId}
-                values={values}
-                onChange={setValues}
-                permissions={permissions}
-                onNames={captureNames}
-                showPropertySelector={!search.draftId}
-                seedSpaceIds={search.draftId ? undefined : search.spaceIds}
-              />
-            ) : step === 1 ? (
-              <ContractPartiesStep
-                api={api}
-                organizationId={organizationId}
-                permissions={permissions}
-                onNames={captureNames}
-                values={values}
-                onChange={setValues}
-              />
-            ) : step === 2 ? (
-              <ContractTermsStep values={values} onChange={setValues} />
-            ) : !search.draftId ? (
-              <ContractLocalReviewStep
-                values={values}
-                names={selectionNames}
-                busy={busy}
-                onConfirm={() => void draft.checkAndConfirm(values)}
-                onEdit={(nextStep) => draft.setStep(nextStep)}
-              />
-            ) : (
-              <ContractReviewStep
-                values={values}
-                serverDraft={draft.serverDraft}
-                availability={draft.availability?.result ?? null}
-                dirty={dirty}
-                confirming={
-                  draft.operation === 'checking' ||
-                  draft.operation === 'confirming'
-                }
-                onConfirm={() => void draft.checkAndConfirm(values)}
-                onEdit={(nextStep) => draft.setStep(nextStep)}
-              />
-            )}
-          </fieldset>
-        </CardContent>
-      </Card>
-      {step < 3 ? (
-        <div className="flex gap-3 justify-between">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={step === 0 || busy}
-            onClick={() => draft.setStep((step - 1) as 0 | 1 | 2)}
-          >
-            上一步
-          </Button>
-          <Button type="button" disabled={busy} onClick={() => void next()}>
-            {busy
-              ? (search.draftId ? '保存中...' : '校验中...')
-              : !search.draftId
-                ? '下一步'
-                : step === 0
-                  ? '保存空间并下一步'
-                  : '保存并继续'}
-          </Button>
-        </div>
-      ) : null}
-      {busy ? (
-        <p
-          role="status"
-          aria-live="polite"
-          className="text-sm text-muted-foreground"
-        >
-          {search.draftId
-            ? '正在保存合同草稿，请稍候。'
-            : creationPending
-              ? '正在创建合同，请稍候。'
-              : '正在校验合同资料，请稍候。'}
-        </p>
-      ) : null}
-      {blocker.status === 'blocked' ? (
+    <main className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8" aria-busy={busy}>
+      <ContractFormLayout step={step} isDraft={Boolean(search.draftId)}>
+        {propertyValidationError || (draft.error && draft.error.kind !== "availability") ? (
+          <ErrorSummary
+            key={propertyValidationError ?? draft.error?.message}
+            message={propertyValidationError ?? draft.error?.message ?? "操作失败，请稍后重试。"}
+            onRetry={
+              draft.error?.kind === "save" && draft.canRetrySave
+                ? () => void draft.retrySave(values)
+                : undefined
+            }
+            onEditTerms={
+              step === 0 && draft.error?.kind === "confirm" ? () => draft.setStep(2) : undefined
+            }
+            onEditSpaces={
+              step === 0 && draft.error?.kind === "confirm" ? () => draft.setStep(0) : undefined
+            }
+          />
+        ) : null}
+        {step === 0 && draft.availability && !draft.availability.result.available ? (
+          <AvailabilitySummary
+            availability={draft.availability.result}
+            onEditTerms={() => draft.setStep(2)}
+          />
+        ) : null}
+        <Card className="gap-0 overflow-hidden py-0 shadow-none">
+          <CardContent className="p-4 sm:p-6 lg:p-8">
+            <fieldset
+              disabled={creationPending}
+              className="min-w-0 [&_h2]:mb-6 [&_h2]:border-b [&_h2]:pb-4 [&_h2]:text-base [&_h2]:font-semibold"
+            >
+              {step === 0 ? (
+                <ContractSpacesStep
+                  api={api}
+                  organizationId={organizationId}
+                  values={values}
+                  onChange={setValues}
+                  permissions={permissions}
+                  onNames={captureNames}
+                  showPropertySelector={!search.draftId}
+                  seedSpaceIds={search.draftId ? undefined : search.spaceIds}
+                />
+              ) : step === 1 ? (
+                <ContractPartiesStep
+                  api={api}
+                  organizationId={organizationId}
+                  permissions={permissions}
+                  onNames={captureNames}
+                  values={values}
+                  onChange={setValues}
+                />
+              ) : step === 2 ? (
+                <ContractTermsStep values={values} onChange={setValues} />
+              ) : !search.draftId ? (
+                <ContractLocalReviewStep
+                  values={values}
+                  names={selectionNames}
+                  busy={busy}
+                  onConfirm={() => void draft.checkAndConfirm(values)}
+                  onEdit={(nextStep) => draft.setStep(nextStep)}
+                />
+              ) : (
+                <ContractReviewStep
+                  values={values}
+                  serverDraft={draft.serverDraft}
+                  availability={draft.availability?.result ?? null}
+                  dirty={dirty}
+                  confirming={draft.operation === "checking" || draft.operation === "confirming"}
+                  onConfirm={() => void draft.checkAndConfirm(values)}
+                  onEdit={(nextStep) => draft.setStep(nextStep)}
+                />
+              )}
+            </fieldset>
+          </CardContent>
+          {step < 3 ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/30 px-4 py-4 sm:px-6 lg:px-8">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={step === 0 || busy}
+                onClick={() => draft.setStep((step - 1) as 0 | 1 | 2)}
+              >
+                <ArrowLeft aria-hidden="true" className="size-4" />
+                上一步
+              </Button>
+              <Button
+                type="button"
+                className="min-w-28"
+                disabled={busy}
+                onClick={() => void next()}
+              >
+                {busy
+                  ? search.draftId
+                    ? "保存中..."
+                    : "校验中..."
+                  : !search.draftId
+                    ? "下一步"
+                    : step === 0
+                      ? "保存空间并下一步"
+                      : "保存并继续"}
+                <ArrowRight aria-hidden="true" className="size-4" />
+              </Button>
+            </div>
+          ) : null}
+        </Card>
+        {busy ? (
+          <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+            {search.draftId
+              ? "正在保存合同草稿，请稍候。"
+              : creationPending
+                ? "正在创建合同，请稍候。"
+                : "正在校验合同资料，请稍候。"}
+          </p>
+        ) : null}
+      </ContractFormLayout>
+      {blocker.status === "blocked" ? (
         <AlertDialog open>
           <AlertDialogContent
             onOpenAutoFocus={(event) => {
-              if (
-                !blockedFocusRef.current &&
-                document.activeElement instanceof HTMLElement
-              ) {
-                blockedFocusRef.current = document.activeElement
+              if (!blockedFocusRef.current && document.activeElement instanceof HTMLElement) {
+                blockedFocusRef.current = document.activeElement;
               }
-              event.preventDefault()
+              event.preventDefault();
             }}
             onCloseAutoFocus={(event) => {
-              event.preventDefault()
-              blockedFocusRef.current?.focus()
-              blockedFocusRef.current = null
+              event.preventDefault();
+              blockedFocusRef.current?.focus();
+              blockedFocusRef.current = null;
             }}
           >
             <AlertDialogHeader>
               <AlertDialogTitle>离开合同创建？</AlertDialogTitle>
               <AlertDialogDescription>
                 {draft.draftId
-                  ? '当前表单有未保存内容或正在保存，离开后可以从草稿继续。'
+                  ? "当前表单有未保存内容或正在保存，离开后可以从草稿继续。"
                   : creationPending
-                    ? '正在创建合同，请等待提交完成后再离开。'
-                    : '合同尚未提交，离开将丢弃当前填写内容。'}
+                    ? "正在创建合同，请等待提交完成后再离开。"
+                    : "合同尚未提交，离开将丢弃当前填写内容。"}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => blocker.reset()}>
-                取消
-              </AlertDialogCancel>
+              <AlertDialogCancel onClick={() => blocker.reset()}>取消</AlertDialogCancel>
               <AlertDialogAction
                 disabled={creationPending}
                 onClick={() => {
-                  if (creationPending) return
-                  draft.cancelSession()
-                  blocker.proceed()
+                  if (creationPending) return;
+                  draft.cancelSession();
+                  blocker.proceed();
                 }}
               >
-                {draft.draftId ? '离开并保留草稿' : '离开并丢弃'}
+                {draft.draftId ? "离开并保留草稿" : "离开并丢弃"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       ) : null}
     </main>
-  )
+  );
 }
 
 function ErrorSummary({
@@ -560,15 +526,26 @@ function AvailabilitySummary({
 }
 function Loading() {
   return (
-    <main className="space-y-4 p-4 sm:p-6 lg:p-8" aria-busy="true">
-      <Skeleton className="h-8 w-56" />
-      <Card>
-        <CardContent className="space-y-3 p-4">
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-8 w-full" />
-          <span className="sr-only">正在加载合同草稿...</span>
-        </CardContent>
-      </Card>
+    <main className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8" aria-busy="true">
+      <div className="space-y-3 border-b pb-6">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-5 w-full max-w-lg" />
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
+        <div className="grid grid-cols-4 gap-3 lg:grid-cols-1">
+          {[0, 1, 2, 3].map((step) => (
+            <Skeleton key={step} className="h-12 w-full" />
+          ))}
+        </div>
+        <Card className="gap-0 py-0 shadow-none">
+          <CardContent className="space-y-6 p-4 sm:p-6 lg:p-8">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <span className="sr-only">正在加载合同草稿...</span>
+          </CardContent>
+        </Card>
+      </div>
     </main>
   )
 }
