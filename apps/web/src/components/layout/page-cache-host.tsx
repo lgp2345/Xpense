@@ -1,5 +1,5 @@
-import type { AnyRoute, UseNavigateResult } from "@tanstack/react-router";
-import type { RouteKey } from "@xpense/shared";
+import type { AnyRoute, UseNavigateResult } from '@tanstack/react-router'
+import type { RouteKey } from '@xpense/shared'
 import {
   Activity,
   type JSX,
@@ -8,59 +8,64 @@ import {
   useEffect,
   useReducer,
   useRef,
-} from "react";
+} from 'react'
 
-import type { WebSessionDependency } from "@/services/web-session";
-import { type PageCacheParams, PageWorkspaceStore, toPageCacheIdentity } from "./page-cache-store";
-import { PageTabs } from "./page-tabs";
+import type { WebSessionDependency } from '@/services/web-session'
+import { useIsMobile } from '@/hooks/use-mobile'
+import {
+  type PageCacheParams,
+  PageWorkspaceStore,
+  toPageCacheIdentity,
+} from './page-cache-store'
+import { PageTabs } from './page-tabs'
 import {
   loadPageWorkspace,
   type PageWorkspaceScope,
   type PageWorkspaceStorage,
   savePageWorkspace,
-} from "./page-workspace-persistence";
+} from './page-workspace-persistence'
 
 type CacheablePageMenu = {
-  id: number;
-  title: string;
-};
+  id: number
+  title: string
+}
 
-const EMPTY_CACHEABLE_MENUS = new Map<RouteKey, CacheablePageMenu>();
+const EMPTY_CACHEABLE_MENUS = new Map<RouteKey, CacheablePageMenu>()
 
 export type RegisteredPageInput<TRoute extends AnyRoute> = {
-  session: WebSessionDependency;
-  params: TRoute["types"]["allParams"];
-  search: TRoute["types"]["fullSearchSchema"];
-  navigate: UseNavigateResult<TRoute["fullPath"]>;
-};
+  session: WebSessionDependency
+  params: TRoute['types']['allParams']
+  search: TRoute['types']['fullSearchSchema']
+  navigate: UseNavigateResult<TRoute['fullPath']>
+}
 
 export type PageCacheHostPage = {
-  authorizationSource: "local" | "resolved";
-  href: string;
-  keepAlive: boolean;
-  menuId: number;
-  params: PageCacheParams;
-  render: () => ReactNode;
-  routeKey: RouteKey;
-  title: string;
-};
+  authorizationSource: 'local' | 'resolved'
+  href: string
+  keepAlive: boolean
+  menuId: number
+  params: PageCacheParams
+  render: () => ReactNode
+  routeKey: RouteKey
+  title: string
+}
 
 type PageCacheHostProps = {
-  activePage: PageCacheHostPage | null;
-  authorizationVersion: object | null;
-  cacheableMenuIds: ReadonlySet<number>;
-  cacheableMenus?: ReadonlyMap<RouteKey, CacheablePageMenu>;
-  fallback?: ReactNode;
-  navigate?: (href: string) => Promise<void> | void;
-  scopeKey: string | null;
-  storage?: PageWorkspaceStorage | null;
-  workspaceScope?: PageWorkspaceScope | null;
-};
+  activePage: PageCacheHostPage | null
+  authorizationVersion: object | null
+  cacheableMenuIds: ReadonlySet<number>
+  cacheableMenus?: ReadonlyMap<RouteKey, CacheablePageMenu>
+  fallback?: ReactNode
+  navigate?: (href: string) => Promise<void> | void
+  scopeKey: string | null
+  storage?: PageWorkspaceStorage | null
+  workspaceScope?: PageWorkspaceScope | null
+}
 
 type CachedPage = PageCacheHostPage & {
-  authorizationVersion: object;
-  identity: string;
-};
+  authorizationVersion: object
+  identity: string
+}
 
 export function PageCacheHost({
   activePage,
@@ -73,34 +78,37 @@ export function PageCacheHost({
   storage = null,
   workspaceScope = null,
 }: PageCacheHostProps): JSX.Element {
-  const authorizationVersionIdsRef = useRef<WeakMap<object, number> | null>(null);
-  const nextAuthorizationVersionIdRef = useRef(0);
-  const storeRef = useRef<PageWorkspaceStore<CachedPage> | null>(null);
-  const scopeRef = useRef(scopeKey);
-  const hydratedWorkspaceRef = useRef<string | null>(null);
-  const [, rerender] = useReducer((version: number) => version + 1, 0);
+  const authorizationVersionIdsRef = useRef<WeakMap<object, number> | null>(
+    null,
+  )
+  const nextAuthorizationVersionIdRef = useRef(0)
+  const storeRef = useRef<PageWorkspaceStore<CachedPage> | null>(null)
+  const scopeRef = useRef(scopeKey)
+  const hydratedWorkspaceRef = useRef<string | null>(null)
+  const [, rerender] = useReducer((version: number) => version + 1, 0)
+  const isMobile = useIsMobile()
 
   if (storeRef.current === null) {
-    storeRef.current = new PageWorkspaceStore(10);
+    storeRef.current = new PageWorkspaceStore(10)
   }
   const authorizationVersionIds =
-    authorizationVersionIdsRef.current ?? new WeakMap<object, number>();
+    authorizationVersionIdsRef.current ?? new WeakMap<object, number>()
 
   if (authorizationVersionIdsRef.current === null) {
-    authorizationVersionIdsRef.current = authorizationVersionIds;
+    authorizationVersionIdsRef.current = authorizationVersionIds
   }
 
-  const store = storeRef.current;
+  const store = storeRef.current
 
   if (scopeRef.current !== scopeKey) {
-    store.clear();
-    scopeRef.current = scopeKey;
-    hydratedWorkspaceRef.current = null;
+    store.clear()
+    scopeRef.current = scopeKey
+    hydratedWorkspaceRef.current = null
   }
 
   const workspaceIdentity = workspaceScope
     ? `${workspaceScope.userId}:${workspaceScope.organizationId}`
-    : null;
+    : null
 
   if (
     workspaceIdentity !== null &&
@@ -109,38 +117,45 @@ export function PageCacheHost({
     storage !== null &&
     authorizationVersion !== null
   ) {
-    const persisted = loadPageWorkspace(storage, workspaceScope);
+    const persisted = loadPageWorkspace(storage, workspaceScope)
 
     if (persisted) {
       store.restore(persisted, (tab) => {
-        const menu = cacheableMenus.get(tab.routeKey);
-        return menu ? { menuId: menu.id, title: menu.title, value: null } : null;
-      });
+        const menu = cacheableMenus.get(tab.routeKey)
+        return menu ? { menuId: menu.id, title: menu.title, value: null } : null
+      })
     }
 
-    hydratedWorkspaceRef.current = workspaceIdentity;
+    hydratedWorkspaceRef.current = workspaceIdentity
   }
 
   if (authorizationVersion !== null) {
     store.retain(({ menuId, value }) =>
-      value === null || value.authorizationSource === "local"
+      value === null || value.authorizationSource === 'local'
         ? cacheableMenuIds.has(menuId)
         : value.authorizationVersion === authorizationVersion,
-    );
+    )
 
     for (const entry of store.values()) {
-      const menu = cacheableMenus.get(entry.routeKey);
+      const menu = cacheableMenus.get(entry.routeKey)
 
-      if (menu && (entry.value === null || entry.value.authorizationSource === "local")) {
-        store.updateMenu(entry.identity, menu);
+      if (
+        menu &&
+        (entry.value === null || entry.value.authorizationSource === 'local')
+      ) {
+        store.updateMenu(entry.identity, menu)
       }
     }
   }
 
-  let activeIdentity: string | null = null;
+  let activeIdentity: string | null = null
 
-  if (scopeKey !== null && authorizationVersion !== null && activePage?.keepAlive) {
-    activeIdentity = toPageCacheIdentity(activePage.routeKey, activePage.params);
+  if (
+    scopeKey !== null &&
+    authorizationVersion !== null &&
+    activePage?.keepAlive
+  ) {
+    activeIdentity = toPageCacheIdentity(activePage.routeKey, activePage.params)
     store.upsert({
       cacheParams: activePage.params,
       href: activePage.href,
@@ -148,53 +163,55 @@ export function PageCacheHost({
       routeKey: activePage.routeKey,
       title: activePage.title,
       value: { ...activePage, authorizationVersion, identity: activeIdentity },
-    });
+    })
   }
 
   const handleActivate = useCallback(
     (identity: string) => {
-      const entry = storeRef.current?.get(identity);
+      const entry = storeRef.current?.get(identity)
 
       if (entry) {
         void Promise.resolve()
           .then(() => navigate(entry.href))
-          .catch(() => undefined);
+          .catch(() => undefined)
       }
     },
     [navigate],
-  );
+  )
 
   const handleClose = useCallback(
     (identity: string) => {
-      const currentStore = storeRef.current;
+      const currentStore = storeRef.current
 
       if (!currentStore) {
-        return;
+        return
       }
 
       if (identity !== activeIdentity) {
-        currentStore.remove(identity);
-        rerender();
-        return;
+        currentStore.remove(identity)
+        rerender()
+        return
       }
 
-      const target = currentStore.getCloseTarget(identity);
-      const targetHref = target?.href ?? "/";
+      const target = currentStore.getCloseTarget(identity)
+      const targetHref = target?.href ?? '/'
 
       void Promise.resolve()
         .then(() => navigate(targetHref))
         .then(() => {
-          currentStore.remove(identity);
-          rerender();
+          currentStore.remove(identity)
+          rerender()
         })
-        .catch(() => undefined);
+        .catch(() => undefined)
     },
     [activeIdentity, navigate],
-  );
+  )
 
-  const workspaceUserId = workspaceScope?.userId ?? null;
-  const workspaceOrganizationId = workspaceScope?.organizationId ?? null;
-  const persistedSnapshot = store.snapshot((entry) => cacheableMenus.has(entry.routeKey));
+  const workspaceUserId = workspaceScope?.userId ?? null
+  const workspaceOrganizationId = workspaceScope?.organizationId ?? null
+  const persistedSnapshot = store.snapshot((entry) =>
+    cacheableMenus.has(entry.routeKey),
+  )
 
   useEffect(() => {
     if (
@@ -203,30 +220,38 @@ export function PageCacheHost({
       workspaceUserId === null ||
       workspaceOrganizationId === null
     ) {
-      return;
+      return
     }
 
     savePageWorkspace(
       storage,
       { organizationId: workspaceOrganizationId, userId: workspaceUserId },
       persistedSnapshot,
-    );
-  }, [authorizationVersion, persistedSnapshot, storage, workspaceOrganizationId, workspaceUserId]);
+    )
+  }, [
+    authorizationVersion,
+    persistedSnapshot,
+    storage,
+    workspaceOrganizationId,
+    workspaceUserId,
+  ])
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <PageTabs
-        activeIdentity={activeIdentity}
-        onActivate={handleActivate}
-        onClose={handleClose}
-        tabs={store.values()}
-      />
-      <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+    <div className="flex flex-col flex-1 min-h-0 min-w-0 overflow-hidden">
+      {!isMobile && (
+        <PageTabs
+          activeIdentity={activeIdentity}
+          onActivate={handleActivate}
+          onClose={handleClose}
+          tabs={store.values()}
+        />
+      )}
+      <div className="flex-1 min-h-0 min-w-0 overflow-auto">
         {store.values().map(({ identity, value }) =>
           value ? (
             <Activity
               key={`${scopeKey}:${toAuthorizationKey(value)}:${identity}`}
-              mode={identity === activeIdentity ? "visible" : "hidden"}
+              mode={identity === activeIdentity ? 'visible' : 'hidden'}
             >
               {value.render()}
             </Activity>
@@ -236,21 +261,21 @@ export function PageCacheHost({
         {activePage ? null : fallback}
       </div>
     </div>
-  );
+  )
 
   function toAuthorizationKey(page: CachedPage): string {
-    if (page.authorizationSource === "local") {
-      return "local";
+    if (page.authorizationSource === 'local') {
+      return 'local'
     }
 
-    let versionId = authorizationVersionIds.get(page.authorizationVersion);
+    let versionId = authorizationVersionIds.get(page.authorizationVersion)
 
     if (versionId === undefined) {
-      versionId = nextAuthorizationVersionIdRef.current;
-      nextAuthorizationVersionIdRef.current += 1;
-      authorizationVersionIds.set(page.authorizationVersion, versionId);
+      versionId = nextAuthorizationVersionIdRef.current
+      nextAuthorizationVersionIdRef.current += 1
+      authorizationVersionIds.set(page.authorizationVersion, versionId)
     }
 
-    return `resolved:${versionId}`;
+    return `resolved:${versionId}`
   }
 }
