@@ -4,10 +4,9 @@ import type {
   RentalPropertySummary,
   RentalSpaceNode,
 } from '@xpense/shared'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LoadMoreButton } from '@/components/load-more-button'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -21,20 +20,16 @@ import type { RentalApi } from '../../../../services/rental-api'
 import { rentalQueryOptions } from '../../../../services/rental-query'
 import type { ContractFormValues } from '../contract-form-schema'
 
-type SpaceWithPath = RentalSpaceNode & { path?: { id: string; name: string }[] }
+import {
+  ContractSpaceList,
+  spaceLabel,
+  type SpaceBranchCache,
+  type SpaceWithPath,
+} from './contract-space-tree'
 const unresolvedSelectedSpaceMessage =
   '存在未解析的已选空间，请先搜索解析或移除后再新增'
 
-export function ContractSpacesStep({
-  api,
-  organizationId,
-  permissions,
-  values,
-  onChange,
-  showPropertySelector = true,
-  seedSpaceIds,
-  onNames,
-}: {
+type ContractSpacesStepProps = {
   api: RentalApi
   organizationId: string
   permissions: readonly PermissionKey[]
@@ -43,17 +38,56 @@ export function ContractSpacesStep({
   showPropertySelector?: boolean
   seedSpaceIds?: string[]
   onNames?: (names: Record<string, string>) => void
-}) {
+}
+
+export function ContractSpacesStep(props: ContractSpacesStepProps) {
+  return (
+    <ContractSpacesStepContent
+      key={`${props.organizationId}:${props.values.propertyId}`}
+      {...props}
+    />
+  )
+}
+
+function ContractSpacesStepContent({
+  api,
+  organizationId,
+  permissions,
+  values,
+  onChange,
+  showPropertySelector = true,
+  seedSpaceIds,
+  onNames,
+}: ContractSpacesStepProps) {
   const [keyword, setKeyword] = useState('')
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const normalizedKeyword = keyword.trim()
+  const searchPending = normalizedKeyword !== searchKeyword
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [branchCache] = useState<SpaceBranchCache>(() => new Map())
+  const [descendants, setDescendants] = useState<SpaceWithPath[]>([])
   const [childrenPage, setChildrenPage] = useState(1)
   const [searchPage, setSearchPage] = useState(1)
   const [childrenItems, setChildrenItems] = useState<SpaceWithPath[]>([])
   const [searchItems, setSearchItems] = useState<SpaceWithPath[]>([])
   const [seedMessage, setSeedMessage] = useState<string | null>(null)
   const registry = useRef(new Map<string, SpaceWithPath>())
-  const scopeRef = useRef(`${organizationId}:${values.propertyId}`)
   const seededRef = useRef(new Set<string>())
   const ignoredSeedRef = useRef(new Set<string>())
+  const onLoaded = useCallback((items: SpaceWithPath[]) => {
+    for (const item of items) upsertSpace(registry.current, item)
+    setDescendants((current) => mergeSpaces(current, items))
+  }, [])
+
+  useEffect(() => {
+    if (!normalizedKeyword || normalizedKeyword === searchKeyword) return
+    const timer = setTimeout(() => {
+      setSearchKeyword(normalizedKeyword)
+      setSearchPage(1)
+      setSearchItems([])
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [normalizedKeyword, searchKeyword])
 
   const propertyList = useQuery({
     ...rentalQueryOptions.properties(api, organizationId, {
@@ -93,31 +127,18 @@ export function ContractSpacesStep({
   const search = useQuery({
     ...rentalQueryOptions.search(api, organizationId, {
       propertyId: values.propertyId,
-      keyword,
+      keyword: searchKeyword,
       page: searchPage,
       pageSize: 20,
     }),
     enabled: Boolean(
       values.propertyId &&
-      keyword.trim() &&
+      searchKeyword &&
+      !searchPending &&
       permissions.includes('rental_spaces:read'),
     ),
     retry: false,
   })
-
-  useEffect(() => {
-    const scope = `${organizationId}:${values.propertyId}`
-    if (scopeRef.current === scope) return
-    scopeRef.current = scope
-    registry.current.clear()
-    seededRef.current.clear()
-    ignoredSeedRef.current.clear()
-    setChildrenItems([])
-    setSearchItems([])
-    setChildrenPage(1)
-    setSearchPage(1)
-    setSeedMessage(null)
-  }, [organizationId, values.propertyId])
 
   useEffect(() => {
     const pageItems = (children.data?.items ?? []) as SpaceWithPath[]
@@ -130,12 +151,12 @@ export function ContractSpacesStep({
 
   useEffect(() => {
     const pageItems = (search.data?.items ?? []) as SpaceWithPath[]
-    if (!search.data) return
+    if (!search.data || searchPending) return
     for (const item of pageItems) upsertSpace(registry.current, item)
     setSearchItems((current) =>
       mergeSpaces(searchPage === 1 ? [] : current, pageItems),
     )
-  }, [search.data, searchPage])
+  }, [search.data, searchPage, searchPending])
 
   useEffect(() => {
     if (!seedSpaceIds?.length || !children.data || childrenPage !== 1) return
@@ -182,7 +203,7 @@ export function ContractSpacesStep({
     }
     if (unresolved.length)
       setSeedMessage(
-        '无法验证，已忽略部分空间；深层空间不会自动恢复，请手动搜索并选择。',
+        '无法验证，已忽略部分空间；深层空间不会自动恢复，请展开或搜索后选择。',
       )
   }, [children.data, childrenPage, onChange, seedSpaceIds, values])
 
@@ -193,11 +214,11 @@ export function ContractSpacesStep({
   const hasUnresolvedSelectedSpace = values.spaces.some(
     (item) => !registry.current.has(item.spaceId),
   )
-  const items = keyword.trim() ? searchItems : childrenItems
+  const items = searchPending ? [] : keyword.trim() ? searchItems : childrenItems
   const activeQuery = keyword.trim() ? search : children
   const activePage = keyword.trim() ? searchPage : childrenPage
   const canLoadMore = Boolean(
-    activeQuery.data &&
+    !searchPending && activeQuery.data &&
     activeQuery.data.page * activeQuery.data.pageSize < activeQuery.data.total,
   )
   const propertyItems = (propertyList.data?.items ??
@@ -223,7 +244,7 @@ export function ContractSpacesStep({
       propertyDetail.data ??
       propertyList.data?.items.find((item) => item.id === values.propertyId)
     if (property) names[property.id] = property.name
-    for (const space of [...childrenItems, ...searchItems]) {
+    for (const space of [...childrenItems, ...searchItems, ...descendants]) {
       names[space.id] = [
         ...(space.path ?? [])
           .filter((node) => node.id !== space.id)
@@ -250,6 +271,7 @@ export function ContractSpacesStep({
     propertyList.data,
     childrenItems,
     searchItems,
+    descendants,
   ])
 
   function toggle(space: SpaceWithPath) {
@@ -337,23 +359,29 @@ export function ContractSpacesStep({
               value={keyword}
               onChange={(event) => {
                 setKeyword(event.target.value)
-                setSearchPage(1)
-                setSearchItems([])
+                if (!event.target.value.trim()) {
+                  setSearchKeyword('')
+                  setSearchPage(1)
+                  setSearchItems([])
+                }
               }}
               placeholder="输入空间名称或编码"
             />
           </label>
+          <p className="text-xs text-muted-foreground">
+            展开空间名称查看内部空间；父空间与子空间不能同时选择。
+          </p>
           {seedMessage ? (
             <p role="status" aria-live="polite">
               {seedMessage}
             </p>
           ) : null}
-          {activeQuery.isLoading ? (
+          {searchPending || activeQuery.isLoading ? (
             <p role="status" aria-live="polite">
               正在加载空间…
             </p>
           ) : null}
-          {activeQuery.isError ? (
+          {!searchPending && activeQuery.isError ? (
             <div role="alert">
               空间加载失败，请重试。{' '}
               <Button type="button" variant="link" onClick={retrySpaces}>
@@ -365,65 +393,44 @@ export function ContractSpacesStep({
             <p className="text-sm text-muted-foreground">
               你没有查看空间的权限。
             </p>
-          ) : !activeQuery.isLoading &&
+          ) : !searchPending && !activeQuery.isLoading &&
             !activeQuery.isError &&
             !items.length ? (
             <p role="status" aria-live="polite">
               未找到空间。
             </p>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {items.map((space) => {
-                const selectedSpace = selected.has(space.id)
-                const conflict =
-                  !selectedSpace &&
-                  values.spaces.some((item) =>
-                    isSpaceConflict(space, registry.current.get(item.spaceId)),
-                  )
-                const reason = selectedSpace
-                  ? ''
-                  : hasUnresolvedSelectedSpace
+            <div className="rounded-md border p-1">
+              <ContractSpaceList
+                items={items}
+                search={Boolean(keyword.trim())}
+                api={api}
+                organizationId={organizationId}
+                propertyId={values.propertyId}
+                expanded={expanded}
+                branchCache={branchCache}
+                onExpand={(id) =>
+                  setExpanded((current) => {
+                    const next = new Set(current)
+                    if (next.has(id)) next.delete(id)
+                    else next.add(id)
+                    return next
+                  })
+                }
+                onLoaded={onLoaded}
+                selected={selected}
+                onToggle={toggle}
+                reasonFor={(space) =>
+                  hasUnresolvedSelectedSpace
                     ? unresolvedSelectedSpaceMessage
                     : restrictionReason(space) ||
-                      (conflict ? '已选父级或子级空间，不能同时选择' : '')
-                return (
-                  <div
-                    key={space.id}
-                    className="border rounded-md flex p-3 gap-3 items-center justify-between"
-                    data-testid={`space-option-${space.id}`}
-                  >
-                    <div>
-                      <p className="font-medium">{space.name}</p>
-                      <div className="flex flex-wrap mt-1 gap-1">
-                        <Badge variant="outline">{space.leaseStatus}</Badge>
-                        {space.hasUpcomingContract ? (
-                          <Badge variant="secondary">即将有合同</Badge>
-                        ) : null}
-                      </div>
-                      {reason ? (
-                        <p
-                          id={`space-reason-${space.id}`}
-                          className="mt-1 text-xs text-muted-foreground"
-                        >
-                          {reason}
-                        </p>
-                      ) : null}
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={selectedSpace ? 'default' : 'outline'}
-                      disabled={!selectedSpace && Boolean(reason)}
-                      aria-describedby={
-                        reason ? `space-reason-${space.id}` : undefined
-                      }
-                      onClick={() => toggle(space)}
-                    >
-                      {selectedSpace ? '移除' : '选择'}
-                    </Button>
-                  </div>
-                )
-              })}
+                      (values.spaces.some((item) =>
+                        isSpaceConflict(space, registry.current.get(item.spaceId)),
+                      )
+                        ? '已选父级或子级空间，不能同时选择'
+                        : '')
+                }
+              />
             </div>
           )}
           {canLoadMore ? (
@@ -439,8 +446,13 @@ export function ContractSpacesStep({
             </LoadMoreButton>
           ) : null}
           {values.spaces.length ? (
-            <fieldset aria-label="已选空间" className="space-y-2">
-              <legend className="font-medium text-sm">已选空间</legend>
+            <fieldset
+              aria-label="已选空间"
+              className="space-y-2 rounded-md bg-muted/40 p-3"
+            >
+              <legend className="font-medium text-sm">
+                已选空间 {values.spaces.length}
+              </legend>
               {values.spaces.map((item) => {
                 const registered = registry.current.get(item.spaceId)
                 const name = registered?.name ?? item.spaceId
@@ -449,11 +461,8 @@ export function ContractSpacesStep({
                     key={item.spaceId}
                     className="flex text-sm gap-3 items-center justify-between"
                   >
-                    <span>
-                      {name}
-                      {registered?.path?.length
-                        ? `（${registered.path.map((node) => node.name).join(' / ')}）`
-                        : ''}
+                    <span className="min-w-0 break-words">
+                      {registered ? spaceLabel(registered) : name}
                     </span>
                     <Button
                       type="button"

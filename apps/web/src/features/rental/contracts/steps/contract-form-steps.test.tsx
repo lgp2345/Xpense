@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PermissionKey, RentalSpaceNode, RentalTenantSummary } from "@xpense/shared";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../../../services/api-client";
@@ -71,6 +71,38 @@ function tenant(id: string, isActive = true): RentalTenantSummary {
 }
 
 describe("contract form step domains", () => {
+  it("browses descendants without search and preserves selection across collapse and search", async () => {
+    const user = userEvent.setup();
+    const grandchild = { ...space(siblingId, childId), name: "深层房间" };
+    const api = {
+      listChildren: vi.fn(async ({ parentId: parent }: { parentId: string | null }) => ({
+        items: parent === parentId ? [{ ...space(childId, parentId), hasChildren: true }]
+          : parent === childId ? [grandchild] : [{ ...space(parentId), hasChildren: true }],
+        total: 1, page: 1, pageSize: 50,
+      })),
+      searchSpaces: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
+    } as unknown as RentalApi;
+    function Harness() {
+      const [values, setValues] = useState(defaultContractFormValues(propertyId));
+      return <ContractSpacesStep api={api} organizationId="org-a" permissions={permissions}
+        showPropertySelector={false} values={values} onChange={setValues} />;
+    }
+    renderWithQuery(<Harness />);
+    await user.click(await screen.findByRole("button", { name: "展开 父级" }));
+    await user.click(await screen.findByRole("button", { name: "展开 子级" }));
+    await user.click(within(await screen.findByTestId(`space-option-${siblingId}`)).getByRole("button", { name: "选择" }));
+    expect(within(screen.getByRole("group", { name: "已选空间" })).getByText("父级 / 子级 / 深层房间")).toBeInTheDocument();
+    expect(within(screen.getByTestId(`space-option-${parentId}`)).getByRole("button", { name: "选择" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "收起 父级" }));
+    expect(screen.queryByRole("button", { name: "收起 子级" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "展开 父级" }));
+    await user.type(screen.getByLabelText("搜索空间"), "不存在");
+    await screen.findByText("未找到空间。");
+    await user.clear(screen.getByLabelText("搜索空间"));
+    expect(screen.getByRole("button", { name: "收起 子级" })).toBeVisible();
+    expect(within(screen.getByTestId(`space-option-${siblingId}`)).getByRole("button", { name: "移除 深层房间" })).toBeEnabled();
+  });
+
   it("captures a searched space path without duplicating its own name", async () => {
     const user = userEvent.setup();
     const onNames = vi.fn();
@@ -507,7 +539,7 @@ describe("contract form step domains", () => {
       />,
     );
     expect(
-      await screen.findByText("无法验证，已忽略部分空间；深层空间不会自动恢复，请手动搜索并选择。"),
+      await screen.findByText("无法验证，已忽略部分空间；深层空间不会自动恢复，请展开或搜索后选择。"),
     ).toBeInTheDocument();
   });
 
