@@ -1059,6 +1059,12 @@ describe("ContractFormPage route leave protection", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it("does not focus the step heading when opening a new contract", async () => {
+    renderPage(baseApi(), undefined, { propertyId });
+    const heading = await screen.findByRole("heading", { name: "选择房产与空间" });
+    expect(heading).not.toHaveFocus();
+  });
+
   it("focuses the error summary and the active step heading", async () => {
     const user = userEvent.setup();
     const api = baseApi({ contractDetail: vi.fn().mockResolvedValue(completeDetail()) });

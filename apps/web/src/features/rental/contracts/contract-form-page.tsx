@@ -210,7 +210,10 @@ export function ContractFormPage({
     withResolver: true,
   })
   const blockedFocusRef = useRef<HTMLElement | null>(null)
+  const previousStepRef = useRef(draft.step)
   useEffect(() => {
+    if (previousStepRef.current === draft.step) return
+    previousStepRef.current = draft.step
     const headingId = [
       'contract-spaces-title',
       'contract-parties-title',
