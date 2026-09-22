@@ -129,11 +129,11 @@ export function AuthenticatedLayout({
   );
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-dvh min-h-0 overflow-hidden">
       <AppSidebar session={session} />
-      <SidebarInset>
+      <SidebarInset className="min-h-0 min-w-0 overflow-hidden">
         <Header />
-        <main id="main-content" className="flex min-h-0 flex-1 flex-col">
+        <main id="main-content" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <PageCacheHost
             activePage={activePage}
             authorizationVersion={isMenuReady ? authorizedRoutes : null}

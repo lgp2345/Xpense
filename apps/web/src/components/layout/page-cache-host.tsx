@@ -214,14 +214,14 @@ export function PageCacheHost({
   }, [authorizationVersion, persistedSnapshot, storage, workspaceOrganizationId, workspaceUserId]);
 
   return (
-    <div className="flex min-h-0 h-full flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <PageTabs
         activeIdentity={activeIdentity}
         onActivate={handleActivate}
         onClose={handleClose}
         tabs={store.values()}
       />
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto">
         {store.values().map(({ identity, value }) =>
           value ? (
             <Activity

@@ -49,13 +49,7 @@ export function PageTabs({
   }, [activeIdentity])
 
   if (tabs.length === 0) {
-    return (
-      <div
-        aria-hidden="true"
-        className="border-b border-border bg-muted/30 shrink-0"
-        data-testid="page-tabs-spacer"
-      />
-    )
+    return null
   }
 
   return (

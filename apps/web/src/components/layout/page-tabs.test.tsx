@@ -55,11 +55,13 @@ describe("PageTabs", () => {
     expect(onClose).toHaveBeenCalledWith("Members:{}");
   });
 
-  it("reserves the tab strip height without rendering an empty navigation landmark", () => {
-    render(<PageTabs activeIdentity={null} onActivate={vi.fn()} onClose={vi.fn()} tabs={[]} />);
+  it("renders no tab strip or spacer when there are no tabs", () => {
+    const { container } = render(
+      <PageTabs activeIdentity={null} onActivate={vi.fn()} onClose={vi.fn()} tabs={[]} />,
+    );
 
     expect(screen.queryByRole("navigation", { name: "已打开页面" })).not.toBeInTheDocument();
-    expect(screen.getByTestId("page-tabs-spacer")).toHaveClass("h-10");
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("keeps the active tab visible without scrolling the document", () => {
