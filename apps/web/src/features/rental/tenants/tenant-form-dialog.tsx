@@ -162,66 +162,70 @@ export function TenantFormDialog({
           </Button>
         </DialogTrigger>
       ) : null}
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="flex max-h-[90dvh] flex-col">
         <DialogHeader>
           <DialogTitle>{isEditing ? "编辑租客" : "新增租客"}</DialogTitle>
           <DialogDescription>证件号码等敏感信息不会从掩码值自动回填。</DialogDescription>
         </DialogHeader>
         <form
           noValidate
-          className="grid gap-4"
+          className="flex min-h-0 flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
             void form.handleSubmit();
           }}
         >
-          <Field form={form} name="name" label="租客名称" />
-          <form.Field name="type">
-            {(field) => (
-              <div className="grid gap-2">
-                <Label htmlFor="tenant-type">租客类型</Label>
-                <Select
-                  value={field.state.value}
-                  onValueChange={(value) => changeType(value as TenantFormValues["type"])}
-                >
-                  <SelectTrigger id="tenant-type" aria-label="租客类型">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {typeOptions.map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            <div className="grid gap-4">
+              <Field form={form} name="name" label="租客名称" />
+              <form.Field name="type">
+                {(field) => (
+                  <div className="grid gap-2">
+                    <Label htmlFor="tenant-type">租客类型</Label>
+                    <Select
+                      value={field.state.value}
+                      onValueChange={(value) => changeType(value as TenantFormValues["type"])}
+                    >
+                      <SelectTrigger id="tenant-type" aria-label="租客类型">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {typeOptions.map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </form.Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field form={form} name="phone" label="电话" />
+                <Field form={form} name="email" label="邮箱" />
               </div>
-            )}
-          </form.Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field form={form} name="phone" label="电话" />
-            <Field form={form} name="email" label="邮箱" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field form={form} name="primaryContactName" label="主要联系人" />
+                <Field form={form} name="primaryContactPhone" label="联系人电话" />
+              </div>
+              <form.Subscribe selector={(state) => state.values.type === "individual"}>
+                {(isIndividual) =>
+                  isIndividual ? (
+                    <IdentityFields
+                      form={form}
+                      maskedDocumentNumber={currentTenant?.maskedDocumentNumber ?? null}
+                    />
+                  ) : null
+                }
+              </form.Subscribe>
+              <Field form={form} name="note" label="备注" multiline />
+              {submitError ? (
+                <p role="alert" className="text-sm text-destructive">
+                  {submitError}
+                </p>
+              ) : null}
+            </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field form={form} name="primaryContactName" label="主要联系人" />
-            <Field form={form} name="primaryContactPhone" label="联系人电话" />
-          </div>
-          <form.Subscribe selector={(state) => state.values.type === "individual"}>
-            {(isIndividual) =>
-              isIndividual ? (
-                <IdentityFields
-                  form={form}
-                  maskedDocumentNumber={currentTenant?.maskedDocumentNumber ?? null}
-                />
-              ) : null
-            }
-          </form.Subscribe>
-          <Field form={form} name="note" label="备注" multiline />
-          {submitError ? (
-            <p role="alert" className="text-sm text-destructive">
-              {submitError}
-            </p>
-          ) : null}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={closeDialog}>
               取消
