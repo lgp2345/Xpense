@@ -567,11 +567,49 @@ describe("contract form step domains", () => {
         onChange={onChange}
       />,
     );
-    expect((await screen.findAllByText("张三")).length).toBeGreaterThan(0);
-    const selected = screen.getByRole("button", { name: "已选择" });
-    expect(selected).toBeEnabled();
-    await user.click(selected);
+    expect((await screen.findAllByText(/张三/)).length).toBeGreaterThan(0);
+    const remove = screen.getByRole("button", { name: "Remove" });
+    expect(remove).toBeEnabled();
+    await user.click(remove);
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ parties: [] }));
+  });
+
+  it("selects tenants with the multi-select and debounces remote queries", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const listTenants = vi.fn(async ({ keyword }: { keyword?: string }) => ({
+      items: keyword ? [tenant("66666666-6666-4666-8666-666666666666")] : [tenant(tenantId)],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    }));
+    const api = { listTenants } as unknown as RentalApi;
+    renderWithQuery(
+      <ContractPartiesStep
+        api={api}
+        organizationId="org-a"
+        permissions={["rental_tenants:read"]}
+        values={defaultContractFormValues(propertyId)}
+        onChange={onChange}
+      />,
+    );
+
+    const search = await screen.findByRole("combobox", { name: "搜索租户" });
+    await user.click(search);
+    expect(await screen.findByRole("option", { name: /张三/ })).toBeVisible();
+    await user.type(search, "李四");
+    expect(listTenants).toHaveBeenCalledTimes(1);
+    await user.click(await screen.findByRole("option", { name: /李四/ }));
+
+    expect(listTenants).toHaveBeenCalledTimes(2);
+    expect(listTenants).toHaveBeenLastCalledWith(
+      expect.objectContaining({ keyword: "李四", page: 1 }),
+    );
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parties: [{ tenantId: "66666666-6666-4666-8666-666666666666", isPrimaryPayer: true }],
+      }),
+    );
   });
 
   it.each([

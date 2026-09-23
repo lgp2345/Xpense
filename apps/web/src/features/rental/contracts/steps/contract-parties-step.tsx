@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PermissionKey, RentalTenantSummary } from "@xpense/shared";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LoadMoreButton } from "@/components/load-more-button";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import MultipleSelector, { type Option, useDebounce } from "@/components/ui/multi-select";
 import { ApiError } from "../../../../services/api-client";
 import type { RentalApi } from "../../../../services/rental-api";
 import { invalidateTenantMutation, rentalQueryOptions } from "../../../../services/rental-query";
@@ -36,6 +37,8 @@ export function ContractPartiesStep({
   onNames?: (names: Record<string, string>) => void;
 }) {
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [keyword, setKeyword] = useState("");
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<RentalTenantSummary[]>([]);
@@ -57,16 +60,23 @@ export function ContractPartiesStep({
     setPage(1);
   }, [organizationId]);
   useEffect(() => {
+    setKeyword(debouncedSearch);
+    setPage(1);
+    setItems([]);
+  }, [debouncedSearch]);
+  useEffect(() => {
     if (!query.data) return;
     for (const tenant of query.data.items) registry.current.set(tenant.id, tenant);
     setItems((current) => mergeTenants(page === 1 ? [] : current, query.data.items));
   }, [page, query.data]);
 
-  const selected = useMemo(
-    () => new Set(values.parties.map((party) => party.tenantId)),
-    [values.parties],
-  );
-  const selectedTenants = values.parties.map((party) => registry.current.get(party.tenantId));
+  const selectedOptions = values.parties.map((party) => {
+    const tenant = registry.current.get(party.tenantId);
+    return {
+      value: party.tenantId,
+      label: tenant ? `${tenant.name}${tenant.isActive ? "" : " · 已停用"}` : party.tenantId,
+    };
+  });
   const canLoadMore = Boolean(
     query.data && query.data.page * query.data.pageSize < query.data.total,
   );
@@ -91,27 +101,20 @@ export function ContractPartiesStep({
     onError: (cause) => setCreateError(tenantCreateErrorMessage(cause)),
   });
 
-  function toggle(tenant: RentalTenantSummary) {
-    if (!tenant.isActive && !selected.has(tenant.id)) return;
-    if (selected.has(tenant.id)) {
-      removeParty(tenant.id);
-      return;
+  function updateParties(options: Option[]) {
+    const existing = new Map(values.parties.map((party) => [party.tenantId, party]));
+    const parties = options.map(
+      (option) =>
+        existing.get(option.value) ?? {
+          tenantId: option.value,
+          isPrimaryPayer: false,
+        },
+    );
+    const first = parties[0];
+    if (first && !parties.some((party) => party.isPrimaryPayer)) {
+      parties[0] = { ...first, isPrimaryPayer: true };
     }
-    onChange({
-      ...values,
-      parties: [
-        ...values.parties,
-        { tenantId: tenant.id, isPrimaryPayer: values.parties.length === 0 },
-      ],
-    });
-  }
-
-  function removeParty(tenantId: string) {
-    const remaining = values.parties.filter((party) => party.tenantId !== tenantId);
-    const first = remaining[0];
-    if (first && !remaining.some((party) => party.isPrimaryPayer))
-      remaining[0] = { ...first, isPrimaryPayer: true };
-    onChange({ ...values, parties: remaining });
+    onChange({ ...values, parties });
   }
 
   useEffect(() => {
@@ -130,18 +133,29 @@ export function ContractPartiesStep({
       <h2 id="contract-parties-title" className="text-lg font-medium">
         选择承租方
       </h2>
-      <label className="grid gap-2 text-sm" htmlFor="tenant-search">
-        搜索租户
-        <Input
-          id="tenant-search"
-          value={keyword}
-          onChange={(event) => {
-            setKeyword(event.target.value);
-            setPage(1);
-            setItems([]);
+      <div className="grid gap-2 text-sm">
+        <label htmlFor="tenant-search">搜索租户</label>
+        <MultipleSelector
+          value={selectedOptions}
+          options={items.map((tenant) => ({
+            value: tenant.id,
+            label: `${tenant.name} · ${tenant.type === "company" ? "企业" : "个人"}${
+              tenant.isActive ? "" : " · 已停用"
+            }`,
+            disable: !tenant.isActive,
+          }))}
+          placeholder="搜索并选择租户"
+          disabled={!permissions.includes("rental_tenants:read")}
+          emptyIndicator="未找到租户。"
+          commandProps={{ label: "搜索租户", shouldFilter: false }}
+          inputProps={{
+            id: "tenant-search",
+            "aria-label": "搜索租户",
+            onValueChange: setSearch,
           }}
+          onChange={updateParties}
         />
-      </label>
+      </div>
       {!permissions.includes("rental_tenants:read") ? (
         <p className="text-sm text-muted-foreground">你没有查看租户的权限。</p>
       ) : query.isLoading ? (
@@ -155,40 +169,11 @@ export function ContractPartiesStep({
             重试
           </Button>
         </div>
-      ) : !items.length ? (
+      ) : !items.length && !search ? (
         <p role="status" aria-live="polite">
           未找到租户。
         </p>
-      ) : (
-        <div className="grid gap-2">
-          {items.map((tenant) => {
-            const isSelected = selected.has(tenant.id);
-            return (
-              <div
-                key={tenant.id}
-                className="flex items-center justify-between rounded-md border p-3"
-              >
-                <div>
-                  <p className="font-medium">{tenant.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {tenant.type === "company" ? "企业" : "个人"}
-                    {!tenant.isActive ? " · 已停用" : ""}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={isSelected ? "default" : "outline"}
-                  disabled={!tenant.isActive && !isSelected}
-                  onClick={() => toggle(tenant)}
-                >
-                  {isSelected ? "已选择" : tenant.isActive ? "选择" : "不可用"}
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      ) : null}
       {canLoadMore ? (
         <LoadMoreButton
           pending={query.isFetching}
@@ -196,25 +181,6 @@ export function ContractPartiesStep({
         >
           加载更多租户
         </LoadMoreButton>
-      ) : null}
-      {selectedTenants.length ? (
-        <fieldset className="grid gap-2" aria-label="已选承租方">
-          <legend className="text-sm font-medium">已选承租方</legend>
-          {values.parties.map((party, index) => {
-            const name = selectedTenants[index]?.name ?? party.tenantId;
-            return (
-              <div key={party.tenantId} className="flex items-center justify-between text-sm">
-                <span>
-                  {name}
-                  {!selectedTenants[index]?.isActive ? " · 已停用" : ""}
-                </span>
-                <Button type="button" variant="ghost" onClick={() => removeParty(party.tenantId)}>
-                  移除
-                </Button>
-              </div>
-            );
-          })}
-        </fieldset>
       ) : null}
       {permissions.includes("rental_tenants:create") ? (
         <div className="space-y-2">

@@ -290,7 +290,8 @@ async function fillNewContractToReview(user: ReturnType<typeof userEvent.setup>)
   await user.click(await screen.findByRole("button", { name: "选择" }));
   await user.click(screen.getByRole("button", { name: "下一步" }));
   await screen.findByRole("heading", { name: "选择承租方" });
-  await user.click(await screen.findByRole("button", { name: "选择" }));
+  await user.click(await screen.findByRole("combobox", { name: "搜索租户" }));
+  await user.click(await screen.findByRole("option", { name: /张三/ }));
   await user.click(screen.getByRole("button", { name: "下一步" }));
   await screen.findByRole("heading", { name: "设置合同条款" });
   await user.type(screen.getByLabelText("月租（元）"), "8000");
@@ -1275,7 +1276,11 @@ describe("ContractFormPage step semantics", () => {
         />
       </QueryClientProvider>,
     );
-    expect(await screen.findByRole("button", { name: "不可用" })).toBeDisabled();
+    await user.click(await screen.findByRole("combobox", { name: "搜索租户" }));
+    expect(await screen.findByRole("option", { name: /停用租户/ })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
     const input = screen.getByRole("textbox", { name: "新租户名称" });
     await user.type(input, "新租户");
     await user.click(screen.getByRole("button", { name: "新增租户" }));
