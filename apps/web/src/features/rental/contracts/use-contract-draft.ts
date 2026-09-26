@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RentalContractAvailability, RentalContractDetail } from "@xpense/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
 import { invalidateContractMutation, rentalKeys } from "../../../services/rental-query";
@@ -9,16 +8,28 @@ import {
   type ContractFormValues,
   contractFormSchema,
   defaultContractFormValues,
-  stepSchemas,
   toConfirmedContractRequest,
   toContractFormValues,
   toStepUpdateRequest,
 } from "./contract-form-schema";
+import {
+  type ContractFieldErrors,
+  type ContractValidationScope,
+  contractFieldErrors,
+  validateContractValues,
+} from "./contract-validation-errors";
 
 export type ContractStep = 0 | 1 | 2 | 3;
 export type DraftOperation = "idle" | "loading" | "saving" | "checking" | "confirming";
 export type DraftErrorKind = "load" | "save" | "availability" | "confirm";
-export type DraftError = { kind: DraftErrorKind; message: string; status?: number };
+export type DraftError = {
+  kind: DraftErrorKind;
+  message: string;
+  status?: number;
+  fieldErrors?: ContractFieldErrors;
+  validationScope?: ContractValidationScope;
+  focusFields?: boolean;
+};
 
 type Options = {
   api: RentalApi;
@@ -266,17 +277,15 @@ export function useContractDraft(options: Options) {
     async (values: ContractFormValues) => {
       if (!requestReady) return false;
       const hasDraft = Boolean(effectiveDraftId);
-      const parsed =
-        step === 0 && !values.propertyId
-          ? { success: false as const, error: { issues: [{ message: "请选择房产" }] } }
-          : step === 0
-            ? stepSchemas.spaces.safeParse({ propertyId: values.propertyId, spaces: values.spaces })
-            : step === 1
-              ? stepSchemas.parties.safeParse({ parties: values.parties })
-              : stepSchemas.terms.safeParse(values);
+      const parsed = validateContractValues(values, step);
       if (!parsed.success) {
         lastSave.current = undefined;
-        setError({ kind: "save", message: parsed.error.issues[0]?.message ?? "请检查当前步骤。" });
+        setError({
+          kind: "save",
+          message: parsed.error.issues[0]?.message ?? "请检查当前步骤。",
+          fieldErrors: contractFieldErrors(parsed.error.issues),
+          validationScope: step,
+        });
         return false;
       }
       setError(null);
@@ -335,6 +344,8 @@ export function useContractDraft(options: Options) {
         setError({
           kind: "confirm",
           message: parsed.error.issues[0]?.message ?? "请检查合同资料。",
+          fieldErrors: contractFieldErrors(parsed.error.issues),
+          validationScope: "contract",
         });
         setStep(inferDirtyStep(canonical, defaultContractFormValues(canonical.propertyId)));
         return false;
@@ -428,6 +439,20 @@ export function useContractDraft(options: Options) {
     }
     return JSON.stringify(values) !== JSON.stringify(baseline.current);
   }, []);
+  const revalidate = useCallback((values: ContractFormValues) => {
+    setError((current) => {
+      if (current?.validationScope === undefined) return current;
+      const parsed = validateContractValues(values, current.validationScope);
+      if (parsed.success) return null;
+      return {
+        ...current,
+        message: parsed.error.issues[0]?.message ?? current.message,
+        fieldErrors: contractFieldErrors(parsed.error.issues),
+        focusFields: false,
+      };
+    });
+  }, []);
+
   return {
     step,
     setStep,
@@ -452,6 +477,7 @@ export function useContractDraft(options: Options) {
     baselineVersion,
     canonicalResetVersion,
     clearError: () => setError(null),
+    revalidate,
     isDirty,
     cancelSession,
   };

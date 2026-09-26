@@ -1,9 +1,10 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import type { RentalPropertyType } from "@xpense/shared";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -20,14 +21,20 @@ type PropertyFiltersProps = {
 
 /** 房产筛选先维护草稿，仅在用户应用时改写 URL 查询状态。 */
 export function PropertyFilters({ search, onApply }: PropertyFiltersProps) {
-  const [draft, setDraft] = useState(() => toDraft(search));
-  useEffect(() => setDraft(toDraft(search)), [search]);
+  const form = useForm({ defaultValues: { draft: toDraft(search) } });
+  const draft = useStore(form.store, (state) => state.values.draft);
+  const setDraft = useCallback(
+    (next: typeof draft | ((current: typeof draft) => typeof draft)) =>
+      form.setFieldValue("draft", next),
+    [form],
+  );
+  useEffect(() => setDraft(toDraft(search)), [search, setDraft]);
   function update<Key extends keyof typeof draft>(key: Key, value: (typeof draft)[Key]) {
     setDraft((current) => ({ ...current, [key]: value }));
   }
   return (
     <FilterPanel>
-      <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <FieldGroup className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4">
         <TextInput
           label="关键词"
           value={draft.keyword}
@@ -95,7 +102,7 @@ export function PropertyFilters({ search, onApply }: PropertyFiltersProps) {
             重置
           </Button>
         </div>
-      </div>
+      </FieldGroup>
     </FilterPanel>
   );
 }
@@ -110,10 +117,10 @@ function TextInput({
 }) {
   const id = `property-${label}`;
   return (
-    <div className="grid gap-1">
-      <Label htmlFor={id}>{label}</Label>
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Input id={id} value={value} onChange={(event) => onChange(event.target.value)} />
-    </div>
+    </Field>
   );
 }
 function FilterSelect({
@@ -128,8 +135,8 @@ function FilterSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="grid gap-1">
-      <Label>{label}</Label>
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger aria-label={label}>
           <SelectValue />
@@ -142,7 +149,7 @@ function FilterSelect({
           ))}
         </SelectContent>
       </Select>
-    </div>
+    </Field>
   );
 }
 function toDraft(search: ListRentalPropertiesQuery) {

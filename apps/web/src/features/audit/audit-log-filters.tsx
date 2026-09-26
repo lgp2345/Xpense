@@ -1,8 +1,8 @@
 import { DateRangePicker, type DateRangeValue } from "@/components/date-picker";
 import { FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export type AuditLogSearch = {
   action?: string;
@@ -49,20 +49,20 @@ export function AuditLogFilters({ onChange, search }: AuditLogFiltersProps) {
 
   return (
     <FilterPanel>
-      <fieldset className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <legend className="sr-only">筛选审计日志</legend>
+      <FieldSet className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <FieldLegend className="sr-only">筛选审计日志</FieldLegend>
         {fields.map((field) => (
-          <div className="grid gap-2" key={field.key}>
-            <Label htmlFor={`audit-${field.key}`}>{field.label}</Label>
+          <Field key={field.key}>
+            <FieldLabel htmlFor={`audit-${field.key}`}>{field.label}</FieldLabel>
             <Input
               id={`audit-${field.key}`}
               value={search[field.key] ?? ""}
               onChange={(event) => updateFilter(field.key, event.currentTarget.value)}
             />
-          </div>
+          </Field>
         ))}
-        <div className="grid gap-2 sm:col-span-2">
-          <Label htmlFor="audit-date-range">日期范围</Label>
+        <Field className="sm:col-span-2">
+          <FieldLabel htmlFor="audit-date-range">日期范围</FieldLabel>
           <div className="flex gap-2">
             <DateRangePicker
               id="audit-date-range"
@@ -82,8 +82,8 @@ export function AuditLogFilters({ onChange, search }: AuditLogFiltersProps) {
               </Button>
             ) : null}
           </div>
-        </div>
-      </fieldset>
+        </Field>
+      </FieldSet>
     </FilterPanel>
   );
 }

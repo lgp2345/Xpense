@@ -16,8 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/lib/toast";
 import { ApiError } from "../../../services/api-client";
@@ -309,8 +309,8 @@ function ActionFields({
 }) {
   if (state.kind === "terminate")
     return (
-      <div className="space-y-3">
-        <Field
+      <FieldGroup className="gap-3">
+        <ActionField
           label="终止日期"
           error={state.fieldErrors.terminationDate}
           errorId="contract-action-termination-date-error"
@@ -327,18 +327,18 @@ function ActionFields({
             value={state.terminationDate}
             onChange={(value) => onChange({ terminationDate: value ?? "" })}
           />
-        </Field>
+        </ActionField>
         <ReasonField
           value={state.reason}
           error={state.fieldErrors.reason}
           onChange={(reason) => onChange({ reason })}
         />
-      </div>
+      </FieldGroup>
     );
   if (state.kind === "changeParties")
     return (
-      <div className="space-y-3">
-        <Field
+      <FieldGroup>
+        <ActionField
           label="生效日期"
           error={state.fieldErrors.effectiveDate}
           errorId="contract-action-effective-date-error"
@@ -353,16 +353,18 @@ function ActionFields({
             value={state.effectiveDate}
             onChange={(value) => onChange({ effectiveDate: value ?? "" })}
           />
-        </Field>
+        </ActionField>
         <ReasonField
           value={state.reason}
           error={state.fieldErrors.reason}
           onChange={(reason) => onChange({ reason })}
         />
-        <div id="contract-action-parties" tabIndex={-1}>
-          <span id="contract-action-parties-label" className="text-sm font-medium">
-            承租方
-          </span>
+        <Field
+          data-invalid={Boolean(state.fieldErrors.parties)}
+          id="contract-action-parties"
+          tabIndex={-1}
+        >
+          <FieldLabel id="contract-action-parties-label">承租方</FieldLabel>
           <RadioGroup
             aria-label="主付款人"
             name="primary-payer"
@@ -378,7 +380,7 @@ function ActionFields({
             className="gap-2"
           >
             {state.parties.map((party, index) => (
-              <div className="flex gap-2" key={state.rowIds[index]}>
+              <Field data-invalid={Boolean(state.fieldErrors.parties)} key={state.rowIds[index]}>
                 <Input
                   aria-label={`承租方 ${index + 1}`}
                   aria-invalid={Boolean(state.fieldErrors.parties)}
@@ -392,23 +394,19 @@ function ActionFields({
                     onChange({ parties });
                   }}
                 />
-                <Label className="shrink-0" htmlFor={`contract-action-primary-payer-${index}`}>
+                <FieldLabel className="shrink-0" htmlFor={`contract-action-primary-payer-${index}`}>
                   <RadioGroupItem
                     id={`contract-action-primary-payer-${index}`}
                     value={String(index)}
                   />
                   主付款人
-                </Label>
-              </div>
+                </FieldLabel>
+              </Field>
             ))}
           </RadioGroup>
-        </div>
-        {state.fieldErrors.parties ? (
-          <p id="contract-action-parties-error" role="alert" className="text-sm text-destructive">
-            {state.fieldErrors.parties}
-          </p>
-        ) : null}
-      </div>
+          <FieldError id="contract-action-parties-error">{state.fieldErrors.parties}</FieldError>
+        </Field>
+      </FieldGroup>
     );
   return (
     <ReasonField
@@ -429,7 +427,7 @@ function ReasonField({
   onChange: (value: string) => void;
 }) {
   return (
-    <Field label="原因" error={error} errorId="contract-action-reason-error">
+    <ActionField label="原因" error={error} errorId="contract-action-reason-error">
       <textarea
         id="contract-action-reason"
         aria-label="原因"
@@ -439,10 +437,10 @@ function ReasonField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-    </Field>
+    </ActionField>
   );
 }
-function Field({
+function ActionField({
   label,
   error,
   errorId,
@@ -454,15 +452,11 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="block space-y-1 text-sm">
-      <span>{label}</span>
+    <Field data-invalid={Boolean(error)}>
+      <FieldLabel htmlFor={errorId.replace(/-error$/, "")}>{label}</FieldLabel>
       {children}
-      {error ? (
-        <span id={errorId} role="alert" className="block text-destructive">
-          {error}
-        </span>
-      ) : null}
-    </div>
+      <FieldError id={errorId}>{error}</FieldError>
+    </Field>
   );
 }
 

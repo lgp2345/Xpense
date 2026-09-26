@@ -1,7 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import type { PermissionTreeNode } from "@xpense/shared";
 import { useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,8 +11,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { IamRoleWithPermissions } from "../../services/iam-api";
 import { PermissionTree } from "./permission-tree";
 import { collectTreePermissionKeys } from "./permission-tree-state";
@@ -135,14 +134,13 @@ export function RoleEditorDialog({
       <DialogTrigger asChild>
         <Button variant={isEditing ? "outline" : "default"}>{triggerLabel}</Button>
       </DialogTrigger>
-      <DialogContent showCloseButton={false} className="sm:max-w-2xl">
+      <DialogContent showCloseButton={false} className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{isEditing ? "编辑角色" : "新增角色"}</DialogTitle>
           <DialogDescription>配置角色基本信息与功能权限。</DialogDescription>
         </DialogHeader>
 
         <form
-          className="grid gap-4"
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
@@ -150,121 +148,126 @@ export function RoleEditorDialog({
             void form.handleSubmit();
           }}
         >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <form.Field name="key">
-              {(field) => {
-                const fieldError = field.state.meta.isTouched
-                  ? getValidationMessage(field.state.meta.errors[0])
-                  : undefined;
+          <FieldGroup className="grid gap-4">
+            <FieldGroup className="grid gap-4 sm:grid-cols-2">
+              <form.Field name="key">
+                {(field) => {
+                  const fieldError = field.state.meta.isTouched
+                    ? getValidationMessage(field.state.meta.errors[0])
+                    : undefined;
 
-                return (
-                  <div className="grid gap-2">
-                    <Label htmlFor={field.name}>角色标识</Label>
-                    <Input
-                      autoComplete="off"
-                      id={field.name}
-                      placeholder="例如 bookkeeper"
-                      disabled={(isEditing && !canEditMetadata) || !isEditable}
-                      readOnly={isEditing}
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.target.value)}
-                      aria-invalid={Boolean(fieldError)}
-                    />
-                    {fieldError ? (
-                      <p className="text-sm text-destructive" role="alert">
-                        {fieldError}
-                      </p>
-                    ) : null}
-                  </div>
-                );
-              }}
-            </form.Field>
+                  return (
+                    <Field data-invalid={Boolean(fieldError)}>
+                      <FieldLabel htmlFor={field.name}>角色标识</FieldLabel>
+                      <Input
+                        autoComplete="off"
+                        id={field.name}
+                        placeholder="例如 bookkeeper"
+                        disabled={(isEditing && !canEditMetadata) || !isEditable}
+                        readOnly={isEditing}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                        aria-invalid={Boolean(fieldError)}
+                        aria-describedby={fieldError ? `${field.name}-error` : undefined}
+                      />
+                      <FieldError id={`${field.name}-error`}>{fieldError}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
 
-            <form.Field name="name">
-              {(field) => {
-                const fieldError = field.state.meta.isTouched
-                  ? getValidationMessage(field.state.meta.errors[0])
-                  : undefined;
+              <form.Field name="name">
+                {(field) => {
+                  const fieldError = field.state.meta.isTouched
+                    ? getValidationMessage(field.state.meta.errors[0])
+                    : undefined;
 
-                return (
-                  <div className="grid gap-2">
-                    <Label htmlFor={field.name}>角色名称</Label>
-                    <Input
-                      autoComplete="off"
-                      id={field.name}
-                      placeholder="输入角色名称"
-                      disabled={!canEditMetadata || !isEditable}
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.target.value)}
-                      aria-invalid={Boolean(fieldError)}
-                    />
-                    {fieldError ? (
-                      <p className="text-sm text-destructive" role="alert">
-                        {fieldError}
-                      </p>
-                    ) : null}
-                  </div>
-                );
-              }}
-            </form.Field>
-          </div>
+                  return (
+                    <Field data-invalid={Boolean(fieldError)}>
+                      <FieldLabel htmlFor={field.name}>角色名称</FieldLabel>
+                      <Input
+                        autoComplete="off"
+                        id={field.name}
+                        placeholder="输入角色名称"
+                        disabled={!canEditMetadata || !isEditable}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                        aria-invalid={Boolean(fieldError)}
+                        aria-describedby={fieldError ? `${field.name}-error` : undefined}
+                      />
+                      <FieldError id={`${field.name}-error`}>{fieldError}</FieldError>
+                    </Field>
+                  );
+                }}
+              </form.Field>
+            </FieldGroup>
 
-          <form.Field name="description">
-            {(field) => (
-              <div className="grid gap-2">
-                <Label htmlFor={field.name}>角色说明</Label>
-                <Input
-                  autoComplete="off"
-                  id={field.name}
-                  placeholder="说明该角色的职责"
-                  disabled={!canEditMetadata || !isEditable}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                />
-              </div>
-            )}
-          </form.Field>
-
-          {canUpdatePermissions ? (
-            <div>
-              <h3 className="text-base font-medium">权限</h3>
-              <p className="mt-1 text-sm text-muted-foreground">选择该角色可使用的功能权限。</p>
-              <div className="mt-3">
-                <form.Field name="permissionKeys" mode="array">
-                  {(field) => (
-                    <PermissionTree
-                      disabled={!isEditable}
-                      nodes={permissionTree}
-                      selected={field.state.value}
-                      onChange={(next) => field.handleChange(next)}
-                    />
-                  )}
-                </form.Field>
-              </div>
-            </div>
-          ) : null}
-
-          {submissionError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {submissionError}
-            </p>
-          ) : null}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              取消
-            </Button>
-            <form.Subscribe selector={(state) => ({ isSubmitting: state.isSubmitting })}>
-              {({ isSubmitting }) => (
-                <Button disabled={isSubmitting || !isEditable} type="submit">
-                  {isSubmitting ? "正在保存..." : isEditing ? "保存角色" : "创建角色"}
-                </Button>
+            <form.Field name="description">
+              {(field) => (
+                <Field>
+                  <FieldLabel htmlFor={field.name}>角色说明</FieldLabel>
+                  <Input
+                    autoComplete="off"
+                    id={field.name}
+                    placeholder="说明该角色的职责"
+                    disabled={!canEditMetadata || !isEditable}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                  <FieldError>{getValidationMessage(field.state.meta.errors[0])}</FieldError>
+                </Field>
               )}
-            </form.Subscribe>
-          </DialogFooter>
+            </form.Field>
+
+            {canUpdatePermissions ? (
+              <div>
+                <h3 className="text-base font-medium">权限</h3>
+                <p className="mt-1 text-sm text-muted-foreground">选择该角色可使用的功能权限。</p>
+                <FieldGroup className="mt-3">
+                  <form.Field name="permissionKeys" mode="array">
+                    {(field) => (
+                      <Field
+                        data-invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+                        aria-label="权限"
+                      >
+                        <PermissionTree
+                          disabled={!isEditable}
+                          nodes={permissionTree}
+                          selected={field.state.value}
+                          onChange={(next) => field.handleChange(next)}
+                        />
+                        {field.state.meta.isTouched && !field.state.meta.isValid ? (
+                          <FieldError errors={field.state.meta.errors} />
+                        ) : null}
+                      </Field>
+                    )}
+                  </form.Field>
+                </FieldGroup>
+              </div>
+            ) : null}
+
+            {submissionError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {submissionError}
+              </p>
+            ) : null}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                取消
+              </Button>
+              <form.Subscribe selector={(state) => ({ isSubmitting: state.isSubmitting })}>
+                {({ isSubmitting }) => (
+                  <Button disabled={isSubmitting || !isEditable} type="submit">
+                    {isSubmitting ? "正在保存..." : isEditing ? "保存角色" : "创建角色"}
+                  </Button>
+                )}
+              </form.Subscribe>
+            </DialogFooter>
+          </FieldGroup>
         </form>
       </DialogContent>
     </Dialog>

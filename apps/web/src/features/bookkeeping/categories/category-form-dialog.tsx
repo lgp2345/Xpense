@@ -11,8 +11,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -94,7 +94,7 @@ export function CategoryFormDialog({
           {isEditing ? "编辑" : isFixedChild ? "新增子分类" : "新增分类"}
         </Button>
       </DialogTrigger>
-      <DialogContent showCloseButton={false}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{isEditing ? "编辑分类" : "新增分类"}</DialogTitle>
           <DialogDescription>
@@ -102,7 +102,6 @@ export function CategoryFormDialog({
           </DialogDescription>
         </DialogHeader>
         <form
-          className="grid gap-4"
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
@@ -110,55 +109,69 @@ export function CategoryFormDialog({
             void form.handleSubmit();
           }}
         >
-          <TextField form={form} label="分类名称" name="name" />
-          <form.Field name="parentId">
-            {(field) => (
-              <div className="grid gap-2">
-                <Label>上级分类</Label>
-                <Select
-                  disabled={isFixedChild}
-                  value={field.state.value}
-                  onValueChange={field.handleChange}
-                >
-                  <SelectTrigger aria-label="上级分类" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">无（一级分类）</SelectItem>
-                    {rootCategories
-                      .filter((root) => root.id !== category?.id)
-                      .map((root) => (
-                        <SelectItem key={root.id} value={root.id}>
-                          {root.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </form.Field>
-          <div className="grid grid-cols-2 gap-4">
-            <TextField form={form} label="图标" name="icon" placeholder="utensils" />
-            <TextField form={form} label="颜色" name="color" placeholder="#F97316" />
-          </div>
-          <TextField form={form} label="排序" name="sortOrder" placeholder="0" />
-          {submitError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {submitError}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              取消
-            </Button>
-            <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting) => (
-                <Button disabled={isSubmitting} type="submit">
-                  {isSubmitting ? "正在保存..." : isEditing ? "保存分类" : "创建分类"}
-                </Button>
+          <FieldGroup className="grid gap-4">
+            <TextField form={form} label="分类名称" name="name" />
+            <form.Field name="parentId">
+              {(field) => (
+                <Field data-invalid={Boolean(getValidationMessage(field.state.meta.errors[0]))}>
+                  <FieldLabel>上级分类</FieldLabel>
+                  <Select
+                    disabled={isFixedChild}
+                    value={field.state.value}
+                    onValueChange={field.handleChange}
+                  >
+                    <SelectTrigger
+                      aria-invalid={Boolean(getValidationMessage(field.state.meta.errors[0]))}
+                      aria-describedby={
+                        getValidationMessage(field.state.meta.errors[0])
+                          ? `${field.name}-error`
+                          : undefined
+                      }
+                      aria-label="上级分类"
+                      className="w-full"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">无（一级分类）</SelectItem>
+                      {rootCategories
+                        .filter((root) => root.id !== category?.id)
+                        .map((root) => (
+                          <SelectItem key={root.id} value={root.id}>
+                            {root.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError id={`${field.name}-error`}>
+                    {getValidationMessage(field.state.meta.errors[0])}
+                  </FieldError>
+                </Field>
               )}
-            </form.Subscribe>
-          </DialogFooter>
+            </form.Field>
+            <div className="grid grid-cols-2 gap-4">
+              <TextField form={form} label="图标" name="icon" placeholder="utensils" />
+              <TextField form={form} label="颜色" name="color" placeholder="#F97316" />
+            </div>
+            <TextField form={form} label="排序" name="sortOrder" placeholder="0" />
+            {submitError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {submitError}
+              </p>
+            ) : null}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                取消
+              </Button>
+              <form.Subscribe selector={(state) => state.isSubmitting}>
+                {(isSubmitting) => (
+                  <Button disabled={isSubmitting} type="submit">
+                    {isSubmitting ? "正在保存..." : isEditing ? "保存分类" : "创建分类"}
+                  </Button>
+                )}
+              </form.Subscribe>
+            </DialogFooter>
+          </FieldGroup>
         </form>
       </DialogContent>
     </Dialog>
@@ -186,8 +199,8 @@ function TextField({
           ? getValidationMessage(field.state.meta.errors[0])
           : undefined;
         return (
-          <div className="grid gap-2">
-            <Label htmlFor={field.name}>{label}</Label>
+          <Field data-invalid={Boolean(error)}>
+            <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
             <Input
               id={field.name}
               placeholder={placeholder}
@@ -195,13 +208,10 @@ function TextField({
               onBlur={field.handleBlur}
               onChange={(event) => field.handleChange(event.target.value)}
               aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${field.name}-error` : undefined}
             />
-            {error ? (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            ) : null}
-          </div>
+            <FieldError id={`${field.name}-error`}>{error}</FieldError>
+          </Field>
         );
       }}
     </form.Field>

@@ -1,8 +1,8 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import type { RentalSpaceNode } from "@xpense/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LoadMoreButton } from "@/components/load-more-button";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,8 +13,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { RentalApi } from "../../../services/rental-api";
 import { rentalQueryOptions } from "../../../services/rental-query";
 import {
@@ -48,9 +48,19 @@ export function SpaceMoveDialog({
   onMove,
 }: SpaceMoveDialogProps) {
   const queryClient = useQueryClient();
+  const form = useForm({
+    defaultValues: {
+      parentId: space.parentId === null ? ROOT_TARGET : SELECT_TARGET,
+      sortOrder: space.sortOrder,
+    },
+  });
+  const { parentId, sortOrder } = useStore(form.store, (state) => state.values);
+  const setParentId = useCallback((value: string) => form.setFieldValue("parentId", value), [form]);
+  const setSortOrder = useCallback(
+    (value: number) => form.setFieldValue("sortOrder", value),
+    [form],
+  );
   const [open, setOpen] = useState(false);
-  const [parentId, setParentId] = useState(space.parentId === null ? ROOT_TARGET : SELECT_TARGET);
-  const [sortOrder, setSortOrder] = useState(space.sortOrder);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [candidateTree, setCandidateTree] = useState(createSpaceTreeState);
   const candidateTreeRef = useRef(candidateTree);
@@ -122,7 +132,15 @@ export function SpaceMoveDialog({
     setSourceDepthError(false);
     void loadCandidatePage(null, 1);
     void loadSourceSubtreeDepth();
-  }, [loadCandidatePage, loadSourceSubtreeDepth, open, space.parentId, space.sortOrder]);
+  }, [
+    loadCandidatePage,
+    loadSourceSubtreeDepth,
+    open,
+    space.parentId,
+    space.sortOrder,
+    setParentId,
+    setSortOrder,
+  ]);
 
   async function toggleCandidate(nodeId: string) {
     if (candidateTreeRef.current.expandedIds.includes(nodeId)) {
@@ -253,23 +271,23 @@ export function SpaceMoveDialog({
           移动
         </Button>
       </DialogTrigger>
-      <DialogContent showCloseButton={false}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>移动空间</DialogTitle>
           <DialogDescription>
             展开候选空间后才加载其直属子空间；请选择新的上级空间和同级排序。
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <Label>上级空间</Label>
-            <p aria-live="polite" className="text-sm text-muted-foreground">
+        <FieldGroup className="grid gap-4">
+          <Field>
+            <FieldLabel>上级空间</FieldLabel>
+            <FieldDescription aria-live="polite" className="text-sm text-muted-foreground">
               {parentId === SELECT_TARGET
                 ? "请选择目标父级"
                 : parentId === ROOT_TARGET
                   ? "已选择：房产根目录"
                   : `已选择：${candidateTree.nodesById[parentId]?.name ?? "目标空间"}`}
-            </p>
+            </FieldDescription>
             <div
               aria-label="移动目标"
               className="max-h-64 overflow-y-auto rounded-md border p-3"
@@ -330,9 +348,9 @@ export function SpaceMoveDialog({
                 </Button>
               ) : null}
             </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="move-sort-order">排序</Label>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="move-sort-order">排序</FieldLabel>
             <Input
               id="move-sort-order"
               inputMode="numeric"
@@ -340,7 +358,7 @@ export function SpaceMoveDialog({
               value={sortOrder}
               onChange={(event) => setSortOrder(Number(event.target.value))}
             />
-          </div>
+          </Field>
           {submitError ? (
             <p role="alert" className="text-sm text-destructive">
               {submitError}
@@ -354,7 +372,7 @@ export function SpaceMoveDialog({
               确认移动
             </Button>
           </DialogFooter>
-        </div>
+        </FieldGroup>
       </DialogContent>
     </Dialog>
   );

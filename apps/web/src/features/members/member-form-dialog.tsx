@@ -1,6 +1,5 @@
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,8 +10,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -87,14 +86,13 @@ export function MemberFormDialog({ roles, onSubmit }: MemberFormDialogProps) {
       <DialogTrigger asChild>
         <Button>新增成员</Button>
       </DialogTrigger>
-      <DialogContent showCloseButton={false}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>新增成员</DialogTitle>
           <DialogDescription>输入用户 ID 并选择一个角色。</DialogDescription>
         </DialogHeader>
 
         <form
-          className="grid gap-4"
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
@@ -102,83 +100,86 @@ export function MemberFormDialog({ roles, onSubmit }: MemberFormDialogProps) {
             void form.handleSubmit();
           }}
         >
-          <form.Field name="userId">
-            {(field) => {
-              const fieldError = field.state.meta.isTouched
-                ? getValidationMessage(field.state.meta.errors[0])
-                : undefined;
+          <FieldGroup className="grid gap-4">
+            <form.Field name="userId">
+              {(field) => {
+                const fieldError = field.state.meta.isTouched
+                  ? getValidationMessage(field.state.meta.errors[0])
+                  : undefined;
 
-              return (
-                <div className="grid gap-2">
-                  <Label htmlFor={field.name}>用户 ID</Label>
-                  <Input
-                    autoComplete="off"
-                    id={field.name}
-                    placeholder="输入用户 UUID"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    aria-invalid={Boolean(fieldError)}
-                  />
-                  {fieldError ? (
-                    <p className="text-sm text-destructive" role="alert">
-                      {fieldError}
-                    </p>
-                  ) : null}
-                </div>
-              );
-            }}
-          </form.Field>
+                return (
+                  <Field data-invalid={Boolean(fieldError)}>
+                    <FieldLabel htmlFor={field.name}>用户 ID</FieldLabel>
+                    <Input
+                      autoComplete="off"
+                      id={field.name}
+                      placeholder="输入用户 UUID"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                      aria-invalid={Boolean(fieldError)}
+                      aria-describedby={fieldError ? `${field.name}-error` : undefined}
+                    />
+                    <FieldError id={`${field.name}-error`}>{fieldError}</FieldError>
+                  </Field>
+                );
+              }}
+            </form.Field>
 
-          <form.Field name="roleId">
-            {(field) => {
-              const fieldError = field.state.meta.isTouched
-                ? getValidationMessage(field.state.meta.errors[0])
-                : undefined;
+            <form.Field name="roleId">
+              {(field) => {
+                const fieldError = field.state.meta.isTouched
+                  ? getValidationMessage(field.state.meta.errors[0])
+                  : undefined;
 
-              return (
-                <div className="grid gap-2">
-                  <Label>角色</Label>
-                  <Select value={field.state.value || undefined} onValueChange={field.handleChange}>
-                    <SelectTrigger aria-label="角色" className="w-full">
-                      <SelectValue placeholder="选择角色" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map((role) => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {fieldError ? (
-                    <p className="text-sm text-destructive" role="alert">
-                      {fieldError}
-                    </p>
-                  ) : null}
-                </div>
-              );
-            }}
-          </form.Field>
+                return (
+                  <Field data-invalid={Boolean(fieldError)}>
+                    <FieldLabel>角色</FieldLabel>
+                    <Select
+                      value={field.state.value || undefined}
+                      onValueChange={field.handleChange}
+                    >
+                      <SelectTrigger
+                        aria-invalid={Boolean(fieldError)}
+                        aria-describedby={fieldError ? `${field.name}-error` : undefined}
+                        aria-label="角色"
+                        className="w-full"
+                      >
+                        <SelectValue placeholder="选择角色" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {roles.map((role) => (
+                          <SelectItem key={role.id} value={role.id}>
+                            {role.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldError id={`${field.name}-error`}>{fieldError}</FieldError>
+                  </Field>
+                );
+              }}
+            </form.Field>
 
-          {submitError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {submitError}
-            </p>
-          ) : null}
+            {submitError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {submitError}
+              </p>
+            ) : null}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              取消
-            </Button>
-            <form.Subscribe selector={(state) => ({ isSubmitting: state.isSubmitting })}>
-              {({ isSubmitting }) => (
-                <Button disabled={isSubmitting} type="submit">
-                  {isSubmitting ? "正在添加..." : "添加成员"}
-                </Button>
-              )}
-            </form.Subscribe>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                取消
+              </Button>
+              <form.Subscribe selector={(state) => ({ isSubmitting: state.isSubmitting })}>
+                {({ isSubmitting }) => (
+                  <Button disabled={isSubmitting} type="submit">
+                    {isSubmitting ? "正在添加..." : "添加成员"}
+                  </Button>
+                )}
+              </form.Subscribe>
+            </DialogFooter>
+          </FieldGroup>
         </form>
       </DialogContent>
     </Dialog>

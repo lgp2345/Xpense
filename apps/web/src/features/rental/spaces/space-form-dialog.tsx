@@ -16,8 +16,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -95,87 +95,103 @@ export function SpaceFormDialog({
           </DialogDescription>
         </DialogHeader>
         <form
-          className="grid gap-4"
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
             void form.handleSubmit();
           }}
         >
-          <TextField form={form} label="名称" name="name" />
-          <TextField form={form} label="编号" name="code" />
-          <TextField form={form} label="备注" name="note" />
-          <form.Field name="type">
-            {(field) => (
-              <div className="grid gap-2">
-                <Label>空间类型</Label>
-                <Select
-                  value={field.state.value}
-                  onValueChange={(value) => field.handleChange(value as SpaceFormValues["type"])}
-                >
-                  <SelectTrigger aria-label="空间类型">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {spaceTypeOptions.map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </form.Field>
-          <form.Subscribe selector={(state) => state.values.type === "other"}>
-            {(isCustom) =>
-              isCustom ? <TextField form={form} label="自定义类型" name="customTypeName" /> : null
-            }
-          </form.Subscribe>
-          <form.Field name="isRentable">
-            {(field) => (
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="isRentable"
-                  checked={field.state.value}
-                  onCheckedChange={(checked) => field.handleChange(checked === true)}
-                />
-                <Label htmlFor="isRentable">可出租</Label>
-              </div>
-            )}
-          </form.Field>
-          <form.Field name="sortOrder">
-            {(field) => (
-              <div className="grid gap-2">
-                <Label htmlFor="sortOrder">排序</Label>
-                <Input
-                  id="sortOrder"
-                  inputMode="numeric"
-                  type="number"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(Number(event.target.value))}
-                />
-              </div>
-            )}
-          </form.Field>
-          {submitError ? (
-            <p role="alert" className="text-sm text-destructive">
-              {submitError}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
-              取消
-            </Button>
-            <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(submitting) => (
-                <Button disabled={submitting} type="submit">
-                  {submitting ? "正在保存..." : isEditing ? "保存空间" : "创建空间"}
-                </Button>
+          <FieldGroup className="grid gap-4">
+            <TextField form={form} label="名称" name="name" />
+            <TextField form={form} label="编号" name="code" />
+            <TextField form={form} label="备注" name="note" />
+            <form.Field name="type">
+              {(field) => (
+                <Field data-invalid={Boolean(validationMessage(field.state.meta.errors[0]))}>
+                  <FieldLabel>空间类型</FieldLabel>
+                  <Select
+                    value={field.state.value}
+                    onValueChange={(value) => field.handleChange(value as SpaceFormValues["type"])}
+                  >
+                    <SelectTrigger
+                      aria-invalid={Boolean(validationMessage(field.state.meta.errors[0]))}
+                      aria-describedby={
+                        validationMessage(field.state.meta.errors[0])
+                          ? `${field.name}-error`
+                          : undefined
+                      }
+                      aria-label="空间类型"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {spaceTypeOptions.map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError id={`${field.name}-error`}>
+                    {validationMessage(field.state.meta.errors[0])}
+                  </FieldError>
+                </Field>
               )}
+            </form.Field>
+            <form.Subscribe selector={(state) => state.values.type === "other"}>
+              {(isCustom) =>
+                isCustom ? <TextField form={form} label="自定义类型" name="customTypeName" /> : null
+              }
             </form.Subscribe>
-          </DialogFooter>
+            <form.Field name="isRentable">
+              {(field) => (
+                <Field>
+                  <Field orientation="horizontal">
+                    <Checkbox
+                      id="isRentable"
+                      checked={field.state.value}
+                      onCheckedChange={(checked) => field.handleChange(checked === true)}
+                    />
+                    <FieldLabel htmlFor="isRentable">可出租</FieldLabel>
+                  </Field>
+                  <FieldError>{validationMessage(field.state.meta.errors[0])}</FieldError>
+                </Field>
+              )}
+            </form.Field>
+            <form.Field name="sortOrder">
+              {(field) => (
+                <Field>
+                  <FieldLabel htmlFor="sortOrder">排序</FieldLabel>
+                  <Input
+                    id="sortOrder"
+                    inputMode="numeric"
+                    type="number"
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(Number(event.target.value))}
+                  />
+                  <FieldError>{validationMessage(field.state.meta.errors[0])}</FieldError>
+                </Field>
+              )}
+            </form.Field>
+            {submitError ? (
+              <p role="alert" className="text-sm text-destructive">
+                {submitError}
+              </p>
+            ) : null}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+                取消
+              </Button>
+              <form.Subscribe selector={(state) => state.isSubmitting}>
+                {(submitting) => (
+                  <Button disabled={submitting} type="submit">
+                    {submitting ? "正在保存..." : isEditing ? "保存空间" : "创建空间"}
+                  </Button>
+                )}
+              </form.Subscribe>
+            </DialogFooter>
+          </FieldGroup>
         </form>
       </DialogContent>
     </Dialog>
@@ -235,17 +251,18 @@ function TextField({
       {(field) => {
         const error = validationMessage(field.state.meta.errors[0]);
         return (
-          <div className="grid gap-2">
-            <Label htmlFor={field.name}>{label}</Label>
+          <Field data-invalid={Boolean(error)}>
+            <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
             <Input
               aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${field.name}-error` : undefined}
               id={field.name}
               value={field.state.value}
               onBlur={field.handleBlur}
               onChange={(event) => field.handleChange(event.target.value)}
             />
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          </div>
+            <FieldError id={`${field.name}-error`}>{error}</FieldError>
+          </Field>
         );
       }}
     </form.Field>

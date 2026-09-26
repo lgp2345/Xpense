@@ -1,8 +1,8 @@
-import { useRef } from 'react'
+import { useContext, useRef } from 'react'
 import { DateRangePicker } from '@/components/date-picker'
 import { Button } from '@/components/ui/button'
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
@@ -11,6 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  ContractFieldErrorsContext,
+  ContractFieldMessage,
+  contractFeedbackProps,
+  useContractFieldFeedback,
+} from '../contract-field-feedback'
 import { type ContractFormValues, isValidDate } from '../contract-form-schema'
 import { BillingPeriodPreview } from './billing-period-preview'
 
@@ -21,25 +27,24 @@ export function ContractTermsStep({
   values: ContractFormValues
   onChange: (values: ContractFormValues) => void
 }) {
+  const errors = useContext(ContractFieldErrorsContext)
+  const rentFeedback = useContractFieldFeedback('rentAmountText', 'spaces')
+  const dateFeedback = useContractFieldFeedback('startDate', 'endDate')
+  const dueFeedback = useContractFieldFeedback('dueDaysBeforeText')
+  const anchorFeedback = useContractFieldFeedback('billingAnchor')
+  const intervalFeedback = useContractFieldFeedback('paymentIntervalMonths')
   const depositKeys = useRef<string[]>([])
   const depositSequence = useRef(0)
   const depositKey = (index: number) => {
     depositKeys.current[index] ??= `deposit-${depositSequence.current++}`
     return depositKeys.current[index] as string
   }
-  const set = <K extends keyof ContractFormValues>(
-    key: K,
-    value: ContractFormValues[K],
-  ) => onChange({ ...values, [key]: value })
-  function updateDeposit(
-    index: number,
-    patch: Partial<ContractFormValues['deposits'][number]>,
-  ) {
+  const set = <K extends keyof ContractFormValues>(key: K, value: ContractFormValues[K]) =>
+    onChange({ ...values, [key]: value })
+  function updateDeposit(index: number, patch: Partial<ContractFormValues['deposits'][number]>) {
     set(
       'deposits',
-      values.deposits.map((item, current) =>
-        current === index ? { ...item, ...patch } : item,
-      ),
+      values.deposits.map((item, current) => (current === index ? { ...item, ...patch } : item)),
     )
   }
   return (
@@ -47,34 +52,43 @@ export function ContractTermsStep({
       <h2 id="contract-terms-title" className="font-medium text-lg">
         设置合同条款
       </h2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label
-          className="text-sm grid gap-2"
-          htmlFor="contract-external-number"
+      <FieldGroup className="grid gap-4 sm:grid-cols-2">
+        <Field
+          data-invalid={contractFeedbackProps(errors, 'externalContractNumber')['aria-invalid']}
         >
-          合同编号
+          <FieldLabel htmlFor="contract-external-number">合同编号</FieldLabel>
           <Input
             id="contract-external-number"
+            {...contractFeedbackProps(errors, 'externalContractNumber')}
             value={values.externalContractNumber}
-            onChange={(event) =>
-              set('externalContractNumber', event.target.value)
-            }
+            onChange={(event) => set('externalContractNumber', event.target.value)}
           />
-        </label>
-        <label className="text-sm grid gap-2" htmlFor="contract-rent-amount">
-          月租（元）
+
+          <ContractFieldMessage name="externalContractNumber" />
+        </Field>
+        <Field
+          data-invalid={contractFeedbackProps(errors, 'rentAmountText', 'spaces')['aria-invalid']}
+        >
+          <FieldLabel htmlFor="contract-rent-amount">月租（元）</FieldLabel>
           <Input
             id="contract-rent-amount"
+            {...rentFeedback}
             inputMode="decimal"
             value={values.rentAmountText}
             onChange={(event) => set('rentAmountText', event.target.value)}
           />
-        </label>
-        <div className="text-sm grid gap-2 sm:col-span-2">
-          <label htmlFor="contract-date-range">租期范围</label>
+
+          <ContractFieldMessage name="rentAmountText" alternateName="spaces" />
+        </Field>
+        <Field
+          data-invalid={contractFeedbackProps(errors, 'startDate', 'endDate')['aria-invalid']}
+          className="sm:col-span-2"
+        >
+          <FieldLabel htmlFor="contract-date-range">租期范围</FieldLabel>
           <div className="flex gap-2">
             <DateRangePicker
               id="contract-date-range"
+              {...dateFeedback}
               aria-label="租期范围"
               value={{ from: values.startDate, to: values.endDate }}
               onChange={({ from, to }) =>
@@ -91,51 +105,43 @@ export function ContractTermsStep({
                 type="button"
                 variant="outline"
                 aria-label="清除租期"
-                onClick={() =>
-                  onChange({ ...values, startDate: '', endDate: '' })
-                }
+                onClick={() => onChange({ ...values, startDate: '', endDate: '' })}
               >
                 清除
               </Button>
             ) : null}
           </div>
-        </div>
-      </div>
-      <fieldset className="grid gap-2">
-        <legend id="billing-anchor-label" className="font-medium text-sm">
+          <ContractFieldMessage name="startDate" alternateName="endDate" />
+        </Field>
+      </FieldGroup>
+      <FieldSet className="grid gap-2">
+        <FieldLegend id="billing-anchor-label" className="font-medium text-sm">
           计费方式
-        </legend>
+        </FieldLegend>
         <RadioGroup
+          {...anchorFeedback}
           aria-labelledby="billing-anchor-label"
           name="billing-anchor"
           value={values.billingAnchor}
           onValueChange={(billingAnchor) =>
-            set(
-              'billingAnchor',
-              billingAnchor as ContractFormValues['billingAnchor'],
-            )
+            set('billingAnchor', billingAnchor as ContractFormValues['billingAnchor'])
           }
         >
-          <div className="flex mt-2 gap-2 items-center">
-            <div className="flex gap-2 items-center">
-              <RadioGroupItem
-                id="billing-contract-start"
-                value="contract_start"
-              />
-              <Label htmlFor="billing-contract-start">合同起始日</Label>
-            </div>
-            <div className="flex gap-2 items-center">
-              <RadioGroupItem
-                id="billing-calendar-month"
-                value="calendar_month"
-              />
-              <Label htmlFor="billing-calendar-month">自然月</Label>
-            </div>
-          </div>
+          <FieldGroup className="flex flex-row mt-2 gap-2 items-center">
+            <Field orientation="horizontal">
+              <RadioGroupItem id="billing-contract-start" value="contract_start" />
+              <FieldLabel htmlFor="billing-contract-start">合同起始日</FieldLabel>
+            </Field>
+            <Field orientation="horizontal">
+              <RadioGroupItem id="billing-calendar-month" value="calendar_month" />
+              <FieldLabel htmlFor="billing-calendar-month">自然月</FieldLabel>
+            </Field>
+          </FieldGroup>
         </RadioGroup>
-      </fieldset>
-      <div className="text-sm grid gap-2">
-        <label htmlFor="contract-payment-interval">付款周期</label>
+        <ContractFieldMessage name="billingAnchor" />
+      </FieldSet>
+      <Field data-invalid={contractFeedbackProps(errors, 'paymentIntervalMonths')['aria-invalid']}>
+        <FieldLabel htmlFor="contract-payment-interval">付款周期</FieldLabel>
         <Select
           value={values.paymentIntervalMonths || 'none'}
           onValueChange={(paymentIntervalMonths) =>
@@ -149,6 +155,7 @@ export function ContractTermsStep({
         >
           <SelectTrigger
             id="contract-payment-interval"
+            {...intervalFeedback}
             aria-label="付款周期"
             className="w-full"
           >
@@ -162,27 +169,34 @@ export function ContractTermsStep({
             <SelectItem value="12">每年</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-      <label className="text-sm grid gap-2" htmlFor="contract-due-days">
-        到期提醒提前天数
+        <ContractFieldMessage name="paymentIntervalMonths" />
+      </Field>
+      <Field data-invalid={contractFeedbackProps(errors, 'dueDaysBeforeText')['aria-invalid']}>
+        <FieldLabel htmlFor="contract-due-days">到期提醒提前天数</FieldLabel>
         <Input
           id="contract-due-days"
+          {...dueFeedback}
           inputMode="numeric"
           value={values.dueDaysBeforeText}
           onChange={(event) => set('dueDaysBeforeText', event.target.value)}
         />
-      </label>
-      <label className="text-sm grid gap-2" htmlFor="contract-note">
-        备注
+
+        <ContractFieldMessage name="dueDaysBeforeText" />
+      </Field>
+      <Field data-invalid={contractFeedbackProps(errors, 'note')['aria-invalid']}>
+        <FieldLabel htmlFor="contract-note">备注</FieldLabel>
         <textarea
           id="contract-note"
+          {...contractFeedbackProps(errors, 'note')}
           className="bg-background border rounded-md min-h-24 p-2"
           value={values.note}
           onChange={(event) => set('note', event.target.value)}
         />
-      </label>
-      <fieldset className="border rounded-md p-3">
-        <legend className="font-medium text-sm">押金</legend>
+
+        <ContractFieldMessage name="note" />
+      </Field>
+      <FieldSet className="border rounded-md p-3">
+        <FieldLegend className="font-medium text-sm">押金</FieldLegend>
         <Button
           type="button"
           variant="outline"
@@ -205,14 +219,12 @@ export function ContractTermsStep({
           添加押金
         </Button>
         {values.deposits.map((deposit, index) => (
-          <div
+          <FieldGroup
             key={depositKey(index)}
             className="mt-3 grid gap-3 rounded-md border bg-card/40 p-3 sm:grid-cols-2"
           >
             <div className="flex items-center justify-between gap-3 sm:col-span-2">
-              <span className="text-sm font-medium text-muted-foreground">
-                押金项 {index + 1}
-              </span>
+              <span className="text-sm font-medium text-muted-foreground">押金项 {index + 1}</span>
               <Button
                 type="button"
                 variant="outline"
@@ -231,8 +243,10 @@ export function ContractTermsStep({
                 移除
               </Button>
             </div>
-            <div className="text-sm grid gap-1">
-              <label htmlFor={`deposit-type-${index}`}>类型</label>
+            <Field
+              data-invalid={contractFeedbackProps(errors, `deposits.${index}.type`)['aria-invalid']}
+            >
+              <FieldLabel htmlFor={`deposit-type-${index}`}>类型</FieldLabel>
               <Select
                 value={deposit.type}
                 onValueChange={(type) =>
@@ -244,6 +258,7 @@ export function ContractTermsStep({
               >
                 <SelectTrigger
                   id={`deposit-type-${index}`}
+                  {...contractFeedbackProps(errors, `deposits.${index}.type`)}
                   aria-label={`押金类型 ${index + 1}`}
                   className="w-full"
                 >
@@ -256,30 +271,31 @@ export function ContractTermsStep({
                   <SelectItem value="other">其他</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+              <ContractFieldMessage name={`deposits.${index}.type`} />
+            </Field>
             {deposit.type === 'other' ? (
-              <label
-                className="text-sm grid gap-1"
-                htmlFor={`deposit-name-${index}`}
+              <Field
+                data-invalid={
+                  contractFeedbackProps(errors, `deposits.${index}.customName`)['aria-invalid']
+                }
               >
-                押金名称
+                <FieldLabel htmlFor={`deposit-name-${index}`}>押金名称</FieldLabel>
                 <Input
                   id={`deposit-name-${index}`}
+                  {...contractFeedbackProps(errors, `deposits.${index}.customName`)}
                   value={deposit.customName}
-                  onChange={(event) =>
-                    updateDeposit(index, { customName: event.target.value })
-                  }
+                  onChange={(event) => updateDeposit(index, { customName: event.target.value })}
                 />
-              </label>
+
+                <ContractFieldMessage name={`deposits.${index}.customName`} />
+              </Field>
             ) : null}
-            <fieldset className="grid gap-1">
-              <legend
-                id={`deposit-mode-label-${index}`}
-                className="text-sm mb-2"
-              >
+            <FieldSet className="grid gap-1">
+              <FieldLegend id={`deposit-mode-label-${index}`} className="text-sm mb-2">
                 计算方式
-              </legend>
+              </FieldLegend>
               <RadioGroup
+                {...contractFeedbackProps(errors, `deposits.${index}.calculationMode`)}
                 aria-labelledby={`deposit-mode-label-${index}`}
                 name={`deposit-mode-${index}`}
                 value={deposit.calculationMode}
@@ -295,34 +311,29 @@ export function ContractTermsStep({
                   )
                 }
               >
-                <div className="flex gap-2 items-center">
-                  <div className="flex gap-2 items-center">
-                    <RadioGroupItem
-                      id={`deposit-fixed-${index}`}
-                      value="fixed_amount"
-                    />
-                    <Label htmlFor={`deposit-fixed-${index}`}>固定金额</Label>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <RadioGroupItem
-                      id={`deposit-multiple-${index}`}
-                      value="rent_multiple"
-                    />
-                    <Label htmlFor={`deposit-multiple-${index}`}>
-                      租金倍数
-                    </Label>
-                  </div>
-                </div>
+                <FieldGroup className="flex flex-row gap-2 items-center">
+                  <Field orientation="horizontal">
+                    <RadioGroupItem id={`deposit-fixed-${index}`} value="fixed_amount" />
+                    <FieldLabel htmlFor={`deposit-fixed-${index}`}>固定金额</FieldLabel>
+                  </Field>
+                  <Field orientation="horizontal">
+                    <RadioGroupItem id={`deposit-multiple-${index}`} value="rent_multiple" />
+                    <FieldLabel htmlFor={`deposit-multiple-${index}`}>租金倍数</FieldLabel>
+                  </Field>
+                </FieldGroup>
               </RadioGroup>
-            </fieldset>
+              <ContractFieldMessage name={`deposits.${index}.calculationMode`} />
+            </FieldSet>
             {deposit.calculationMode === 'fixed_amount' ? (
-              <label
-                className="text-sm grid gap-1"
-                htmlFor={`deposit-fixed-value-${index}`}
+              <Field
+                data-invalid={
+                  contractFeedbackProps(errors, `deposits.${index}.fixedAmountText`)['aria-invalid']
+                }
               >
-                固定金额
+                <FieldLabel htmlFor={`deposit-fixed-value-${index}`}>固定金额</FieldLabel>
                 <Input
                   id={`deposit-fixed-value-${index}`}
+                  {...contractFeedbackProps(errors, `deposits.${index}.fixedAmountText`)}
                   inputMode="decimal"
                   value={deposit.fixedAmountText}
                   onChange={(event) =>
@@ -331,15 +342,21 @@ export function ContractTermsStep({
                     })
                   }
                 />
-              </label>
+
+                <ContractFieldMessage name={`deposits.${index}.fixedAmountText`} />
+              </Field>
             ) : (
-              <label
-                className="text-sm grid gap-1"
-                htmlFor={`deposit-multiple-value-${index}`}
+              <Field
+                data-invalid={
+                  contractFeedbackProps(errors, `deposits.${index}.rentMultipleText`)[
+                    'aria-invalid'
+                  ]
+                }
               >
-                租金倍数
+                <FieldLabel htmlFor={`deposit-multiple-value-${index}`}>租金倍数</FieldLabel>
                 <Input
                   id={`deposit-multiple-value-${index}`}
+                  {...contractFeedbackProps(errors, `deposits.${index}.rentMultipleText`)}
                   inputMode="decimal"
                   value={deposit.rentMultipleText}
                   onChange={(event) =>
@@ -348,11 +365,13 @@ export function ContractTermsStep({
                     })
                   }
                 />
-              </label>
+
+                <ContractFieldMessage name={`deposits.${index}.rentMultipleText`} />
+              </Field>
             )}
-          </div>
+          </FieldGroup>
         ))}
-      </fieldset>
+      </FieldSet>
       {values.startDate && values.endDate && values.billingAnchor ? (
         <BillingPeriodPreview
           anchor={values.billingAnchor}
@@ -381,8 +400,7 @@ export function calendarPreview(
     interval <= 0
   )
     return []
-  if (anchor === 'contract_start')
-    return [`${start} 起，按 ${interval} 个月一期`]
+  if (anchor === 'contract_start') return [`${start} 起，按 ${interval} 个月一期`]
   const result: string[] = []
   let cursor = start
   const maxPeriods = 1200

@@ -1,22 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { PermissionKey, RentalTenantSummary } from '@xpense/shared'
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { LoadMoreButton } from '@/components/load-more-button'
-
 import { Button } from '@/components/ui/button'
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import MultipleSelector, {
-  type Option,
-  useDebounce,
-} from '@/components/ui/multi-select'
+import MultipleSelector, { type Option, useDebounce } from '@/components/ui/multi-select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { ApiError } from '../../../../services/api-client'
 import type { RentalApi } from '../../../../services/rental-api'
+import { invalidateTenantMutation, rentalQueryOptions } from '../../../../services/rental-query'
 import {
-  invalidateTenantMutation,
-  rentalQueryOptions,
-} from '../../../../services/rental-query'
+  ContractFieldErrorsContext,
+  ContractFieldMessage,
+  contractFeedbackProps,
+  useContractFieldFeedback,
+} from '../contract-field-feedback'
 import type { ContractFormValues } from '../contract-form-schema'
 
 const tenantServiceUnavailableMessage = '租户创建服务不可用'
@@ -44,6 +50,8 @@ export function ContractPartiesStep({
   onChange: (values: ContractFormValues) => void
   onNames?: (names: Record<string, string>) => void
 }) {
+  const errors = useContext(ContractFieldErrorsContext)
+  const partiesFeedback = useContractFieldFeedback('parties')
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
@@ -78,20 +86,15 @@ export function ContractPartiesStep({
   }, [debouncedSearch])
   useEffect(() => {
     if (!query.data) return
-    for (const tenant of query.data.items)
-      registry.current.set(tenant.id, tenant)
-    setItems((current) =>
-      mergeTenants(page === 1 ? [] : current, query.data.items),
-    )
+    for (const tenant of query.data.items) registry.current.set(tenant.id, tenant)
+    setItems((current) => mergeTenants(page === 1 ? [] : current, query.data.items))
   }, [page, query.data])
 
   const selectedOptions = values.parties.map((party) => {
     const tenant = registry.current.get(party.tenantId)
     return {
       value: party.tenantId,
-      label: tenant
-        ? `${tenant.name}${tenant.isActive ? '' : ' · 已停用'}`
-        : party.tenantId,
+      label: tenant ? `${tenant.name}${tenant.isActive ? '' : ' · 已停用'}` : party.tenantId,
     }
   })
   const canLoadMore = Boolean(
@@ -103,12 +106,7 @@ export function ContractPartiesStep({
       Promise.reject(new TenantServiceUnavailableError()),
     onSuccess: async (tenant) => {
       registry.current.set(tenant.id, tenant)
-      await invalidateTenantMutation(
-        queryClient,
-        organizationId,
-        tenant.id,
-        'create',
-      )
+      await invalidateTenantMutation(queryClient, organizationId, tenant.id, 'create')
       if (!values.parties.some((party) => party.tenantId === tenant.id))
         onChange({
           ...values,
@@ -127,9 +125,7 @@ export function ContractPartiesStep({
   })
 
   function updateParties(options: Option[]) {
-    const existing = new Map(
-      values.parties.map((party) => [party.tenantId, party]),
-    )
+    const existing = new Map(values.parties.map((party) => [party.tenantId, party]))
     const parties = options.map(
       (option) =>
         existing.get(option.value) ?? {
@@ -160,8 +156,8 @@ export function ContractPartiesStep({
       <h2 id="contract-parties-title" className="font-medium text-lg">
         选择承租方
       </h2>
-      <div className="text-sm grid gap-2">
-        <label htmlFor="tenant-search">搜索租户</label>
+      <Field data-invalid={contractFeedbackProps(errors, 'parties')['aria-invalid']}>
+        <FieldLabel htmlFor="tenant-search">搜索租户</FieldLabel>
         <MultipleSelector
           value={selectedOptions}
           options={items.map((tenant) => ({
@@ -177,14 +173,18 @@ export function ContractPartiesStep({
           commandProps={{ label: '搜索租户', shouldFilter: false }}
           inputProps={{
             id: 'tenant-search',
+            ...partiesFeedback,
             'aria-label': '搜索租户',
             onValueChange: setSearch,
           }}
           onChange={updateParties}
         />
-      </div>
+        <ContractFieldMessage name="parties" />
+      </Field>
       {!permissions.includes('rental_tenants:read') ? (
-        <p className="text-sm text-muted-foreground">你没有查看租户的权限。</p>
+        <FieldDescription className="text-sm text-muted-foreground">
+          你没有查看租户的权限。
+        </FieldDescription>
       ) : query.isLoading ? (
         <p role="status" aria-live="polite">
           正在加载租户…
@@ -192,11 +192,7 @@ export function ContractPartiesStep({
       ) : query.isError ? (
         <div role="alert">
           租户加载失败，请重试。{' '}
-          <Button
-            type="button"
-            variant="link"
-            onClick={() => void query.refetch()}
-          >
+          <Button type="button" variant="link" onClick={() => void query.refetch()}>
             重试
           </Button>
         </div>
@@ -214,9 +210,13 @@ export function ContractPartiesStep({
         </LoadMoreButton>
       ) : null}
       {permissions.includes('rental_tenants:create') ? (
-        <div className="space-y-2">
+        <Field data-invalid={Boolean(createError)}>
+          <FieldLabel htmlFor="contract-new-tenant">新租户名称</FieldLabel>
           <div className="flex gap-2">
             <Input
+              id="contract-new-tenant"
+              aria-invalid={Boolean(createError)}
+              aria-describedby={createError ? 'contract-new-tenant-error' : undefined}
               aria-label="新租户名称"
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
@@ -230,17 +230,13 @@ export function ContractPartiesStep({
               新增租户
             </Button>
           </div>
-          {createError ? (
-            <p role="alert" className="text-sm text-destructive">
-              {createError}
-            </p>
-          ) : null}
-        </div>
+          <FieldError id="contract-new-tenant-error">{createError}</FieldError>
+        </Field>
       ) : null}
-      <fieldset className="grid gap-2">
-        <legend id="primary-payer-label" className="font-medium text-sm mb-2">
+      <FieldSet className="grid gap-2">
+        <FieldLegend id="primary-payer-label" className="font-medium text-sm mb-2">
           主付款人
-        </legend>
+        </FieldLegend>
         <RadioGroup
           aria-labelledby="primary-payer-label"
           name="primary-payer"
@@ -257,23 +253,20 @@ export function ContractPartiesStep({
         >
           <div className="flex gap-2 items-center">
             {values.parties.map((party) => (
-              <div key={party.tenantId} className="flex gap-2 items-center">
-                <RadioGroupItem
-                  id={`payer-${party.tenantId}`}
-                  value={party.tenantId}
-                />
-                <Label htmlFor={`payer-${party.tenantId}`}>
+              <Field orientation="horizontal" key={party.tenantId}>
+                <RadioGroupItem id={`payer-${party.tenantId}`} value={party.tenantId} />
+                <FieldLabel htmlFor={`payer-${party.tenantId}`}>
                   {tenantName(party.tenantId, registry.current)}
-                </Label>
-              </div>
+                </FieldLabel>
+              </Field>
             ))}
           </div>
         </RadioGroup>
-      </fieldset>
-      <p aria-live="polite" className="text-sm text-muted-foreground">
+      </FieldSet>
+      <FieldDescription aria-live="polite" className="text-sm text-muted-foreground">
         {values.parties.length} 位承租方，主付款人{' '}
         {values.parties.filter((party) => party.isPrimaryPayer).length} 位
-      </p>
+      </FieldDescription>
     </section>
   )
 }
@@ -287,18 +280,13 @@ function mergeTenants(
   return [...merged.values()]
 }
 
-function tenantName(
-  id: string,
-  registry: Map<string, RentalTenantSummary>,
-): string {
+function tenantName(id: string, registry: Map<string, RentalTenantSummary>): string {
   return registry.get(id)?.name ?? id
 }
 
 function tenantCreateErrorMessage(cause: unknown): string {
-  if (cause instanceof TenantServiceUnavailableError)
-    return tenantServiceUnavailableMessage
-  if (cause instanceof ApiError && cause.status === 409)
-    return tenantAlreadyExistsMessage
+  if (cause instanceof TenantServiceUnavailableError) return tenantServiceUnavailableMessage
+  if (cause instanceof ApiError && cause.status === 409) return tenantAlreadyExistsMessage
   if (cause instanceof Error && cause.message === tenantAlreadyExistsMessage)
     return tenantAlreadyExistsMessage
   return '租户创建失败，请重试。'

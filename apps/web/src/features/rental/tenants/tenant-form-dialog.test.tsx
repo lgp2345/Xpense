@@ -35,6 +35,18 @@ describe("TenantFormDialog", () => {
     expect(screen.getByLabelText("主要联系人")).toBeInTheDocument();
   });
 
+  it("shows conditional company contact validation in its own field", async () => {
+    const user = userEvent.setup();
+    render(<TenantFormDialog mode="create" onCreate={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "新增租客" }));
+    const contact = screen.getByLabelText("主要联系人");
+    await user.click(screen.getByRole("combobox", { name: "租客类型" }));
+    await user.click(screen.getByRole("option", { name: "企业" }));
+    await user.click(screen.getByRole("button", { name: "创建租客" }));
+    expect(contact.closest('[data-slot="field"]')).toHaveTextContent("企业租户必须填写联系人姓名");
+    expect(contact).toHaveAttribute("aria-invalid", "true");
+  });
+
   it("keeps the masked edit form safe and submits only explicitly entered sensitive input", async () => {
     const user = userEvent.setup();
     const onUpdate = vi.fn().mockResolvedValue(undefined);

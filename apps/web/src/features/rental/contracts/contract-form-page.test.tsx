@@ -554,8 +554,30 @@ describe("ContractFormPage", () => {
     expect(api.createContract).not.toHaveBeenCalled();
     expect(api.createConfirmedContract).not.toHaveBeenCalled();
     await user.click(await screen.findByRole("button", { name: "选择" }));
+    expect(screen.queryByText("至少选择一个空间")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "下一步" }));
     expect(await screen.findByRole("heading", { name: "选择承租方" })).toBeInTheDocument();
+    expect(api.updateContract).not.toHaveBeenCalled();
+  });
+
+  it("clears the parties error as soon as a tenant is selected without advancing", async () => {
+    const user = userEvent.setup();
+    const api = newFormApi();
+    renderPage(api, undefined, { propertyId });
+    await user.click(await screen.findByRole("button", { name: "选择" }));
+    await user.click(screen.getByRole("button", { name: "下一步" }));
+    await screen.findByRole("heading", { name: "选择承租方" });
+    await user.click(screen.getByRole("button", { name: "下一步" }));
+    expect(await screen.findByText("至少选择一个承租方")).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "搜索租户" }));
+    await user.click(await screen.findByRole("option", { name: /张三/ }));
+    expect(screen.queryByText("至少选择一个承租方")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "搜索租户" })).not.toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByRole("heading", { name: "选择承租方" })).toBeInTheDocument();
+    expect(api.createConfirmedContract).not.toHaveBeenCalled();
     expect(api.updateContract).not.toHaveBeenCalled();
   });
 
@@ -1433,6 +1455,8 @@ describe("new contract final submission", () => {
       expect(await result.current.checkAndConfirm(values)).toBe(false);
     });
     expect(result.current.error?.message).toBe("租期与现有空间合同冲突");
+    act(() => result.current.revalidate({ ...values, note: "调整后" }));
+    expect(result.current.error?.message).toBe("租期与现有空间合同冲突");
     expect(result.current.isDirty(values)).toBe(true);
     expect(result.current.draftId).toBeUndefined();
     expect(onConfirmed).not.toHaveBeenCalled();
@@ -1486,6 +1510,27 @@ describe("new contract final submission", () => {
     expect(onConfirmed).not.toHaveBeenCalled();
     expect(result.current.serverDraft).toBeNull();
     expect(result.current.operation).toBe("idle");
+  });
+
+  it("revalidates corrected fields while keeping unrelated or still invalid errors", async () => {
+    const api = baseApi();
+    const { result } = mount(api);
+    const valid = toContractFormValues(completeDetail());
+    const invalid = { ...valid, rentAmountText: "0", endDate: "2026-02-30" };
+    await act(async () => {
+      expect(await result.current.checkAndConfirm(invalid)).toBe(false);
+    });
+    expect(result.current.error?.fieldErrors).toHaveProperty("rentAmountText");
+    expect(result.current.error?.fieldErrors).toHaveProperty("endDate");
+    act(() => result.current.revalidate({ ...invalid, rentAmountText: "-1" }));
+    expect(result.current.error?.fieldErrors).toHaveProperty("rentAmountText");
+    act(() => result.current.revalidate({ ...invalid, rentAmountText: valid.rentAmountText }));
+    expect(result.current.error?.fieldErrors).not.toHaveProperty("rentAmountText");
+    expect(result.current.error?.fieldErrors).toHaveProperty("endDate");
+    act(() => result.current.revalidate(valid));
+    expect(result.current.error).toBeNull();
+    expect(api.checkContractAvailability).not.toHaveBeenCalled();
+    expect(api.createConfirmedContract).not.toHaveBeenCalled();
   });
 
   it("rejects incomplete parties, invalid money and dates before any creation request", async () => {

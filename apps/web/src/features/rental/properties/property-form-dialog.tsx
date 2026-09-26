@@ -6,7 +6,6 @@ import type {
   UpdateRentalPropertyRequest,
 } from "@xpense/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,8 +16,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -133,68 +132,82 @@ export function PropertyFormDialog({
           <DialogDescription>每个房产会维护独立账务，但此处不会显示账本标识。</DialogDescription>
         </DialogHeader>
         <form
-          className="grid gap-4"
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
             void form.handleSubmit();
           }}
         >
-          <TextField form={form} name="name" label="房产名称" />
-          <form.Field name="type">
-            {(field) => (
-              <div className="grid gap-2">
-                <Label>房产类型</Label>
-                <Select
-                  value={field.state.value}
-                  onValueChange={(value) => field.handleChange(value as PropertyFormValues["type"])}
-                >
-                  <SelectTrigger aria-label="房产类型">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {propertyTypeOptions.map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </form.Field>
-          <form.Subscribe selector={(state) => state.values.type === "other"}>
-            {(isCustom) =>
-              isCustom ? <TextField form={form} name="customTypeName" label="自定义类型" /> : null
-            }
-          </form.Subscribe>
-          <div className="grid grid-cols-2 gap-4">
-            <TextField form={form} name="countryCode" label="国家代码" />
-            <TextField form={form} name="province" label="省份" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <TextField form={form} name="city" label="城市" />
-            <TextField form={form} name="district" label="区县" />
-          </div>
-          <TextField form={form} name="addressLine" label="详细地址" />
-          <TextField form={form} name="note" label="备注" />
-          {submitError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {submitError}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              取消
-            </Button>
-            <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(submitting) => (
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? "正在保存..." : isEditing ? "保存房产" : "创建房产"}
-                </Button>
+          <FieldGroup className="grid gap-4">
+            <TextField form={form} name="name" label="房产名称" />
+            <form.Field name="type">
+              {(field) => (
+                <Field data-invalid={Boolean(validationMessage(field.state.meta.errors[0]))}>
+                  <FieldLabel>房产类型</FieldLabel>
+                  <Select
+                    value={field.state.value}
+                    onValueChange={(value) =>
+                      field.handleChange(value as PropertyFormValues["type"])
+                    }
+                  >
+                    <SelectTrigger
+                      aria-invalid={Boolean(validationMessage(field.state.meta.errors[0]))}
+                      aria-describedby={
+                        validationMessage(field.state.meta.errors[0])
+                          ? `${field.name}-error`
+                          : undefined
+                      }
+                      aria-label="房产类型"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {propertyTypeOptions.map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError id={`${field.name}-error`}>
+                    {validationMessage(field.state.meta.errors[0])}
+                  </FieldError>
+                </Field>
               )}
+            </form.Field>
+            <form.Subscribe selector={(state) => state.values.type === "other"}>
+              {(isCustom) =>
+                isCustom ? <TextField form={form} name="customTypeName" label="自定义类型" /> : null
+              }
             </form.Subscribe>
-          </DialogFooter>
+            <div className="grid grid-cols-2 gap-4">
+              <TextField form={form} name="countryCode" label="国家代码" />
+              <TextField form={form} name="province" label="省份" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <TextField form={form} name="city" label="城市" />
+              <TextField form={form} name="district" label="区县" />
+            </div>
+            <TextField form={form} name="addressLine" label="详细地址" />
+            <TextField form={form} name="note" label="备注" />
+            {submitError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {submitError}
+              </p>
+            ) : null}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                取消
+              </Button>
+              <form.Subscribe selector={(state) => state.isSubmitting}>
+                {(submitting) => (
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? "正在保存..." : isEditing ? "保存房产" : "创建房产"}
+                  </Button>
+                )}
+              </form.Subscribe>
+            </DialogFooter>
+          </FieldGroup>
         </form>
       </DialogContent>
     </Dialog>
@@ -216,17 +229,18 @@ function TextField({
       {(field) => {
         const error = validationMessage(field.state.meta.errors[0]);
         return (
-          <div className="grid gap-2">
-            <Label htmlFor={field.name}>{label}</Label>
+          <Field data-invalid={Boolean(error)}>
+            <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
             <Input
               id={field.name}
               value={field.state.value}
               onBlur={field.handleBlur}
               onChange={(event) => field.handleChange(event.target.value)}
               aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${field.name}-error` : undefined}
             />
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          </div>
+            <FieldError id={`${field.name}-error`}>{error}</FieldError>
+          </Field>
         );
       }}
     </form.Field>

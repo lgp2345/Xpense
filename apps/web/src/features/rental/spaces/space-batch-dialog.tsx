@@ -1,3 +1,4 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import type { BatchCreateRentalSpacesRequest, RentalSpaceType } from "@xpense/shared";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -31,12 +32,26 @@ type SpaceBatchDialogProps = {
 
 /** 预览逐行批量创建内容；服务端失败时保留原始文本与解析结果。 */
 export function SpaceBatchDialog({ propertyId, parentId, onCreate }: SpaceBatchDialogProps) {
+  const form = useForm({
+    defaultValues: {
+      text: "",
+      type: "room" as RentalSpaceType,
+      customTypeName: "",
+      isRentable: true,
+      note: "",
+    },
+  });
+  const { text, type, customTypeName, isRentable, note } = useStore(
+    form.store,
+    (state) => state.values,
+  );
+  const setText = (value: typeof text) => form.setFieldValue("text", value);
+  const setType = (value: typeof type) => form.setFieldValue("type", value);
+  const setCustomTypeName = (value: typeof customTypeName) =>
+    form.setFieldValue("customTypeName", value);
+  const setIsRentable = (value: typeof isRentable) => form.setFieldValue("isRentable", value);
+  const setNote = (value: typeof note) => form.setFieldValue("note", value);
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState("");
-  const [type, setType] = useState<RentalSpaceType>("room");
-  const [customTypeName, setCustomTypeName] = useState("");
-  const [isRentable, setIsRentable] = useState(true);
-  const [note, setNote] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const parsed = parseSpaceBatch(text);
   const validType = type !== "other" || customTypeName.trim().length > 0;
@@ -81,19 +96,26 @@ export function SpaceBatchDialog({ propertyId, parentId, onCreate }: SpaceBatchD
             每行填写“名称”或“编号,名称”，最多 500 个；提交会原子创建。
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="space-batch-lines">空间列表</Label>
+        <FieldGroup className="grid gap-4">
+          <Field data-invalid={parsed.errors.length > 0}>
+            <FieldLabel htmlFor="space-batch-lines">空间列表</FieldLabel>
             <textarea
               aria-label="空间列表"
               className="min-h-36 rounded-md border bg-background p-2 text-sm"
               id="space-batch-lines"
+              aria-invalid={parsed.errors.length > 0}
+              aria-describedby={parsed.errors.length ? "space-batch-errors" : undefined}
               value={text}
               onChange={(event) => setText(event.target.value)}
             />
-          </div>
-          <div className="grid gap-2">
-            <Label>空间类型</Label>
+            <FieldError id="space-batch-errors">
+              {parsed.errors.length
+                ? parsed.errors.map((error) => `第 ${error.line} 行：${error.message}`).join("；")
+                : undefined}
+            </FieldError>
+          </Field>
+          <Field>
+            <FieldLabel>空间类型</FieldLabel>
             <Select value={type} onValueChange={(value) => setType(value as RentalSpaceType)}>
               <SelectTrigger aria-label="批量空间类型">
                 <SelectValue />
@@ -106,46 +128,37 @@ export function SpaceBatchDialog({ propertyId, parentId, onCreate }: SpaceBatchD
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           {type === "other" ? (
-            <div className="grid gap-2">
-              <Label htmlFor="batch-custom-type">自定义类型</Label>
+            <Field data-invalid={!validType}>
+              <FieldLabel htmlFor="batch-custom-type">自定义类型</FieldLabel>
               <Input
                 id="batch-custom-type"
+                aria-invalid={!validType}
+                aria-describedby={!validType ? "batch-custom-type-error" : undefined}
                 value={customTypeName}
                 onChange={(event) => setCustomTypeName(event.target.value)}
               />
-            </div>
+              <FieldError id="batch-custom-type-error">
+                {!validType ? "请输入自定义类型" : undefined}
+              </FieldError>
+            </Field>
           ) : null}
-          <div className="flex items-center gap-2">
+          <Field orientation="horizontal">
             <Checkbox
               id="batch-rentable"
               checked={isRentable}
               onCheckedChange={(checked) => setIsRentable(checked === true)}
             />
-            <Label htmlFor="batch-rentable">可出租</Label>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="batch-note">备注</Label>
+            <FieldLabel htmlFor="batch-rentable">可出租</FieldLabel>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="batch-note">备注</FieldLabel>
             <Input id="batch-note" value={note} onChange={(event) => setNote(event.target.value)} />
-          </div>
+          </Field>
           <div className="rounded-md border p-3 text-sm" aria-live="polite">
             <p>有效空间：{parsed.items.length} 个</p>
-            {parsed.errors.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-destructive">
-                {parsed.errors.map((error) => (
-                  <li key={`${error.line}-${error.message}`}>
-                    第 {error.line} 行：{error.message}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
           </div>
-          {!validType ? (
-            <p role="alert" className="text-sm text-destructive">
-              请输入自定义类型
-            </p>
-          ) : null}
           {submitError ? (
             <p role="alert" className="text-sm text-destructive">
               {submitError}
@@ -162,7 +175,7 @@ export function SpaceBatchDialog({ propertyId, parentId, onCreate }: SpaceBatchD
               原子创建 {parsed.items.length} 个空间
             </Button>
           </DialogFooter>
-        </div>
+        </FieldGroup>
       </DialogContent>
     </Dialog>
   );

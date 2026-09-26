@@ -9,7 +9,6 @@ import type {
 } from "@xpense/shared";
 import { useState } from "react";
 import { DatePickerInput } from "@/components/date-picker";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,8 +19,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { BookkeepingApi } from "../../../services/bookkeeping-api";
 import { bookkeepingKeys, bookkeepingQueryOptions } from "../../../services/bookkeeping-query";
 
@@ -99,7 +98,6 @@ export function TransactionFormDialog(props: TransactionFormDialogProps) {
           <DialogDescription>金额按最小货币单位精确保存。</DialogDescription>
         </DialogHeader>
         <form
-          className="grid gap-4"
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
@@ -107,121 +105,123 @@ export function TransactionFormDialog(props: TransactionFormDialogProps) {
             void form.handleSubmit();
           }}
         >
-          <form.Field name="type">
-            {(field) => (
-              <TransactionSelectField
-                label="交易类型"
-                value={field.state.value}
-                options={typeOptions}
-                onChange={(value) => {
-                  const type = value as TransactionFormValues["type"];
-                  field.handleChange(type);
-                  form.setFieldValue("categoryId", "");
-                }}
-              />
-            )}
-          </form.Field>
-          <form.Field name="ledgerId">
-            {(field) => (
-              <TransactionSelectField
-                label="账本"
-                value={field.state.value}
-                options={ledgers.map((item) => [item.id, item.name] as const)}
-                onChange={(ledgerId) => {
-                  field.handleChange(ledgerId);
-                  form.setFieldValue("categoryId", "");
-                }}
-                error={transactionValidationMessage(field.state.meta.errors[0])}
-              />
-            )}
-          </form.Field>
-          <form.Field name="accountId">
-            {(field) => (
-              <TransactionSelectField
-                label="账户"
-                value={field.state.value}
-                options={accounts.map((item) => [item.id, item.name] as const)}
-                onChange={field.handleChange}
-                error={transactionValidationMessage(field.state.meta.errors[0])}
-              />
-            )}
-          </form.Field>
-          <form.Subscribe selector={(state) => state.values.type}>
-            {(type) =>
-              type === "transfer" ? (
-                <form.Field name="destinationAccountId">
-                  {(field) => (
-                    <TransactionSelectField
-                      label="目标账户"
-                      value={field.state.value}
-                      options={accounts.map((item) => [item.id, item.name] as const)}
-                      onChange={field.handleChange}
-                      error={transactionValidationMessage(field.state.meta.errors[0])}
-                    />
-                  )}
-                </form.Field>
-              ) : (
-                <form.Field name="categoryId">
-                  {(field) => (
-                    <TransactionSelectField
-                      label="分类"
-                      value={field.state.value}
-                      options={flattenCategories(categories)
-                        .filter((item) => item.type === type)
-                        .map((item) => [item.id, item.name] as const)}
-                      onChange={field.handleChange}
-                      error={transactionValidationMessage(field.state.meta.errors[0])}
-                    />
-                  )}
-                </form.Field>
-              )
-            }
-          </form.Subscribe>
-          {transactionType !== "transfer" && categoriesQuery.isPending ? (
-            <p className="text-sm text-muted-foreground" aria-live="polite">
-              正在加载分类...
-            </p>
-          ) : null}
-          {transactionType !== "transfer" && categoriesQuery.isError ? (
-            <div className="flex items-center justify-between gap-3" role="alert">
-              <span className="text-sm text-destructive">加载分类失败，请重试。</span>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void categoriesQuery.refetch()}
-              >
-                重试加载分类
-              </Button>
-            </div>
-          ) : null}
-          <TextField form={form} label="金额" name="amount" inputMode="decimal" />
-          <TextField form={form} label="发生时间" name="occurredAt" type="datetime-local" />
-          <TextField form={form} label="收付款方" name="payee" />
-          <TextField form={form} label="备注" name="note" />
-          {submitError ? (
-            <p role="alert" className="text-sm text-destructive">
-              {submitError}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
-              取消
-            </Button>
-            <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting) => (
-                <Button
-                  disabled={
-                    isSubmitting ||
-                    (transactionType !== "transfer" &&
-                      (categoriesQuery.isPending || categoriesQuery.isError))
-                  }
-                  type="submit"
-                >
-                  {isSubmitting ? "正在保存..." : isEditing ? "保存交易" : "创建交易"}
-                </Button>
+          <FieldGroup className="grid gap-4">
+            <form.Field name="type">
+              {(field) => (
+                <TransactionSelectField
+                  label="交易类型"
+                  value={field.state.value}
+                  options={typeOptions}
+                  onChange={(value) => {
+                    const type = value as TransactionFormValues["type"];
+                    field.handleChange(type);
+                    form.setFieldValue("categoryId", "");
+                  }}
+                />
               )}
+            </form.Field>
+            <form.Field name="ledgerId">
+              {(field) => (
+                <TransactionSelectField
+                  label="账本"
+                  value={field.state.value}
+                  options={ledgers.map((item) => [item.id, item.name] as const)}
+                  onChange={(ledgerId) => {
+                    field.handleChange(ledgerId);
+                    form.setFieldValue("categoryId", "");
+                  }}
+                  error={transactionValidationMessage(field.state.meta.errors[0])}
+                />
+              )}
+            </form.Field>
+            <form.Field name="accountId">
+              {(field) => (
+                <TransactionSelectField
+                  label="账户"
+                  value={field.state.value}
+                  options={accounts.map((item) => [item.id, item.name] as const)}
+                  onChange={field.handleChange}
+                  error={transactionValidationMessage(field.state.meta.errors[0])}
+                />
+              )}
+            </form.Field>
+            <form.Subscribe selector={(state) => state.values.type}>
+              {(type) =>
+                type === "transfer" ? (
+                  <form.Field name="destinationAccountId">
+                    {(field) => (
+                      <TransactionSelectField
+                        label="目标账户"
+                        value={field.state.value}
+                        options={accounts.map((item) => [item.id, item.name] as const)}
+                        onChange={field.handleChange}
+                        error={transactionValidationMessage(field.state.meta.errors[0])}
+                      />
+                    )}
+                  </form.Field>
+                ) : (
+                  <form.Field name="categoryId">
+                    {(field) => (
+                      <TransactionSelectField
+                        label="分类"
+                        value={field.state.value}
+                        options={flattenCategories(categories)
+                          .filter((item) => item.type === type)
+                          .map((item) => [item.id, item.name] as const)}
+                        onChange={field.handleChange}
+                        error={transactionValidationMessage(field.state.meta.errors[0])}
+                      />
+                    )}
+                  </form.Field>
+                )
+              }
             </form.Subscribe>
-          </DialogFooter>
+            {transactionType !== "transfer" && categoriesQuery.isPending ? (
+              <FieldDescription className="text-sm text-muted-foreground" aria-live="polite">
+                正在加载分类...
+              </FieldDescription>
+            ) : null}
+            {transactionType !== "transfer" && categoriesQuery.isError ? (
+              <div className="flex items-center justify-between gap-3" role="alert">
+                <span className="text-sm text-destructive">加载分类失败，请重试。</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void categoriesQuery.refetch()}
+                >
+                  重试加载分类
+                </Button>
+              </div>
+            ) : null}
+            <TextField form={form} label="金额" name="amount" inputMode="decimal" />
+            <TextField form={form} label="发生时间" name="occurredAt" type="datetime-local" />
+            <TextField form={form} label="收付款方" name="payee" />
+            <TextField form={form} label="备注" name="note" />
+            {submitError ? (
+              <p role="alert" className="text-sm text-destructive">
+                {submitError}
+              </p>
+            ) : null}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+                取消
+              </Button>
+              <form.Subscribe selector={(state) => state.isSubmitting}>
+                {(isSubmitting) => (
+                  <Button
+                    disabled={
+                      isSubmitting ||
+                      (transactionType !== "transfer" &&
+                        (categoriesQuery.isPending || categoriesQuery.isError))
+                    }
+                    type="submit"
+                  >
+                    {isSubmitting ? "正在保存..." : isEditing ? "保存交易" : "创建交易"}
+                  </Button>
+                )}
+              </form.Subscribe>
+            </DialogFooter>
+          </FieldGroup>
         </form>
       </DialogContent>
     </Dialog>
@@ -247,14 +247,15 @@ function TextField({
       {(field) => {
         const error = transactionValidationMessage(field.state.meta.errors[0]);
         return (
-          <div className="grid gap-2">
-            <Label htmlFor={field.name}>{label}</Label>
+          <Field>
+            <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
             {type === "datetime-local" ? (
               <DatePickerInput
                 id={field.name}
                 withTime
                 value={field.state.value}
                 aria-invalid={Boolean(error)}
+                aria-describedby={error ? `${field.name}-error` : undefined}
                 onBlur={field.handleBlur}
                 onChange={(value) => field.handleChange(value ?? "")}
                 buttonLabel={`选择${label}`}
@@ -266,12 +267,13 @@ function TextField({
                 type={type}
                 value={field.state.value}
                 aria-invalid={Boolean(error)}
+                aria-describedby={error ? `${field.name}-error` : undefined}
                 onBlur={field.handleBlur}
                 onChange={(event) => field.handleChange(event.target.value)}
               />
             )}
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          </div>
+            <FieldError id={`${field.name}-error`}>{error}</FieldError>
+          </Field>
         );
       }}
     </form.Field>

@@ -22,7 +22,6 @@ import {
   WalletCards,
 } from "lucide-react";
 import { useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -33,8 +32,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -135,7 +134,6 @@ export function MenuFormDialog({
         </DialogHeader>
 
         <form
-          className="grid gap-4"
           noValidate
           onSubmit={(event) => {
             event.preventDefault();
@@ -145,323 +143,482 @@ export function MenuFormDialog({
             }
           }}
         >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <form.Field name="type">
-              {(field) => (
-                <div className="grid gap-2">
-                  <Label>节点类型</Label>
-                  <Select
-                    value={field.state.value}
-                    onValueChange={(value) => {
-                      const type = value as MenuType;
-                      field.handleChange(type);
-                      const parentId = form.state.values.parentId;
-                      const isLegalParent =
-                        parentId === null
-                          ? type !== "button"
-                          : getMenuParentOptions(tree, {
-                              type,
-                              editingNodeId: node?.id,
-                            }).some((option) => option.id === parentId);
-
-                      if (!isLegalParent) {
-                        form.setFieldValue("parentId", null);
-                      }
-                    }}
-                  >
-                    <SelectTrigger aria-label="节点类型" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="directory">目录</SelectItem>
-                      <SelectItem value="menu">菜单</SelectItem>
-                      <SelectItem value="button">按钮</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </form.Field>
-
-            <form.Field name="name">
-              {(field) => (
-                <div className="grid gap-2">
-                  <Label htmlFor={field.name}>名称</Label>
-                  <Input
-                    autoComplete="off"
-                    id={field.name}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    aria-invalid={Boolean(
+          <FieldGroup className="grid gap-4">
+            <FieldGroup className="grid gap-4 sm:grid-cols-2">
+              <form.Field name="type">
+                {(field) => (
+                  <Field
+                    data-invalid={Boolean(
                       getFieldError(field.state.meta.errors, field.state.meta.isTouched),
                     )}
-                  />
-                  <FieldError
-                    errors={field.state.meta.errors}
-                    isTouched={field.state.meta.isTouched}
-                  />
-                </div>
-              )}
-            </form.Field>
-          </div>
+                  >
+                    <FieldLabel>节点类型</FieldLabel>
+                    <Select
+                      value={field.state.value}
+                      onValueChange={(value) => {
+                        const type = value as MenuType;
+                        field.handleChange(type);
+                        const parentId = form.state.values.parentId;
+                        const isLegalParent =
+                          parentId === null
+                            ? type !== "button"
+                            : getMenuParentOptions(tree, {
+                                type,
+                                editingNodeId: node?.id,
+                              }).some((option) => option.id === parentId);
 
-          <form.Subscribe
-            selector={(state) =>
-              [state.values.type, state.values.menuMode, state.values.routeKey] as const
-            }
-          >
-            {([type, menuMode, routeKey]) => {
-              const parentOptions = getMenuParentOptions(tree, {
-                type,
-                editingNodeId: node?.id,
-              });
+                        if (!isLegalParent) {
+                          form.setFieldValue("parentId", null);
+                        }
+                      }}
+                    >
+                      <SelectTrigger
+                        aria-invalid={Boolean(
+                          getFieldError(field.state.meta.errors, field.state.meta.isTouched),
+                        )}
+                        aria-describedby={
+                          getFieldError(field.state.meta.errors, field.state.meta.isTouched)
+                            ? `${field.name}-error`
+                            : undefined
+                        }
+                        aria-label="节点类型"
+                        className="w-full"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="directory">目录</SelectItem>
+                        <SelectItem value="menu">菜单</SelectItem>
+                        <SelectItem value="button">按钮</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <MenuFieldError
+                      id={`${field.name}-error`}
+                      errors={field.state.meta.errors}
+                      isTouched={field.state.meta.isTouched}
+                    />
+                  </Field>
+                )}
+              </form.Field>
 
-              return (
-                <>
-                  {type === "menu" ? (
-                    <form.Field name="menuMode">
-                      {(field) => (
-                        <div className="grid gap-2">
-                          <Label>菜单模式</Label>
-                          <Select
-                            value={field.state.value}
-                            onValueChange={(value) =>
-                              field.handleChange(value as "internal" | "external")
-                            }
-                          >
-                            <SelectTrigger aria-label="菜单模式" className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="internal">内部菜单</SelectItem>
-                              <SelectItem value="external">外链菜单</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                    </form.Field>
-                  ) : null}
-
-                  <form.Field name="parentId">
-                    {(field) => (
-                      <div className="grid gap-2">
-                        <Label>{parentLabel(type)}</Label>
-                        <Select
-                          value={
-                            field.state.value === null
-                              ? ROOT_PARENT_VALUE
-                              : String(field.state.value)
-                          }
-                          onValueChange={(value) =>
-                            field.handleChange(value === ROOT_PARENT_VALUE ? null : Number(value))
-                          }
-                        >
-                          <SelectTrigger aria-label={parentLabel(type)} className="w-full">
-                            <SelectValue placeholder={`选择${parentLabel(type)}`} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {type !== "button" ? (
-                              <SelectItem value={ROOT_PARENT_VALUE}>根节点</SelectItem>
-                            ) : null}
-                            {parentOptions.map((option) => (
-                              <SelectItem key={option.id} value={String(option.id)}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FieldError
-                          errors={field.state.meta.errors}
-                          isTouched={field.state.meta.isTouched}
-                        />
-                      </div>
+              <form.Field name="name">
+                {(field) => (
+                  <Field
+                    data-invalid={Boolean(
+                      getFieldError(field.state.meta.errors, field.state.meta.isTouched),
                     )}
-                  </form.Field>
-
-                  {type === "menu" && menuMode === "internal" ? (
-                    <form.Field name="routeKey">
-                      {(field) => (
-                        <div className="grid gap-2">
-                          <Label>注册路由</Label>
-                          <Select
-                            value={field.state.value || undefined}
-                            onValueChange={(value) => field.handleChange(value as RouteKey)}
-                          >
-                            <SelectTrigger aria-label="注册路由" className="h-auto min-h-9 w-full">
-                              <SelectValue placeholder="选择已注册路由" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {routeOptions.map((option) => (
-                                <SelectItem key={option.key} value={option.key}>
-                                  <span className="flex flex-col items-start">
-                                    <span>{option.label}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                      {option.path} {option.key}
-                                    </span>
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {routeKey ? (
-                            <p className="text-xs text-muted-foreground">
-                              {routeOptions.find((option) => option.key === routeKey)?.path} ·{" "}
-                              {routeKey}
-                            </p>
-                          ) : null}
-                          <FieldError
-                            errors={field.state.meta.errors}
-                            isTouched={field.state.meta.isTouched}
-                          />
-                        </div>
+                  >
+                    <FieldLabel htmlFor={field.name}>名称</FieldLabel>
+                    <Input
+                      autoComplete="off"
+                      id={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                      aria-describedby={
+                        getFieldError(field.state.meta.errors, field.state.meta.isTouched)
+                          ? `${field.name}-error`
+                          : undefined
+                      }
+                      aria-invalid={Boolean(
+                        getFieldError(field.state.meta.errors, field.state.meta.isTouched),
                       )}
-                    </form.Field>
-                  ) : null}
+                    />
+                    <MenuFieldError
+                      id={`${field.name}-error`}
+                      errors={field.state.meta.errors}
+                      isTouched={field.state.meta.isTouched}
+                    />
+                  </Field>
+                )}
+              </form.Field>
+            </FieldGroup>
 
-                  {type === "menu" && menuMode === "external" ? (
-                    <form.Field name="url">
-                      {(field) => (
-                        <div className="grid gap-2">
-                          <Label htmlFor={field.name}>外链 URL</Label>
-                          <Input
-                            autoComplete="url"
-                            id={field.name}
-                            placeholder="https://example.com"
-                            type="url"
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
-                            aria-invalid={Boolean(
+            <form.Subscribe
+              selector={(state) =>
+                [state.values.type, state.values.menuMode, state.values.routeKey] as const
+              }
+            >
+              {([type, menuMode, routeKey]) => {
+                const parentOptions = getMenuParentOptions(tree, {
+                  type,
+                  editingNodeId: node?.id,
+                });
+
+                return (
+                  <>
+                    {type === "menu" ? (
+                      <form.Field name="menuMode">
+                        {(field) => (
+                          <Field
+                            data-invalid={Boolean(
                               getFieldError(field.state.meta.errors, field.state.meta.isTouched),
                             )}
-                          />
-                          <FieldError
-                            errors={field.state.meta.errors}
-                            isTouched={field.state.meta.isTouched}
-                          />
-                        </div>
-                      )}
-                    </form.Field>
-                  ) : null}
+                          >
+                            <FieldLabel>菜单模式</FieldLabel>
+                            <Select
+                              value={field.state.value}
+                              onValueChange={(value) =>
+                                field.handleChange(value as "internal" | "external")
+                              }
+                            >
+                              <SelectTrigger
+                                aria-invalid={Boolean(
+                                  getFieldError(
+                                    field.state.meta.errors,
+                                    field.state.meta.isTouched,
+                                  ),
+                                )}
+                                aria-describedby={
+                                  getFieldError(field.state.meta.errors, field.state.meta.isTouched)
+                                    ? `${field.name}-error`
+                                    : undefined
+                                }
+                                aria-label="菜单模式"
+                                className="w-full"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="internal">内部菜单</SelectItem>
+                                <SelectItem value="external">外链菜单</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <MenuFieldError
+                              id={`${field.name}-error`}
+                              errors={field.state.meta.errors}
+                              isTouched={field.state.meta.isTouched}
+                            />
+                          </Field>
+                        )}
+                      </form.Field>
+                    ) : null}
 
-                  {type !== "button" ? (
-                    <form.Field name="icon">
+                    <form.Field name="parentId">
                       {(field) => (
-                        <div className="grid gap-2">
-                          <Label>图标</Label>
+                        <Field
+                          data-invalid={Boolean(
+                            getFieldError(field.state.meta.errors, field.state.meta.isTouched),
+                          )}
+                        >
+                          <FieldLabel>{parentLabel(type)}</FieldLabel>
                           <Select
-                            value={field.state.value ?? NO_ICON_VALUE}
+                            value={
+                              field.state.value === null
+                                ? ROOT_PARENT_VALUE
+                                : String(field.state.value)
+                            }
                             onValueChange={(value) =>
-                              field.handleChange(
-                                value === NO_ICON_VALUE ? null : (value as MenuIconKey),
-                              )
+                              field.handleChange(value === ROOT_PARENT_VALUE ? null : Number(value))
                             }
                           >
-                            <SelectTrigger aria-label="图标" className="w-full">
-                              <SelectValue />
+                            <SelectTrigger
+                              aria-invalid={Boolean(
+                                getFieldError(field.state.meta.errors, field.state.meta.isTouched),
+                              )}
+                              aria-describedby={
+                                getFieldError(field.state.meta.errors, field.state.meta.isTouched)
+                                  ? `${field.name}-error`
+                                  : undefined
+                              }
+                              aria-label={parentLabel(type)}
+                              className="w-full"
+                            >
+                              <SelectValue placeholder={`选择${parentLabel(type)}`} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value={NO_ICON_VALUE}>无图标</SelectItem>
-                              {menuIconKeys.map((icon) => {
-                                const Icon = ICONS[icon];
-
-                                return (
-                                  <SelectItem key={icon} value={icon}>
-                                    <Icon aria-hidden="true" />
-                                    {icon}
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                    </form.Field>
-                  ) : null}
-
-                  {type !== "directory" ? (
-                    <form.Field name="permissionCode">
-                      {(field) => (
-                        <div className="grid gap-2">
-                          <Label>权限</Label>
-                          <Select
-                            value={field.state.value || undefined}
-                            onValueChange={(value) => field.handleChange(value as PermissionKey)}
-                          >
-                            <SelectTrigger aria-label="权限" className="w-full">
-                              <SelectValue placeholder="选择权限" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {permissionKeys.map((permission) => (
-                                <SelectItem key={permission} value={permission}>
-                                  {permission}
+                              {type !== "button" ? (
+                                <SelectItem value={ROOT_PARENT_VALUE}>根节点</SelectItem>
+                              ) : null}
+                              {parentOptions.map((option) => (
+                                <SelectItem key={option.id} value={String(option.id)}>
+                                  {option.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                          <FieldError
+                          <MenuFieldError
+                            id={`${field.name}-error`}
                             errors={field.state.meta.errors}
                             isTouched={field.state.meta.isTouched}
                           />
-                        </div>
+                        </Field>
                       )}
                     </form.Field>
-                  ) : null}
 
-                  {type !== "button" ? (
-                    <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
-                      <form.Field name="isVisible">
+                    {type === "menu" && menuMode === "internal" ? (
+                      <form.Field name="routeKey">
                         {(field) => (
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              checked={field.state.value}
-                              id="menu-is-visible"
-                              onCheckedChange={(checked) => field.handleChange(checked === true)}
+                          <Field
+                            data-invalid={Boolean(
+                              getFieldError(field.state.meta.errors, field.state.meta.isTouched),
+                            )}
+                          >
+                            <FieldLabel>注册路由</FieldLabel>
+                            <Select
+                              value={field.state.value || undefined}
+                              onValueChange={(value) => field.handleChange(value as RouteKey)}
+                            >
+                              <SelectTrigger
+                                aria-invalid={Boolean(
+                                  getFieldError(
+                                    field.state.meta.errors,
+                                    field.state.meta.isTouched,
+                                  ),
+                                )}
+                                aria-describedby={
+                                  getFieldError(field.state.meta.errors, field.state.meta.isTouched)
+                                    ? `${field.name}-error`
+                                    : undefined
+                                }
+                                aria-label="注册路由"
+                                className="h-auto min-h-9 w-full"
+                              >
+                                <SelectValue placeholder="选择已注册路由" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {routeOptions.map((option) => (
+                                  <SelectItem key={option.key} value={option.key}>
+                                    <span className="flex flex-col items-start">
+                                      <span>{option.label}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {option.path} {option.key}
+                                      </span>
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {routeKey ? (
+                              <FieldDescription className="text-xs text-muted-foreground">
+                                {routeOptions.find((option) => option.key === routeKey)?.path} ·{" "}
+                                {routeKey}
+                              </FieldDescription>
+                            ) : null}
+                            <MenuFieldError
+                              id={`${field.name}-error`}
+                              errors={field.state.meta.errors}
+                              isTouched={field.state.meta.isTouched}
                             />
-                            <Label htmlFor="menu-is-visible">自身可见</Label>
-                          </div>
+                          </Field>
                         )}
                       </form.Field>
+                    ) : null}
 
-                      {type === "menu" && menuMode === "internal" ? (
-                        <form.Field name="keepAlive">
+                    {type === "menu" && menuMode === "external" ? (
+                      <form.Field name="url">
+                        {(field) => (
+                          <Field
+                            data-invalid={Boolean(
+                              getFieldError(field.state.meta.errors, field.state.meta.isTouched),
+                            )}
+                          >
+                            <FieldLabel htmlFor={field.name}>外链 URL</FieldLabel>
+                            <Input
+                              autoComplete="url"
+                              id={field.name}
+                              placeholder="https://example.com"
+                              type="url"
+                              value={field.state.value}
+                              onBlur={field.handleBlur}
+                              onChange={(event) => field.handleChange(event.target.value)}
+                              aria-describedby={
+                                getFieldError(field.state.meta.errors, field.state.meta.isTouched)
+                                  ? `${field.name}-error`
+                                  : undefined
+                              }
+                              aria-invalid={Boolean(
+                                getFieldError(field.state.meta.errors, field.state.meta.isTouched),
+                              )}
+                            />
+                            <MenuFieldError
+                              id={`${field.name}-error`}
+                              errors={field.state.meta.errors}
+                              isTouched={field.state.meta.isTouched}
+                            />
+                          </Field>
+                        )}
+                      </form.Field>
+                    ) : null}
+
+                    {type !== "button" ? (
+                      <form.Field name="icon">
+                        {(field) => (
+                          <Field
+                            data-invalid={Boolean(
+                              getFieldError(field.state.meta.errors, field.state.meta.isTouched),
+                            )}
+                          >
+                            <FieldLabel>图标</FieldLabel>
+                            <Select
+                              value={field.state.value ?? NO_ICON_VALUE}
+                              onValueChange={(value) =>
+                                field.handleChange(
+                                  value === NO_ICON_VALUE ? null : (value as MenuIconKey),
+                                )
+                              }
+                            >
+                              <SelectTrigger
+                                aria-invalid={Boolean(
+                                  getFieldError(
+                                    field.state.meta.errors,
+                                    field.state.meta.isTouched,
+                                  ),
+                                )}
+                                aria-describedby={
+                                  getFieldError(field.state.meta.errors, field.state.meta.isTouched)
+                                    ? `${field.name}-error`
+                                    : undefined
+                                }
+                                aria-label="图标"
+                                className="w-full"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NO_ICON_VALUE}>无图标</SelectItem>
+                                {menuIconKeys.map((icon) => {
+                                  const Icon = ICONS[icon];
+
+                                  return (
+                                    <SelectItem key={icon} value={icon}>
+                                      <Icon aria-hidden="true" />
+                                      {icon}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+                            <MenuFieldError
+                              id={`${field.name}-error`}
+                              errors={field.state.meta.errors}
+                              isTouched={field.state.meta.isTouched}
+                            />
+                          </Field>
+                        )}
+                      </form.Field>
+                    ) : null}
+
+                    {type !== "directory" ? (
+                      <form.Field name="permissionCode">
+                        {(field) => (
+                          <Field
+                            data-invalid={Boolean(
+                              getFieldError(field.state.meta.errors, field.state.meta.isTouched),
+                            )}
+                          >
+                            <FieldLabel>权限</FieldLabel>
+                            <Select
+                              value={field.state.value || undefined}
+                              onValueChange={(value) => field.handleChange(value as PermissionKey)}
+                            >
+                              <SelectTrigger
+                                aria-invalid={Boolean(
+                                  getFieldError(
+                                    field.state.meta.errors,
+                                    field.state.meta.isTouched,
+                                  ),
+                                )}
+                                aria-describedby={
+                                  getFieldError(field.state.meta.errors, field.state.meta.isTouched)
+                                    ? `${field.name}-error`
+                                    : undefined
+                                }
+                                aria-label="权限"
+                                className="w-full"
+                              >
+                                <SelectValue placeholder="选择权限" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {permissionKeys.map((permission) => (
+                                  <SelectItem key={permission} value={permission}>
+                                    {permission}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <MenuFieldError
+                              id={`${field.name}-error`}
+                              errors={field.state.meta.errors}
+                              isTouched={field.state.meta.isTouched}
+                            />
+                          </Field>
+                        )}
+                      </form.Field>
+                    ) : null}
+
+                    {type !== "button" ? (
+                      <FieldGroup className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
+                        <form.Field name="isVisible">
                           {(field) => (
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                checked={field.state.value}
-                                id="menu-keep-alive"
-                                onCheckedChange={(checked) => field.handleChange(checked === true)}
+                            <FieldGroup className="grid content-start gap-2">
+                              <Field orientation="horizontal">
+                                <Checkbox
+                                  checked={field.state.value}
+                                  id="menu-is-visible"
+                                  onCheckedChange={(checked) =>
+                                    field.handleChange(checked === true)
+                                  }
+                                />
+                                <FieldLabel htmlFor="menu-is-visible">自身可见</FieldLabel>
+                              </Field>
+                              <MenuFieldError
+                                id={`${field.name}-error`}
+                                errors={field.state.meta.errors}
+                                isTouched={field.state.meta.isTouched}
                               />
-                              <Label htmlFor="menu-keep-alive">页面保活</Label>
-                            </div>
+                            </FieldGroup>
                           )}
                         </form.Field>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </>
-              );
-            }}
-          </form.Subscribe>
-
-          {submissionError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {submissionError}
-            </p>
-          ) : null}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              取消
-            </Button>
-            <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting) => (
-                <Button disabled={busy || isSubmitting} type="submit">
-                  {isSubmitting ? "正在保存..." : isEditing ? "保存节点" : "创建节点"}
-                </Button>
-              )}
+                        {type === "menu" && menuMode === "internal" ? (
+                          <form.Field name="keepAlive">
+                            {(field) => (
+                              <FieldGroup className="grid content-start gap-2">
+                                <Field orientation="horizontal">
+                                  <Checkbox
+                                    checked={field.state.value}
+                                    id="menu-keep-alive"
+                                    onCheckedChange={(checked) =>
+                                      field.handleChange(checked === true)
+                                    }
+                                  />
+                                  <FieldLabel htmlFor="menu-keep-alive">页面保活</FieldLabel>
+                                </Field>
+                                <MenuFieldError
+                                  id={`${field.name}-error`}
+                                  errors={field.state.meta.errors}
+                                  isTouched={field.state.meta.isTouched}
+                                />
+                              </FieldGroup>
+                            )}
+                          </form.Field>
+                        ) : null}
+                      </FieldGroup>
+                    ) : null}
+                  </>
+                );
+              }}
             </form.Subscribe>
-          </DialogFooter>
+
+            {submissionError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {submissionError}
+              </p>
+            ) : null}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                取消
+              </Button>
+              <form.Subscribe selector={(state) => state.isSubmitting}>
+                {(isSubmitting) => (
+                  <Button disabled={busy || isSubmitting} type="submit">
+                    {isSubmitting ? "正在保存..." : isEditing ? "保存节点" : "创建节点"}
+                  </Button>
+                )}
+              </form.Subscribe>
+            </DialogFooter>
+          </FieldGroup>
         </form>
       </DialogContent>
     </Dialog>
@@ -511,14 +668,18 @@ function parentLabel(type: MenuType): "父目录" | "父节点" | "所属菜单"
   return "父节点";
 }
 
-function FieldError({ errors, isTouched }: { errors: unknown[]; isTouched: boolean }) {
+function MenuFieldError({
+  errors,
+  isTouched,
+  id,
+}: {
+  errors: unknown[];
+  isTouched: boolean;
+  id: string;
+}) {
   const message = getFieldError(errors, isTouched);
 
-  return message ? (
-    <p className="text-sm text-destructive" role="alert">
-      {message}
-    </p>
-  ) : null;
+  return <FieldError id={id}>{message}</FieldError>;
 }
 
 function getFieldError(errors: unknown[], isTouched: boolean): string | undefined {

@@ -1,4 +1,5 @@
-import { Label } from "@/components/ui/label";
+import { useId } from "react";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -21,11 +22,18 @@ export function TransactionSelectField({
   options: readonly (readonly [string, string])[];
   value: string;
 }) {
+  const id = useId();
   return (
-    <div className="grid gap-2">
-      <Label>{label}</Label>
+    <Field data-invalid={Boolean(error)}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger aria-label={label} className="w-full">
+        <SelectTrigger
+          id={id}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
+          aria-label={label}
+          className="w-full"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -36,8 +44,8 @@ export function TransactionSelectField({
           ))}
         </SelectContent>
       </Select>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-    </div>
+      <FieldError id={`${id}-error`}>{error}</FieldError>
+    </Field>
   );
 }
 

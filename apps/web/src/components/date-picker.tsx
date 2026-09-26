@@ -28,7 +28,10 @@ export type DateRangeValue = {
   to?: string;
 };
 
-type DateRangePickerProps = {
+type DateRangePickerProps = Pick<
+  React.ComponentProps<typeof Button>,
+  "aria-invalid" | "aria-describedby" | "aria-required"
+> & {
   id?: string;
   "aria-label": string;
   value?: DateRangeValue;
@@ -181,6 +184,9 @@ export function DatePickerInput({
 export function DateRangePicker({
   id,
   "aria-label": ariaLabel,
+  "aria-invalid": ariaInvalid,
+  "aria-describedby": ariaDescribedBy,
+  "aria-required": ariaRequired,
   value,
   onChange,
   placeholder = "选择日期范围",
@@ -199,6 +205,9 @@ export function DateRangePicker({
           type="button"
           variant="outline"
           aria-label={ariaLabel}
+          aria-invalid={ariaInvalid}
+          aria-describedby={ariaDescribedBy}
+          aria-required={ariaRequired}
           disabled={disabled}
           className={cn(
             "w-full justify-start text-left font-normal",

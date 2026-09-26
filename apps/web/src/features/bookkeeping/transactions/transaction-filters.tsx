@@ -1,10 +1,11 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import type { AccountSummary, CategoryNode, LedgerSummary, TransactionType } from "@xpense/shared";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { DateRangePicker } from "@/components/date-picker";
 import { FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -31,9 +32,15 @@ export function TransactionFilters({
   onApply,
   search,
 }: TransactionFiltersProps) {
-  const [draft, setDraft] = useState(() => toDraft(search));
+  const form = useForm({ defaultValues: { draft: toDraft(search) } });
+  const draft = useStore(form.store, (state) => state.values.draft);
+  const setDraft = useCallback(
+    (next: typeof draft | ((current: typeof draft) => typeof draft)) =>
+      form.setFieldValue("draft", next),
+    [form],
+  );
 
-  useEffect(() => setDraft(toDraft(search)), [search]);
+  useEffect(() => setDraft(toDraft(search)), [search, setDraft]);
 
   /** 更新一个尚未应用的筛选输入。 */
   function update<Key extends keyof typeof draft>(key: Key, value: (typeof draft)[Key]) {
@@ -42,15 +49,15 @@ export function TransactionFilters({
 
   return (
     <FilterPanel>
-      <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="grid gap-1">
-          <Label htmlFor="transaction-keyword">关键词</Label>
+      <FieldGroup className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Field>
+          <FieldLabel htmlFor="transaction-keyword">关键词</FieldLabel>
           <Input
             id="transaction-keyword"
             value={draft.keyword}
             onChange={(event) => update("keyword", event.target.value)}
           />
-        </div>
+        </Field>
         <FilterSelect
           label="交易类型"
           value={draft.type}
@@ -85,8 +92,8 @@ export function TransactionFilters({
           ]}
           onChange={(value) => update("categoryId", value)}
         />
-        <div className="grid gap-1">
-          <Label htmlFor="transaction-date-range">日期范围</Label>
+        <Field>
+          <FieldLabel htmlFor="transaction-date-range">日期范围</FieldLabel>
           <DateRangePicker
             id="transaction-date-range"
             aria-label="日期范围"
@@ -95,7 +102,7 @@ export function TransactionFilters({
               setDraft((current) => ({ ...current, from: from ?? "", to: to ?? "" }))
             }
           />
-        </div>
+        </Field>
         <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-2">
           <Button
             onClick={() =>
@@ -121,7 +128,7 @@ export function TransactionFilters({
             重置
           </Button>
         </div>
-      </div>
+      </FieldGroup>
     </FilterPanel>
   );
 }
@@ -139,8 +146,8 @@ function FilterSelect({
   value: string;
 }) {
   return (
-    <div className="grid gap-1">
-      <Label>{label}</Label>
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger aria-label={label} className="w-full">
           <SelectValue />
@@ -153,7 +160,7 @@ function FilterSelect({
           ))}
         </SelectContent>
       </Select>
-    </div>
+    </Field>
   );
 }
 

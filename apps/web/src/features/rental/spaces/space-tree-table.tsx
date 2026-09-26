@@ -12,6 +12,7 @@ import { FilterPanel } from "@/components/filter-panel";
 import { LoadMoreButton } from "@/components/load-more-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -405,9 +406,9 @@ export function SpaceTreeTable({
         </div>
         <div className="space-y-2">
           <FilterPanel>
-            <label className="sr-only" htmlFor="space-search">
+            <FieldLabel className="sr-only" htmlFor="space-search">
               搜索空间
-            </label>
+            </FieldLabel>
             <Input
               id="space-search"
               placeholder="按名称或编码搜索空间"
@@ -448,9 +449,9 @@ export function SpaceTreeTable({
       ) : null}
       <div className="space-y-2">
         <FilterPanel>
-          <label className="sr-only" htmlFor="space-search">
+          <FieldLabel className="sr-only" htmlFor="space-search">
             搜索空间
-          </label>
+          </FieldLabel>
           <Input
             id="space-search"
             placeholder="按名称或编码搜索空间"

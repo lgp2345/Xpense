@@ -1,3 +1,4 @@
+import { useForm, useStore } from "@tanstack/react-form";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import {
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -28,8 +29,11 @@ import type { WebSessionDependency } from "@/services/web-session";
 const organizationIdSchema = z.string().min(1);
 
 export function MenuResetPage({ session }: { session: WebSessionDependency }) {
+  const form = useForm({ defaultValues: { selectedOrganizationId: "" } });
+  const { selectedOrganizationId } = useStore(form.store, (state) => state.values);
+  const setSelectedOrganizationId = (value: typeof selectedOrganizationId) =>
+    form.setFieldValue("selectedOrganizationId", value);
   const [organizations, setOrganizations] = useState<UserOrganization[]>([]);
-  const [selectedOrganizationId, setSelectedOrganizationId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -95,9 +99,9 @@ export function MenuResetPage({ session }: { session: WebSessionDependency }) {
     <main className="space-y-4 p-4 sm:p-6 lg:p-8">
       <header>
         <h1 className="text-2xl font-medium tracking-tight">菜单恢复</h1>
-        <p className="text-sm text-muted-foreground">
+        <FieldDescription className="text-sm text-muted-foreground">
           为指定组织恢复默认菜单。此操作会替换目标组织当前的菜单配置。
-        </p>
+        </FieldDescription>
       </header>
 
       <Card className="max-w-2xl">
@@ -106,14 +110,20 @@ export function MenuResetPage({ session }: { session: WebSessionDependency }) {
           <CardDescription>必须明确选择组织后才能执行恢复。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="menu-reset-organization">目标组织</Label>
+          <Field data-invalid={Boolean(errorMessage)}>
+            <FieldLabel htmlFor="menu-reset-organization">目标组织</FieldLabel>
             <Select
               disabled={isLoading || isResetting}
               value={selectedOrganizationId}
               onValueChange={setSelectedOrganizationId}
             >
-              <SelectTrigger aria-label="目标组织" className="w-full" id="menu-reset-organization">
+              <SelectTrigger
+                aria-invalid={Boolean(errorMessage)}
+                aria-describedby={errorMessage ? "menu-reset-error" : undefined}
+                aria-label="目标组织"
+                className="w-full"
+                id="menu-reset-organization"
+              >
                 <SelectValue placeholder={isLoading ? "正在加载组织..." : "请选择组织"} />
               </SelectTrigger>
               <SelectContent>
@@ -124,13 +134,8 @@ export function MenuResetPage({ session }: { session: WebSessionDependency }) {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          {errorMessage ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage}
-            </p>
-          ) : null}
+            <FieldError id="menu-reset-error">{errorMessage}</FieldError>
+          </Field>
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
