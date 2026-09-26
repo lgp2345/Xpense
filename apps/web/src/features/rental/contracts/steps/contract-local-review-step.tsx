@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import type { ContractFormValues } from "../contract-form-schema";
+import { BillingPeriodPreview } from "./billing-period-preview";
 import { calendarPreview } from "./contract-terms-step";
 
 /** 新建合同复核当前页面数据，正式提交前不依赖服务端草稿。 */
@@ -66,15 +67,16 @@ export function ContractLocalReviewStep({
         </p>
         <p>备注：{values.note || "无"}</p>
       </div>
-      {values.billingAnchor === "calendar_month" ? (
-        <p className="text-sm text-muted-foreground">
-          {calendarPreview(
+      {values.startDate && values.endDate && values.billingAnchor ? (
+        <BillingPeriodPreview
+          anchor={values.billingAnchor}
+          periods={calendarPreview(
             values.startDate,
             values.endDate,
-            "calendar_month",
-            Number(values.paymentIntervalMonths),
-          ).join("；")}
-        </p>
+            values.billingAnchor,
+            Number(values.paymentIntervalMonths) || 1,
+          )}
+        />
       ) : null}
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" disabled={busy} onClick={() => onEdit(0)}>
