@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   PermissionKey,
@@ -370,6 +370,48 @@ describe("ContractDetailPage", () => {
       "aria-describedby",
       "contract-action-effective-date-error",
     );
+  });
+
+  it("exposes change-party primary payer choices as one radio group", async () => {
+    const user = userEvent.setup();
+    const api = createApi({ changeContractParties: vi.fn().mockResolvedValue(detail) });
+    const firstParty = detail.parties.at(0);
+    if (!firstParty) throw new Error("Expected the contract fixture to include a party");
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ContractActions
+          api={api}
+          organizationId="org-a"
+          contract={{
+            ...detail,
+            hasScheduledTermination: false,
+            parties: [
+              { ...firstParty, validTo: null },
+              {
+                ...firstParty,
+                tenantId: "tenant-2",
+                name: "李四",
+                validTo: null,
+                isPrimaryPayer: false,
+              },
+            ],
+          }}
+          permissions={["rental_contracts:update"]}
+        />
+      </QueryClientProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "变更承租方" }));
+
+    const group = screen.getByRole("radiogroup", { name: "主付款人" });
+    const radios = within(group).getAllByRole("radio", { name: "主付款人" });
+    expect(radios).toHaveLength(2);
+    const secondRadio = radios.at(1);
+    if (!secondRadio) throw new Error("Expected a second primary-payer option");
+    await user.click(secondRadio);
+
+    expect(secondRadio).toBeChecked();
   });
 
   it("binds an open dialog to its original organization and contract", async () => {

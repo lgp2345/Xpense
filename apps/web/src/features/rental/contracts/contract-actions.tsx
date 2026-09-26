@@ -17,6 +17,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/lib/toast";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
@@ -358,40 +360,48 @@ function ActionFields({
           onChange={(reason) => onChange({ reason })}
         />
         <div id="contract-action-parties" tabIndex={-1}>
-          <span className="text-sm font-medium">承租方</span>
-          {state.parties.map((party, index) => (
-            <div className="mt-2 flex gap-2" key={state.rowIds[index]}>
-              <Input
-                aria-label={`承租方 ${index + 1}`}
-                aria-invalid={Boolean(state.fieldErrors.parties)}
-                aria-describedby={
-                  state.fieldErrors.parties ? "contract-action-parties-error" : undefined
-                }
-                value={party.tenantId}
-                onChange={(event) => {
-                  const parties = [...state.parties];
-                  parties[index] = { ...party, tenantId: event.target.value };
-                  onChange({ parties });
-                }}
-              />
-              <label className="flex items-center gap-1 text-sm">
-                <input
-                  type="radio"
-                  name="primary-payer"
-                  checked={party.isPrimaryPayer}
-                  onChange={() =>
-                    onChange({
-                      parties: state.parties.map((item, itemIndex) => ({
-                        ...item,
-                        isPrimaryPayer: itemIndex === index,
-                      })),
-                    })
+          <span id="contract-action-parties-label" className="text-sm font-medium">
+            承租方
+          </span>
+          <RadioGroup
+            aria-label="主付款人"
+            name="primary-payer"
+            value={String(state.parties.findIndex((party) => party.isPrimaryPayer))}
+            onValueChange={(selectedIndex) =>
+              onChange({
+                parties: state.parties.map((party, index) => ({
+                  ...party,
+                  isPrimaryPayer: index === Number(selectedIndex),
+                })),
+              })
+            }
+            className="gap-2"
+          >
+            {state.parties.map((party, index) => (
+              <div className="flex gap-2" key={state.rowIds[index]}>
+                <Input
+                  aria-label={`承租方 ${index + 1}`}
+                  aria-invalid={Boolean(state.fieldErrors.parties)}
+                  aria-describedby={
+                    state.fieldErrors.parties ? "contract-action-parties-error" : undefined
                   }
+                  value={party.tenantId}
+                  onChange={(event) => {
+                    const parties = [...state.parties];
+                    parties[index] = { ...party, tenantId: event.target.value };
+                    onChange({ parties });
+                  }}
                 />
-                主付款人
-              </label>
-            </div>
-          ))}
+                <Label className="shrink-0" htmlFor={`contract-action-primary-payer-${index}`}>
+                  <RadioGroupItem
+                    id={`contract-action-primary-payer-${index}`}
+                    value={String(index)}
+                  />
+                  主付款人
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
         </div>
         {state.fieldErrors.parties ? (
           <p id="contract-action-parties-error" role="alert" className="text-sm text-destructive">

@@ -248,6 +248,43 @@ describe("contract form step domains", () => {
     );
   });
 
+  it("exposes contract and deposit choices as radio groups and updates their values", async () => {
+    const user = userEvent.setup();
+    const values = {
+      ...defaultContractFormValues(propertyId),
+      deposits: [
+        {
+          type: "rental" as const,
+          customName: "",
+          calculationMode: "fixed_amount" as const,
+          fixedAmountText: "100",
+          rentMultipleText: "",
+        },
+      ],
+    };
+    const onChange = vi.fn();
+    render(<ContractTermsStep values={values} onChange={onChange} />);
+
+    const billingGroup = screen.getByRole("radiogroup", { name: "计费方式" });
+    await user.click(within(billingGroup).getByRole("radio", { name: "自然月" }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ billingAnchor: "calendar_month" }),
+    );
+
+    const depositGroup = screen.getByRole("radiogroup", { name: "计算方式" });
+    await user.click(within(depositGroup).getByRole("radio", { name: "租金倍数" }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        deposits: [
+          expect.objectContaining({
+            calculationMode: "rent_multiple",
+            fixedAmountText: "",
+          }),
+        ],
+      }),
+    );
+  });
+
   it("keeps the deposit input mounted while editable values change", async () => {
     const user = userEvent.setup();
     const values = defaultContractFormValues(propertyId);
@@ -572,6 +609,48 @@ describe("contract form step domains", () => {
     expect(remove).toBeEnabled();
     await user.click(remove);
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ parties: [] }));
+  });
+
+  it("exposes the primary payer choices as one radio group", async () => {
+    const secondTenantId = "66666666-6666-4666-8666-666666666666";
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const api = {
+      listTenants: vi.fn().mockResolvedValue({
+        items: [tenant(tenantId), tenant(secondTenantId)],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      }),
+    } as unknown as RentalApi;
+    const values = {
+      ...defaultContractFormValues(propertyId),
+      parties: [
+        { tenantId, isPrimaryPayer: true },
+        { tenantId: secondTenantId, isPrimaryPayer: false },
+      ],
+    };
+    renderWithQuery(
+      <ContractPartiesStep
+        api={api}
+        organizationId="org-a"
+        permissions={["rental_tenants:read"]}
+        values={values}
+        onChange={onChange}
+      />,
+    );
+
+    const group = await screen.findByRole("radiogroup", { name: "主付款人" });
+    await user.click(await within(group).findByRole("radio", { name: "李四" }));
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        parties: [
+          { tenantId, isPrimaryPayer: false },
+          { tenantId: secondTenantId, isPrimaryPayer: true },
+        ],
+      }),
+    );
   });
 
   it("selects tenants with the multi-select and debounces remote queries", async () => {
