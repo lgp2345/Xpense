@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { type ContractFormValues, isValidDate } from '../contract-form-schema'
+import { BillingPeriodPreview } from './billing-period-preview'
 
 export function ContractTermsStep({
   values,
@@ -353,18 +354,15 @@ export function ContractTermsStep({
         ))}
       </fieldset>
       {values.startDate && values.endDate && values.billingAnchor ? (
-        <div className="border rounded-md text-sm p-3" aria-live="polite">
-          <p className="font-medium">账期预览</p>
-          {calendarPreview(
+        <BillingPeriodPreview
+          anchor={values.billingAnchor}
+          periods={calendarPreview(
             values.startDate,
             values.endDate,
             values.billingAnchor,
             Number(values.paymentIntervalMonths) || 1,
-          ).map((period) => (
-            <p key={period}>{period}</p>
-          ))}
-          <p className="text-muted-foreground">预览，最终由服务端计算</p>
-        </div>
+          )}
+        />
       ) : null}
     </section>
   )
