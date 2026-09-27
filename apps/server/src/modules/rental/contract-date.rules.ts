@@ -30,13 +30,13 @@ function isLeapYear(year: number): boolean {
 }
 
 /** 返回指定公历月份的天数。 */
-function daysInMonth(year: number, month: number): number {
+export function daysInMonth(year: number, month: number): number {
   if (month === 2) return isLeapYear(year) ? 29 : 28;
   return [4, 6, 9, 11].includes(month) ? 30 : 31;
 }
 
 /** 解析并严格校验 `YYYY-MM-DD` 公历日期。 */
-function parseCalendarDate(value: string): CalendarDateParts {
+export function parseCalendarDate(value: string): CalendarDateParts {
   const match = calendarDatePattern.exec(value);
   if (!match) throw new RangeError("合同日期必须使用 YYYY-MM-DD 格式");
   const year = Number(match[1]);
@@ -54,7 +54,7 @@ export function assertCalendarDate(value: string): void {
 }
 
 /** 把公历日期转换为相对 1970-01-01 的整数日序。 */
-function calendarDateToDayNumber({ year, month, day }: CalendarDateParts): number {
+export function calendarDateToDayNumber({ year, month, day }: CalendarDateParts): number {
   const adjustedYear = year - (month <= 2 ? 1 : 0);
   const era = Math.floor(adjustedYear / 400);
   const yearOfEra = adjustedYear - era * 400;
@@ -66,7 +66,7 @@ function calendarDateToDayNumber({ year, month, day }: CalendarDateParts): numbe
 }
 
 /** 把整数日序转换为公历年月日。 */
-function dayNumberToCalendarDate(dayNumber: number): CalendarDateParts {
+export function dayNumberToCalendarDate(dayNumber: number): CalendarDateParts {
   const shifted = dayNumber + 719468;
   const era = Math.floor(shifted / 146097);
   const dayOfEra = shifted - era * 146097;
@@ -88,7 +88,7 @@ function dayNumberToCalendarDate(dayNumber: number): CalendarDateParts {
 }
 
 /** 格式化已校验的公历年月日。 */
-function formatCalendarDate({ year, month, day }: CalendarDateParts): string {
+export function formatCalendarDate({ year, month, day }: CalendarDateParts): string {
   if (year < 1 || year > 9999) throw new RangeError("合同日期超出支持范围");
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }

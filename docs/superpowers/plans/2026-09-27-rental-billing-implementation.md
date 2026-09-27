@@ -120,12 +120,12 @@
 
 **Interfaces:** `buildRentPlan(terms: BillingTerms): BillingPlan`；`buildDepositDrafts(terms: RentalContractDepositTerm[], dueDates: Record<string,string>): BillingDraft[]`；`billingFingerprint(source: BillingSource, input: RentalBillGenerationInput): string`；`calculateTerminationReference(terms: BillingTerms, terminationDate: string): { periodStart: string; periodEnd: string; originalAmountMinor: number; referenceAmountMinor: number; lines: RentalBillLine[] }`。
 
-- [ ] 写固定值测试：3,000 元、2026-09-15 至 10-20、起始日月付，`expect(plan.drafts.map(x => x.amountMinor)).toEqual([300000, 58065])`；自然月季付首期至 11-30 金额 760000；2026-01-31 锚点下一月为 02-28，第三月恢复 03-31，禁止滚动成 03-28。
-- [ ] 补充所有付款周期、闰年、单日、四位年份边界、零额舍入及安全整数溢出；季度终止参考覆盖整个付款账期。押金测试复制 UUID、重排、倍数规范化 `1.0/1.0000`、完全重复项；断言 sourceKey 集合不变。指纹规范化对象键顺序并排除纯显示排序，禁止靠 JSON 输入顺序比较。
-- [ ] 运行 `pnpm exec turbo run test --filter=@xpense/server --force -- src/modules/rental/billing-period.rules.test.ts src/modules/rental/billing-source.rules.test.ts src/modules/rental/billing-termination.rules.test.ts`，记录失败后实现整数比例、片段末日和按原始日号计算的锚点算法。
-- [ ] 将来源键规范化实现留在服务端；预览和写入调用同一算法。计费指纹包含规则版本常量，且相关账单按 sourceKey 排序后参与版本摘要；完整证件不进入输入。
-- [ ] 重跑目标测试及原 `contract.rules.test.ts`、`contract-date.rules.test.ts`，全部通过后交付纯规则边界。
-- [ ] 完成提交检查后单独提交：`git commit -m "feat: 实现租赁账期与应收金额计算规则"`。
+- [x] 写固定值测试：3,000 元、2026-09-15 至 10-20、起始日月付，`expect(plan.drafts.map(x => x.amountMinor)).toEqual([300000, 58065])`；自然月季付首期至 11-30 金额 760000；2026-01-31 锚点下一月为 02-28，第三月恢复 03-31，禁止滚动成 03-28。
+- [x] 补充所有付款周期、闰年、单日、四位年份边界、零额舍入及安全整数溢出；季度终止参考覆盖整个付款账期。押金测试复制 UUID、重排、倍数规范化 `1.0/1.0000`、完全重复项；断言 sourceKey 集合不变。指纹规范化对象键顺序并排除纯显示排序，禁止靠 JSON 输入顺序比较。
+- [x] 运行 `pnpm exec turbo run test --filter=@xpense/server --force -- src/modules/rental/billing-period.rules.test.ts src/modules/rental/billing-source.rules.test.ts src/modules/rental/billing-termination.rules.test.ts`，记录失败后实现整数比例、片段末日和按原始日号计算的锚点算法。
+- [x] 将来源键规范化实现留在服务端；预览和写入调用同一算法。计费指纹包含规则版本常量，且相关账单按 sourceKey 排序后参与版本摘要；完整证件不进入输入。
+- [x] 重跑目标测试及原 `contract.rules.test.ts`、`contract-date.rules.test.ts`，全部通过后交付纯规则边界。
+- [x] 完成提交检查后单独提交：`git commit -m "feat: 实现租赁账期与应收金额计算规则"`。
 
 ## Task 3：持久化、唯一约束及增量权限菜单
 
@@ -260,3 +260,11 @@
 - 基线 WEB 676/678 通过，两项既有失败位于 contract-form-page.test.tsx：选择启用房产、seeded property 改变后的表单重置；不修复无关失败。
 - 扩展共享路由枚举时同步更新 menu.test.ts 的登记断言。
 - 当前 Node 为 25.6.0，与根 engines 26.8.2 不同，未安装或切换运行时。
+
+### Task 2
+
+- RED：三份纯规则模块不存在，新增测试失败。
+- GREEN：计费规则与原合同规则 32 项通过；服务端完整回归结果见本任务日志；server lint/check 通过。
+- 覆盖月付/季付/半年付/年付、闰年月末恢复、零额与半数舍入、跨年到期、30 年租期、金额溢出和年份上限。
+- 裁定：参考月末超出 9999 年时 referenceEnd 为 null，保留完整 referenceDays；不持久化五位业务日期。成本：极限日期界面需按天数解释参考依据。
+- Task 1 提交：67f9061。
