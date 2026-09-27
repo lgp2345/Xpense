@@ -78,6 +78,9 @@ const rentalPermissions = [
   "rental_contracts:create",
   "rental_contracts:update",
   "rental_contracts:delete",
+  "rental_bills:read",
+  "rental_bills:generate",
+  "rental_bills:adjust",
 ] as const;
 
 // ── 汇总（不修改此行逻辑）─────────────────────────

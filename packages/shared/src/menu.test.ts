@@ -115,6 +115,8 @@ describe("organization menu shared contract", () => {
       "RentalContracts",
       "RentalContractDetail",
       "RentalContractCreate",
+      "RentalBills",
+      "RentalBillDetail",
     ]);
     expect(ROUTE_DEFINITIONS.Menus.path).toBe("/menus");
     expect(ROUTE_DEFINITIONS.Transactions.path).toBe("/transactions");

@@ -286,6 +286,11 @@ export type TerminateRentalContractRequest = {
   id: string;
   terminationDate: string;
   reason: string;
+  billingConfirmation?: {
+    expectedVersion: string;
+    finalAmountMinor: number;
+    reason: string;
+  };
 };
 
 /** 撤销未来生效租赁合同终止的请求。 */

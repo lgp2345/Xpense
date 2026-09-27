@@ -40,5 +40,6 @@ export * from "./bookkeeping.js";
 export * from "./menu.js";
 export * from "./rbac.js";
 export * from "./rental.js";
+export * from "./rental-bills.js";
 export * from "./rental-contracts.js";
 export * from "./rental-tenants.js";

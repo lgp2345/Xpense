@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { contractCalendarDateSchema } from "./create-contract.dto.js";
+import { billingAmountConfirmationShape } from "./preview-bills.dto.js";
 
 /** 提前终止租赁合同请求校验规则。 */
 export const terminateContractSchema = z
@@ -8,6 +9,13 @@ export const terminateContractSchema = z
     id: z.string().uuid(),
     terminationDate: contractCalendarDateSchema,
     reason: z.string().trim().min(1).max(1000),
+    billingConfirmation: z
+      .object({
+        ...billingAmountConfirmationShape,
+        expectedVersion: z.string().min(1).max(200),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

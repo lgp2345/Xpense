@@ -88,6 +88,9 @@ describe("RBAC shared constants", () => {
         "rental_contracts:create",
         "rental_contracts:update",
         "rental_contracts:delete",
+        "rental_bills:read",
+        "rental_bills:generate",
+        "rental_bills:adjust",
       ]),
     );
   });

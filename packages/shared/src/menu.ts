@@ -17,6 +17,8 @@ export const ROUTE_DEFINITIONS = {
   RentalContracts: { path: "/rentals/contracts" },
   RentalContractDetail: { path: "/rentals/contracts/$contractId" },
   RentalContractCreate: { path: "/rentals/contracts/new" },
+  RentalBills: { path: "/rentals/bills" },
+  RentalBillDetail: { path: "/rentals/bills/$billId" },
 } as const;
 
 export type RouteKey = keyof typeof ROUTE_DEFINITIONS;
