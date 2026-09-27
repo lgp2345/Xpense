@@ -307,6 +307,11 @@ describe("buildAuthorizedMenuTree", () => {
           routeKey: "RentalContracts",
           permissionCode: "rental_contracts:read",
         },
+        {
+          type: "menu",
+          routeKey: "RentalBills",
+          permissionCode: "rental_bills:read",
+        },
       ]);
       expect(resolvedRentalNodes.some((node) => node.type === "button")).toBe(false);
       expect(

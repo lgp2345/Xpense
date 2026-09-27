@@ -8,6 +8,21 @@ import {
 import { RENTAL_MENU_TEMPLATE } from "./rental-menu-template.js";
 
 describe("DEFAULT_MENU_TEMPLATE", () => {
+  it("adds independent bill read, generate and adjustment entries", () => {
+    expect(RENTAL_MENU_TEMPLATE.find((node) => node.routeKey === "RentalBills")).toMatchObject({
+      parentTemplateKey: "rental",
+      permissionCode: "rental_bills:read",
+      isVisible: true,
+    });
+    expect(RENTAL_MENU_TEMPLATE.find((node) => node.routeKey === "RentalBillDetail")).toMatchObject(
+      { parentTemplateKey: "rental-bills", isVisible: false },
+    );
+    expect(
+      RENTAL_MENU_TEMPLATE.filter(
+        (node) => node.parentTemplateKey === "rental-bills" && node.type === "button",
+      ).map((node) => node.permissionCode),
+    ).toEqual(["rental_bills:generate", "rental_bills:adjust"]);
+  });
   it("includes tenant, contract, and contract creation routes in the rental template", () => {
     expect(RENTAL_MENU_TEMPLATE.map(({ templateKey }) => templateKey)).toEqual(
       expect.arrayContaining(["rental-tenants", "rental-contracts", "rental-contracts.create"]),
@@ -157,6 +172,8 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       "RentalContracts",
       "RentalContractDetail",
       "RentalContractCreate",
+      "RentalBills",
+      "RentalBillDetail",
       "Members",
       "Roles",
       "Menus",
@@ -405,6 +422,42 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
             permission,
           }),
       ),
+      {
+        key: "rental-bills",
+        parent: "rental",
+        type: "menu",
+        route: "RentalBills",
+        permission: "rental_bills:read",
+        visible: true,
+        keepAlive: true,
+      },
+      {
+        key: "rental-bill-detail",
+        parent: "rental-bills",
+        type: "menu",
+        route: "RentalBillDetail",
+        permission: "rental_bills:read",
+        visible: false,
+        keepAlive: false,
+      },
+      {
+        key: "rental-bills.generate",
+        parent: "rental-bills",
+        type: "button",
+        route: null,
+        permission: "rental_bills:generate",
+        visible: null,
+        keepAlive: null,
+      },
+      {
+        key: "rental-bills.adjust",
+        parent: "rental-bills",
+        type: "button",
+        route: null,
+        permission: "rental_bills:adjust",
+        visible: null,
+        keepAlive: null,
+      },
     ]);
   });
 
@@ -468,6 +521,8 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       "rental_contracts:create",
       "rental_contracts:update",
       "rental_contracts:delete",
+      "rental_bills:generate",
+      "rental_bills:adjust",
       "members:create",
       "members:update",
       "members:disable",

@@ -27,6 +27,7 @@ const rentalReadPermissionKeys = [
   "rental_spaces:read",
   "rental_tenants:read",
   "rental_contracts:read",
+  "rental_bills:read",
 ] as const satisfies readonly PermissionKey[];
 const rentalWritePermissionKeys = [
   "rental_properties:create",
@@ -45,6 +46,17 @@ const rentalWritePermissionKeys = [
 ] as const satisfies readonly PermissionKey[];
 
 describe("buildRbacSeedPlan", () => {
+  it("keeps bill actions restricted to owner/admin and grants read to default read roles", () => {
+    for (const role of buildRbacSeedPlan().roles) {
+      expect(role.permissions).toContain("rental_bills:read");
+      expect(role.permissions.includes("rental_bills:generate")).toBe(
+        role.key === "owner" || role.key === "admin",
+      );
+      expect(role.permissions.includes("rental_bills:adjust")).toBe(
+        role.key === "owner" || role.key === "admin",
+      );
+    }
+  });
   it("includes every shared permission", () => {
     const plan = buildRbacSeedPlan();
 
@@ -113,6 +125,7 @@ describe("buildRbacSeedPlan", () => {
         "rental_spaces:read",
         "rental_tenants:read",
         "rental_contracts:read",
+        "rental_bills:read",
       ]);
       expect(role?.permissions).not.toEqual(expect.arrayContaining([...rentalWritePermissionKeys]));
     }
@@ -135,6 +148,7 @@ describe("buildRbacSeedPlan", () => {
         "rental_spaces:read",
         "rental_tenants:read",
         "rental_contracts:read",
+        "rental_bills:read",
       ].sort(),
     );
     expect(member?.permissions).toEqual(
@@ -158,6 +172,7 @@ describe("buildRbacSeedPlan", () => {
         "rental_spaces:read",
         "rental_tenants:read",
         "rental_contracts:read",
+        "rental_bills:read",
       ].sort(),
     );
     expect(

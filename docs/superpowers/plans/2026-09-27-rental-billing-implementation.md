@@ -133,13 +133,13 @@
 
 **Interfaces:** `BillsRepository.findGeneration(organizationId: string, idempotencyKey: string, executor: AppDbExecutor): Promise<GenerationRecord | null>`；`createGeneration(input: NewGeneration, executor: AppDbExecutor): Promise<GenerationRecord>`；`insertBills(context: BillingWriteContext, source: BillingSource, generationId: string, drafts: PersistableBillingDraft[], executor: AppDbExecutor): Promise<BillRecord[]>`；`voidBills(context: BillingWriteContext, billIds: string[], reasonCode: string, executor: AppDbExecutor): Promise<void>`。查询 `list(organizationId: string, query: ListRentalBillsQuery, executor: AppDbExecutor): Promise<RentalBillPage>`、`detail(organizationId: string, billId: string, executor: AppDbExecutor): Promise<RentalBillDetail | null>`，coverage 初值由读取 service 填充。`BillAdjustmentsRepository.findCurrent(organizationId: string, contractId: string, executor: AppDbExecutor): Promise<AdjustmentRecord | null>`；`insert(input: NewAdjustment, executor: AppDbExecutor): Promise<AdjustmentRecord>`；`revoke(context: BillingWriteContext, contractId: string, adjustmentId: string, reason: string, executor: AppDbExecutor): Promise<void>`。
 
-- [ ] 先写 migration 结构断言与仓储行为测试：新增五类表（含计数器）、组织复合引用、有效来源键部分唯一索引、幂等唯一键、同合同未撤销调整唯一约束。断言不存在回填账单、改账户余额或删除现有菜单的 SQL。
-- [ ] 为真实 PostgreSQL 测试准备测试代码：相同来源插入两条 active 必须失败，原账单作废后允许新 active；两个组织同来源合法；跨组织关联失败；rollback 后批次、账单、明细为空。采用专用 `RENTAL_MIGRATION_TEST_DATABASE_URL` 和一次性 schema，授权运行前不得读取应用 DATABASE_URL 代替。
-- [ ] 用目标测试确认失败，再实现 schema、仓储、分类金额聚合、组织编号序列与批量明细查询。普通计租行非负，终止差额行可负，账单总额非负。历史押金来源 UUID 仅作快照，不强引用可被替换的押金条目。
-- [ ] 按现有 Drizzle 配置生成 migration：`pnpm exec turbo run db:generate --filter=@xpense/server -- --name=rental_billing`；先通过 ctx7 确认当前 drizzle-kit 的命名参数，再运行本地生成。只生成文件，不执行 db:migrate/db:push；生成目录时间戳由工具决定，记录最终路径，不改旧 migration。
-- [ ] 在同一新增 migration 中增量插入三项权限，仅给系统 owner/admin 增加映射；新增组织继续由模板创建账单菜单。已有组织只补缺失的 RentalBills/RentalBillDetail 及按钮，不覆盖已有节点、排序、可见性或自定义角色。父级优先复用 RentalContracts 所属租赁目录；不存在可靠父级时创建独立“租赁账单”入口，不猜测中文名称后重置菜单。对不存在和已存在两种数据库状态验证可重复执行的补充逻辑。
-- [ ] 运行 `pnpm exec turbo run test --filter=@xpense/server --force -- src/db/rental-billing-migration.integration.test.ts src/modules/rental/bills.repository.test.ts src/modules/rental/bill-adjustments.repository.test.ts src/db/seed-rbac.test.ts src/modules/iam/menu-template.test.ts`。未获数据库授权时仅运行静态/模拟部分，真实数据库部分明确 skip，记录未验证项。
-- [ ] 完成提交检查后单独提交：`git commit -m "feat: 新增租赁账单持久化与权限菜单"`。
+- [x] 先写 migration 结构断言与仓储行为测试：新增五类表（含计数器）、组织复合引用、有效来源键部分唯一索引、幂等唯一键、同合同未撤销调整唯一约束。断言不存在回填账单、改账户余额或删除现有菜单的 SQL。
+- [x] 为真实 PostgreSQL 测试准备测试代码：相同来源插入两条 active 必须失败，原账单作废后允许新 active；两个组织同来源合法；跨组织关联失败；rollback 后批次、账单、明细为空。采用专用 `RENTAL_MIGRATION_TEST_DATABASE_URL` 和一次性 schema，授权运行前不得读取应用 DATABASE_URL 代替。
+- [x] 用目标测试确认失败，再实现 schema、仓储、分类金额聚合、组织编号序列与批量明细查询。普通计租行非负，终止差额行可负，账单总额非负。历史押金来源 UUID 仅作快照，不强引用可被替换的押金条目。
+- [x] 按现有 Drizzle 配置生成 migration：`pnpm exec turbo run db:generate --filter=@xpense/server -- --name=rental_billing`；先通过 ctx7 确认当前 drizzle-kit 的命名参数，再运行本地生成。只生成文件，不执行 db:migrate/db:push；生成目录时间戳由工具决定，记录最终路径，不改旧 migration。
+- [x] 在同一新增 migration 中增量插入三项权限，仅给系统 owner/admin 增加映射；新增组织继续由模板创建账单菜单。已有组织只补缺失的 RentalBills/RentalBillDetail 及按钮，不覆盖已有节点、排序、可见性或自定义角色。父级优先复用 RentalContracts 所属租赁目录；不存在可靠父级时创建独立“租赁账单”入口，不猜测中文名称后重置菜单。对不存在和已存在两种数据库状态验证可重复执行的补充逻辑。
+- [x] 运行 `pnpm exec turbo run test --filter=@xpense/server --force -- src/db/rental-billing-migration.integration.test.ts src/modules/rental/bills.repository.test.ts src/modules/rental/bill-adjustments.repository.test.ts src/db/seed-rbac.test.ts src/modules/iam/menu-template.test.ts`。未获数据库授权时仅运行静态/模拟部分，真实数据库部分明确 skip，记录未验证项。
+- [x] 完成提交检查后单独提交：`git commit -m "feat: 新增租赁账单持久化与权限菜单"`。
 
 ## Task 4：一致预览与幂等生成服务
 
@@ -268,3 +268,13 @@
 - 覆盖月付/季付/半年付/年付、闰年月末恢复、零额与半数舍入、跨年到期、30 年租期、金额溢出和年份上限。
 - 裁定：参考月末超出 9999 年时 referenceEnd 为 null，保留完整 referenceDays；不持久化五位业务日期。成本：极限日期界面需按天数解释参考依据。
 - Task 1 提交：67f9061。
+
+### Task 3
+
+- RED：新 schema/repository 不存在；新增菜单与默认角色的预期尚未满足。
+- ctx7 核对 drizzle-kit --name 参数后生成 `apps/server/src/db/migrations/20260927161043_rental_billing/`，包含 migration.sql/snapshot.json；未执行迁移或 seed。
+- 增量 SQL 保留已有菜单、排序、可见性及自定义角色；系统 owner/admin 获得新增权限；新组织模板包含账单读与两项按钮，默认 member/viewer 保持只读。
+- GREEN：静态迁移/仓储/seed/菜单目标测试通过；服务端全回归、lint、check 通过，真实 PostgreSQL 测试明确跳过，不能作为数据库约束及并发验证证据。
+- 额外验证：批次整段编号、写快照不含电话和证件、明细合计不一致拒绝保存；SQL CHECK 显式拒绝空 effectiveEnd 的失败测试修复后通过。
+- 为保持已有大型 rental-menu-template 清晰，新增独立 billing-menu-template 聚合；同步 menu-tree 的新增只读入口预期。
+- Task 2 提交：e08b7b5。
