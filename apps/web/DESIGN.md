@@ -46,8 +46,12 @@
 - 组件基于 shadcn/ui（New York）与 Radix 原语，样式值统一读取 `theme.css` Token。
 - 图标统一使用 lucide-react，不引入 Phosphor 等其他图标库。
 - 高频控件优先复用 `src/components/ui` 与业务组件，不重复封装已有稳定组件。
+- 基础组件统一使用 shadcn/ui；现有组件及官方组合无法满足需求时，可参考
+  [shadcn Studio](https://shadcnstudio.com/components) 的 Radix 变体，按本规范适配后复用。
+  优先复用现有基础组件，保持 New York 风格、Slate 基底、主题 Token 与可访问性要求；
+  涉及新增依赖、其他 UI 原语或样式框架时须先确认。
 - 日期输入必须使用日期选择器（输入框 + 日历弹层）：显示 `yyyy/MM/dd`，
-  搜索参数保持 `yyyy-MM-dd`；键盘可输入，非法输入不生效，失焦还原。
+  搜索参数保持 `yyyy/MM/dd`；键盘可输入，非法输入不生效，失焦还原。
 - 表单统一 TanStack Form + Zod schema 校验，错误提示就近显示在字段下方。
 - 表格、筛选、表单、弹窗、日期范围、金额输入等控件沉淀为可复用组件。
 
