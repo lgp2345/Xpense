@@ -1,0 +1,4 @@
+# 项目内启用子 Agent；模型、思考档位与职责由 agents/*.toml 定义。
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3
