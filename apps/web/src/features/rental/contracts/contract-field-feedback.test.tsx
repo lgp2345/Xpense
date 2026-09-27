@@ -22,6 +22,23 @@ describe("contract field feedback", () => {
     expect(screen.getByText("日期无效")).toBeInTheDocument();
   });
 
+  it("marks the billing method heading and choices invalid when billing is missing", () => {
+    render(
+      <ContractFieldErrorsContext value={{ billingAnchor: "请选择计费方式" }}>
+        <ContractTermsStep values={defaultContractFormValues()} onChange={vi.fn()} />
+      </ContractFieldErrorsContext>,
+    );
+
+    const billingGroup = screen.getByRole("radiogroup", { name: "计费方式" });
+    expect(billingGroup.closest("fieldset")).toHaveAttribute("data-invalid", "true");
+    expect(screen.getByText("计费方式")).toHaveAttribute("data-invalid", "true");
+    expect(screen.getByRole("radio", { name: "合同起始日" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByRole("radio", { name: "自然月" })).toHaveAttribute("aria-invalid", "true");
+  });
+
   it("shows date range and dynamic deposit errors below their own controls", () => {
     const values = defaultContractFormValues();
     values.deposits = [

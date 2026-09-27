@@ -88,7 +88,10 @@ describe("contract form schema", () => {
     "2026-9-01",
     "0000-01-01",
   ])("rejects invalid calendar date %s", (date) => {
-    expect(contractFormSchema.safeParse({ ...base(), startDate: date }).success).toBe(false);
+    const result = contractFormSchema.safeParse({ ...base(), startDate: date });
+    expect(result.success).toBe(false);
+    if (!result.success)
+      expect(result.error.issues.some((issue) => issue.message === "请输入有效日期")).toBe(true);
   });
 
   it("requires at least one party and exactly one payer", () => {
@@ -118,10 +121,14 @@ describe("contract form schema", () => {
   });
 
   it("requires complete terms and a positive deposit value", () => {
-    expect(stepSchemas.terms.safeParse({ ...base(), billingAnchor: "" }).success).toBe(false);
-    expect(stepSchemas.terms.safeParse({ ...base(), paymentIntervalMonths: "" }).success).toBe(
-      false,
-    );
+    const missingAnchor = stepSchemas.terms.safeParse({ ...base(), billingAnchor: "" });
+    expect(missingAnchor.success).toBe(false);
+    if (!missingAnchor.success)
+      expect(missingAnchor.error.issues[0]?.message).toBe("请选择计费方式");
+    const missingInterval = stepSchemas.terms.safeParse({ ...base(), paymentIntervalMonths: "" });
+    expect(missingInterval.success).toBe(false);
+    if (!missingInterval.success)
+      expect(missingInterval.error.issues[0]?.message).toBe("请选择付款周期");
     expect(stepSchemas.terms.safeParse({ ...base(), dueDaysBeforeText: "91" }).success).toBe(false);
     expect(
       stepSchemas.terms.safeParse({
@@ -169,6 +176,16 @@ describe("contract form schema", () => {
         ],
       }).success,
     ).toBe(false);
+  });
+
+  it("requires a monthly rent before completing the terms step", () => {
+    const result = stepSchemas.terms.safeParse({ ...base(), rentAmountText: "" });
+
+    expect(result.success).toBe(false);
+    if (!result.success)
+      expect(result.error.issues).toContainEqual(
+        expect.objectContaining({ path: ["rentAmountText"], message: "请输入月租" }),
+      );
   });
 
   it("requires allocations to be all present and equal to rent", () => {

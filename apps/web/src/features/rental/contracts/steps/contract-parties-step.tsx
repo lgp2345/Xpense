@@ -8,7 +8,6 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
-  FieldLegend,
   FieldSet,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -234,9 +233,9 @@ export function ContractPartiesStep({
         </Field>
       ) : null}
       <FieldSet className="grid gap-2">
-        <FieldLegend id="primary-payer-label" className="font-medium text-sm mb-2">
+        <FieldLabel id="primary-payer-label" className="font-medium text-sm mb-2">
           主付款人
-        </FieldLegend>
+        </FieldLabel>
         <RadioGroup
           aria-labelledby="primary-payer-label"
           name="primary-payer"

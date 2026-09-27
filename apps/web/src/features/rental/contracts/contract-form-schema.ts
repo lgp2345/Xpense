@@ -31,7 +31,7 @@ export type ContractFormValues = {
 };
 
 const uuid = z.string().uuid("请输入有效的 ID");
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "请输入有效日期（YYYY-MM-DD）");
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "请输入有效日期");
 const space = z.object({ spaceId: uuid, rentAllocationText: z.string() });
 const party = z.object({ tenantId: uuid, isPrimaryPayer: z.boolean() });
 const deposit = z.object({
@@ -54,8 +54,8 @@ export const contractFormSchema = z
     startDate: date,
     endDate: date,
     rentAmountText: z.string().min(1, "请输入月租"),
-    billingAnchor: z.enum(["contract_start", "calendar_month"]),
-    paymentIntervalMonths: z.enum(["1", "3", "6", "12"]),
+    billingAnchor: z.enum(["contract_start", "calendar_month"], { error: "请选择计费方式" }),
+    paymentIntervalMonths: z.enum(["1", "3", "6", "12"], { error: "请选择付款周期" }),
     dueDaysBeforeText: z.string().regex(/^\d+$/, "到期规则必须是整数"),
     deposits: z.array(deposit),
     note: z.string(),
@@ -73,14 +73,14 @@ export const contractFormSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["startDate"],
-        message: "请输入有效日期（YYYY-MM-DD）",
+        message: "请输入有效日期",
       });
     if (!isCalendarDate(value.endDate))
-      ctx.addIssue({ code: "custom", path: ["endDate"], message: "请输入有效日期（YYYY-MM-DD）" });
+      ctx.addIssue({ code: "custom", path: ["endDate"], message: "请输入有效日期" });
     if (value.startDate && value.endDate && !isValidDate(value.startDate, value.endDate))
       ctx.addIssue({ code: "custom", path: ["endDate"], message: "结束日期不能早于开始日期" });
     const rent = parseMinor(value.rentAmountText);
-    if (rent === null)
+    if (value.rentAmountText && rent === null)
       ctx.addIssue({ code: "custom", path: ["rentAmountText"], message: "请输入正整数金额" });
     const due = Number(value.dueDaysBeforeText);
     if (!Number.isInteger(due) || due < 0 || due > 90)
@@ -124,9 +124,9 @@ export const stepSchemas = {
       externalContractNumber: z.string(),
       startDate: date,
       endDate: date,
-      rentAmountText: z.string(),
-      billingAnchor: z.enum(["contract_start", "calendar_month"]),
-      paymentIntervalMonths: z.enum(["1", "3", "6", "12"]),
+      rentAmountText: z.string().min(1, "请输入月租"),
+      billingAnchor: z.enum(["contract_start", "calendar_month"], { error: "请选择计费方式" }),
+      paymentIntervalMonths: z.enum(["1", "3", "6", "12"], { error: "请选择付款周期" }),
       dueDaysBeforeText: z.string().regex(/^\d+$/, "到期规则必须是整数"),
       spaces: z.array(space).min(1, "至少选择一个空间"),
       deposits: z.array(deposit),
@@ -140,7 +140,7 @@ export const stepSchemas = {
           message: "结束日期不能早于开始日期或日期无效",
         });
       const rent = parseMinor(value.rentAmountText);
-      if (rent === null)
+      if (value.rentAmountText && rent === null)
         ctx.addIssue({ code: "custom", path: ["rentAmountText"], message: "请输入正整数金额" });
       const due = Number(value.dueDaysBeforeText);
       if (!/^\d+$/.test(value.dueDaysBeforeText) || !Number.isInteger(due) || due < 0 || due > 90)
