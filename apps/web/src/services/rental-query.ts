@@ -1,5 +1,4 @@
 import { type QueryClient, queryOptions } from "@tanstack/react-query";
-
 import { bookkeepingKeys } from "./bookkeeping-query";
 import type {
   ListRentalContractsQuery,
@@ -9,6 +8,7 @@ import type {
   RentalApi,
   SearchRentalSpacesQuery,
 } from "./rental-api";
+import { invalidateRentalBills } from "./rental-bills-query";
 
 export const rentalQueryRoot = ["rental"] as const;
 
@@ -354,6 +354,7 @@ export async function invalidateContractMutation(
   propertyIds: string[] = [],
 ): Promise<void> {
   await Promise.all([
+    invalidateRentalBills(queryClient, organizationId),
     queryClient.invalidateQueries({ queryKey: rentalKeys.contractsRoot(organizationId) }),
     queryClient.invalidateQueries({ queryKey: rentalKeys.contract(organizationId, contractId) }),
     invalidatePropertyScopes(queryClient, organizationId, propertyIds),

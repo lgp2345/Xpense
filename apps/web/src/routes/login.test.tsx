@@ -15,6 +15,7 @@ function createSession(): WebSessionDependency {
     bookkeepingApi: {} as WebSessionDependency["bookkeepingApi"],
     iamApi: {} as WebSessionDependency["iamApi"],
     menuStore: createMenuStore(),
+    rentalBillsApi: {} as WebSessionDependency["rentalBillsApi"],
     rentalApi: {} as WebSessionDependency["rentalApi"],
     restoreSession: vi.fn().mockResolvedValue(false),
   };

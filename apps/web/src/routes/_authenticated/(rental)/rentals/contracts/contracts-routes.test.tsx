@@ -97,6 +97,7 @@ function session(
       resolveMenuRoute: vi.fn().mockResolvedValue(menus[0]),
     } as never,
     menuStore,
+    rentalBillsApi: {} as WebSessionDependency["rentalBillsApi"],
     rentalApi: {
       listContracts: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
     } as unknown as RentalApi,

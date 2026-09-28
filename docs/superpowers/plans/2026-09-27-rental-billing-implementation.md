@@ -186,12 +186,12 @@
 
 **Interfaces:** `createRentalBillsApi(client: ApiClient)` 产出 `listBills/getBill/previewBills/generateBills/previewTermination`，返回相应共享契约；`RentalBillsApi = ReturnType<typeof createRentalBillsApi>`，session 增加 `rentalBillsApi`。`rentalBillsKeys` 以 `['rental', organizationId, 'bills']` 为根；`invalidateRentalBills(queryClient, organizationId): Promise<void>` 负责该组织账单列表、详情和汇总失效。
 
-- [ ] 先写请求路径/参数/异常测试和查询 key 测试：两个组织同 contractId 的 key 不相等；金额不从 URL 浮点解析；预览 page 参数不进入 generate payload。断言 `expect(keyA).not.toEqual(keyB)`。
-- [ ] 运行 `pnpm exec turbo run test --filter=@xpense/web --force -- src/services/rental-bills-api.test.ts src/services/rental-bills-query.test.ts`，红灯后实现 API 封装及 session 注入。
-- [ ] 生命周期和合同保存成功后失效对应组织所有受影响 bills 查询；捕获发起操作时的 organizationId，切换组织后的迟到响应不能失效或展示新组织数据。预览状态为界面局部状态，不持久化到 Zustand。
-- [ ] 网络未知结果时保留原 idempotencyKey 与请求内容，重试返回原批次后再刷新列表；用户更改日期/终止输入或重新预览版本后创建新 key。补上模拟“响应丢失但服务器已提交”的测试。
-- [ ] 重跑上述、web-session、rental-query 以及已有租赁缓存边界测试，运行 web check。
-- [ ] 完成提交检查后单独提交：`git commit -m "feat: 接入账单请求与组织隔离缓存"`。
+- [x] 先写请求路径/参数/异常测试和查询 key 测试：两个组织同 contractId 的 key 不相等；金额不从 URL 浮点解析；预览 page 参数不进入 generate payload。断言 `expect(keyA).not.toEqual(keyB)`。
+- [x] 运行 `pnpm exec turbo run test --filter=@xpense/web --force -- src/services/rental-bills-api.test.ts src/services/rental-bills-query.test.ts`，红灯后实现 API 封装及 session 注入。
+- [x] 生命周期和合同保存成功后失效对应组织所有受影响 bills 查询；捕获发起操作时的 organizationId，切换组织后的迟到响应不能失效或展示新组织数据。预览状态为界面局部状态，不持久化到 Zustand。
+- [x] 网络未知结果时保留原 idempotencyKey 与请求内容，重试返回原批次后再刷新列表；用户更改日期/终止输入或重新预览版本后创建新 key。补上模拟“响应丢失但服务器已提交”的测试。
+- [x] 重跑上述、web-session、rental-query 以及已有租赁缓存边界测试，运行 web check。
+- [x] 完成提交检查后单独提交：`git commit -m "feat: 接入账单请求与组织隔离缓存"`。
 
 ## Task 8：合同内账单预览与生命周期交互
 
@@ -305,3 +305,11 @@
 - Task 6 回归补充：全量测试发现原 rental.controllers.test.ts 的三个模块登记断言未包含新 controller；同步精确登记预期，保留模块不导出仓储的断言。上次任务提交早于该全量结果核对，补充单独测试提交，最终验证以后续实际结果为准。
 
 - Task 6 最终回归：服务端 1119 项通过、3 项数据库测试跳过，server lint/check 通过。
+
+### Task 7
+
+- RED：账单 API/query 文件不存在；GREEN：请求、重试、会话及租赁缓存目标测试通过，变更文件 Biome 检查通过。
+- 固定一次生成请求与 key，响应丢失后相同 payload 重试；新预览生成新 key。所有账单缓存含组织前缀，合同成功后失效发起组织的账单缓存，原会话清理根范围覆盖账单。
+- session 新增必需 rentalBillsApi，同步九处原类型 fixture；未改身份会话流程。
+- web check 已运行：仅报告尚待任务 9 接入的新 RouteKey/路由登记问题；整体类型验收延至任务 9，不使用占位页面或类型绕过。
+- 全量 web lint 已运行：19 项既有错误、1 个 warning、2 个 info，涉及 page-cache-host/page-tabs/multi-select/sidebar/search-provider 及原合同步骤格式；未清理无关文件。修改文件单独通过。

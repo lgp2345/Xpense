@@ -89,6 +89,7 @@ function session(api: Partial<RentalApi> = {}): WebSessionDependency {
       resolveMenuRoute: vi.fn(),
     } as never,
     menuStore,
+    rentalBillsApi: {} as WebSessionDependency["rentalBillsApi"],
     rentalApi: {
       listProperties: vi
         .fn()

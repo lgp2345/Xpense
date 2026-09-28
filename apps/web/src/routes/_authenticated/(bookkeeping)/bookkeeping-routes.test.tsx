@@ -118,6 +118,7 @@ function createSession(
       resolveMenuRoute: vi.fn(),
     } as unknown as WebSessionDependency["iamApi"],
     menuStore,
+    rentalBillsApi: {} as WebSessionDependency["rentalBillsApi"],
     rentalApi: {} as WebSessionDependency["rentalApi"],
     restoreSession: vi.fn().mockResolvedValue(true),
   };
