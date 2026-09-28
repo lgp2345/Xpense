@@ -147,12 +147,12 @@
 
 **Interfaces:** `BillingSourceService.read(organizationId: string, contractId: string, executor: AppDbExecutor): Promise<BillingSource>`；`BillsService.preview(auth: AuthContext, dto: PreviewBillsDto): Promise<RentalBillPreview>`；`generate(auth, dto: GenerateBillsDto): Promise<RentalBillGenerationResult>`；`BillsReadService.list(auth,dto): Promise<RentalBillPage>`、`detail(auth,dto): Promise<RentalBillDetail>`。preview/read 接口也用同一事务快照或现有组织锁保证来源一致，禁止多次无约束读取拼出混合版本。
 
-- [ ] 先写服务失败测试：首次全租期生成、有效账单跳过、过期版本 409、同键异内容 409、同键重放、无新增返回、计费不一致不静默跳过，以及草稿/取消拒绝与停用房产历史合同可用。
-- [ ] 专项断言：首次四张租金＋两项押金 `expect(result.createdCount).toBe(6)`；同请求重试 `expect(replayed.generationId).toBe(result.generationId)` 且账单数仍为 6；原批次后来作废，原请求重试仍不新增；同请求键不允许更换合同或押金日期。
-- [ ] 运行 `pnpm exec turbo run test --filter=@xpense/server --force -- src/modules/rental/bills.service.test.ts src/modules/rental/bills-read.service.test.ts src/modules/rental/billing-source.service.test.ts`，确认失败后实现。锁顺序组织→房产→合同，重放鉴权后先于旧来源版本拒绝；重新计算、batch、lines、audit 在一事务内。
-- [ ] 预览缺输入时 canGenerate=false；后续页必须携带同一 version。确认接口不接分页，测试 101 张账单只浏览第一页仍生成 101 张。depositDueDates 只接受当前缺失押金的来源键，拒绝未知键和改写既有项；已有幂等请求重放先按原请求判断。列表汇总只含有效账单且按当前筛选，租金/押金分开；contractId 查询返回只读 coverage。详情历史有界加载，不返回全部合同账单代替详情。
-- [ ] 测试审计/明细写入失败整批回滚、组织不匹配 404、同合同并发调用、超大租期不静默截断；目标测试通过并运行 server check。
-- [ ] 完成提交检查后单独提交：`git commit -m "feat: 实现租赁账单预览与幂等生成"`。
+- [x] 先写服务失败测试：首次全租期生成、有效账单跳过、过期版本 409、同键异内容 409、同键重放、无新增返回、计费不一致不静默跳过，以及草稿/取消拒绝与停用房产历史合同可用。
+- [x] 专项断言：首次四张租金＋两项押金 `expect(result.createdCount).toBe(6)`；同请求重试 `expect(replayed.generationId).toBe(result.generationId)` 且账单数仍为 6；原批次后来作废，原请求重试仍不新增；同请求键不允许更换合同或押金日期。
+- [x] 运行 `pnpm exec turbo run test --filter=@xpense/server --force -- src/modules/rental/bills.service.test.ts src/modules/rental/bills-read.service.test.ts src/modules/rental/billing-source.service.test.ts`，确认失败后实现。锁顺序组织→房产→合同，重放鉴权后先于旧来源版本拒绝；重新计算、batch、lines、audit 在一事务内。
+- [x] 预览缺输入时 canGenerate=false；后续页必须携带同一 version。确认接口不接分页，测试 101 张账单只浏览第一页仍生成 101 张。depositDueDates 只接受当前缺失押金的来源键，拒绝未知键和改写既有项；已有幂等请求重放先按原请求判断。列表汇总只含有效账单且按当前筛选，租金/押金分开；contractId 查询返回只读 coverage。详情历史有界加载，不返回全部合同账单代替详情。
+- [x] 测试审计/明细写入失败整批回滚、组织不匹配 404、同合同并发调用、超大租期不静默截断；目标测试通过并运行 server check。
+- [x] 完成提交检查后单独提交：`git commit -m "feat: 实现租赁账单预览与幂等生成"`。
 
 ## Task 5：合同修正、取消与终止联动
 
@@ -278,3 +278,10 @@
 - 额外验证：批次整段编号、写快照不含电话和证件、明细合计不一致拒绝保存；SQL CHECK 显式拒绝空 effectiveEnd 的失败测试修复后通过。
 - 为保持已有大型 rental-menu-template 清晰，新增独立 billing-menu-template 聚合；同步 menu-tree 的新增只读入口预期。
 - Task 2 提交：e08b7b5。
+
+### Task 4
+
+- RED：预览与生成 service 缺失；GREEN：新增 8 项服务测试通过，服务端 1105 项通过、3 项跳过；lint/check 通过。
+- 覆盖 101 张全量生成、页间版本冲突、同键重放、失去权限后拒绝、审计/明细失败整批回滚、只读覆盖与到期提示。并发测试为串行事务 mock，真实数据库证据留待任务 10。
+- 将合同脱敏读模型提取为纯映射，保留旧模块导出，避免后续合同联动与计费来源循环依赖；原合同回归通过。
+- 已终止合同首次生成按计划在任务 5 完成，接口将在任务 6 注册。
