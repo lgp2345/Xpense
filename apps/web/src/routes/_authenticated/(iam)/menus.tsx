@@ -32,6 +32,8 @@ const ROUTE_LABELS = {
   RentalTenantDetail: "租户详情",
   RentalContracts: "合同管理",
   RentalContractDetail: "合同详情",
+  RentalBills: "租赁账单",
+  RentalBillDetail: "账单详情",
   RentalContractCreate: "新增合同",
 } satisfies Record<RouteKey, string>;
 

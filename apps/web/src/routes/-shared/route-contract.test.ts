@@ -73,7 +73,12 @@ describe("generated route URL contract", () => {
       session: createContractSession(),
     });
 
-    for (const to of ["/rentals/properties", "/rentals/tenants", "/rentals/contracts"] as const) {
+    for (const to of [
+      "/rentals/properties",
+      "/rentals/tenants",
+      "/rentals/contracts",
+      "/rentals/bills",
+    ] as const) {
       expect(router.buildLocation({ to }).pathname).toBe(to);
     }
   });

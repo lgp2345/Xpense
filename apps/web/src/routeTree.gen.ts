@@ -25,6 +25,8 @@ import { Route as AuthenticatediamMenusRouteImport } from './routes/_authenticat
 import { Route as AuthenticatediamRolesRouteImport } from './routes/_authenticated/(iam)/roles'
 import { Route as AuthenticatediamSessionsRouteImport } from './routes/_authenticated/(iam)/sessions'
 import { Route as SessionShellSystemMenuResetRouteImport } from './routes/_session/_shell/system/menu-reset'
+import { Route as AuthenticatedrentalRentalsBillsIndexRouteImport } from './routes/_authenticated/(rental)/rentals/bills/index'
+import { Route as AuthenticatedrentalRentalsBillsBillIdRouteImport } from './routes/_authenticated/(rental)/rentals/bills/$billId'
 import { Route as AuthenticatedrentalRentalsContractsIndexRouteImport } from './routes/_authenticated/(rental)/rentals/contracts/index'
 import { Route as AuthenticatedrentalRentalsContractsContractIdRouteImport } from './routes/_authenticated/(rental)/rentals/contracts/$contractId'
 import { Route as AuthenticatedrentalRentalsContractsNewRouteImport } from './routes/_authenticated/(rental)/rentals/contracts/new'
@@ -116,6 +118,18 @@ const SessionShellSystemMenuResetRoute =
     path: '/system/menu-reset',
     getParentRoute: () => SessionShellRoute,
   } as any)
+const AuthenticatedrentalRentalsBillsIndexRoute =
+  AuthenticatedrentalRentalsBillsIndexRouteImport.update({
+    id: '/(rental)/rentals/bills/',
+    path: '/rentals/bills/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedrentalRentalsBillsBillIdRoute =
+  AuthenticatedrentalRentalsBillsBillIdRouteImport.update({
+    id: '/(rental)/rentals/bills/$billId',
+    path: '/rentals/bills/$billId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedrentalRentalsContractsIndexRoute =
   AuthenticatedrentalRentalsContractsIndexRouteImport.update({
     id: '/(rental)/rentals/contracts/',
@@ -173,10 +187,12 @@ export interface FileRoutesByFullPath {
   '/roles': typeof AuthenticatediamRolesRoute
   '/sessions': typeof AuthenticatediamSessionsRoute
   '/system/menu-reset': typeof SessionShellSystemMenuResetRoute
+  '/rentals/bills/$billId': typeof AuthenticatedrentalRentalsBillsBillIdRoute
   '/rentals/contracts/$contractId': typeof AuthenticatedrentalRentalsContractsContractIdRoute
   '/rentals/contracts/new': typeof AuthenticatedrentalRentalsContractsNewRoute
   '/rentals/properties/$propertyId': typeof AuthenticatedrentalRentalsPropertiesPropertyIdRoute
   '/rentals/tenants/$tenantId': typeof AuthenticatedrentalRentalsTenantsTenantIdRoute
+  '/rentals/bills/': typeof AuthenticatedrentalRentalsBillsIndexRoute
   '/rentals/contracts/': typeof AuthenticatedrentalRentalsContractsIndexRoute
   '/rentals/properties/': typeof AuthenticatedrentalRentalsPropertiesIndexRoute
   '/rentals/tenants/': typeof AuthenticatedrentalRentalsTenantsIndexRoute
@@ -195,10 +211,12 @@ export interface FileRoutesByTo {
   '/roles': typeof AuthenticatediamRolesRoute
   '/sessions': typeof AuthenticatediamSessionsRoute
   '/system/menu-reset': typeof SessionShellSystemMenuResetRoute
+  '/rentals/bills/$billId': typeof AuthenticatedrentalRentalsBillsBillIdRoute
   '/rentals/contracts/$contractId': typeof AuthenticatedrentalRentalsContractsContractIdRoute
   '/rentals/contracts/new': typeof AuthenticatedrentalRentalsContractsNewRoute
   '/rentals/properties/$propertyId': typeof AuthenticatedrentalRentalsPropertiesPropertyIdRoute
   '/rentals/tenants/$tenantId': typeof AuthenticatedrentalRentalsTenantsTenantIdRoute
+  '/rentals/bills': typeof AuthenticatedrentalRentalsBillsIndexRoute
   '/rentals/contracts': typeof AuthenticatedrentalRentalsContractsIndexRoute
   '/rentals/properties': typeof AuthenticatedrentalRentalsPropertiesIndexRoute
   '/rentals/tenants': typeof AuthenticatedrentalRentalsTenantsIndexRoute
@@ -221,10 +239,12 @@ export interface FileRoutesById {
   '/_authenticated/(iam)/sessions': typeof AuthenticatediamSessionsRoute
   '/_authenticated/(core)/': typeof AuthenticatedcoreIndexRoute
   '/_session/_shell/system/menu-reset': typeof SessionShellSystemMenuResetRoute
+  '/_authenticated/(rental)/rentals/bills/$billId': typeof AuthenticatedrentalRentalsBillsBillIdRoute
   '/_authenticated/(rental)/rentals/contracts/$contractId': typeof AuthenticatedrentalRentalsContractsContractIdRoute
   '/_authenticated/(rental)/rentals/contracts/new': typeof AuthenticatedrentalRentalsContractsNewRoute
   '/_authenticated/(rental)/rentals/properties/$propertyId': typeof AuthenticatedrentalRentalsPropertiesPropertyIdRoute
   '/_authenticated/(rental)/rentals/tenants/$tenantId': typeof AuthenticatedrentalRentalsTenantsTenantIdRoute
+  '/_authenticated/(rental)/rentals/bills/': typeof AuthenticatedrentalRentalsBillsIndexRoute
   '/_authenticated/(rental)/rentals/contracts/': typeof AuthenticatedrentalRentalsContractsIndexRoute
   '/_authenticated/(rental)/rentals/properties/': typeof AuthenticatedrentalRentalsPropertiesIndexRoute
   '/_authenticated/(rental)/rentals/tenants/': typeof AuthenticatedrentalRentalsTenantsIndexRoute
@@ -245,10 +265,12 @@ export interface FileRouteTypes {
     | '/roles'
     | '/sessions'
     | '/system/menu-reset'
+    | '/rentals/bills/$billId'
     | '/rentals/contracts/$contractId'
     | '/rentals/contracts/new'
     | '/rentals/properties/$propertyId'
     | '/rentals/tenants/$tenantId'
+    | '/rentals/bills/'
     | '/rentals/contracts/'
     | '/rentals/properties/'
     | '/rentals/tenants/'
@@ -267,10 +289,12 @@ export interface FileRouteTypes {
     | '/roles'
     | '/sessions'
     | '/system/menu-reset'
+    | '/rentals/bills/$billId'
     | '/rentals/contracts/$contractId'
     | '/rentals/contracts/new'
     | '/rentals/properties/$propertyId'
     | '/rentals/tenants/$tenantId'
+    | '/rentals/bills'
     | '/rentals/contracts'
     | '/rentals/properties'
     | '/rentals/tenants'
@@ -292,10 +316,12 @@ export interface FileRouteTypes {
     | '/_authenticated/(iam)/sessions'
     | '/_authenticated/(core)/'
     | '/_session/_shell/system/menu-reset'
+    | '/_authenticated/(rental)/rentals/bills/$billId'
     | '/_authenticated/(rental)/rentals/contracts/$contractId'
     | '/_authenticated/(rental)/rentals/contracts/new'
     | '/_authenticated/(rental)/rentals/properties/$propertyId'
     | '/_authenticated/(rental)/rentals/tenants/$tenantId'
+    | '/_authenticated/(rental)/rentals/bills/'
     | '/_authenticated/(rental)/rentals/contracts/'
     | '/_authenticated/(rental)/rentals/properties/'
     | '/_authenticated/(rental)/rentals/tenants/'
@@ -422,6 +448,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SessionShellSystemMenuResetRouteImport
       parentRoute: typeof SessionShellRoute
     }
+    '/_authenticated/(rental)/rentals/bills/': {
+      id: '/_authenticated/(rental)/rentals/bills/'
+      path: '/rentals/bills'
+      fullPath: '/rentals/bills/'
+      preLoaderRoute: typeof AuthenticatedrentalRentalsBillsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/(rental)/rentals/bills/$billId': {
+      id: '/_authenticated/(rental)/rentals/bills/$billId'
+      path: '/rentals/bills/$billId'
+      fullPath: '/rentals/bills/$billId'
+      preLoaderRoute: typeof AuthenticatedrentalRentalsBillsBillIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/(rental)/rentals/contracts/': {
       id: '/_authenticated/(rental)/rentals/contracts/'
       path: '/rentals/contracts'
@@ -484,10 +524,12 @@ interface AuthenticatedRouteChildren {
   AuthenticatediamRolesRoute: typeof AuthenticatediamRolesRoute
   AuthenticatediamSessionsRoute: typeof AuthenticatediamSessionsRoute
   AuthenticatedcoreIndexRoute: typeof AuthenticatedcoreIndexRoute
+  AuthenticatedrentalRentalsBillsBillIdRoute: typeof AuthenticatedrentalRentalsBillsBillIdRoute
   AuthenticatedrentalRentalsContractsContractIdRoute: typeof AuthenticatedrentalRentalsContractsContractIdRoute
   AuthenticatedrentalRentalsContractsNewRoute: typeof AuthenticatedrentalRentalsContractsNewRoute
   AuthenticatedrentalRentalsPropertiesPropertyIdRoute: typeof AuthenticatedrentalRentalsPropertiesPropertyIdRoute
   AuthenticatedrentalRentalsTenantsTenantIdRoute: typeof AuthenticatedrentalRentalsTenantsTenantIdRoute
+  AuthenticatedrentalRentalsBillsIndexRoute: typeof AuthenticatedrentalRentalsBillsIndexRoute
   AuthenticatedrentalRentalsContractsIndexRoute: typeof AuthenticatedrentalRentalsContractsIndexRoute
   AuthenticatedrentalRentalsPropertiesIndexRoute: typeof AuthenticatedrentalRentalsPropertiesIndexRoute
   AuthenticatedrentalRentalsTenantsIndexRoute: typeof AuthenticatedrentalRentalsTenantsIndexRoute
@@ -505,6 +547,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatediamRolesRoute: AuthenticatediamRolesRoute,
   AuthenticatediamSessionsRoute: AuthenticatediamSessionsRoute,
   AuthenticatedcoreIndexRoute: AuthenticatedcoreIndexRoute,
+  AuthenticatedrentalRentalsBillsBillIdRoute:
+    AuthenticatedrentalRentalsBillsBillIdRoute,
   AuthenticatedrentalRentalsContractsContractIdRoute:
     AuthenticatedrentalRentalsContractsContractIdRoute,
   AuthenticatedrentalRentalsContractsNewRoute:
@@ -513,6 +557,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedrentalRentalsPropertiesPropertyIdRoute,
   AuthenticatedrentalRentalsTenantsTenantIdRoute:
     AuthenticatedrentalRentalsTenantsTenantIdRoute,
+  AuthenticatedrentalRentalsBillsIndexRoute:
+    AuthenticatedrentalRentalsBillsIndexRoute,
   AuthenticatedrentalRentalsContractsIndexRoute:
     AuthenticatedrentalRentalsContractsIndexRoute,
   AuthenticatedrentalRentalsPropertiesIndexRoute:
