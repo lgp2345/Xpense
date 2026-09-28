@@ -13,6 +13,7 @@ import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write
 import { REQUIRE_PERMISSION_KEY } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
+import { BillsController } from "./bills.controller.js";
 import { ContractLifecycleService } from "./contract-lifecycle.service.js";
 import { ContractPartiesService } from "./contract-parties.service.js";
 import { ContractRelationsRepository } from "./contract-relations.repository.js";
@@ -114,6 +115,7 @@ describe("rental property controller", () => {
 
   it("registers the rental feature without exporting its repositories", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, RentalModule)).toEqual([
+      BillsController,
       PropertiesController,
       SpacesController,
       TenantsController,
@@ -234,6 +236,7 @@ describe("rental space controller", () => {
 
   it("registers space providers without exporting repositories", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, RentalModule)).toEqual([
+      BillsController,
       PropertiesController,
       SpacesController,
       TenantsController,
@@ -449,6 +452,7 @@ describe("rental contract controller", () => {
 
   it("registers contract providers without exporting repositories", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, RentalModule)).toEqual([
+      BillsController,
       PropertiesController,
       SpacesController,
       TenantsController,
