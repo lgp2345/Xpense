@@ -59,6 +59,9 @@ it("展示生成快照、原计划和差额，不推断收款", async () => {
   expect(screen.getByText(/· 到期日已过/)).toBeInTheDocument();
   expect(screen.getByText(/本阶段仅记录应收/)).toBeInTheDocument();
   expect(screen.getByText(/合同修正/)).toBeInTheDocument();
+  expect(screen.getByText("生成批次：batch")).toBeInTheDocument();
+  expect(screen.getByText("原付款账期：2026-01-01 至 2026-03-31")).toBeInTheDocument();
+  expect(screen.getByText("实际计租范围：2026-01-01 至 2026-03-31")).toBeInTheDocument();
   expect(screen.queryByText(/欠款|未付款|已收款/)).not.toBeInTheDocument();
 });
 it("未知 ID 显示错误，不请求当前合同替换快照", async () => {

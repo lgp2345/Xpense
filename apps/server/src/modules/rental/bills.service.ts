@@ -61,6 +61,13 @@ export class BillsService {
         totals: plan.totals,
         createTotals: plan.createTotals,
         missingDepositSourceKeys: plan.missingDepositSourceKeys,
+        depositInputs: plan.creates
+          .filter((draft) => draft.type === "deposit")
+          .map((draft) => ({
+            sourceKey: draft.sourceKey,
+            label: draft.lines[0]?.label ?? "押金",
+            amountMinor: draft.amountMinor,
+          })),
         terminationReference: plan.terminationReference,
       };
     });

@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { BillCalculationLines } from "./bill-calculation-lines";
 import { formatBillAmount as formatMoney } from "./bill-format";
 export function BillPreviewTable({
   preview,
@@ -19,7 +20,7 @@ export function BillPreviewTable({
   disabled: boolean;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-3">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -34,7 +35,19 @@ export function BillPreviewTable({
           <TableBody>
             {preview.items.map((item) => (
               <TableRow key={item.sourceKey}>
-                <TableCell>{item.type === "rent" ? "租金" : "押金"}</TableCell>
+                <TableCell className="align-top">
+                  {item.type === "rent"
+                    ? "租金"
+                    : (item.lines.find((line) => line.kind === "deposit")?.label ?? "押金")}
+                  {item.lines.length ? (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-xs text-muted-foreground">
+                        查看计算依据
+                      </summary>
+                      <BillCalculationLines lines={item.lines} />
+                    </details>
+                  ) : null}
+                </TableCell>
                 <TableCell className="whitespace-nowrap">
                   {item.periodStart?.replaceAll("-", "/") ?? "—"}{" "}
                   {item.periodEnd ? `至 ${item.periodEnd.replaceAll("-", "/")}` : ""}

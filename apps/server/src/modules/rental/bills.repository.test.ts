@@ -1,15 +1,94 @@
+import { writeFile } from "node:fs/promises";
 import { Test } from "@nestjs/testing";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it, vi } from "vitest";
 
 import { DB } from "../../db/db.tokens.js";
 import { rentalBillLines, rentalBills } from "../../db/schema.js";
+import { rentalBillingSource } from "../../test/rental-billing-fixtures.js";
 import type { BillingSource, PersistableBillingDraft } from "./billing.types.js";
+import { assembleBillingPreview } from "./billing-plan.rules.js";
 import { billListCondition } from "./bills.queries.js";
 import { BillsRepository, buildNextBillNumbersStatement } from "./bills.repository.js";
 
 const dialect = new PgDialect();
 describe("账单仓储作用域及原子编号", () => {
+  it.each([1, 30, 100])("%i 年月付合同完整预览及批量写入，无按行查询", async (years) => {
+    const source = rentalBillingSource({
+      endDate: `${2025 + years}-12-31`,
+      paymentIntervalMonths: 1,
+    });
+    const start = performance.now();
+    const initial = assembleBillingPreview(source, {
+      contractId: source.contract.id,
+      depositDueDates: {},
+    });
+    const plan = assembleBillingPreview(source, {
+      contractId: source.contract.id,
+      depositDueDates: Object.fromEntries(
+        initial.missingDepositSourceKeys.map((key) => [key, "2026-01-01"]),
+      ),
+    });
+    const previewMs = performance.now() - start;
+    const drafts = plan.creates.map((draft) => {
+      if (!draft.dueDate) throw new Error("missing due date");
+      return { ...draft, dueDate: draft.dueDate, adjustmentId: null };
+    });
+    const lines = drafts.reduce((sum, draft) => sum + draft.lines.length, 0);
+    expect(drafts).toHaveLength(years * 12 + 2);
+    expect(lines).toBe(years * 12 + 2);
+    let billQueries = 0,
+      lineQueries = 0;
+    const executor = {
+      execute: vi.fn().mockResolvedValue([{ lastValue: drafts.length }]),
+      insert: (table: unknown) => ({
+        values: (rows: unknown[]) => {
+          if (table === rentalBills) {
+            billQueries++;
+            return { returning: async () => rows };
+          }
+          if (table === rentalBillLines) {
+            lineQueries++;
+            return Promise.resolve();
+          }
+          throw new Error("unexpected table");
+        },
+      }),
+    };
+    const module = await Test.createTestingModule({
+      providers: [BillsRepository, { provide: DB, useValue: {} }],
+    }).compile();
+    const generateStart = performance.now();
+    const records = await module
+      .get(BillsRepository)
+      .insertBills(
+        { organizationId: source.organizationId, userId: "user", today: source.today },
+        source,
+        "generation",
+        drafts,
+        executor as never,
+      );
+    const generateMs = performance.now() - generateStart;
+    expect(records).toHaveLength(years * 12 + 2);
+    expect(executor.execute).toHaveBeenCalledOnce();
+    expect(billQueries).toBe(Math.ceil(drafts.length / 500));
+    expect(lineQueries).toBe(Math.ceil(lines / 500));
+    await writeFile(
+      `/tmp/xpense-billing-perf-${years}.json`,
+      JSON.stringify({
+        years,
+        bills: records.length,
+        rentFragments: years * 12,
+        lines,
+        writeQueries: 1 + billQueries + lineQueries,
+        previewMs,
+        generateMs,
+        environment:
+          "local pure preview and real repository with instrumented executor; excludes database I/O",
+      }),
+    );
+    await module.close();
+  });
   it("筛选 SQL 参数化且组织隔离，有效与作废可查询", () => {
     const query = dialect.sqlToQuery(
       billListCondition("org", {

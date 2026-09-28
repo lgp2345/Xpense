@@ -128,6 +128,16 @@ function GenerationSession({ contractId, api, onOpenChange, onGenerated }: Props
     attempt.current = null;
     setError(null);
   };
+  const depositInputs =
+    preview?.depositInputs ??
+    preview?.missingDepositSourceKeys.map((sourceKey) => ({
+      sourceKey,
+      label:
+        preview.items
+          .find((item) => item.sourceKey === sourceKey)
+          ?.lines.find((line) => line.kind === "deposit")?.label ?? "押金",
+    })) ??
+    [];
   const submit = async () => {
     if (inFlight.current || !preview || !valid || !preview.canGenerate) return;
     inFlight.current = true;
@@ -178,7 +188,7 @@ function GenerationSession({ contractId, api, onOpenChange, onGenerated }: Props
         </DialogHeader>
         {busy && !preview ? <p role="status">正在读取完整计费计划…</p> : null}
         {preview ? (
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <div className="space-y-1 text-sm">
               <p>金额单位：组织本位币</p>
               <p>
@@ -192,8 +202,8 @@ function GenerationSession({ contractId, api, onOpenChange, onGenerated }: Props
                 金额为整个计划的汇总，分页仅影响展示。正常租金、既有金额及到期日均只读。
               </p>
             </div>
-            {preview.missingDepositSourceKeys.length ? (
-              <fieldset disabled={busy} className="space-y-3">
+            {depositInputs.length ? (
+              <fieldset disabled={busy} className="min-w-0 space-y-3">
                 <legend className="text-sm font-medium">新增押金到期日（必填）</legend>
                 <div className="flex flex-wrap items-center gap-2">
                   <DatePickerInput
@@ -208,7 +218,7 @@ function GenerationSession({ contractId, api, onOpenChange, onGenerated }: Props
                       form.setFieldValue(
                         "depositDueDates",
                         Object.fromEntries(
-                          preview.missingDepositSourceKeys.map((key) => [key, values.unifiedDate]),
+                          depositInputs.map(({ sourceKey }) => [sourceKey, values.unifiedDate]),
                         ),
                       );
                       change();
@@ -217,17 +227,16 @@ function GenerationSession({ contractId, api, onOpenChange, onGenerated }: Props
                     应用到新增押金
                   </Button>
                 </div>
-                {preview.missingDepositSourceKeys.map((key, index) => (
+                {depositInputs.map(({ sourceKey: key, label }, index) => (
                   <div className="space-y-1" key={key}>
                     <label
                       className="text-xs text-muted-foreground"
                       htmlFor={`deposit-date-${index}`}
                     >
-                      押金 {index + 1} 到期日
+                      {label}（{index + 1}）到期日
                     </label>
                     <DatePickerInput
                       id={`deposit-date-${index}`}
-                      aria-label={`押金 ${index + 1} 到期日`}
                       value={values.depositDueDates[key]}
                       onChange={(date) => {
                         const dates = { ...values.depositDueDates };

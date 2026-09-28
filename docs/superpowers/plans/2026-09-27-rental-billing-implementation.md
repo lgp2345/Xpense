@@ -1,6 +1,6 @@
 # 租赁合同应收账单 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 从合同手动预览并生成全租期租金及独立押金应收，提供账单查询和可追溯的合同生命周期联动。
 
@@ -199,12 +199,12 @@
 
 **Interfaces:** `ContractBillsSection({ organizationId, contractId, api, permissions })`；`BillGenerationDialog({ organizationId, contractId, api, open, onOpenChange, onGenerated })`，api 为 RentalBillsApi；`onGenerated(result: RentalBillGenerationResult): void`。终止字段组件消费 RentalTerminationPreview，输出 billingConfirmation，原终止 action 提交合同 API。
 
-- [ ] 先写用户行为失败测试：6 张新增项预览、押金到期日必填、统一日期和逐项修改、租金字段只读、现有项不可改、确认显示分类金额；应看到“本阶段仅记录应收，收款情况尚未登记”，不出现欠款或已收状态。只有 read 权限时由列表 coverage 展示需补齐数量，隐藏生成入口且不请求 preview。
-- [ ] 运行 `pnpm exec turbo run test --filter=@xpense/web --force -- src/features/rental/bills/contract-bills-section.test.tsx src/features/rental/bills/bill-generation-dialog.test.tsx src/features/rental/bills/termination-billing-fields.test.tsx`，确认失败后按 DESIGN.md 实现，继续使用现有表单、日期和金额组件。
-- [ ] 预览表分页但顶部展示全计划新增数量和分类总额；生成按钮只有完整有效 version 且必填项齐全才可用。组织/合同变化立刻丢弃局部预览；迟到响应按原目标检查后丢弃。409 重新预览前不得确认；保留的押金日期必须按稳定 sourceKey 匹配。
-- [ ] 合同修正/取消/撤销确认中明确账单作废影响；终止弹窗先请求参考值，录入整期最终应收和原因，再一次提交。没有账单时保留原终止流程；已有账单缺 adjust 权限时解释为何不可操作。终止字段金额允许零，不能使用现有只允许正数的转换函数而改变原合同金额校验。
-- [ ] 新交互测试及合同详情、表单、生命周期回归通过；验证按钮连点、请求失败、重试、页间变化和切换组织不会漏确认或重复创建。
-- [ ] 完成提交检查后单独提交：`git commit -m "feat: 新增合同账单预览与终止确认交互"`。
+- [x] 先写用户行为失败测试：6 张新增项预览、押金到期日必填、统一日期和逐项修改、租金字段只读、现有项不可改、确认显示分类金额；应看到“本阶段仅记录应收，收款情况尚未登记”，不出现欠款或已收状态。只有 read 权限时由列表 coverage 展示需补齐数量，隐藏生成入口且不请求 preview。
+- [x] 运行 `pnpm exec turbo run test --filter=@xpense/web --force -- src/features/rental/bills/contract-bills-section.test.tsx src/features/rental/bills/bill-generation-dialog.test.tsx src/features/rental/bills/termination-billing-fields.test.tsx`，确认失败后按 DESIGN.md 实现，继续使用现有表单、日期和金额组件。
+- [x] 预览表分页但顶部展示全计划新增数量和分类总额；生成按钮只有完整有效 version 且必填项齐全才可用。组织/合同变化立刻丢弃局部预览；迟到响应按原目标检查后丢弃。409 重新预览前不得确认；保留的押金日期必须按稳定 sourceKey 匹配。
+- [x] 合同修正/取消/撤销确认中明确账单作废影响；终止弹窗先请求参考值，录入整期最终应收和原因，再一次提交。没有账单时保留原终止流程；已有账单缺 adjust 权限时解释为何不可操作。终止字段金额允许零，不能使用现有只允许正数的转换函数而改变原合同金额校验。
+- [x] 新交互测试及合同详情、表单、生命周期回归通过；验证按钮连点、请求失败、重试、页间变化和切换组织不会漏确认或重复创建。
+- [x] 完成提交检查后单独提交：`git commit -m "feat: 新增合同账单预览与终止确认交互"`。
 
 ## Task 9：统一列表、详情与路由
 
@@ -212,12 +212,12 @@
 
 **Interfaces:** `BillsPage({ organizationId, api, permissions, search, onSearchChange, onNavigate })` 使用 ListRentalBillsQuery；`BillDetailPage({ organizationId, billId, api, permissions })`。RouteKey 和 path 与任务 1 一致；路由使用 RegisteredRouteLeaf 和 session 的 rentalBillsApi。
 
-- [ ] 先写 URL 筛选恢复和分页测试；示例金额租金 900000、押金 300000，作废租金 900000 不计入有效总额。状态“到期日已过”不解释为未付款；明细能区分原计划、差额和最终金额。
-- [ ] 运行 `pnpm exec turbo run test --filter=@xpense/web --force -- src/features/rental/bills/bills-page.test.tsx src/features/rental/bills/bill-detail-page.test.tsx src/features/rental/bills/bill-filters.test.tsx src/routes/_authenticated/\(rental\)/rentals/bills/bills-routes.test.tsx`，失败后实现分页、筛选、费用分类、详情及安全历史。
-- [ ] 普通详情源数据使用生成快照，跳转当前合同显示明确入口；作废原因与调整原因可查询，列表默认仅有效，切换后可查作废。无 read 权限时不请求账单；未知 ID 使用现有错误反馈。
-- [ ] 通过现有路由生成流程更新 routeTree.gen.ts（生成产物，不手改）；检查共享 RouteKey、菜单解析、页面缓存与懒加载映射一致。
-- [ ] 重跑页面及路由契约测试，手动检查桌面和移动端筛选、明细、日期录入、错误反馈、键盘操作及长名称溢出。
-- [ ] 完成提交检查后单独提交：`git commit -m "feat: 新增租赁账单列表与详情页面"`。
+- [x] 先写 URL 筛选恢复和分页测试；示例金额租金 900000、押金 300000，作废租金 900000 不计入有效总额。状态“到期日已过”不解释为未付款；明细能区分原计划、差额和最终金额。
+- [x] 运行 `pnpm exec turbo run test --filter=@xpense/web --force -- src/features/rental/bills/bills-page.test.tsx src/features/rental/bills/bill-detail-page.test.tsx src/features/rental/bills/bill-filters.test.tsx src/routes/_authenticated/\(rental\)/rentals/bills/bills-routes.test.tsx`，失败后实现分页、筛选、费用分类、详情及安全历史。
+- [x] 普通详情源数据使用生成快照，跳转当前合同显示明确入口；作废原因与调整原因可查询，列表默认仅有效，切换后可查作废。无 read 权限时不请求账单；未知 ID 使用现有错误反馈。
+- [x] 通过现有路由生成流程更新 routeTree.gen.ts（生成产物，不手改）；检查共享 RouteKey、菜单解析、页面缓存与懒加载映射一致。
+- [x] 重跑页面及路由契约测试，手动检查桌面和移动端筛选、明细、日期录入、错误反馈、键盘操作及长名称溢出。
+- [x] 完成提交检查后单独提交：`git commit -m "feat: 新增租赁账单列表与详情页面"`。
 
 ## Task 10：整体回归、数据库演练与交付
 
@@ -225,13 +225,13 @@
 
 **Interfaces:** 无新增产品接口；产出实际检查证据、尚未执行事项及部署说明。
 
-- [ ] 对照设计第 10 节逐项核对任务覆盖，运行 `pnpm exec turbo run test --filter=@xpense/shared --filter=@xpense/server --filter=@xpense/web --force`；再运行 `pnpm exec turbo run lint check build --filter=@xpense/shared --filter=@xpense/server --filter=@xpense/web`。既有无关失败单独记录，不修复或弱化断言。
+- [x] 对照设计第 10 节逐项核对任务覆盖，运行 `pnpm exec turbo run test --filter=@xpense/shared --filter=@xpense/server --filter=@xpense/web --force`；再运行 `pnpm exec turbo run lint check build --filter=@xpense/shared --filter=@xpense/server --filter=@xpense/web`。既有无关失败单独记录，不修复或弱化断言。
 - [ ] 数据库演练先明确申请一次性本地测试库 DDL/清理授权，再使用专用测试变量运行真实 PostgreSQL 测试；绝不连接业务库替代。至少两条独立连接竞争同一合同，验证有效来源唯一、同请求键竞争、事务回滚及合同修改竞争；单连接 mock 不计为并发验证。
 - [ ] 验证已有组织菜单补充、角色授权、已终止合同和无账单合同升级前后行为；只交付 migration 文件和说明，运行到用户业务库另行授权。应用 dev 命令会触发 db-prepare，不使用根 pnpm dev 作为无副作用预览命令。
-- [ ] 在本地测试环境记录 1 年、30 年合同和长租期预览/生成的片段数、账单数、查询次数与耗时；断言 101 张账单分页展示却完整生成，以及没有按行 N+1。超出安全数值或日期明确报错，不人为截短。性能证据不足时列为风险，不声称全范围已验证。
-- [ ] 独立评审稳定代码，优先检查月份归属、金额舍入、身份快照、事务、条件权限和幂等。若采用子 Agent，仅使用项目 Reviewer 角色，给出明确只读范围，不让其继续派发；评审发现修复后只重跑受影响检查。
-- [ ] 最后运行 `git diff --check`，检查本次改动文件、敏感信息和禁止的 console 日志；在本计划中补齐实际验收记录，交付实施结果、验证范围、数据库演练是否执行、剩余风险及大型合同文件集成热点。
-- [ ] 完成提交检查后单独提交验收记录及本任务相关改动：`git commit -m "chore: 完成租赁账单回归验证与交付记录"`。即使无需再修改代码，也提交真实验收记录，不用空提交代替任务产物；不推送。
+- [x] 在本地测试环境记录 1 年、30 年合同和长租期预览/生成的片段数、账单数、查询次数与耗时；断言 101 张账单分页展示却完整生成，以及没有按行 N+1。超出安全数值或日期明确报错，不人为截短。性能证据不足时列为风险，不声称全范围已验证。
+- [x] 独立评审稳定代码，优先检查月份归属、金额舍入、身份快照、事务、条件权限和幂等。若采用子 Agent，仅使用项目 Reviewer 角色，给出明确只读范围，不让其继续派发；评审发现修复后只重跑受影响检查。
+- [x] 最后运行 `git diff --check`，检查本次改动文件、敏感信息和禁止的 console 日志；在本计划中补齐实际验收记录，交付实施结果、验证范围、数据库演练是否执行、剩余风险及大型合同文件集成热点。
+- [x] 完成提交检查后单独提交验收记录及本任务相关改动：`git commit -m "chore: 完成租赁账单回归验证与交付记录"`。即使无需再修改代码，也提交真实验收记录，不用空提交代替任务产物；不推送。
 
 ## 顺序、授权与执行方式
 
@@ -239,7 +239,7 @@
 
 推荐主 Agent 在当前会话顺序实施，最后使用独立 Reviewer：计费来源、事务联动和前端契约依赖紧密，顺序实施减少共享文件冲突。若用户选择子 Agent 驱动，任务 1 的共享契约仍由主 Agent维护，按任务独占其新增业务文件，合同 service、模块注册、共享类型和迁移由主 Agent 集成；所有子 Agent 禁止再派发。
 
-尚无实施方式选择；每个 Task 的精确暂存及中文本地提交已获用户明确授权。实际迁移、seed、测试库 DDL、推送及 PR 仍未授权，只在需要对应操作时解释具体影响并申请，不重复询问已获授权的任务提交。
+已按用户请求在当前分支使用 executing-plans 原地顺序实施；当前对话已明确授权逐任务精确暂存及中文本地提交。实际迁移、seed、测试库 DDL、推送及 PR 仍未授权，只在需要对应操作时解释具体影响并申请，不重复询问已获授权的任务提交。
 
 ## 自检与文档依据
 
@@ -247,7 +247,7 @@
 
 计划中的任务命令依据本仓库 package scripts 和 turbo.json，并通过 Context7 核对 [Turborepo 参数透传与强制执行](https://github.com/vercel/turborepo/blob/main/apps/docs/content/docs/reference/run.mdx)。共享包测试脚本已包含 `src`，因此任务 1 运行完整共享包测试，不误称只跑单个文件。数据库部分唯一索引参考 [Drizzle PostgreSQL 索引文档](https://github.com/drizzle-team/drizzle-orm-docs/blob/main/src/content/docs/pg/indexes-constraints.mdx)；Context7 未提供当前 RC 专属版本，具体 schema API 仍以本地已用模式和当前类型检查为准，实施时查询所用 NestJS、Drizzle、TanStack API，不据此升级依赖。
 
-本计划及设计位于被 .gitignore 忽略的 docs/。执行任务提交时，必要的本任务设计依据和验收记录可纳入已授权的提交范围；使用 `git add -f` 时仅列出本计划及对应设计的精确路径，不强制暂存整个 docs/，不修改忽略规则，也不夹带其他本地文档。当前仅更新计划，尚无已完成的实施任务，不提前创建任务完成提交。
+本计划及设计位于被 .gitignore 忽略的 docs/。执行任务提交时，必要的本任务设计依据和验收记录可纳入已授权的提交范围；使用 `git add -f` 时仅列出本计划及对应设计的精确路径，不强制暂存整个 docs/，不修改忽略规则，也不夹带其他本地文档。实施任务和本地提交的实际结果记录如下，不将规划阶段状态误作当前进度。
 
 ## 实际执行记录
 
@@ -328,3 +328,77 @@
 - 详情使用生成快照，展示原计划、参考分母、差额、最终应收、作废原因及最近 20 张同来源历史。仅到期日期状态，不推断收款。
 - Vite 插件生成 routeTree.gen.ts，同步 RouteKey 权限与菜单标签，web check/build 通过。变更文件 Biome 通过。
 - 使用本地模拟接口检查 1280px 桌面和 390px 手机的状态筛选、详情、长名称、预览、日期录入、Tab 和未知结果重试。手机 document scrollWidth=390，dialogWidth=358；明细表内部横向滚动。未连接业务后端；模拟预览仅用于交互，不能作为真实生成验收。截图 /tmp/xpense-billing-mobile.png。
+
+### Task 10（代码与本地验收完成；实库演练未执行）
+
+- 最终修复后完整强制回归：shared 28 通过；server 1124 通过/3 skip；web 703 通过/2 个原基线失败（新合同选择房产、切换预选房产重置）。前一次全量运行的日历弹窗瞬时失败已在单项、表单整文件和最终全量运行中通过。未删除或弱化原断言。
+- lint/check/build 最终为 8/9 任务成功：三个项目 check/build 和 shared/server lint 通过；web lint 保留 19 项原错误、1 warning、2 info。48 个本次 WEB 改动文件校验仅既有合同表单格式失败，排除此原格式问题后其余 47 个通过；未对既有整文件格式做无关清理。新生成的迁移快照已按仓库格式整理。
+- 专用测试库环境变量未配置，测试库 DDL/清理申请尚未收到答复，真实 PostgreSQL 演练未执行。测试代码使用控制连接和两条独立 worker 连接，覆盖并发有效来源、同键重放、合同修正等待锁，以及生成/账单/明细/计数器回滚；增量菜单与权限幂等验证同样等待实库。不以这些跳过项声称并发已通过。
+- 101 张预览分页但完整生成已有 service 回归覆盖。以下数字为本机纯计划预览，以及真实 BillsRepository 配合计数 executor 的批量写入，包含两项押金，不含数据库 I/O、来源读取查询或事务锁等待。每批最多 500 行，编号只查询一次；100 年合同实际 1202 张未截断。
+
+| 租期 | 租金片段 | 账单 | 写查询 | 两次预览 | 仓储写入 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 年 | 12 | 14 | 3 | 3.02 ms | 0.63 ms |
+| 30 年 | 360 | 362 | 3 | 6.92 ms | 0.37 ms |
+| 100 年 | 1200 | 1202 | 7 | 54.52 ms | 1.24 ms |
+
+- 这组代理证据不代表生产性能，真实数据库总查询数、锁竞争耗时、支持日期全范围的实库容量仍未测。规则测试覆盖安全整数溢出及 9999 年日期边界。本机 Node 为 25.6.0，仓库要求 26.8.2；未安装或切换运行时，以上证据限于本机环境。
+- 架构/覆盖核对：设计 3 为日期/来源/终止纯规则；设计 4 为 5 表约束及安全快照；设计 5/6 为生成和合同共事务；设计 7 为条件权限与 HTTP/DTO；设计 8 为 API/query/表单/列表/快照详情/URL 路由。金额、日期、权限和关键 HTTP 流程均有目标测试，实际验证以各 Task 记录及最终评审修复记录为准。
+- 安全检查：最终 123 个改动文件未检出常见真实密钥模式，新增禁止 console 日志为 0；工作区及暂存 diff 检查通过。未安装依赖、未改变 lockfile。
+
+#### 部署与升级边界
+
+1. 按顺序交付两份生成的 migration 及快照：`20260927161043_rental_billing` 新增应收，`20260928035119_rental_billing_scope` 将历史账单合同引用与房产引用按组织分别约束，允许合同修正房产而保留历史快照。业务库迁移、seed 尚未执行，部署时需单独授权并先备份/演练。
+2. migration 只追加应收结构和默认账单菜单/权限；仅系统 owner/admin 增量授权，自定义角色不扩大；既有菜单可见性、排序和自定义结构保留，重复补充保持幂等。
+3. 既有合同不自动回填应收，升级后手动预览生成；无账单合同保留原终止流程，历史已终止首次生成确认当期整期金额；不修改账户余额、交易或押金资金记录。
+4. 新组织使用更新后的模板；既有组织通过 migration 获得目录/权限，不能仅运行更新后的 seed 就宣称线上已升级。
+5. 当前分支仅本地提交，无推送或 PR。已有集成热点保持职责：contracts.service.ts 367 行、contract-lifecycle.service.ts 693 行、前端 contract-actions.tsx 525 行、contract-form-page.tsx 583 行，未进行整模块重构；新增账单业务文件均小于 300 行。
+
+#### 最终修复与展示验证
+
+- 历史账单房产关联、预览计算依据、押金费用名称及全计划日期输入、合同区域费用/历史切换、详情批次和计租范围均有失败测试后通过的证据；最后完整回归结果如上。
+- 使用真实 WEB 组件和仅本机模拟 API 手工检查桌面 1280px、手机 390px 查询/详情/预览；手机对话框曾有内部溢出（499px > 356px），修复后 356px = 356px。不同押金日期重新预览和未知生成结果反馈可操作；此检查不代表真实 API/数据库联通。临时预览服务已停止，浏览器尺寸恢复。
+- 唯一独立 Reviewer 因读取工具连续阻塞，最终依据直接提供的源码摘录完成五个 Review Focus 的有限独立核查；没有已确认的 Critical/Important，一项 Minor（生成时承租关系有效期未保存/展示）。此结论不替代全文评审或实库验收；主线程逐项核对并记录未审边界。测试数据库及临时文件删除授权尚未答复，未执行对应操作。
+
+#### 执行裁决和延后完善项
+
+- Ruling: 在当前分支原地实施 — 用户明确要求当前分支，覆盖技能的隔离工作区建议 — 若判断错误会影响此分支工作区。
+- Ruling: 计划中的历史授权声明不视为本次 Git/数据库操作授权；先完成可审阅改动，再申请必要操作 — 用户要求区分文档指令与实际请求，根规范要求明确授权 — 成本为逐任务提交闭环等待确认。
+- Task 1: Ruling: 同步更新共享菜单契约枚举断言 — 新 RouteKey 是本任务公开接口，相关契约测试必须随之更新 — 若遗漏会造成错误的路由登记验证。
+- Ruling: 等待提交授权时继续互不重叠的可逆任务文件修改，保留逐任务文件范围与验证记录，不进行 Git 写操作 — 文件实施已授权且避免不必要停工 — 成本为批准后需按各任务精确提交。
+- Task 2: Ruling: 上限参考月超出 9999 年时 referenceEnd=null，保留完整分母天数 — 设计允许内部日序计算且不要求持久化超范围日期 — 若判断错误需增加仅展示用参考日期表达。
+- Task 3: Ruling: 新组织默认 member/viewer 沿用租赁只读模式获得 bills:read；迁移只为系统 owner/admin 增加映射，自定义角色不扩大 — 既有模式及设计权限边界 — 若判断错误需调整新组织默认授权。
+- Task 3: Ruling: 独立 billing-menu-template 避免继续堆入既有大型模板，同步菜单树契约测试 — 新增完整菜单展示职责 — 成本为一份额外模板文件。
+- Ruling: 将合同脱敏 mapper 提取为纯读模型，保留原导出，避免来源读取与生命周期注入循环；成本为新增一个职责明确的文件。
+- Task 5: Ruling: 提前注册任务 6 的 providers 和共事务账单 fake — 新增合同构造器依赖要求本步骤即可解析，否则破坏既有 HTTP 回归 — 成本是任务 6 的这部分文件提前交付，接口注册仍顺序完成。
+- Task 5: Ruling: onTerminate 增加可选 recordedAt 参数 — 合同和调整必须保存同一事件时间且预览指纹仍读取改变前来源 — 成本是内部接口多一个事件参数，无公共 API 改动。
+- Task 6: Ruling: 新增固定关联的 HTTP 账单 harness — 原仓储 fake 使用严格逐请求 fixture，新长流程采用明确合同仓储 seam 共享同一事务状态避免扩散 fixture — 成本是关联校验仍依赖原 core/lifecycle E2E，不能声称数据库验证。
+- Task 6: Ruling: 同步原 controller 精确登记断言 — 新接口必须成为模块的一部分，保留仓储私有断言 — 成本是测试登记随接口扩展；初次提交前全量结果核对遗漏，在任务完成前补充提交纠正。
+- Task 7: Ruling: 整体 web 类型门槛延至任务 9 路由登记 — 任务 1 已扩展 RouteKey 而任务 9 才建立路由，当前类型错误属于计划依赖顺序 — 成本是步骤 7/8 期间应用类型检查不能全绿，最终必须在任务 9/10 验证，不用占位实现。
+- Task 7: Ruling: 仅校验并格式化实际改动文件，记录既有 web lint 失败 — 原文件与当前提交版本一致，不顺手清理 — 成本是全量 lint 无法作为全绿验收。
+- Task 8: Ruling: 不新增已确认合同修正编辑器，在既有详情/非草稿提示中解释账单影响 — 当前前端仅支持草稿编辑，计划要求影响提示而非新修正工作流 — 成本是前端仍无核心修正入口，API 修正已有覆盖。
+- Task 8: Ruling: 预览使用组织本位币数字，生成快照明确币种，整数分展示 — 原合同 formatMoney 固定人民币且预览无币种字段 — 成本是预览依赖组织上下文辨别币种。
+- Task 9: Ruling: 提取纯 bill-search 避免路由校验导入整套表单组件 — 注册页面保持懒加载 — 成本是一份独立查询规则文件。
+- Task 9: Ruling: 手机明细表使用表内横向滚动，正文与筛选响应式换行 — 保持金额/账期对照且现有 Table 支持滚动 — 成本是手机需横向查看较多列。
+- Task 10: Ruling: 实际 PG 演练保留为未验证项，不连接业务库 — 专用 URL 缺失且 DDL/清理未获授权 — 成本是数据库并发/部署验收仍开放。
+- Task 10: Ruling: 长期性能记录使用纯计划与真实仓储计数 executor，明确不含 DB I/O — 当前无已授权测试库，不额外建立性能框架 — 成本是数据只能证明批量结构，不能代表生产耗时。
+- Task 10: Ruling: 最终评审在 Task 10 验收中评审稳定产品 HEAD，测试/记录由主线程补充 — 计划将独立评审列为 Task 10 步骤 — 成本是测试新增未纳入 reviewer 的提交 diff，源码保持冻结。
+- Task 10: Ruling: 整体失败保留并报告，完成门槛采用已执行全量证据与目标回归 — 根规范禁止顺手修复无关基线，优先于通用技能全绿要求 — 成本是全量前端测试/lint 仍不全绿，不能宣称可直接合并。
+- Final: Ruling: 使用项目 Reviewer 固定角色配置执行唯一独立评审 — 项目角色约束优先于技能推荐显式指定最强模型 — 成本是审阅模型由项目运行时固定。
+- Final: Ruling: 代码图过期且调用长期阻塞，恢复同一 Reviewer 上下文直接审阅稳定 94c51f9 源码 — 图只负责缩小范围，源码为准，不再追加新一轮评审 — 成本是评审延迟，图影响分析不能作为完整证据。
+- Final: Ruling: Task 10 源码冻结约定在最终修复 pass 中解除，Reviewer 仍以 git show 94c51f9 查看稳定版本，主线程以失败测试验证修复 — 已确认产品缺口应在交付前修复 — 成本是最终未提交修复不由第二位 reviewer 重审。
+- Final: Ruling: 预览补充可选 depositInputs 全计划元数据 — 分页中的押金不一定可见，日期齐全后 missing keys 为空仍必须允许修改新增日期 — 成本是一个兼容的响应字段，客户端/服务端需同步交付。
+- Final: Ruling: 用第二份生成 migration 解耦历史账单合同与房产外键，保留原始 migration — 合同房产可修正而历史账单必须保留旧快照，分别按组织约束合同和房产 — 成本是部署须按顺序执行两份迁移，实库仍未验证。
+- Final: Ruling: Reviewer 原源码读取连续阻塞后继续同一未完成的评审，直接提供已核对的源码摘录完成重点独立判断 — 不把无源码的首份受限报告视为通过，也不新增 Reviewer 或重审轮次 — 成本是独立评审依据为主线程摘录，全文及完整调用链仍需诚实列出未审边界。
+- Final: Ruling: Reviewer 未判完整跨组织 HTTP 链路，保持现有共享会话 API 和组织 query/session key — 主线程核对 token 来源为当前 store、迟到刷新保护及已通过组织切换/HTTP 权限测试 — 成本是独立全文与真实双组织浏览器链路仍未验收。
+- Final: Ruling: Reviewer 未判重放后历史展示，保持原批次返回并刷新当前列表、按作废历史查询 — result 不重新生成，详情读取保存的行与历史且不替换为当前合同资料 — 成本是用户需切换历史查看旧批次状态，独立全文核对不足。
+- Final: Ruling: Reviewer 未判当前调整查询，保持组织/合同且 revokedAt IS NULL 的 findCurrent 与唯一索引 — 来源同事务读取，随后匹配日期/RecordedAt/撤销状态，相关回归通过 — 成本是实际数据库索引和锁仍未验证。
+- Final: Ruling: Reviewer 未判完整金额日期算法，按主线程纯规则源码及边界测试验收 — BigInt 比例与汇总、原锚点月末、付款分组、日期上限和溢出目标测试及全量通过 — 成本是没有独立算法全文评审或真实全日期范围容量证据。
+- Final: Ruling: Reviewer 未判所有合同入口，保持修正/取消/终止/撤销共事务及更换承租方不重算 — 主线程核对 ContractsService 调用 onCorrection，生命周期与更换参与方源码和原 API 回归 — 成本是固定关联 HTTP harness 不覆盖真实关系持久化，完整人工流程仍未执行。
+- Final: Ruling: Reviewer 未判真实 PostgreSQL 行为，交付迁移和实库测试但明确未执行 — 缺少专用 URL 和 DDL/清理授权，不能连接业务库或以 fake 代替 — 成本是 DDL、并发、锁、回滚和部署验收仍开放。
+- Final: Ruling: Reviewer 未判完整前端交互，采用主线程目标测试与实际浏览器展示验证 — 修复先有失败证据、最后全量 703 通过且只剩 2 个原基线失败，手机独立日期/确认/未知结果已核对 — 成本是独立组件全文及真实 API 联通未验收。
+- Final: Ruling: 保留本计划工作区和仅模拟 API 的 WEB 临时预览文件 — 根规范要求删除获明确授权，异步询问尚未答复，服务与临时浏览器已停止 — 成本是仓库还留有未跟踪的 apps/web/.superpowers/billing-visual，不纳入提交。
+- Final: Ruling: 收尾保持当前分支和本地提交，不进入合并/推送菜单 — 用户明确当前分支、本地提交，原基线失败按项目与计划单独记录，优先于通用技能全绿门槛 — 成本是结果不能宣称全绿可直接合并或部署。
+
+- 延后完善：承租关系快照未保存/展示有效期，先后主付款人可能难以区分；本阶段应收按合同归属，未见金额或个人债务影响。
+- Task 10 的数据库演练和实库增量菜单验收保持未勾选；其余完成项是代码与已执行的本地证据，不表示全部部署门槛已通过。

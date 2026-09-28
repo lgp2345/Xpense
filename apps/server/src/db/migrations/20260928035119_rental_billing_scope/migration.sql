@@ -1,0 +1,2 @@
+ALTER TABLE "rental_bills" ADD CONSTRAINT "rental_bills_property_scope_fk" FOREIGN KEY ("organization_id","property_id") REFERENCES "rental_properties"("organization_id","id");--> statement-breakpoint
+ALTER TABLE "rental_bills" DROP CONSTRAINT "rental_bills_contract_scope_fk", ADD CONSTRAINT "rental_bills_contract_scope_fk" FOREIGN KEY ("organization_id","contract_id") REFERENCES "rental_contracts"("organization_id","id");

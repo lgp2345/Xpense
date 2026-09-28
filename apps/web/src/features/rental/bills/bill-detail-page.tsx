@@ -59,6 +59,19 @@ export function BillDetailPage({
         </a>
         <h1 className="break-words text-2xl font-bold">{bill.billNumber}</h1>
         <p className="text-sm text-muted-foreground">本阶段仅记录应收，收款情况尚未登记</p>
+        <div className="space-y-1 break-words text-sm text-muted-foreground">
+          <p>生成批次：{bill.generationId}</p>
+          {bill.periodStart ? (
+            <>
+              <p>
+                原付款账期：{bill.periodStart} 至 {bill.periodEnd}
+              </p>
+              <p>
+                实际计租范围：{bill.periodStart} 至 {bill.effectiveEnd}
+              </p>
+            </>
+          ) : null}
+        </div>
         <div className="flex flex-wrap gap-4 text-sm">
           <span>
             {bill.type === "rent" ? "租金" : "押金"} · {bill.status === "active" ? "有效" : "作废"}

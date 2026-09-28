@@ -178,6 +178,28 @@ async function harness(source = rentalBillingSource()) {
 }
 
 describe("全租期预览与幂等写入", () => {
+  it("押金输入元数据涵盖全计划，日期齐全后仍可辨别和修改新增项", async () => {
+    const h = await harness(
+      rentalBillingSource({ endDate: "2055-12-31", paymentIntervalMonths: 1 }),
+    );
+    const first = await h.preview();
+    expect(first.items.every((item) => item.type === "rent")).toBe(true);
+    expect(first).toHaveProperty(
+      "depositInputs",
+      expect.arrayContaining([
+        expect.objectContaining({ label: "租赁押金" }),
+        expect.objectContaining({ label: "水电押金" }),
+      ]),
+    );
+    for (const key of first.missingDepositSourceKeys) h.input.depositDueDates[key] = "2026-01-01";
+    const ready = await h.preview();
+    expect(ready.canGenerate).toBe(true);
+    expect(ready).toHaveProperty(
+      "depositInputs",
+      expect.arrayContaining([expect.objectContaining({ label: "租赁押金" })]),
+    );
+    await h.module.close();
+  });
   it("历史终止首次生成仅适用原账期，确认零额和原因，完整批次关联新调整事件", async () => {
     const source = rentalBillingSource({
       lifecycleStatus: "terminated",

@@ -23,6 +23,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { organizations, users } from "./identity.js";
+import { rentalProperties } from "./rental.js";
 import { rentalContracts } from "./rental-tenancy.js";
 
 export const rentalBillType = pgEnum("rental_bill_type", ["rent", "deposit"]);
@@ -192,12 +193,13 @@ export const rentalBills = snakeCase.table(
       .where(sql`${table.status} = 'active'`),
     foreignKey({
       name: "rental_bills_contract_scope_fk",
-      columns: [table.organizationId, table.propertyId, table.contractId],
-      foreignColumns: [
-        rentalContracts.organizationId,
-        rentalContracts.propertyId,
-        rentalContracts.id,
-      ],
+      columns: [table.organizationId, table.contractId],
+      foreignColumns: [rentalContracts.organizationId, rentalContracts.id],
+    }),
+    foreignKey({
+      name: "rental_bills_property_scope_fk",
+      columns: [table.organizationId, table.propertyId],
+      foreignColumns: [rentalProperties.organizationId, rentalProperties.id],
     }),
     foreignKey({
       name: "rental_bills_generation_scope_fk",

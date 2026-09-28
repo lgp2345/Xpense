@@ -151,6 +151,8 @@ export type RentalBillPreview = PageResult<RentalBillPreviewItem> & {
   totals: RentalBillTotals;
   createTotals: RentalBillTotals;
   missingDepositSourceKeys: string[];
+  /** 整个计划的新增押金输入，不受展示分页影响；可选以兼容旧响应。 */
+  depositInputs?: Array<{ sourceKey: string; label: string; amountMinor: number }>;
   terminationReference: RentalBillTerminationReference | null;
 };
 export type RentalBillGenerationResult = {
