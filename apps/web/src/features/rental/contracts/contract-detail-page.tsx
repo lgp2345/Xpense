@@ -8,7 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
+import type { RentalBillsApi } from "../../../services/rental-bills-api";
 import { rentalQueryOptions } from "../../../services/rental-query";
+import { ContractBillsSection } from "../bills/contract-bills-section";
 import { ContractActions } from "./contract-actions";
 import {
   DepositSection,
@@ -21,6 +23,7 @@ import { ContractStatusBadge } from "./contract-status";
 
 export function ContractDetailPage({
   api,
+  billsApi,
   organizationId,
   contractId,
   permissions,
@@ -28,6 +31,7 @@ export function ContractDetailPage({
   navigate,
 }: {
   api: RentalApi;
+  billsApi?: RentalBillsApi;
   organizationId: string;
   contractId: string;
   permissions: readonly PermissionKey[];
@@ -86,6 +90,7 @@ export function ContractDetailPage({
           <ContractActions
             key={`${organizationId}:${contract.id}`}
             api={api}
+            billsApi={billsApi}
             organizationId={organizationId}
             contract={contract}
             permissions={permissions}
@@ -110,6 +115,26 @@ export function ContractDetailPage({
         </div>
       ) : null}
       <Overview contract={contract} />
+      {contract.lifecycleStatus === "confirmed" && contract.displayStatus === "upcoming" ? (
+        <p className="text-sm text-muted-foreground">
+          修正计费相关信息会作废受影响的有效账单，需要重新预览补齐；无关备注不会影响账单。
+        </p>
+      ) : null}
+      {billsApi ? (
+        <ContractBillsSection
+          key={`${organizationId}:${contract.id}`}
+          organizationId={organizationId}
+          contractId={contract.id}
+          api={billsApi}
+          permissions={permissions}
+          canGenerate={
+            contract.lifecycleStatus === "confirmed" || contract.lifecycleStatus === "terminated"
+          }
+          onNavigate={(billId) =>
+            void navigate?.({ to: "/rentals/bills/$billId", params: { billId } })
+          }
+        />
+      ) : null}
       <div className="divide-y rounded-xl border bg-card text-card-foreground">
         <SpaceSection contract={contract} />
         <ContractPartySection

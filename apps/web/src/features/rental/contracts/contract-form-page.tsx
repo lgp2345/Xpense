@@ -565,6 +565,7 @@ function NonDraftNotice({ contractId }: { contractId: string }) {
     <main className="p-4 sm:p-6 lg:p-8">
       <div role="alert" className="bg-muted border rounded-md text-sm p-4">
         该合同已不是草稿，无法继续编辑。
+        修正计费相关信息可能作废受影响账单，需要重新预览补齐。
         <a className="ml-2 underline" href={`/rentals/contracts/${contractId}`}>
           查看合同详情
         </a>

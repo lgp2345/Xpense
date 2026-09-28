@@ -12,10 +12,51 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
 import { rentalKeys } from "../../../services/rental-query";
+import { billsApiFixture } from "../bills/bill-test-fixtures";
 import { ContractActions } from "./contract-actions";
 import { ContractDetailPage } from "./contract-detail-page";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+
+it("终止一次提交整期财务确认，零金额合法且刷新账单缓存", async () => {
+  const terminateContract = vi.fn().mockResolvedValue(detail);
+  const billsApi = billsApiFixture();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ContractActions
+        api={createApi({ terminateContract })}
+        billsApi={billsApi}
+        organizationId="org-a"
+        contract={{ ...detail, hasScheduledTermination: false }}
+        permissions={[
+          "rental_contracts:read",
+          "rental_contracts:update",
+          "rental_bills:read",
+          "rental_bills:adjust",
+        ]}
+      />
+    </QueryClientProvider>,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "提前终止" }));
+  const date = screen.getByLabelText("终止日期");
+  fireEvent.change(date, { target: { value: "2026/09/15" } });
+  fireEvent.blur(date);
+  await userEvent.type(screen.getByLabelText("原因"), "协商终止");
+  fireEvent.change(await screen.findByLabelText("终止当期最终应收"), { target: { value: "0" } });
+  await userEvent.type(screen.getByLabelText("金额确认原因"), "免除当期");
+  await userEvent.click(screen.getByRole("button", { name: "确认提前终止" }));
+  expect(terminateContract).toHaveBeenCalledExactlyOnceWith({
+    id: "contract-1",
+    terminationDate: "2026-09-15",
+    reason: "协商终止",
+    billingConfirmation: {
+      expectedVersion: "termination-v1",
+      finalAmountMinor: 0,
+      reason: "免除当期",
+    },
+  });
+});
 
 const detail: RentalContractDetail = {
   id: "contract-1",

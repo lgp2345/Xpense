@@ -11,6 +11,7 @@ import {
 } from "@/routes/-shared/registered-page";
 import { RouteAccessPending } from "@/routes/-shared/status";
 import type { RentalApi } from "@/services/rental-api";
+import type { RentalBillsApi } from "@/services/rental-bills-api";
 import type { WebSessionDependency } from "@/services/web-session";
 
 const ContractDetailPage = lazyRouteComponent(
@@ -44,6 +45,7 @@ type RentalRoutePageContext = {
 
 export type RentalContractDetailRoutePageProps = RentalRoutePageContext & {
   api: RentalApi;
+  billsApi: RentalBillsApi;
   contractId: string;
   navigate: RegisteredPageInput<typeof Route>["navigate"];
   search: Record<string, unknown>;
@@ -58,6 +60,7 @@ export function createRentalContractDetailRoutePageProps(
   return {
     ...context,
     api: input.session.rentalApi,
+    billsApi: input.session.rentalBillsApi,
     contractId: input.params.contractId,
     navigate: input.navigate,
     search: input.search,

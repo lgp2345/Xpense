@@ -4,8 +4,9 @@ import type {
   ChangeRentalContractPartiesRequest,
   PermissionKey,
   RentalContractDetail,
+  TerminateRentalContractRequest,
 } from "@xpense/shared";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { DatePickerInput } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,10 +23,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/lib/toast";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
+import type { RentalBillsApi } from "../../../services/rental-bills-api";
 import {
   invalidateContractMutation,
   invalidateDeletedContractMutation,
 } from "../../../services/rental-query";
+import {
+  ContractTerminationBilling,
+  type TerminationBillingState,
+} from "../bills/contract-termination-billing";
 import {
   ACTION_LABELS,
   ACTION_TITLES,
@@ -39,6 +45,7 @@ import {
 
 export function ContractActions({
   api,
+  billsApi,
   organizationId,
   contract,
   permissions,
@@ -46,6 +53,7 @@ export function ContractActions({
   navigate,
 }: {
   api: RentalApi;
+  billsApi?: RentalBillsApi;
   organizationId: string;
   contract: RentalContractDetail;
   permissions: readonly PermissionKey[];
@@ -54,6 +62,24 @@ export function ContractActions({
 }) {
   const queryClient = useQueryClient();
   const [dialog, setDialog] = useState<DialogState>({ tag: "closed" });
+  const [financial, setFinancial] = useState<TerminationBillingState & { date: string }>({
+    ready: false,
+    date: "",
+  });
+  const financialDate =
+    dialog.tag === "open" && dialog.kind === "terminate" ? dialog.terminationDate : "";
+  const onFinancialChange = useCallback(
+    (state: TerminationBillingState) => setFinancial({ ...state, date: financialDate }),
+    [financialDate],
+  );
+  const needsFinancialCheck = Boolean(
+    billsApi &&
+      permissions.includes("rental_bills:read") &&
+      dialog.tag === "open" &&
+      dialog.kind === "terminate",
+  );
+  const financialReady =
+    !needsFinancialCheck || (financial.date === financialDate && financial.ready);
   const contextKey = `${organizationId}:${contract.id}`;
   const liveContextRef = useRef(contextKey);
   liveContextRef.current = contextKey;
@@ -80,10 +106,8 @@ export function ContractActions({
     onSuccess: (result, variables) => commonSuccess(result, variables.target),
   });
   const terminate = useMutation({
-    mutationFn: (variables: {
-      input: { id: string; terminationDate: string; reason: string };
-      target: DialogTarget;
-    }) => api.terminateContract?.(variables.input) ?? Promise.reject(new Error("终止合同不可用")),
+    mutationFn: (variables: { input: TerminateRentalContractRequest; target: DialogTarget }) =>
+      api.terminateContract?.(variables.input) ?? Promise.reject(new Error("终止合同不可用")),
     onSuccess: (result, variables) => commonSuccess(result, variables.target),
   });
   const revoke = useMutation({
@@ -136,6 +160,7 @@ export function ContractActions({
     remove.isPending;
   const open = (kind: ActionKind) => {
     if (pending) return;
+    setFinancial({ ready: false, date: "" });
     const target = currentTarget();
     if (kind === "delete" || kind === "renew")
       setDialog({ tag: "open", kind, target, submitError: null });
@@ -191,6 +216,7 @@ export function ContractActions({
       focusFirstError(state.kind, validation);
       return;
     }
+    if (state.kind === "terminate" && !financialReady) return;
     try {
       if (state.kind === "delete")
         await remove.mutateAsync({ input: { id: state.target.contractId }, target: state.target });
@@ -212,6 +238,9 @@ export function ContractActions({
             id: state.target.contractId,
             terminationDate: state.terminationDate,
             reason: state.reason.trim(),
+            ...(needsFinancialCheck && financial.confirmation
+              ? { billingConfirmation: financial.confirmation }
+              : {}),
           },
           target: state.target,
         });
@@ -227,7 +256,10 @@ export function ContractActions({
         });
       if (liveContextRef.current === state.target.contextKey) setDialog({ tag: "closed" });
     } catch (error) {
-      const message = actionErrorMessage(error);
+      const message =
+        error instanceof ApiError && error.status === 403 && billsApi
+          ? "当前操作权限不足；若合同已有账单，取消、终止或撤销还需要账单查看和调整权限。"
+          : actionErrorMessage(error);
       if (error instanceof ApiError && error.status === 409) toast.error(error, message);
       if (error instanceof ApiError && error.status === 404)
         await invalidateDeletedContractMutation(
@@ -264,11 +296,29 @@ export function ContractActions({
               {dialog.tag === "open" ? ACTION_TITLES[dialog.kind] : "合同操作"}
             </DialogTitle>
             <DialogDescription>
-              请确认操作并填写必要信息，最终结果以服务端校验为准。
+              {dialog.tag === "open" && dialog.kind === "cancel"
+                ? "取消合同会作废全部有效账单，保留历史记录。"
+                : dialog.tag === "open" && dialog.kind === "revoke"
+                  ? "撤销终止会作废本次终止替代账单；原作废账单不会自动恢复，请重新预览补齐。"
+                  : "请确认操作并填写必要信息，最终结果以服务端校验为准。"}
             </DialogDescription>
           </DialogHeader>
           {dialog.tag === "open" && dialog.kind !== "delete" && dialog.kind !== "renew" ? (
             <ActionFields state={dialog} onChange={update} />
+          ) : null}
+          {dialog.tag === "open" &&
+          dialog.kind === "terminate" &&
+          billsApi &&
+          permissions.includes("rental_bills:read") ? (
+            <ContractTerminationBilling
+              key={`${contextKey}:${dialog.terminationDate}`}
+              api={billsApi}
+              organizationId={organizationId}
+              contractId={contract.id}
+              terminationDate={dialog.terminationDate}
+              canAdjust={permissions.includes("rental_bills:adjust")}
+              onChange={onFinancialChange}
+            />
           ) : null}
           {dialog.tag === "open" && dialog.submitError ? (
             <p role="alert" className="text-sm text-destructive">
@@ -283,7 +333,7 @@ export function ContractActions({
               variant={
                 dialog.tag === "open" && dialog.kind === "delete" ? "destructive" : "default"
               }
-              disabled={pending}
+              disabled={pending || !financialReady}
               onClick={() => void submit()}
             >
               {dialog.tag === "open" ? `确认${ACTION_LABELS[dialog.kind]}` : "确认"}
