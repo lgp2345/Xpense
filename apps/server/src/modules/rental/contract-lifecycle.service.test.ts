@@ -130,15 +130,27 @@ function harness(record = contract()) {
       }
     }),
   };
+  const billing = {
+    assertCorrectionAllowed: vi.fn(),
+    onCorrection: vi.fn(),
+    onCancel: vi.fn(),
+    onTerminate: vi.fn(),
+    onRevokeTermination: vi.fn(),
+  };
+  const billingSources = { read: vi.fn().mockResolvedValue({ activeBills: [] }) };
   const service = new ContractLifecycleService(
     repository as never,
     relations as never,
     policy as never,
     audit as never,
     transactions as never,
+    billingSources as never,
+    billing as never,
   );
   return {
     service,
+    billing,
+    billingSources,
     repository,
     relations,
     policy,
@@ -151,6 +163,33 @@ function harness(record = contract()) {
 }
 
 describe("ContractLifecycleService", () => {
+  it("账单联动失败回滚合同状态，权限错误发生在关系写入前", async () => {
+    const setup = harness(contract({ status: "confirmed", startDate: "2026-01-01" }));
+    setup.billing.onTerminate.mockRejectedValueOnce(
+      new ConflictException("billing adjustment failed"),
+    );
+    await expect(
+      setup.service.terminate(auth, {
+        id: "contract-1",
+        terminationDate: "2027-01-01",
+        reason: "终止",
+      }),
+    ).rejects.toThrow("billing adjustment failed");
+    expect(setup.repository.setLifecycle).not.toHaveBeenCalled();
+    expect(setup.relations.clipPartyPeriodsToActualEnd).not.toHaveBeenCalled();
+    expect(setup.status()).toBe("confirmed");
+    setup.audit.appendRequired.mockRejectedValueOnce(new Error("audit"));
+    await expect(
+      setup.service.terminate(auth, {
+        id: "contract-1",
+        terminationDate: "2027-01-01",
+        reason: "终止",
+      }),
+    ).rejects.toThrow("audit");
+    expect(setup.status()).toBe("confirmed");
+    expect(setup.billing.onTerminate.mock.calls[1]?.at(-1)).toBeInstanceOf(Date);
+  });
+
   it("confirms atomically in organization, property, contract, relations lock order and snapshots parties", async () => {
     const { service, repository, relations, policy, audit, persisted } = harness();
 

@@ -15,6 +15,7 @@ import type { BillingSource, PersistableBillingDraft } from "./billing.types.js"
 import { assembleBillingPreview } from "./billing-plan.rules.js";
 import { billingDigest, billingFingerprint } from "./billing-source.rules.js";
 import { BillingSourceService } from "./billing-source.service.js";
+import { BillingTerminationService } from "./billing-termination.service.js";
 import { BillsRepository } from "./bills.repository.js";
 import type { GenerationRecord } from "./bills.repository.types.js";
 import { ContractsRepository } from "./contracts.repository.js";
@@ -33,6 +34,7 @@ export class BillsService {
     private readonly access: AccessService,
     private readonly audit: AuditService,
     private readonly transactions: DatabaseTransactionService,
+    private readonly termination: BillingTerminationService,
   ) {}
 
   async preview(auth: AuthContext, dto: PreviewBillsDto): Promise<RentalBillPreview> {
@@ -52,13 +54,14 @@ export class BillsService {
         page: dto.page,
         pageSize: dto.pageSize,
         version,
-        canGenerate: plan.missingDepositSourceKeys.length === 0,
+        canGenerate:
+          plan.missingDepositSourceKeys.length === 0 && !plan.requiresTerminationConfirmation,
         createCount: plan.creates.length,
         existingCount: plan.items.length - plan.creates.length,
         totals: plan.totals,
         createTotals: plan.createTotals,
         missingDepositSourceKeys: plan.missingDepositSourceKeys,
-        terminationReference: null,
+        terminationReference: plan.terminationReference,
       };
     });
   }
@@ -82,6 +85,8 @@ export class BillsService {
       if (billingFingerprint(source, input) !== dto.expectedVersion)
         throw this.conflict("账单预览已变化，请重新预览");
       const plan = this.plan(source, input);
+      if (plan.requiresTerminationConfirmation)
+        throw this.badRequest("请确认终止当期最终应收及原因");
       if (plan.missingDepositSourceKeys.length) throw this.badRequest("请填写每项新增押金的到期日");
       if (!plan.creates.length)
         return {
@@ -91,6 +96,24 @@ export class BillsService {
           totals: plan.createTotals,
           replayed: false,
         };
+      let adjustmentId = source.adjustment?.id ?? null;
+      if (
+        source.contract.lifecycleStatus === "terminated" &&
+        !source.adjustment &&
+        dto.terminationConfirmation
+      ) {
+        if (!source.terminationRecordedAt || !source.contract.terminationDate)
+          throw this.conflict("合同缺少终止事件信息");
+        const adjustment = await this.termination.confirm(
+          auth,
+          source,
+          source.contract.terminationDate,
+          dto.terminationConfirmation,
+          new Date(source.terminationRecordedAt),
+          tx,
+        );
+        adjustmentId = adjustment.id;
+      }
       const generation = await this.bills.createGeneration(
         {
           organizationId: auth.organizationId,
@@ -109,7 +132,10 @@ export class BillsService {
       const drafts: PersistableBillingDraft[] = plan.creates.map((draft) => ({
         ...draft,
         dueDate: draft.dueDate as string,
-        adjustmentId: null,
+        adjustmentId:
+          draft.type === "rent" && draft.effectiveEnd === source.contract.terminationDate
+            ? adjustmentId
+            : null,
       }));
       await this.bills.insertBills(
         { organizationId: auth.organizationId, userId: auth.userId, today },
@@ -146,9 +172,6 @@ export class BillsService {
 
   private plan(source: BillingSource, input: RentalBillGenerationInput) {
     this.assertEligible(source);
-    if (source.contract.lifecycleStatus === "terminated")
-      throw this.conflict("已终止合同需要终止当期金额确认");
-    if (input.terminationConfirmation) throw this.badRequest("未终止合同不接受终止金额确认");
     let plan: ReturnType<typeof assembleBillingPreview>;
     try {
       plan = assembleBillingPreview(source, input);

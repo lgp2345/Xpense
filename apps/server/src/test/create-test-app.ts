@@ -1,7 +1,6 @@
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
 import { type ClientType, type PermissionKey, permissionKeys } from "@xpense/shared";
-
 import { AppModule } from "../app.module.js";
 import { ServerConfigService } from "../config/config.service.js";
 import { configureHttpApplication } from "../configure-http-application.js";
@@ -33,6 +32,8 @@ import {
   type MenuSortOrderUpdate,
 } from "../modules/iam/menu.repository.js";
 import { OrganizationsRepository } from "../modules/organizations/organizations.repository.js";
+import { BillAdjustmentsRepository } from "../modules/rental/bill-adjustments.repository.js";
+import { BillsRepository } from "../modules/rental/bills.repository.js";
 import { ContractRelationsRepository } from "../modules/rental/contract-relations.repository.js";
 import { ContractsRepository } from "../modules/rental/contracts.repository.js";
 import { PropertiesRepository } from "../modules/rental/properties.repository.js";
@@ -226,6 +227,10 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     );
     rentalFakes.extendLedgersRepository(bookkeepingFakes.ledgersRepository);
     moduleBuilder = moduleBuilder
+      .overrideProvider(BillsRepository)
+      .useValue(rentalFakes.billsRepository)
+      .overrideProvider(BillAdjustmentsRepository)
+      .useValue(rentalFakes.billAdjustmentsRepository)
       .overrideProvider(PropertiesRepository)
       .useValue(rentalFakes.propertiesRepository)
       .overrideProvider(SpacesRepository)

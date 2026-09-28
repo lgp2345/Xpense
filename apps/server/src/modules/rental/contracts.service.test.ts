@@ -188,15 +188,27 @@ function serviceHarness(overrides: Record<string, unknown> = {}) {
   Object.assign(relations, overrides.relations);
   Object.assign(policy, overrides.policy);
   Object.assign(audit, overrides.audit);
+  const billing = {
+    assertCorrectionAllowed: vi.fn(),
+    onCorrection: vi.fn(),
+    onCancel: vi.fn(),
+    onTerminate: vi.fn(),
+    onRevokeTermination: vi.fn(),
+  };
+  const billingSources = { read: vi.fn().mockResolvedValue({ activeBills: [] }) };
   const service = new ContractsService(
     repository as never,
     relations as never,
     policy as never,
     audit as never,
     transactions as never,
+    billingSources as never,
+    billing as never,
   );
   return {
     service,
+    billing,
+    billingSources,
     repository,
     relations,
     policy,
@@ -220,6 +232,28 @@ function serviceHarness(overrides: Record<string, unknown> = {}) {
 }
 
 describe("ContractsService", () => {
+  it("修正的条件权限在写入前验证，联动失败回滚合同及关系", async () => {
+    const current = contractRecord({ status: "confirmed", startDate: "2026-09-01" });
+    const setup = serviceHarness({
+      repository: {
+        find: vi.fn().mockResolvedValue(current),
+        findForUpdate: vi.fn().mockResolvedValue(current),
+      },
+    });
+    setup.billing.assertCorrectionAllowed.mockImplementationOnce(() => {
+      throw new ConflictException("permission");
+    });
+    await expect(setup.service.update(auth, { id: "contract-1", note: "备注" })).rejects.toThrow(
+      "permission",
+    );
+    expect(setup.repository.updateHeader).not.toHaveBeenCalled();
+    setup.billing.onCorrection.mockRejectedValueOnce(new Error("billing void failed"));
+    await expect(setup.service.update(auth, { id: "contract-1", note: "备注" })).rejects.toThrow(
+      "billing void failed",
+    );
+    expect(setup.persisted()).toEqual({ headers: 0, relations: 0, softDeletes: 0, audits: 0 });
+  });
+
   it("creates and confirms a complete contract in one transaction", async () => {
     const h = serviceHarness({
       repository: { setLifecycle: vi.fn().mockResolvedValue(undefined) },

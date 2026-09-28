@@ -4,10 +4,10 @@ import type {
   RentalBillPreviewItem,
   RentalBillTotals,
 } from "@xpense/shared";
-
 import type { BillingDraft, BillingSource } from "./billing.types.js";
 import { buildRentPlan, sumBillingAmounts } from "./billing-period.rules.js";
 import { billingDigest, billingTerms, buildDepositDrafts } from "./billing-source.rules.js";
+import { applicableBillingDrafts } from "./billing-termination-plan.rules.js";
 
 /** 全计划分类汇总，金额超限明确拒绝。 */
 export function billingTotals(
@@ -50,8 +50,16 @@ export function normalBillingDrafts(
 
 /** 缺少日期的预览只读；既有押金的到期日保持原值。 */
 export function assembleBillingPreview(source: BillingSource, input: RentalBillGenerationInput) {
-  const drafts = normalBillingDrafts(source, input.depositDueDates);
+  const applicable = applicableBillingDrafts(
+    source,
+    normalBillingDrafts(source, input.depositDueDates),
+    input.terminationConfirmation,
+  );
+  const drafts = applicable.drafts;
   const active = new Map(source.activeBills.map((bill) => [bill.sourceKey, bill]));
+  const applicableKeys = new Set(drafts.map((draft) => draft.sourceKey));
+  if (source.activeBills.some((bill) => !applicableKeys.has(bill.sourceKey)))
+    throw new RangeError("有效账单与当前适用计划不一致");
   const missingDepositSourceKeys: string[] = [];
   const items: RentalBillPreviewItem[] = [];
   const creates: BillingDraft[] = [];
@@ -78,7 +86,7 @@ export function assembleBillingPreview(source: BillingSource, input: RentalBillG
     });
   }
   return {
-    drafts,
+    ...applicable,
     creates,
     items,
     missingDepositSourceKeys,
@@ -93,7 +101,7 @@ export function billingCoverage(source: BillingSource): RentalBillCoverage {
   const drafts =
     source.contract.lifecycleStatus === "draft" || source.contract.lifecycleStatus === "cancelled"
       ? []
-      : normalBillingDrafts(source, {});
+      : applicableBillingDrafts(source, normalBillingDrafts(source, {})).drafts;
   return {
     existingRentCount: drafts.filter(
       (draft) => draft.type === "rent" && active.has(draft.sourceKey),

@@ -431,7 +431,12 @@ export function createRentalDatabaseFake(
       if (
         !fields ||
         typeof fields !== "object" ||
-        Object.keys(fields).length !== 1 ||
+        (Object.keys(fields).length !== 1 &&
+          !(
+            Object.keys(fields).length === 2 &&
+            "baseCurrency" in fields &&
+            fields.baseCurrency === organizations.baseCurrency
+          )) ||
         !("timezone" in fields) ||
         (fields as { timezone?: unknown }).timezone !== organizations.timezone
       ) {
@@ -484,7 +489,7 @@ export function createRentalDatabaseFake(
                   }
                   return organizationIds[0] === testIds.organization ||
                     organizationIds[0] === testIds.otherOrganization
-                    ? [{ timezone: "Asia/Shanghai" }]
+                    ? [{ timezone: "Asia/Shanghai", baseCurrency: "CNY" }]
                     : [];
                 },
               };

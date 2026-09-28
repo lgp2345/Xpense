@@ -1,11 +1,17 @@
 import { Module } from "@nestjs/common";
-
 import { DbModule } from "../../db/db.module.js";
 import { AuditModule } from "../audit/audit.module.js";
 import { AuthModule } from "../auth/auth.module.js";
 import { BookkeepingModule } from "../bookkeeping/bookkeeping.module.js";
 import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import { IamModule } from "../iam/iam.module.js";
+import { BillAdjustmentsRepository } from "./bill-adjustments.repository.js";
+import { BillingLifecycleService } from "./billing-lifecycle.service.js";
+import { BillingSourceService } from "./billing-source.service.js";
+import { BillingTerminationService } from "./billing-termination.service.js";
+import { BillsRepository } from "./bills.repository.js";
+import { BillsService } from "./bills.service.js";
+import { BillsReadService } from "./bills-read.service.js";
 import { ContractLifecycleService } from "./contract-lifecycle.service.js";
 import { ContractPartiesService } from "./contract-parties.service.js";
 import { ContractReferenceService } from "./contract-reference.service.js";
@@ -33,6 +39,14 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
   imports: [AuditModule, AuthModule, BookkeepingModule, DbModule, IamModule],
   controllers: [PropertiesController, SpacesController, TenantsController, ContractsController],
   providers: [
+    BillAdjustmentsRepository,
+    BillingSourceService,
+    BillingLifecycleService,
+    BillingTerminationService,
+    BillsService,
+    BillsReadService,
+    BillsRepository,
+
     BookkeepingWriteLockRepository,
     ContractsRepository,
     ContractRelationsRepository,

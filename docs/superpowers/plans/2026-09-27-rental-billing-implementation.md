@@ -160,12 +160,12 @@
 
 **Interfaces:** `BillingLifecycleService.onCorrection(auth, before: BillingSource, after: BillingSource, tx: AppDbTransaction): Promise<void>`；`onCancel(auth, source, tx): Promise<void>`；`previewTermination(auth, dto: PreviewTerminationDto): Promise<RentalTerminationPreview>`；`onTerminate(auth, source, dto: TerminateContractDto, tx): Promise<void>`；`onRevokeTermination(auth, source, tx): Promise<void>`。source 为合同动作改变关系前读取的来源；onCorrection 的 after 是同事务更新后来源。联动仅调用仓储、纯规则、审计及权限 service，不反向依赖合同 service。
 
-- [ ] 先补失败测试：月租修正仅作废租金和金额变化的倍数押金，固定押金保留；备注或 UUID 重建不作废；同内容押金两项分别有不同 dueDate，删一项确定性保留较小出现序号及原 dueDate；取消作废全部有效应收。
-- [ ] 增加终止测试：跨季付当期原始金额 900000、参考 450000、房东确认 500000 时，替代账单总额 500000、差额 -400000，旧账单及后续账单作废；早期账单、押金不变。零最终应收合法，理由必填，不按“最终金额减已收”计算。
-- [ ] 覆盖无账单先终止、历史终止首次生成、终止当期缺失、终止日在付款期末、未来终止撤销冲突 rollback、撤销成功后原账单不复活、再次同日终止新 adjustmentId。运行 `pnpm exec turbo run test --filter=@xpense/server --force -- src/modules/rental/billing-lifecycle.service.test.ts src/modules/rental/contracts.service.test.ts src/modules/rental/contract-lifecycle.service.test.ts` 取得失败证据。
-- [ ] 实现事务内调用点，保留 before 快照；按计费业务差异作废而非 Object.keys(dto)。条件权限在任何写入前检查。已有账单的终止确认与替代账单一次提交；从未生成的终止不要求财务字段。本任务同时补齐任务 4 对已终止合同首次生成的路径：复用任务 2 的纯终止计算和任务 3 的调整仓储，不让 BillsService 与 BillingLifecycleService 双向注入。调整 UUID 唯一标识财务事件，撤销标记而不删除。
-- [ ] 确认生命周期调用中任一审计、作废、adjustment 或新账单写入失败时合同状态、承租关系和账单全部回滚；重跑上述测试及 contract-parties.service.test.ts，确保履行中承租方变更不使旧账单失效。
-- [ ] 完成提交检查后单独提交：`git commit -m "feat: 联动合同变更与租赁账单调整"`。
+- [x] 先补失败测试：月租修正仅作废租金和金额变化的倍数押金，固定押金保留；备注或 UUID 重建不作废；同内容押金两项分别有不同 dueDate，删一项确定性保留较小出现序号及原 dueDate；取消作废全部有效应收。
+- [x] 增加终止测试：跨季付当期原始金额 900000、参考 450000、房东确认 500000 时，替代账单总额 500000、差额 -400000，旧账单及后续账单作废；早期账单、押金不变。零最终应收合法，理由必填，不按“最终金额减已收”计算。
+- [x] 覆盖无账单先终止、历史终止首次生成、终止当期缺失、终止日在付款期末、未来终止撤销冲突 rollback、撤销成功后原账单不复活、再次同日终止新 adjustmentId。运行 `pnpm exec turbo run test --filter=@xpense/server --force -- src/modules/rental/billing-lifecycle.service.test.ts src/modules/rental/contracts.service.test.ts src/modules/rental/contract-lifecycle.service.test.ts` 取得失败证据。
+- [x] 实现事务内调用点，保留 before 快照；按计费业务差异作废而非 Object.keys(dto)。条件权限在任何写入前检查。已有账单的终止确认与替代账单一次提交；从未生成的终止不要求财务字段。本任务同时补齐任务 4 对已终止合同首次生成的路径：复用任务 2 的纯终止计算和任务 3 的调整仓储，不让 BillsService 与 BillingLifecycleService 双向注入。调整 UUID 唯一标识财务事件，撤销标记而不删除。
+- [x] 确认生命周期调用中任一审计、作废、adjustment 或新账单写入失败时合同状态、承租关系和账单全部回滚；重跑上述测试及 contract-parties.service.test.ts，确保履行中承租方变更不使旧账单失效。
+- [x] 完成提交检查后单独提交：`git commit -m "feat: 联动合同变更与租赁账单调整"`。
 
 ## Task 6：HTTP、权限和集成路径
 
@@ -285,3 +285,11 @@
 - 覆盖 101 张全量生成、页间版本冲突、同键重放、失去权限后拒绝、审计/明细失败整批回滚、只读覆盖与到期提示。并发测试为串行事务 mock，真实数据库证据留待任务 10。
 - 将合同脱敏读模型提取为纯映射，保留旧模块导出，避免后续合同联动与计费来源循环依赖；原合同回归通过。
 - 已终止合同首次生成按计划在任务 5 完成，接口将在任务 6 注册。
+
+### Task 5
+
+- RED：账单生命周期与终止服务缺失；GREEN：服务端 1114 项通过、3 项数据库测试跳过，lint/check 通过。
+- 新增完整终止职责 provider 和适用计划纯规则；原付款期计算行加差额、零最终应收、历史终止首次生成、当期缺失仅保存确认、撤销事件匹配均覆盖。
+- 修正按稳定来源及计费依据作废，固定押金保留、重复项保留较小序号；取消作废有效应收。合同权限检查先于写入，必需联动错误回滚合同状态。
+- 为使新注入的合同联动可以运行，将任务 6 的 provider 注册和账单事务 mock 状态提前纳入本任务；HTTP controller 仍留任务 6。测试仓储与原合同共用快照，新增独立 rental-billing-fakes 文件避免继续扩大原仓储 fake。
+- 生命周期 HTTP 全流程及数据库竞争将在后续任务补充，当前并发证据仍为 mock。

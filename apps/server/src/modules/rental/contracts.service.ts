@@ -9,6 +9,8 @@ import type { AuthContext } from "../../common/auth/auth-context.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
+import { BillingLifecycleService } from "./billing-lifecycle.service.js";
+import { BillingSourceService } from "./billing-source.service.js";
 import {
   contractAudit,
   createContractAggregate,
@@ -36,6 +38,8 @@ export class ContractsService {
     private readonly policy: ContractsPolicyService,
     private readonly auditService: AuditService,
     private readonly transactions: DatabaseTransactionService,
+    private readonly billingSources: BillingSourceService,
+    private readonly billing: BillingLifecycleService,
   ) {}
 
   /** 返回组织时区下派生状态的合同分页。 */
@@ -173,6 +177,10 @@ export class ContractsService {
       const currentDetail = this.policy.requireContract(
         await this.repository.detail(authContext.organizationId, current.id, today, transaction),
       );
+      const before =
+        current.status === "confirmed"
+          ? await this.billingSources.read(authContext.organizationId, current.id, transaction)
+          : null;
       const aggregate = mergeContractAggregate(currentDetail, dto);
       const changedFields = Object.keys(dto).filter((key) => key !== "id");
 
@@ -210,6 +218,7 @@ export class ContractsService {
             transaction,
           );
         }
+        if (before) this.billing.assertCorrectionAllowed(authContext, before, aggregate);
         await this.writeHeader(authContext, current, aggregate, transaction);
         if (correctionMode !== "metadata_only") {
           await this.replaceRelations(
@@ -224,6 +233,13 @@ export class ContractsService {
             transaction,
           );
         }
+        if (before)
+          await this.billing.onCorrection(
+            authContext,
+            before,
+            await this.billingSources.read(authContext.organizationId, current.id, transaction),
+            transaction,
+          );
         await this.auditService.appendRequired(
           contractAudit(
             authContext,

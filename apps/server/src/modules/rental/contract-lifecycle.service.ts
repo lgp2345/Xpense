@@ -9,6 +9,8 @@ import type { AuthContext } from "../../common/auth/auth-context.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
+import { BillingLifecycleService } from "./billing-lifecycle.service.js";
+import { BillingSourceService } from "./billing-source.service.js";
 import { actualContractEnd, addCalendarDays, compareCalendarDates } from "./contract-date.rules.js";
 import { ContractRelationsRepository } from "./contract-relations.repository.js";
 import { ContractsRepository } from "./contracts.repository.js";
@@ -53,6 +55,8 @@ export class ContractLifecycleService {
     private readonly policy: ContractsPolicyService,
     private readonly auditService: AuditService,
     private readonly transactions: DatabaseTransactionService,
+    private readonly billingSources: BillingSourceService,
+    private readonly billing: BillingLifecycleService,
   ) {}
 
   /** 在固定锁顺序及单一事务中校验、固化快照并确认草稿。 */
@@ -147,6 +151,11 @@ export class ContractLifecycleService {
         await this.repository.findForUpdate(authContext.organizationId, dto.id, transaction),
       );
       this.policy.assertCancellationAllowed(contract, today);
+      await this.billing.onCancel(
+        authContext,
+        await this.billingSources.read(authContext.organizationId, contract.id, transaction),
+        transaction,
+      );
       await this.repository.setLifecycle(
         {
           organizationId: authContext.organizationId,
@@ -211,6 +220,13 @@ export class ContractLifecycleService {
         transaction,
         partyRefsAtDate(current, dto.terminationDate),
       );
+      const source = await this.billingSources.read(
+        authContext.organizationId,
+        contract.id,
+        transaction,
+      );
+      const terminationRecordedAt = new Date();
+      await this.billing.onTerminate(authContext, source, dto, transaction, terminationRecordedAt);
       await this.relations.clipPartyPeriodsToActualEnd(
         {
           organizationId: authContext.organizationId,
@@ -226,7 +242,7 @@ export class ContractLifecycleService {
           status: "terminated",
           expectedStatus: "confirmed",
           terminationDate: dto.terminationDate,
-          terminationRecordedAt: new Date(),
+          terminationRecordedAt,
           terminatedByUserId: authContext.userId,
           terminationReason: dto.reason,
           updatedByUserId: authContext.userId,
@@ -302,6 +318,11 @@ export class ContractLifecycleService {
         transaction,
       );
       if (conflicts.length > 0) throw this.policy.conflict("恢复合同租期与现有空间合同冲突");
+      await this.billing.onRevokeTermination(
+        authContext,
+        await this.billingSources.read(authContext.organizationId, contract.id, transaction),
+        transaction,
+      );
       await this.relations.restoreTerminalPartyPeriods(
         {
           organizationId: authContext.organizationId,

@@ -4,12 +4,14 @@ import { Test } from "@nestjs/testing";
 import type { GenerateRentalBillsRequest, RentalBillDetail } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
+import type { AuthContext } from "../../common/auth/auth-context.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import { rentalBillingSource } from "../../test/rental-billing-fixtures.js";
 import { AuditService } from "../audit/audit.service.js";
 import { AccessService } from "../iam/access.service.js";
 import type { BillingSource, PersistableBillingDraft } from "./billing.types.js";
 import { BillingSourceService } from "./billing-source.service.js";
+import { BillingTerminationService } from "./billing-termination.service.js";
 import { BillsRepository } from "./bills.repository.js";
 import type { GenerationRecord, NewGeneration } from "./bills.repository.types.js";
 import { BillsService } from "./bills.service.js";
@@ -122,6 +124,10 @@ async function harness(source = rentalBillingSource()) {
   const module = await Test.createTestingModule({
     providers: [
       BillsService,
+      {
+        provide: BillingTerminationService,
+        useValue: { confirm: vi.fn().mockResolvedValue({ id: randomUUID() }) },
+      },
       { provide: BillsRepository, useValue: repository },
       { provide: BillingSourceService, useValue: { read } },
       {
@@ -172,6 +178,43 @@ async function harness(source = rentalBillingSource()) {
 }
 
 describe("全租期预览与幂等写入", () => {
+  it("历史终止首次生成仅适用原账期，确认零额和原因，完整批次关联新调整事件", async () => {
+    const source = rentalBillingSource({
+      lifecycleStatus: "terminated",
+      terminationDate: "2026-06-30",
+      depositTerms: [],
+    });
+    source.terminationRecordedAt = "2026-05-01T00:00:00.000Z";
+    const h = await harness(source);
+    const blank = await h.preview();
+    expect(blank).toMatchObject({
+      canGenerate: false,
+      createCount: 2,
+      terminationReference: { originalAmountMinor: 900000, referenceAmountMinor: 900000 },
+    });
+    const context = {
+      ...authorized(),
+      permissions: [...auth.permissions, "rental_bills:adjust"] as AuthContext["permissions"],
+    };
+    const input = {
+      ...h.input,
+      terminationConfirmation: { finalAmountMinor: 0, reason: "免除当期" },
+    };
+    const preview = await h.service.preview(context, previewBillsSchema.parse(input));
+    expect(preview.canGenerate).toBe(true);
+    const result = await h.service.generate(context, {
+      ...input,
+      expectedVersion: preview.version,
+      idempotencyKey: randomUUID(),
+    });
+    expect(result.createdCount).toBe(2);
+    expect(h.state.bills.at(-1)?.lines.at(-1)).toMatchObject({
+      kind: "termination_adjustment",
+      amountMinor: -900000,
+    });
+    await h.module.close();
+  });
+
   it("首次四张租金加两张押金，重放不重复且不分配新批次", async () => {
     const h = await harness();
     expect((await h.preview()).canGenerate).toBe(false);

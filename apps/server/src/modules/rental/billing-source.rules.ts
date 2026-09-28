@@ -117,7 +117,7 @@ export function billingTerms(source: BillingSource): BillingTerms {
 /** 指纹覆盖计费、生命周期、有效账单和本次输入，不包含身份隐私及纯显示排序。 */
 export function billingFingerprint(
   source: BillingSource,
-  input: RentalBillGenerationInput,
+  input: RentalBillGenerationInput | { terminationDate: string },
 ): string {
   const contract = source.contract;
   return billingDigest({

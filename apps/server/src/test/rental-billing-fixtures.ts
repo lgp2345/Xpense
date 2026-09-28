@@ -1,6 +1,7 @@
-import type { RentalContractDetail } from "@xpense/shared";
+import { randomUUID } from "node:crypto";
+import type { RentalBillDetail, RentalContractDetail } from "@xpense/shared";
 
-import type { BillingSource } from "../modules/rental/billing.types.js";
+import type { BillingDraft, BillingSource } from "../modules/rental/billing.types.js";
 
 /** 应收测试的完整非敏感合同，默认一年季付及两项押金。 */
 export function rentalBillingSource(overrides: Partial<RentalContractDetail> = {}): BillingSource {
@@ -89,5 +90,37 @@ export function rentalBillingSource(overrides: Partial<RentalContractDetail> = {
     activeBills: [],
     terminationRecordedAt: null,
     adjustment: null,
+  };
+}
+
+/** 完整账单 fixture，仅复用纯草案，不绕过对外契约。 */
+export function rentalBillingDetail(source: BillingSource, draft: BillingDraft): RentalBillDetail {
+  return {
+    ...draft,
+    id: randomUUID(),
+    billNumber: "RB-2026-000001",
+    contractId: source.contract.id,
+    contractNumber: source.contract.contractNumber,
+    propertyId: source.contract.propertyId,
+    propertyName: source.contract.propertyName,
+    currencyCode: source.currencyCode,
+    status: "active",
+    dueDate: draft.dueDate ?? "2026-01-01",
+    dueState: null,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    generationId: null,
+    adjustmentId: null,
+    adjustment: null,
+    snapshot: {
+      propertyId: source.contract.propertyId,
+      propertyName: source.contract.propertyName,
+      contractNumber: source.contract.contractNumber,
+      spaces: source.contract.spaces,
+      parties: [],
+    },
+    voidReason: null,
+    voidedAt: null,
+    voidedBy: null,
+    history: [],
   };
 }

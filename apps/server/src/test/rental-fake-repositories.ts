@@ -7,6 +7,7 @@ import { SpacesRepository } from "../modules/rental/spaces.repository.js";
 import type { CreateRentalSpaceInput } from "../modules/rental/spaces.repository.types.js";
 import { TenantsRepository } from "../modules/rental/tenants.repository.js";
 import type { BookkeepingTestState } from "./bookkeeping-test-state.js";
+import { createRentalBillingFakes } from "./rental-billing-fakes.js";
 import {
   applyRentalMutationEffect,
   type RentalContractNumberFixture,
@@ -30,6 +31,7 @@ export function createRentalRepositoryFakes(
   mutationFixtures: RentalMutationFixtureRegistry,
 ) {
   const fakes = {
+    ...createRentalBillingFakes(state),
     propertiesRepository: createPropertiesRepository(state, readFixtures),
     spacesRepository: createSpacesRepository(state, readFixtures),
     tenantsRepository: createTenantsRepository(state, readFixtures, mutationFixtures),

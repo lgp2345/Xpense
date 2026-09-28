@@ -1,3 +1,8 @@
+import type { RentalBillDetail } from "@xpense/shared";
+import type {
+  AdjustmentRecord,
+  GenerationRecord,
+} from "../modules/rental/bills.repository.types.js";
 import type {
   ContractPartyReference,
   RentalContractDepositRecord,
@@ -28,6 +33,10 @@ export const TEST_DOCUMENT_CIPHERTEXT = Buffer.from("fixed-rental-test-ciphertex
 
 /** 租赁 HTTP 测试所需的内存持久化状态，含一组固定跨组织资源。 */
 export type RentalTestState = {
+  bills: Array<RentalBillDetail & { organizationId: string }>;
+  billGenerations: GenerationRecord[];
+  billAdjustments: AdjustmentRecord[];
+  billCounter: number;
   properties: Map<string, RentalPropertyRecord>;
   spaces: Map<string, RentalSpaceRecord>;
   tenants: Map<string, RentalTenantRecord>;
@@ -182,6 +191,10 @@ export function createRentalTestState(): RentalTestState {
     contract.endDate,
   );
   return {
+    bills: [],
+    billGenerations: [],
+    billAdjustments: [],
+    billCounter: 0,
     properties: new Map([
       [property.id, property],
       [
@@ -246,6 +259,10 @@ export function createRentalTestState(): RentalTestState {
 /** 深复制租赁状态，供事务失败时恢复。 */
 export function cloneRentalTestState(state: RentalTestState): RentalTestState {
   return {
+    bills: structuredClone(state.bills),
+    billGenerations: structuredClone(state.billGenerations),
+    billAdjustments: structuredClone(state.billAdjustments),
+    billCounter: state.billCounter,
     properties: new Map(
       [...state.properties].map(([id, property]) => [id, cloneProperty(property)]),
     ),
@@ -279,6 +296,18 @@ export function cloneRentalTestState(state: RentalTestState): RentalTestState {
 
 /** 原位恢复租赁状态，保持所有仓储捕获的 state 引用有效。 */
 export function restoreRentalTestState(state: RentalTestState, snapshot: RentalTestState): void {
+  state.bills.splice(0, state.bills.length, ...structuredClone(snapshot.bills));
+  state.billGenerations.splice(
+    0,
+    state.billGenerations.length,
+    ...structuredClone(snapshot.billGenerations),
+  );
+  state.billAdjustments.splice(
+    0,
+    state.billAdjustments.length,
+    ...structuredClone(snapshot.billAdjustments),
+  );
+  state.billCounter = snapshot.billCounter;
   replaceMap(state.properties, snapshot.properties, cloneProperty);
   replaceMap(state.spaces, snapshot.spaces, cloneSpace);
   replaceMap(state.tenants, snapshot.tenants, cloneTenant);
