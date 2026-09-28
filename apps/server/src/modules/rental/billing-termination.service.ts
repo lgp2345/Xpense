@@ -38,6 +38,8 @@ export class BillingTerminationService {
     dto: PreviewTerminationDto,
   ): Promise<RentalTerminationPreview> {
     this.access.assertPermission(auth, "rental_contracts:read");
+    this.access.assertPermission(auth, "rental_contracts:update");
+    this.access.assertPermission(auth, "rental_bills:adjust");
     this.access.assertPermission(auth, "rental_bills:read");
     return this.transactions.run(async (tx) => {
       await this.policy.lockOrganizationContext(auth.organizationId, tx);

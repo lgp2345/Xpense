@@ -95,6 +95,9 @@ type TestRole = IamRole & {
 
 const rentalTestRolePermissions = {
   owner: [
+    "rental_bills:read",
+    "rental_bills:generate",
+    "rental_bills:adjust",
     "rental_properties:read",
     "rental_properties:create",
     "rental_properties:update",
@@ -114,12 +117,14 @@ const rentalTestRolePermissions = {
     "rental_contracts:delete",
   ],
   member: [
+    "rental_bills:read",
     "rental_properties:read",
     "rental_spaces:read",
     "rental_tenants:read",
     "rental_contracts:read",
   ],
   viewer: [
+    "rental_bills:read",
     "rental_properties:read",
     "rental_spaces:read",
     "rental_tenants:read",

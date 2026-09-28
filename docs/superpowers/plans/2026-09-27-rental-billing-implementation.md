@@ -173,12 +173,12 @@
 
 **Interfaces:** 注册设计第 7 节的五个账单路由，读 list/detail 为 GET，其余 POST；写响应 HTTP 200；终止仍走原合同 terminate 路由，返回现有合同详情。权限名称与任务 1 一致。
 
-- [ ] 写 app.inject 失败测试，覆盖完整“预览→生成→合同修正→旧账单作废→重新预览→补生成”及“终止→确认金额→撤销→补齐”两条用户流程。
-- [ ] 添加认证、三项权限组合、跨组织 id、未授权的自定义角色、非法 DTO、预览过期及条件权限断言。断言 `expect(response.statusCode).toBe(200)`、错误校验码 `VALIDATION_FAILED`；跨组织不得返回其他合同金额。
-- [ ] 运行 `pnpm exec turbo run test --filter=@xpense/server --force -- src/modules/rental/bills.controller.test.ts src/modules/rental/rental-billing.e2e.test.ts src/modules/rental/rental-billing-lifecycle.e2e.test.ts`，红灯后注册依赖和薄 controller；按 NestJS 技能与 ctx7 核对当前 schema 绑定用法，不改全局校验体系。
-- [ ] 新增“preview 中途 page 2 版本过期”“同键重放当前已失去权限仍拒绝”“无账单旧客户端终止继续可用”“有账单旧客户端缺金额确认拒绝”等 API 断言。
-- [ ] 上述测试和现有租赁 core/lifecycle E2E、服务端 check 通过；记录 mock E2E 与真实数据库并发测试的证据边界。
-- [ ] 完成提交检查后单独提交：`git commit -m "feat: 接入租赁账单接口与权限校验"`。
+- [x] 写 app.inject 失败测试，覆盖完整“预览→生成→合同修正→旧账单作废→重新预览→补生成”及“终止→确认金额→撤销→补齐”两条用户流程。
+- [x] 添加认证、三项权限组合、跨组织 id、未授权的自定义角色、非法 DTO、预览过期及条件权限断言。断言 `expect(response.statusCode).toBe(200)`、错误校验码 `VALIDATION_FAILED`；跨组织不得返回其他合同金额。
+- [x] 运行 `pnpm exec turbo run test --filter=@xpense/server --force -- src/modules/rental/bills.controller.test.ts src/modules/rental/rental-billing.e2e.test.ts src/modules/rental/rental-billing-lifecycle.e2e.test.ts`，红灯后注册依赖和薄 controller；按 NestJS 技能与 ctx7 核对当前 schema 绑定用法，不改全局校验体系。
+- [x] 新增“preview 中途 page 2 版本过期”“同键重放当前已失去权限仍拒绝”“无账单旧客户端终止继续可用”“有账单旧客户端缺金额确认拒绝”等 API 断言。
+- [x] 上述测试和现有租赁 core/lifecycle E2E、服务端 check 通过；记录 mock E2E 与真实数据库并发测试的证据边界。
+- [x] 完成提交检查后单独提交：`git commit -m "feat: 接入租赁账单接口与权限校验"`。
 
 ## Task 7：前端 API、查询与组织隔离
 
@@ -293,3 +293,11 @@
 - 修正按稳定来源及计费依据作废，固定押金保留、重复项保留较小序号；取消作废有效应收。合同权限检查先于写入，必需联动错误回滚合同状态。
 - 为使新注入的合同联动可以运行，将任务 6 的 provider 注册和账单事务 mock 状态提前纳入本任务；HTTP controller 仍留任务 6。测试仓储与原合同共用快照，新增独立 rental-billing-fakes 文件避免继续扩大原仓储 fake。
 - 生命周期 HTTP 全流程及数据库竞争将在后续任务补充，当前并发证据仍为 mock。
+
+### Task 6
+
+- RED：账单 controller 缺失，HTTP 预览/列表返回 404；GREEN：5 项 controller/HTTP 全流程测试通过，服务端完整回归、lint/check 通过。
+- 注册五个接口，显式 Zod schema 与组合权限、POST 200；原合同终止仍返回详情。
+- HTTP 覆盖生成后修正再补齐、旧预览冲突、丢失结果重放、失去生成权限后重放拒绝、跨组织 404、校验码及明细故障整批回滚。
+- 生命周期 HTTP 覆盖终止确认、调整/审计写入故障回滚、恢复冲突保持账单、撤销不复活旧单、同日新 UUID、旧客户端无历史终止和历史终止首次零额生成。
+- 专用 HTTP harness 使用固定合同/关系仓储 seam，真实 controller/service/guard/校验/事务执行；空间与原合同规则继续由原 core/lifecycle E2E 覆盖。该证据不替代真实 PostgreSQL 并发。

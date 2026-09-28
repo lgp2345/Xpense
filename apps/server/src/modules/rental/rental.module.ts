@@ -9,6 +9,7 @@ import { BillAdjustmentsRepository } from "./bill-adjustments.repository.js";
 import { BillingLifecycleService } from "./billing-lifecycle.service.js";
 import { BillingSourceService } from "./billing-source.service.js";
 import { BillingTerminationService } from "./billing-termination.service.js";
+import { BillsController } from "./bills.controller.js";
 import { BillsRepository } from "./bills.repository.js";
 import { BillsService } from "./bills.service.js";
 import { BillsReadService } from "./bills-read.service.js";
@@ -37,7 +38,13 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
 /** 组合租赁房产、空间、租户与合同接口，同时保持仓储为模块私有实现。 */
 @Module({
   imports: [AuditModule, AuthModule, BookkeepingModule, DbModule, IamModule],
-  controllers: [PropertiesController, SpacesController, TenantsController, ContractsController],
+  controllers: [
+    BillsController,
+    PropertiesController,
+    SpacesController,
+    TenantsController,
+    ContractsController,
+  ],
   providers: [
     BillAdjustmentsRepository,
     BillingSourceService,
