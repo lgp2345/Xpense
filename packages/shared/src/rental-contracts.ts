@@ -1,4 +1,5 @@
 import type { PageResult } from "./bookkeeping.js";
+import type { RentalBillingMode } from "./rental-charges.js";
 import type {
   RentalGender,
   RentalIdentityDocumentType,
@@ -128,6 +129,8 @@ export type RentalContractSummary = {
 
 /** 租赁合同详情。 */
 export type RentalContractDetail = RentalContractSummary & {
+  /** 缺失表示 legacy 合同；服务端返回实际持久化模式。 */
+  billingMode?: RentalBillingMode;
   billingAnchor: RentalBillingAnchor | null;
   paymentIntervalMonths: RentalPaymentIntervalMonths | null;
   dueDaysBefore: number | null;

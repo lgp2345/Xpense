@@ -83,6 +83,21 @@ const rentalPermissions = [
   "rental_bills:adjust",
 ] as const;
 
+const rentalFinancePermissions = [
+  "rental_charges:read",
+  "rental_charges:update",
+  "rental_meters:read",
+  "rental_meters:update",
+  "rental_monthly_bills:generate",
+  "rental_monthly_bills:adjust",
+  "rental_receipts:create",
+  "rental_receipts:revoke",
+  "rental_refunds:create",
+  "rental_refunds:revoke",
+  "rental_settlements:read",
+  "rental_settlements:confirm",
+] as const;
+
 // ── 汇总（不修改此行逻辑）─────────────────────────
 export const permissionKeys = [
   ...dashboardPermissions,
@@ -97,6 +112,7 @@ export const permissionKeys = [
   ...transactionPermissions,
   ...statisticsPermissions,
   ...rentalPermissions,
+  ...rentalFinancePermissions,
 ] as const;
 
 export type PermissionKey = (typeof permissionKeys)[number];

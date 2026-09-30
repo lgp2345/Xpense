@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
+import { rentalBillLineKinds, rentalBillTypes } from "@xpense/shared";
 
 import { getTableConfig, PgDialect } from "drizzle-orm/pg-core";
 import postgres from "postgres";
@@ -8,12 +9,19 @@ import { describe, expect, it } from "vitest";
 import {
   rentalBillAdjustments,
   rentalBillGenerations,
+  rentalBillLineKind,
   rentalBillLines,
   rentalBillNumberCounters,
   rentalBills,
+  rentalBillType,
 } from "./schema/rental-billing.js";
 
 describe("租赁账单持久化契约", () => {
+  it("持久化账单和明细枚举与共享契约一致", () => {
+    expect(rentalBillType.enumValues).toEqual(rentalBillTypes);
+    expect(rentalBillLineKind.enumValues).toEqual(rentalBillLineKinds);
+  });
+
   it("历史账单的合同引用不依赖可修正的房产归属", () => {
     const foreignKey = getTableConfig(rentalBills).foreignKeys.find(
       (key) => key.getName() === "rental_bills_contract_scope_fk",

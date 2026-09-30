@@ -94,4 +94,23 @@ describe("RBAC shared constants", () => {
       ]),
     );
   });
+
+  it("includes separate permissions for monthly rental finance actions", () => {
+    expect(permissionKeys).toEqual(
+      expect.arrayContaining([
+        "rental_charges:read",
+        "rental_charges:update",
+        "rental_meters:read",
+        "rental_meters:update",
+        "rental_monthly_bills:generate",
+        "rental_monthly_bills:adjust",
+        "rental_receipts:create",
+        "rental_receipts:revoke",
+        "rental_refunds:create",
+        "rental_refunds:revoke",
+        "rental_settlements:read",
+        "rental_settlements:confirm",
+      ]),
+    );
+  });
 });

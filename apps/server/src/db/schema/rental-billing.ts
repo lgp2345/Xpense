@@ -3,6 +3,7 @@ import type {
   RentalBillTotals,
   RentalContractDepositTerm,
 } from "@xpense/shared";
+import { rentalBillLineKinds, rentalBillTypes } from "@xpense/shared";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -26,13 +27,9 @@ import { organizations, users } from "./identity.js";
 import { rentalProperties } from "./rental.js";
 import { rentalContracts } from "./rental-tenancy.js";
 
-export const rentalBillType = pgEnum("rental_bill_type", ["rent", "deposit"]);
+export const rentalBillType = pgEnum("rental_bill_type", rentalBillTypes);
 export const rentalBillStatus = pgEnum("rental_bill_status", ["active", "voided"]);
-export const rentalBillLineKind = pgEnum("rental_bill_line_kind", [
-  "rent_period",
-  "deposit",
-  "termination_adjustment",
-]);
+export const rentalBillLineKind = pgEnum("rental_bill_line_kind", rentalBillLineKinds);
 
 /** 一次确认整批应收的请求记录；幂等键在组织内唯一。 */
 export const rentalBillGenerations = snakeCase.table(

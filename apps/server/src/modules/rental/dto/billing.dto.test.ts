@@ -19,6 +19,8 @@ describe("账单输入边界", () => {
   it("允许缺日期的只读预览，不允许生成提交租金或分页", () => {
     expect(previewBillsSchema.parse({ contractId: id }).depositDueDates).toEqual({});
     expect(generateBillsSchema.safeParse(valid).success).toBe(true);
+    expect(generateBillsSchema.safeParse({ ...valid, scope: "deposits" }).success).toBe(true);
+    expect(generateBillsSchema.safeParse({ ...valid, scope: "rent" }).success).toBe(false);
     for (const extra of [{ rentAmountMinor: 1 }, { page: 1 }, { pageSize: 20 }]) {
       expect(generateBillsSchema.safeParse({ ...valid, ...extra }).success).toBe(false);
     }

@@ -1,9 +1,21 @@
 import type { PageResult } from "./bookkeeping.js";
+import type { RentalFinancialBalance } from "./rental-cash.js";
 import type { RentalContractSpace } from "./rental-contracts.js";
 
 /** 应收费用分类；押金不计入租金。 */
-export const rentalBillTypes = ["rent", "deposit"] as const;
+export const rentalBillTypes = ["rent", "deposit", "monthly"] as const;
 export type RentalBillType = (typeof rentalBillTypes)[number];
+/** 账单费用行类型；月度明细和历史租金／押金行共用该稳定枚举。 */
+export const rentalBillLineKinds = [
+  "rent_period",
+  "deposit",
+  "termination_adjustment",
+  "water",
+  "electricity",
+  "fixed_fee",
+  "extra_fee",
+] as const;
+export type RentalBillLineKind = (typeof rentalBillLineKinds)[number];
 /** 有效不代表付款状态。 */
 export const rentalBillStatuses = ["active", "voided"] as const;
 export type RentalBillStatus = (typeof rentalBillStatuses)[number];
@@ -12,8 +24,28 @@ export const rentalBillDueStates = ["upcoming", "due_today", "date_passed"] as c
 export type RentalBillDueState = (typeof rentalBillDueStates)[number];
 
 /** 生成时保存的计算片段；终止差额行允许负值。 */
+export type RentalFeeSnapshot =
+  | {
+      kind: "water" | "electricity";
+      startReadingId: string;
+      endReadingId: string;
+      startDate: string;
+      endDate: string;
+      startReading: string;
+      endReading: string;
+      unitPrice: string;
+      overrideReason: string | null;
+    }
+  | {
+      kind: "fixed_fee";
+      feeId: string;
+      monthlyAmountMinor: number;
+      overrideReason: string | null;
+    }
+  | { kind: "extra_fee"; extraFeeId: string; origin: "monthly" | "settlement" };
+
 export type RentalBillLine = {
-  kind: "rent_period" | "deposit" | "termination_adjustment";
+  kind: RentalBillLineKind;
   label: string;
   amountMinor: number;
   periodStart: string | null;
@@ -24,6 +56,8 @@ export type RentalBillLine = {
   referenceDays: number | null;
   baseRentAmountMinor: number | null;
   sortOrder: number;
+  note?: string;
+  feeSnapshot?: RentalFeeSnapshot;
 };
 
 /** 账单列表安全摘要，金额为基础币种最小单位整数。 */
@@ -45,6 +79,12 @@ export type RentalBillSummary = {
   amountMinor: number;
   dueState: RentalBillDueState | null;
   createdAt: string;
+  /** 缺失表示 legacy 响应，不根据日期推断账单版本。 */
+  modelVersion?: 1 | 2;
+  billingMonth?: string | null;
+  financial?: RentalFinancialBalance | null;
+  settlementId?: string | null;
+  revision?: number;
 };
 
 /** 终止财务事件；撤销保留历史，后续同日终止使用新 ID。 */
@@ -85,7 +125,19 @@ export type RentalBillDetail = RentalBillSummary & {
   history: RentalBillSummary[];
 };
 
-export type RentalBillTotals = { rentAmountMinor: number; depositAmountMinor: number };
+export type RentalBillTotals = {
+  rentAmountMinor: number;
+  depositAmountMinor: number;
+  /** 新版本综合账单金额；缺失表示 legacy 汇总响应。 */
+  monthlyAmountMinor?: number;
+  /** 独立统计有效收退款及待收待退，避免由账单费用总额推断资金。 */
+  financial?: {
+    receivedMinor: number;
+    refundedMinor: number;
+    outstandingMinor: number;
+    refundableMinor: number;
+  };
+};
 /** 完整适用计划的覆盖数量，与列表筛选及分页无关。 */
 export type RentalBillCoverage = {
   existingRentCount: number;
@@ -113,6 +165,8 @@ export type RentalBillTerminationConfirmation = { finalAmountMinor: number; reas
 export type RentalBillGenerationInput = {
   contractId: string;
   depositDueDates: Record<string, string>;
+  /** v2 合同仅允许显式生成独立押金账单。 */
+  scope?: "deposits";
   terminationConfirmation?: RentalBillTerminationConfirmation;
 };
 export type PreviewRentalBillsRequest = RentalBillGenerationInput & {

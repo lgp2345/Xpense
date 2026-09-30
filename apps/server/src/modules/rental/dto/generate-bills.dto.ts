@@ -6,6 +6,7 @@ import { billGenerationInputShape } from "./preview-bills.dto.js";
 export const generateBillsSchema = z
   .object({
     ...billGenerationInputShape,
+    scope: z.literal("deposits").optional(),
     expectedVersion: z.string().min(1).max(200),
     idempotencyKey: z.string().uuid(),
   })
