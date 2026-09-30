@@ -35,7 +35,14 @@ import { PropertiesRepository } from "./properties.repository.js";
 import { PropertiesService } from "./properties.service.js";
 import { PropertiesPolicyService } from "./properties-policy.service.js";
 import { RentalModule } from "./rental.module.js";
+import { RentalCashController } from "./rental-cash.controller.js";
+import { RentalCashService } from "./rental-cash.service.js";
+import { RentalCashProjectionRepository } from "./rental-cash-projection.repository.js";
 import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
+import { RentalReceiptsController } from "./rental-receipts.controller.js";
+import { RentalRefundsController } from "./rental-refunds.controller.js";
+import { RentalSettlementsRepository } from "./rental-settlements.repository.js";
+import { SettlementProjectionService } from "./settlement-projection.service.js";
 import { SpacesController } from "./spaces.controller.js";
 import { SpacesRepository } from "./spaces.repository.js";
 import { SpacesService } from "./spaces.service.js";
@@ -133,6 +140,9 @@ describe("rental property controller", () => {
       ChargeTermsController,
       MeterReadingsController,
       MonthlyBillsController,
+      RentalReceiptsController,
+      RentalRefundsController,
+      RentalCashController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([
@@ -147,6 +157,10 @@ describe("rental property controller", () => {
         MeterReadingsService,
         MonthlyBillsService,
         RentalFinanceSourceService,
+        RentalCashProjectionRepository,
+        RentalCashService,
+        RentalSettlementsRepository,
+        SettlementProjectionService,
       ]),
     );
     expect(Reflect.getMetadata(MODULE_METADATA.EXPORTS, RentalModule) ?? []).not.toContain(
@@ -264,6 +278,9 @@ describe("rental space controller", () => {
       ChargeTermsController,
       MeterReadingsController,
       MonthlyBillsController,
+      RentalReceiptsController,
+      RentalRefundsController,
+      RentalCashController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([SpacesRepository, SpacesPolicyService, SpacesService]),
@@ -483,6 +500,9 @@ describe("rental contract controller", () => {
       ChargeTermsController,
       MeterReadingsController,
       MonthlyBillsController,
+      RentalReceiptsController,
+      RentalRefundsController,
+      RentalCashController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([

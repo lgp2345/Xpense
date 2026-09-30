@@ -26,6 +26,25 @@ type FinanceScope = { organizationId: string; contractId: string };
 /** 资金记录按 bill/settlement 目标查询；撤销只追加字段，不删除历史。 */
 @Injectable()
 export class RentalCashRepository {
+  /** 组织限定的只读 scope locator；正式读写仍需锁定 FinanceScope。 */
+  async findContractIdByEntryId(
+    organizationId: string,
+    entryId: string,
+    executor: AppDbExecutor,
+  ): Promise<string | null> {
+    const [record] = await executor
+      .select({ contractId: rentalCashEntries.contractId })
+      .from(rentalCashEntries)
+      .where(
+        and(
+          eq(rentalCashEntries.organizationId, organizationId),
+          eq(rentalCashEntries.id, entryId),
+        ),
+      )
+      .limit(1);
+    return record?.contractId ?? null;
+  }
+
   async list(
     scope: FinanceScope,
     target: RentalCashTarget,

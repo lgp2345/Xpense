@@ -2,6 +2,7 @@ import { NotFoundException } from "@nestjs/common";
 import type { RentalBillDetail } from "@xpense/shared";
 import { BillsRepository } from "../modules/rental/bills.repository.js";
 import type { BillRecord } from "../modules/rental/bills.repository.types.js";
+import { calculateRentalBalance } from "../modules/rental/rental-balance.rules.js";
 import type { RentalFinanceSnapshot } from "../modules/rental/rental-finance.types.js";
 import { RentalFinanceSourceService } from "../modules/rental/rental-finance-source.service.js";
 import { login, TEST_PHONES, testIds } from "./auth-test-helpers.js";
@@ -134,6 +135,60 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
       const bills = state.bills
         .filter((bill) => bill.organizationId === organizationId && bill.contractId === contractId)
         .map(({ organizationId: _organizationId, ...bill }) => structuredClone(bill));
+      const cashEntries = state.cashEntries
+        .filter(
+          (entry) => entry.organizationId === organizationId && entry.contractId === contractId,
+        )
+        .map((entry) => ({
+          id: entry.id,
+          contractId: entry.contractId,
+          target: entry.billId
+            ? ({ kind: "bill", billId: entry.billId } as const)
+            : entry.settlementId
+              ? ({ kind: "settlement", settlementId: entry.settlementId } as const)
+              : (() => {
+                  throw new Error("Finance cash fixture requires an exact target");
+                })(),
+          kind: entry.kind,
+          purpose: entry.purpose,
+          amountMinor: entry.amountMinor,
+          occurredOn: entry.occurredOn,
+          note: entry.note,
+          createdAt: entry.createdAt.toISOString(),
+          createdByUserId: entry.createdByUserId,
+          revokedAt: entry.revokedAt?.toISOString() ?? null,
+          revokedByUserId: entry.revokedByUserId,
+          revokeReason: entry.revokeReason,
+        }));
+      const settlementRecord = state.settlements.find(
+        (record) => record.organizationId === organizationId && record.contractId === contractId,
+      );
+      const settlement = settlementRecord
+        ? ({
+            id: settlementRecord.id,
+            contractId: settlementRecord.contractId,
+            eventId: settlementRecord.eventId,
+            kind: settlementRecord.kind,
+            effectiveEndDate: settlementRecord.effectiveEndDate,
+            version: settlementRecord.version,
+            revision: settlementRecord.revision,
+            finalCostMinor: settlementRecord.finalCostMinor,
+            balance: {
+              ...calculateRentalBalance(
+                settlementRecord.finalCostMinor,
+                safeCashTotal(cashEntries, "receipt"),
+                safeCashTotal(cashEntries, "refund"),
+                null,
+                base.context.today,
+              ),
+              overdue: false,
+              version: settlementRecord.version,
+            },
+            status: settlementRecord.status,
+            confirmedAt: settlementRecord.confirmedAt.toISOString(),
+            confirmedByUserId: settlementRecord.confirmedByUserId,
+          } satisfies RentalFinanceSnapshot["settlement"])
+        : null;
       const snapshot: RentalFinanceSnapshot = {
         ...base,
         context: {
@@ -185,8 +240,8 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
             }) => structuredClone(reading),
           ),
         bills,
-        cashEntries: [],
-        settlement: null,
+        cashEntries,
+        settlement,
         cancelledOn: null,
       };
       lastSnapshot = snapshot;
@@ -220,4 +275,15 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
       return structuredClone(lastSnapshot);
     },
   };
+}
+
+function safeCashTotal(
+  entries: RentalFinanceSnapshot["cashEntries"],
+  kind: "receipt" | "refund",
+): number {
+  const total = entries
+    .filter((entry) => entry.kind === kind && entry.revokedAt === null)
+    .reduce((sum, entry) => sum + BigInt(entry.amountMinor), 0n);
+  if (total > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError("测试资金事实超出安全整数范围");
+  return Number(total);
 }

@@ -30,6 +30,50 @@ describe("RentalSettlementsRepository", () => {
     expect(dialect.sqlToQuery(condition as never).params).toEqual(["org", "contract"]);
   });
 
+  it("scope locator 只凭组织和 settlement id 派生合同范围", async () => {
+    let condition: unknown;
+    const executor = {
+      select: vi.fn(() => ({
+        from: vi.fn((table: unknown) => ({
+          where: vi.fn((value: unknown) => {
+            expect(table).toBe(rentalSettlements);
+            condition = value;
+            return { limit: vi.fn().mockResolvedValue([{ contractId: "contract" }]) };
+          }),
+        })),
+      })),
+    };
+
+    await expect(
+      new RentalSettlementsRepository().findContractId("org", "settlement", executor as never),
+    ).resolves.toBe("contract");
+    expect(dialect.sqlToQuery(condition as never).params).toEqual(["org", "settlement"]);
+  });
+
+  it("只从实际合同结算关联表读取当前结算纳入的账单", async () => {
+    let condition: unknown;
+    const executor = {
+      select: vi.fn(() => ({
+        from: vi.fn((table: unknown) => ({
+          where: vi.fn((value: unknown) => {
+            expect(table).toBe(rentalSettlementBills);
+            condition = value;
+            return { orderBy: vi.fn().mockResolvedValue([{ billId: "bill" }]) };
+          }),
+        })),
+      })),
+    };
+
+    await expect(
+      new RentalSettlementsRepository().billIds(scope, "settlement", executor as never),
+    ).resolves.toEqual(["bill"]);
+    expect(dialect.sqlToQuery(condition as never).params).toEqual([
+      "org",
+      "contract",
+      "settlement",
+    ]);
+  });
+
   it("linkBills 在单一组织合同范围内替换当前关联账单", async () => {
     let deletedTable: unknown;
     let deleteCondition: unknown;

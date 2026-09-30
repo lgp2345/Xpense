@@ -90,4 +90,24 @@ describe("RentalCashRepository", () => {
       createdByUserId: actor.userId,
     });
   });
+
+  it("entry scope locator 必须同时限定组织和 entry id", async () => {
+    let condition: unknown;
+    const executor = {
+      select: vi.fn(() => ({
+        from: vi.fn((table: unknown) => ({
+          where: vi.fn((value: unknown) => {
+            expect(table).toBe(rentalCashEntries);
+            condition = value;
+            return { limit: vi.fn().mockResolvedValue([{ contractId: "contract" }]) };
+          }),
+        })),
+      })),
+    };
+
+    await expect(
+      new RentalCashRepository().findContractIdByEntryId("org", "cash", executor as never),
+    ).resolves.toBe("contract");
+    expect(dialect.sqlToQuery(condition as never).params).toEqual(["org", "cash"]);
+  });
 });

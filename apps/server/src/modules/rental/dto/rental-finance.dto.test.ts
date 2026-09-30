@@ -4,6 +4,7 @@ import {
   confirmRentalDepositReceiptSchema,
   confirmRentalRefundSchema,
   recordRentalReceiptSchema,
+  rentalCashListQuerySchema,
   revokeRentalCashSchema,
 } from "./rental-cash.dto.js";
 import { updateRentalChargeTermsSchema } from "./rental-charges.dto.js";
@@ -152,6 +153,32 @@ describe("租赁收费与结算 DTO", () => {
         extraFees: [{ ...validExtraFee, note: "   " }],
       }).success,
     ).toBe(true);
+  });
+
+  it("将现金列表的扁平查询编解码为唯一目标并限制分页", () => {
+    expect(rentalCashListQuerySchema.parse({ kind: "bill", billId }).target).toEqual({
+      kind: "bill",
+      billId,
+    });
+    expect(rentalCashListQuerySchema.parse({ kind: "settlement", settlementId }).target).toEqual({
+      kind: "settlement",
+      settlementId,
+    });
+    expect(rentalCashListQuerySchema.parse({ kind: "bill", billId })).toMatchObject({
+      page: 1,
+      pageSize: 20,
+    });
+
+    for (const query of [
+      { kind: "bill", billId, settlementId },
+      { kind: "bill", settlementId },
+      { kind: "settlement", billId },
+      { kind: "settlement", settlementId, contractId },
+      { kind: "bill", billId, page: "0" },
+      { kind: "bill", billId, pageSize: "101" },
+    ]) {
+      expect(rentalCashListQuerySchema.safeParse(query).success).toBe(false);
+    }
   });
 
   it("限制水电读数和单价精度、正负号及数据库整数位范围", () => {

@@ -40,6 +40,9 @@ import { ContractsRepository } from "../modules/rental/contracts.repository.js";
 import { FinanceRequestsRepository } from "../modules/rental/finance-requests.repository.js";
 import { MeterReadingsRepository } from "../modules/rental/meter-readings.repository.js";
 import { PropertiesRepository } from "../modules/rental/properties.repository.js";
+import { RentalCashRepository } from "../modules/rental/rental-cash.repository.js";
+import { RentalCashProjectionRepository } from "../modules/rental/rental-cash-projection.repository.js";
+import { RentalSettlementsRepository } from "../modules/rental/rental-settlements.repository.js";
 import { SpacesRepository } from "../modules/rental/spaces.repository.js";
 import { TenantsRepository } from "../modules/rental/tenants.repository.js";
 import { UserRepository } from "../modules/user/user.repository.js";
@@ -102,6 +105,11 @@ const rentalTestRolePermissions = {
     "rental_bills:read",
     "rental_bills:generate",
     "rental_bills:adjust",
+    "rental_receipts:create",
+    "rental_receipts:revoke",
+    "rental_refunds:create",
+    "rental_refunds:revoke",
+    "rental_settlements:read",
     "rental_charges:read",
     "rental_charges:update",
     "rental_meters:read",
@@ -264,6 +272,12 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
       .useValue(financeFakes.meterReadingsRepository)
       .overrideProvider(FinanceRequestsRepository)
       .useValue(financeFakes.financeRequestsRepository)
+      .overrideProvider(RentalCashRepository)
+      .useValue(financeFakes.cashRepository)
+      .overrideProvider(RentalCashProjectionRepository)
+      .useValue(financeFakes.cashProjectionRepository)
+      .overrideProvider(RentalSettlementsRepository)
+      .useValue(financeFakes.settlementsRepository)
       .overrideProvider(ContractRelationsRepository)
       .useValue(rentalFakes.contractRelationsRepository);
   }

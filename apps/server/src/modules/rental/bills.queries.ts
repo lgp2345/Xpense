@@ -24,6 +24,9 @@ import {
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { rentalBillAdjustments, rentalBillLines, rentalBills } from "../../db/schema.js";
 import type { AdjustmentRecord, BillRecord } from "./bills.repository.types.js";
+import { calculateRentalCashBalance } from "./rental-cash.rules.js";
+import { rentalCashSourceVersion } from "./rental-cash.version.rules.js";
+import type { RentalCashProjectionFacts } from "./rental-cash-projection.repository.types.js";
 
 /** 所有筛选保持组织作用域；关键字中的通配符按字面量检索。 */
 export function billListCondition(organizationId: string, query: ListRentalBillsQuery): SQL {
@@ -66,6 +69,36 @@ export function toBillSummary(bill: BillRecord): RentalBillSummary {
           billingMonth: bill.billingMonth,
           revision: bill.revision,
         }
+      : {}),
+  };
+}
+
+/** 只为新版账单加现金余额和当前结算关联；legacy 账单不推断财务状态。 */
+export function withBillFinancial<T extends RentalBillSummary>(
+  bill: T,
+  facts: RentalCashProjectionFacts,
+  today: string,
+  organizationId: string,
+): T {
+  if (bill.modelVersion !== 2) return bill;
+  if (facts.contractId !== bill.contractId || facts.organizationId !== organizationId)
+    throw new Error("Rental bill finance facts do not match the bill contract");
+  const target = { kind: "bill", billId: bill.id } as const;
+  const balance = calculateRentalCashBalance(
+    facts.cashEntries,
+    target,
+    bill.amountMinor,
+    bill.dueDate,
+    today,
+  );
+  return {
+    ...bill,
+    financial: {
+      ...balance,
+      version: rentalCashSourceVersion(facts, target),
+    },
+    ...(facts.settlement && facts.settlementBillIds.includes(bill.id)
+      ? { settlementId: facts.settlement.id }
       : {}),
   };
 }

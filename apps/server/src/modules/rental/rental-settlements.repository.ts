@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 
 import type { AppDbExecutor } from "../../db/db.module.js";
 import {
@@ -33,6 +33,25 @@ type FinanceScope = { organizationId: string; contractId: string };
 /** 结算当前投影、不可变版本与纳入账单关系。 */
 @Injectable()
 export class RentalSettlementsRepository {
+  /** 组织限定的只读 scope locator；后续动作需在合同锁内重读完整资源。 */
+  async findContractId(
+    organizationId: string,
+    settlementId: string,
+    executor: AppDbExecutor,
+  ): Promise<string | null> {
+    const [record] = await executor
+      .select({ contractId: rentalSettlements.contractId })
+      .from(rentalSettlements)
+      .where(
+        and(
+          eq(rentalSettlements.organizationId, organizationId),
+          eq(rentalSettlements.id, settlementId),
+        ),
+      )
+      .limit(1);
+    return record?.contractId ?? null;
+  }
+
   async findCurrent(
     scope: FinanceScope,
     executor: AppDbExecutor,
@@ -47,6 +66,26 @@ export class RentalSettlementsRepository {
         ),
       );
     return record ?? null;
+  }
+
+  /** 从真实关联表读取本结算纳入的完整账单 ID 集合。 */
+  async billIds(
+    scope: FinanceScope,
+    settlementId: string,
+    executor: AppDbExecutor,
+  ): Promise<string[]> {
+    const records = await executor
+      .select({ billId: rentalSettlementBills.billId })
+      .from(rentalSettlementBills)
+      .where(
+        and(
+          eq(rentalSettlementBills.organizationId, scope.organizationId),
+          eq(rentalSettlementBills.contractId, scope.contractId),
+          eq(rentalSettlementBills.settlementId, settlementId),
+        ),
+      )
+      .orderBy(asc(rentalSettlementBills.billId));
+    return records.map(({ billId }) => billId);
   }
 
   async create(

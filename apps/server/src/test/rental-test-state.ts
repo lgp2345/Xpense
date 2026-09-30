@@ -20,6 +20,12 @@ import type {
   MeterReadingRevisionRecord,
 } from "../modules/rental/meter-readings.repository.types.js";
 import type { RentalPropertyRecord } from "../modules/rental/properties.repository.types.js";
+import type { RentalCashRecord } from "../modules/rental/rental-cash.repository.types.js";
+import type {
+  RentalSettlementBillRecord,
+  RentalSettlementRecord,
+  RentalSettlementRevisionRecord,
+} from "../modules/rental/rental-settlements.repository.types.js";
 import type { RentalSpaceRecord } from "../modules/rental/spaces.repository.types.js";
 import type { RentalTenantRecord } from "../modules/rental/tenants.repository.types.js";
 import { testIds } from "./auth-test-helpers.js";
@@ -50,6 +56,10 @@ export type RentalTestState = {
   chargeTermRevisions: ChargeTermsRevisionRecord[];
   meterReadings: MeterReadingRecord[];
   meterReadingRevisions: MeterReadingRevisionRecord[];
+  cashEntries: RentalCashRecord[];
+  settlements: RentalSettlementRecord[];
+  settlementRevisions: RentalSettlementRevisionRecord[];
+  settlementBills: RentalSettlementBillRecord[];
   financeRequests: FinanceRequestRecord[];
   properties: Map<string, RentalPropertyRecord>;
   spaces: Map<string, RentalSpaceRecord>;
@@ -213,6 +223,10 @@ export function createRentalTestState(): RentalTestState {
     chargeTermRevisions: [],
     meterReadings: [],
     meterReadingRevisions: [],
+    cashEntries: [],
+    settlements: [],
+    settlementRevisions: [],
+    settlementBills: [],
     financeRequests: [],
     properties: new Map([
       [property.id, property],
@@ -286,6 +300,10 @@ export function cloneRentalTestState(state: RentalTestState): RentalTestState {
     chargeTermRevisions: structuredClone(state.chargeTermRevisions),
     meterReadings: structuredClone(state.meterReadings),
     meterReadingRevisions: structuredClone(state.meterReadingRevisions),
+    cashEntries: structuredClone(state.cashEntries),
+    settlements: structuredClone(state.settlements),
+    settlementRevisions: structuredClone(state.settlementRevisions),
+    settlementBills: structuredClone(state.settlementBills),
     financeRequests: structuredClone(state.financeRequests),
     properties: new Map(
       [...state.properties].map(([id, property]) => [id, cloneProperty(property)]),
@@ -347,6 +365,18 @@ export function restoreRentalTestState(state: RentalTestState, snapshot: RentalT
     0,
     state.meterReadingRevisions.length,
     ...structuredClone(snapshot.meterReadingRevisions),
+  );
+  state.cashEntries.splice(0, state.cashEntries.length, ...structuredClone(snapshot.cashEntries));
+  state.settlements.splice(0, state.settlements.length, ...structuredClone(snapshot.settlements));
+  state.settlementRevisions.splice(
+    0,
+    state.settlementRevisions.length,
+    ...structuredClone(snapshot.settlementRevisions),
+  );
+  state.settlementBills.splice(
+    0,
+    state.settlementBills.length,
+    ...structuredClone(snapshot.settlementBills),
   );
   state.financeRequests.splice(
     0,
