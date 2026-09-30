@@ -42,9 +42,15 @@ export class BillsReadService {
     return this.transactions.run(async (tx) => {
       const { today } = await this.policy.lockOrganizationContext(auth.organizationId, tx);
       const page = await this.bills.list(auth.organizationId, dto, tx);
-      const coverage = dto.contractId
-        ? billingCoverage(await this.sources.read(auth.organizationId, dto.contractId, tx))
+      const source = dto.contractId
+        ? await this.sources.read(auth.organizationId, dto.contractId, tx)
         : null;
+      const coverage =
+        source?.contract.billingMode === "monthly_settlement"
+          ? null
+          : source
+            ? billingCoverage(source)
+            : null;
       return { ...page, coverage, items: page.items.map((bill) => dueState(bill, today)) };
     });
   }

@@ -90,7 +90,7 @@ export type CashWriteInput = Omit<
 
 export type RequestResult = {
   resourceId: string;
-  resourceKind: "terms" | "baseline" | "bill" | "cash" | "revision" | "settlement";
+  resourceKind: "terms" | "baseline" | "bill" | "generation" | "cash" | "revision" | "settlement";
 };
 
 export type { PreviewRentalSettlementRequest, RentalBillRevisionInput, RentalFeeSnapshot };

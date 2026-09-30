@@ -12,8 +12,12 @@ import type { AppDbTransaction } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import { AccessService } from "../iam/access.service.js";
 import type { BillingSource, PersistableBillingDraft } from "./billing.types.js";
-import { assembleBillingPreview } from "./billing-plan.rules.js";
-import { billingDigest, billingFingerprint } from "./billing-source.rules.js";
+import {
+  assembleBillingPreview,
+  billingDraftMatches,
+  billingTotals,
+} from "./billing-plan.rules.js";
+import { billingDigest, billingFingerprint, buildDepositDrafts } from "./billing-source.rules.js";
 import { BillingSourceService } from "./billing-source.service.js";
 import { BillingTerminationService } from "./billing-termination.service.js";
 import { BillsRepository } from "./bills.repository.js";
@@ -22,6 +26,8 @@ import { ContractsRepository } from "./contracts.repository.js";
 import { ContractsPolicyService } from "./contracts-policy.service.js";
 import type { GenerateBillsDto } from "./dto/generate-bills.dto.js";
 import type { PreviewBillsDto } from "./dto/preview-bills.dto.js";
+import { FinanceRequestsRepository } from "./finance-requests.repository.js";
+import { financeRequestHash } from "./rental-finance-request.rules.js";
 
 /** 同组织→房产→合同锁下，预览一致来源并整批幂等保存。 */
 @Injectable()
@@ -35,6 +41,7 @@ export class BillsService {
     private readonly audit: AuditService,
     private readonly transactions: DatabaseTransactionService,
     private readonly termination: BillingTerminationService,
+    private readonly financeRequests: FinanceRequestsRepository,
   ) {}
 
   async preview(auth: AuthContext, dto: PreviewBillsDto): Promise<RentalBillPreview> {
@@ -79,16 +86,52 @@ export class BillsService {
     return this.transactions.run(async (tx) => {
       const { today } = await this.policy.lockOrganizationContext(auth.organizationId, tx);
       const input = this.input(dto);
-      const requestHash = billingDigest({ ...input, expectedVersion: dto.expectedVersion });
+      const legacyRequestHash = billingDigest({ ...input, expectedVersion: dto.expectedVersion });
       const previous = await this.bills.findGeneration(auth.organizationId, dto.idempotencyKey, tx);
       if (previous) {
-        if (previous.contractId !== dto.contractId || previous.requestHash !== requestHash)
+        const financeRequest = await this.financeRequests.find(
+          { organizationId: auth.organizationId, contractId: dto.contractId },
+          dto.idempotencyKey,
+          tx,
+        );
+        const bridgedDepositReplay =
+          input.scope === "deposits" &&
+          financeRequest?.action === "bill_deposit.generate" &&
+          financeRequest.result.resourceKind === "generation" &&
+          financeRequest.result.resourceId === previous.id;
+        const generationRequestHash = bridgedDepositReplay
+          ? this.depositRequestHash(input)
+          : legacyRequestHash;
+        if (
+          previous.contractId !== dto.contractId ||
+          previous.requestHash !== generationRequestHash
+        )
           throw this.conflict("请求标识已用于其他账单内容");
+        if (financeRequest) {
+          const matchesV2Deposit =
+            bridgedDepositReplay &&
+            financeRequest.contractId === dto.contractId &&
+            financeRequest.requestHash === this.depositRequestHash(input);
+          if (!matchesV2Deposit) throw this.conflict("请求标识已用于其他租赁财务操作");
+        }
         await this.lockContract(auth, dto.contractId, tx);
         return this.result(previous, true);
       }
+      if (
+        await this.financeRequests.find(
+          { organizationId: auth.organizationId, contractId: dto.contractId },
+          dto.idempotencyKey,
+          tx,
+        )
+      )
+        throw this.conflict("请求标识已用于其他租赁财务操作");
       const source = await this.readLocked(auth, dto.contractId, tx);
       this.assertEligible(source);
+      const monthlyMode = source.contract.billingMode === "monthly_settlement";
+      if (monthlyMode && dto.scope !== "deposits")
+        throw this.conflict("月度结算合同请使用月度账单入口；旧入口仅可显式生成押金");
+      if (monthlyMode && dto.terminationConfirmation)
+        throw this.badRequest("月度押金生成不接受终止租金确认");
       if (billingFingerprint(source, input) !== dto.expectedVersion)
         throw this.conflict("账单预览已变化，请重新预览");
       const plan = this.plan(source, input);
@@ -126,7 +169,7 @@ export class BillsService {
           organizationId: auth.organizationId,
           contractId: dto.contractId,
           idempotencyKey: dto.idempotencyKey,
-          requestHash,
+          requestHash: monthlyMode ? this.depositRequestHash(input) : legacyRequestHash,
           sourceVersion: dto.expectedVersion,
           origin: "manual",
           createdCount: plan.creates.length,
@@ -136,14 +179,24 @@ export class BillsService {
         },
         tx,
       );
-      const drafts: PersistableBillingDraft[] = plan.creates.map((draft) => ({
-        ...draft,
-        dueDate: draft.dueDate as string,
-        adjustmentId:
-          draft.type === "rent" && draft.effectiveEnd === source.contract.terminationDate
-            ? adjustmentId
-            : null,
-      }));
+      const drafts: PersistableBillingDraft[] = plan.creates.map((draft) => {
+        const persistedFields = {
+          dueDate: draft.dueDate as string,
+          adjustmentId:
+            draft.type === "rent" && draft.effectiveEnd === source.contract.terminationDate
+              ? adjustmentId
+              : null,
+        };
+        if (monthlyMode && draft.type === "deposit")
+          return {
+            ...draft,
+            type: "deposit" as const,
+            ...persistedFields,
+            modelVersion: 2 as const,
+            billingMonth: null,
+          };
+        return { ...draft, ...persistedFields };
+      });
       await this.bills.insertBills(
         { organizationId: auth.organizationId, userId: auth.userId, today },
         source,
@@ -163,6 +216,19 @@ export class BillsService {
         },
         tx,
       );
+      if (monthlyMode) {
+        await this.financeRequests.complete(
+          { organizationId: auth.organizationId, contractId: dto.contractId },
+          {
+            idempotencyKey: dto.idempotencyKey,
+            action: "bill_deposit.generate",
+            requestHash: this.depositRequestHash(input),
+            result: { resourceId: generation.id, resourceKind: "generation" },
+          },
+          { userId: auth.userId },
+          tx,
+        );
+      }
       return this.result(generation, false);
     });
   }
@@ -171,6 +237,7 @@ export class BillsService {
     return {
       contractId: dto.contractId,
       depositDueDates: dto.depositDueDates,
+      ...(dto.scope ? { scope: dto.scope } : {}),
       ...(dto.terminationConfirmation
         ? { terminationConfirmation: dto.terminationConfirmation }
         : {}),
@@ -179,6 +246,11 @@ export class BillsService {
 
   private plan(source: BillingSource, input: RentalBillGenerationInput) {
     this.assertEligible(source);
+    if (source.contract.billingMode === "monthly_settlement") {
+      if (input.scope !== "deposits")
+        throw this.conflict("月度结算合同请使用月度账单入口；旧入口仅可显式生成押金");
+      return this.planDeposits(source, input);
+    }
     let plan: ReturnType<typeof assembleBillingPreview>;
     try {
       plan = assembleBillingPreview(source, input);
@@ -193,6 +265,56 @@ export class BillsService {
     if (Object.keys(input.depositDueDates).some((key) => !missing.has(key)))
       throw this.badRequest("押金日期只能填写当前缺失的项目");
     return plan;
+  }
+
+  private planDeposits(source: BillingSource, input: RentalBillGenerationInput) {
+    const drafts = buildDepositDrafts(source.contract.depositTerms, input.depositDueDates);
+    const active = new Map(
+      source.activeBills
+        .filter(({ type }) => type === "deposit")
+        .map((bill) => [bill.sourceKey, bill]),
+    );
+    const draftKeys = new Set(drafts.map(({ sourceKey }) => sourceKey));
+    if ([...active.keys()].some((key) => !draftKeys.has(key)))
+      throw this.conflict("有效押金账单与当前合同约定不一致");
+    const creates = [] as typeof drafts;
+    const items = drafts.map((draft) => {
+      const bill = active.get(draft.sourceKey);
+      if (bill && !billingDraftMatches(draft, bill))
+        throw this.conflict("有效押金账单与当前合同约定不一致");
+      if (!bill) creates.push(draft);
+      return {
+        type: draft.type,
+        sourceKey: draft.sourceKey,
+        periodStart: draft.periodStart,
+        periodEnd: draft.periodEnd,
+        effectiveEnd: draft.effectiveEnd,
+        dueDate: bill?.dueDate ?? draft.dueDate,
+        amountMinor: bill?.amountMinor ?? draft.amountMinor,
+        lines: bill?.lines ?? draft.lines,
+        disposition: bill ? ("existing" as const) : ("create" as const),
+        existingBillId: bill?.id ?? null,
+      };
+    });
+    const missingDepositSourceKeys = creates
+      .filter((draft) => !draft.dueDate)
+      .map(({ sourceKey }) => sourceKey);
+    const missing = new Set(creates.map(({ sourceKey }) => sourceKey));
+    if (Object.keys(input.depositDueDates).some((key) => !missing.has(key)))
+      throw this.badRequest("押金日期只能填写当前缺失的项目");
+    return {
+      creates,
+      items,
+      missingDepositSourceKeys,
+      requiresTerminationConfirmation: false,
+      terminationReference: null,
+      totals: billingTotals(items),
+      createTotals: billingTotals(creates),
+    };
+  }
+
+  private depositRequestHash(input: RentalBillGenerationInput): string {
+    return financeRequestHash("bill_deposit.generate", input);
   }
 
   private assertEligible(source: BillingSource) {

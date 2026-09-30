@@ -4,12 +4,21 @@ import type {
   GenerationRecord,
 } from "../modules/rental/bills.repository.types.js";
 import type {
+  ChargeTermsRecord,
+  ChargeTermsRevisionRecord,
+} from "../modules/rental/charge-terms.repository.types.js";
+import type {
   ContractPartyReference,
   RentalContractDepositRecord,
   RentalContractPartyPeriodRecord,
   RentalContractRecord,
   RentalContractSpaceRecord,
 } from "../modules/rental/contracts.repository.types.js";
+import type { FinanceRequestRecord } from "../modules/rental/finance-requests.repository.types.js";
+import type {
+  MeterReadingRecord,
+  MeterReadingRevisionRecord,
+} from "../modules/rental/meter-readings.repository.types.js";
 import type { RentalPropertyRecord } from "../modules/rental/properties.repository.types.js";
 import type { RentalSpaceRecord } from "../modules/rental/spaces.repository.types.js";
 import type { RentalTenantRecord } from "../modules/rental/tenants.repository.types.js";
@@ -37,6 +46,11 @@ export type RentalTestState = {
   billGenerations: GenerationRecord[];
   billAdjustments: AdjustmentRecord[];
   billCounter: number;
+  chargeTerms: Map<string, ChargeTermsRecord>;
+  chargeTermRevisions: ChargeTermsRevisionRecord[];
+  meterReadings: MeterReadingRecord[];
+  meterReadingRevisions: MeterReadingRevisionRecord[];
+  financeRequests: FinanceRequestRecord[];
   properties: Map<string, RentalPropertyRecord>;
   spaces: Map<string, RentalSpaceRecord>;
   tenants: Map<string, RentalTenantRecord>;
@@ -195,6 +209,11 @@ export function createRentalTestState(): RentalTestState {
     billGenerations: [],
     billAdjustments: [],
     billCounter: 0,
+    chargeTerms: new Map(),
+    chargeTermRevisions: [],
+    meterReadings: [],
+    meterReadingRevisions: [],
+    financeRequests: [],
     properties: new Map([
       [property.id, property],
       [
@@ -263,6 +282,11 @@ export function cloneRentalTestState(state: RentalTestState): RentalTestState {
     billGenerations: structuredClone(state.billGenerations),
     billAdjustments: structuredClone(state.billAdjustments),
     billCounter: state.billCounter,
+    chargeTerms: new Map(structuredClone([...state.chargeTerms.entries()])),
+    chargeTermRevisions: structuredClone(state.chargeTermRevisions),
+    meterReadings: structuredClone(state.meterReadings),
+    meterReadingRevisions: structuredClone(state.meterReadingRevisions),
+    financeRequests: structuredClone(state.financeRequests),
     properties: new Map(
       [...state.properties].map(([id, property]) => [id, cloneProperty(property)]),
     ),
@@ -308,6 +332,27 @@ export function restoreRentalTestState(state: RentalTestState, snapshot: RentalT
     ...structuredClone(snapshot.billAdjustments),
   );
   state.billCounter = snapshot.billCounter;
+  replaceMap(state.chargeTerms, snapshot.chargeTerms, (record) => structuredClone(record));
+  state.chargeTermRevisions.splice(
+    0,
+    state.chargeTermRevisions.length,
+    ...structuredClone(snapshot.chargeTermRevisions),
+  );
+  state.meterReadings.splice(
+    0,
+    state.meterReadings.length,
+    ...structuredClone(snapshot.meterReadings),
+  );
+  state.meterReadingRevisions.splice(
+    0,
+    state.meterReadingRevisions.length,
+    ...structuredClone(snapshot.meterReadingRevisions),
+  );
+  state.financeRequests.splice(
+    0,
+    state.financeRequests.length,
+    ...structuredClone(snapshot.financeRequests),
+  );
   replaceMap(state.properties, snapshot.properties, cloneProperty);
   replaceMap(state.spaces, snapshot.spaces, cloneSpace);
   replaceMap(state.tenants, snapshot.tenants, cloneTenant);
@@ -502,6 +547,7 @@ export function createContractRecord(
     organizationId: input.organizationId,
     propertyId: input.propertyId,
     contractNumber: input.contractNumber,
+    billingMode: input.billingMode ?? "legacy_receivable",
     externalContractNumber: input.externalContractNumber ?? null,
     status: input.status ?? "draft",
     startDate: input.startDate ?? null,

@@ -114,7 +114,14 @@ export const rentalFinanceRequests = snakeCase.table(
     result: jsonb()
       .$type<{
         resourceId: string;
-        resourceKind: "terms" | "baseline" | "bill" | "cash" | "revision" | "settlement";
+        resourceKind:
+          | "terms"
+          | "baseline"
+          | "bill"
+          | "generation"
+          | "cash"
+          | "revision"
+          | "settlement";
       }>()
       .notNull(),
     createdByUserId: uuid()

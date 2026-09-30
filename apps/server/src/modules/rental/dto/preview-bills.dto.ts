@@ -12,6 +12,7 @@ export const billingAmountConfirmationShape = {
 export const billGenerationInputShape = {
   contractId: z.string().uuid(),
   depositDueDates: z.record(z.string().min(1).max(200), contractCalendarDateSchema).default({}),
+  scope: z.literal("deposits").optional(),
   terminationConfirmation: z.object(billingAmountConfirmationShape).strict().optional(),
 };
 

@@ -18,6 +18,7 @@ import { BillsService } from "./bills.service.js";
 import { ContractsRepository } from "./contracts.repository.js";
 import { ContractsPolicyService } from "./contracts-policy.service.js";
 import { previewBillsSchema } from "./dto/preview-bills.dto.js";
+import { FinanceRequestsRepository } from "./finance-requests.repository.js";
 
 const auth = {
   organizationId: "org",
@@ -33,6 +34,7 @@ async function harness(source = rentalBillingSource()) {
     bills: [] as RentalBillDetail[],
     generations: [] as GenerationRecord[],
     audits: [] as unknown[],
+    financeRequests: [] as Array<Record<string, unknown>>,
   };
   let tail = Promise.resolve();
   const transaction = {};
@@ -121,6 +123,19 @@ async function harness(source = rentalBillingSource()) {
       state.audits.push(entry);
     }),
   };
+  const financeRequests = {
+    find: vi.fn(
+      async (scope: { organizationId: string }, key: string) =>
+        state.financeRequests.find(
+          (request) =>
+            request.organizationId === scope.organizationId && request.idempotencyKey === key,
+        ) ?? null,
+    ),
+    complete: vi.fn(async (scope: object, input: object, actor: object) => {
+      state.financeRequests.push({ ...scope, ...input, actor });
+      return {};
+    }),
+  };
   const module = await Test.createTestingModule({
     providers: [
       BillsService,
@@ -150,6 +165,7 @@ async function harness(source = rentalBillingSource()) {
       },
       { provide: DatabaseTransactionService, useValue: { run } },
       { provide: AuditService, useValue: audit },
+      { provide: FinanceRequestsRepository, useValue: financeRequests },
       {
         provide: AccessService,
         useValue: {
@@ -174,7 +190,18 @@ async function harness(source = rentalBillingSource()) {
       idempotencyKey: randomUUID(),
     } satisfies GenerateRentalBillsRequest;
   };
-  return { module, state, source, service, input, preview, ready, repository, audit };
+  return {
+    module,
+    state,
+    source,
+    service,
+    input,
+    preview,
+    ready,
+    repository,
+    audit,
+    financeRequests,
+  };
 }
 
 describe("全租期预览与幂等写入", () => {
@@ -370,6 +397,132 @@ describe("全租期预览与幂等写入", () => {
       h.service.preview({ ...authorized(), permissions: [] }, previewBillsSchema.parse(h.input)),
     ).rejects.toMatchObject({ status: 403 });
     expect((await h.service.generate(authorized(), await h.ready())).createdCount).toBe(6);
+    await h.module.close();
+  });
+
+  it("v2 合同旧入口必须显式选择 deposits，否则不创建旧全租期账单", async () => {
+    const h = await harness(rentalBillingSource({ billingMode: "monthly_settlement" }));
+    const request = {
+      contractId: h.source.contract.id,
+      depositDueDates: {},
+      expectedVersion: "unused",
+      idempotencyKey: randomUUID(),
+    };
+
+    await expect(h.service.generate(authorized(), request as never)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(h.state.generations).toHaveLength(0);
+    expect(h.state.bills).toHaveLength(0);
+    await h.module.close();
+  });
+
+  it("v2 押金入口生成单独的押金批次并桥接组织级财务幂等记录", async () => {
+    const h = await harness(rentalBillingSource({ billingMode: "monthly_settlement" }));
+    const input: {
+      contractId: string;
+      scope: "deposits";
+      depositDueDates: Record<string, string>;
+    } = { contractId: h.source.contract.id, scope: "deposits", depositDueDates: {} };
+    const firstPreview = await h.service.preview(authorized(), previewBillsSchema.parse(input));
+    for (const key of firstPreview.missingDepositSourceKeys)
+      input.depositDueDates[key] = "2026-01-01";
+    const preview = await h.service.preview(authorized(), previewBillsSchema.parse(input));
+    const request = {
+      ...input,
+      expectedVersion: preview.version,
+      idempotencyKey: randomUUID(),
+    };
+
+    const first = await h.service.generate(authorized(), request);
+    const replayed = await h.service.generate(authorized(), request);
+    expect(first).toMatchObject({ createdCount: 2, replayed: false });
+    expect(replayed).toMatchObject({ generationId: first.generationId, replayed: true });
+    const stalePreviewReplay = await h.service.generate(authorized(), {
+      ...request,
+      expectedVersion: "stale-preview-version",
+    });
+    expect(stalePreviewReplay).toMatchObject({ generationId: first.generationId, replayed: true });
+    await expect(
+      h.service.generate(authorized(), {
+        ...request,
+        depositDueDates: {
+          ...request.depositDueDates,
+          [firstPreview.missingDepositSourceKeys[0] as string]: "2026-01-02",
+        },
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(h.state.bills.map((bill) => bill.type)).toEqual(["deposit", "deposit"]);
+    expect(h.repository.insertBills.mock.calls[0]?.[3]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "deposit", modelVersion: 2, billingMonth: null }),
+      ]),
+    );
+    expect(h.financeRequests.complete).toHaveBeenCalledWith(
+      { organizationId: "org", contractId: h.source.contract.id },
+      expect.objectContaining({
+        action: "bill_deposit.generate",
+        result: { resourceId: first.generationId, resourceKind: "generation" },
+      }),
+      { userId: "user" },
+      expect.anything(),
+    );
+    expect(h.state.financeRequests).toHaveLength(1);
+    await h.module.close();
+  });
+
+  it("v2 押金批次、财务幂等记录和审计在事务失败时一并回滚", async () => {
+    const h = await harness(rentalBillingSource({ billingMode: "monthly_settlement" }));
+    const input: {
+      contractId: string;
+      scope: "deposits";
+      depositDueDates: Record<string, string>;
+    } = { contractId: h.source.contract.id, scope: "deposits", depositDueDates: {} };
+    const firstPreview = await h.service.preview(authorized(), previewBillsSchema.parse(input));
+    for (const key of firstPreview.missingDepositSourceKeys)
+      input.depositDueDates[key] = "2026-01-01";
+    const preview = await h.service.preview(authorized(), previewBillsSchema.parse(input));
+    const request = {
+      ...input,
+      expectedVersion: preview.version,
+      idempotencyKey: randomUUID(),
+    };
+    h.financeRequests.complete.mockImplementationOnce(async (scope, data, actor) => {
+      h.state.financeRequests.push({ ...scope, ...data, actor });
+      throw new Error("finance request persistence failed");
+    });
+
+    await expect(h.service.generate(authorized(), request)).rejects.toThrow(
+      "finance request persistence failed",
+    );
+    expect(h.state.generations).toHaveLength(0);
+    expect(h.state.bills).toHaveLength(0);
+    expect(h.state.financeRequests).toHaveLength(0);
+    expect(h.state.audits).toHaveLength(0);
+    await h.module.close();
+  });
+
+  it("新月度财务键不能被旧 v2 押金入口跨动作复用", async () => {
+    const h = await harness(rentalBillingSource({ billingMode: "monthly_settlement" }));
+    h.state.financeRequests.push({
+      organizationId: "org",
+      contractId: h.source.contract.id,
+      idempotencyKey: "00000000-0000-4000-8000-000000000099",
+      action: "monthly_bill.generate",
+      requestHash: "content-hash",
+      result: { resourceId: "bill-1", resourceKind: "bill" },
+    });
+
+    await expect(
+      h.service.generate(authorized(), {
+        contractId: h.source.contract.id,
+        scope: "deposits",
+        depositDueDates: {},
+        expectedVersion: "unused",
+        idempotencyKey: "00000000-0000-4000-8000-000000000099",
+      } as never),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(h.state.generations).toHaveLength(0);
     await h.module.close();
   });
 });

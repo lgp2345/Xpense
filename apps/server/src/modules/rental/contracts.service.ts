@@ -87,6 +87,8 @@ export class ContractsService {
         transaction,
       );
       const aggregate = createContractAggregate(dto);
+      if (confirm && aggregate.spaces.length !== 1)
+        throw this.policy.conflict("月度结算合同必须且只能关联一个空间");
       await this.policy.validateDraftRelations(
         { organizationId: authContext.organizationId, property, status: "draft", ...aggregate },
         transaction,
@@ -100,6 +102,7 @@ export class ContractsService {
       const contract = await this.repository.createDraft(
         {
           organizationId: authContext.organizationId,
+          billingMode: "monthly_settlement",
           ...header,
           contractNumber,
           renewedFromContractId: null,

@@ -122,6 +122,30 @@ describe("账单仓储作用域及原子编号", () => {
     expect(dialect.sqlToQuery(where.mock.calls[0]?.[0]).params).toEqual(["org", "request"]);
     await module.close();
   });
+  it("finance snapshot reads all contract bill history without a status or page cutoff", async () => {
+    const conditions: unknown[] = [];
+    const executor = {
+      select: () => ({
+        from: () => ({
+          where: (condition: unknown) => {
+            conditions.push(condition);
+            return Promise.resolve([]);
+          },
+        }),
+      }),
+    };
+    const repository = new BillsRepository({} as never);
+
+    await expect(
+      repository.allForContract("org-1", "contract-1", executor as never),
+    ).resolves.toEqual([]);
+
+    expect(conditions).toHaveLength(1);
+    const query = dialect.sqlToQuery(conditions[0] as never);
+    expect(query.params).toEqual(["org-1", "contract-1"]);
+    expect(query.sql).not.toContain('"status"');
+    expect(query.sql).not.toContain("limit");
+  });
   it("批量保存快照不携带承租人电话或证件，明细归属同一事务账单", async () => {
     const source = {
       currencyCode: "CNY",

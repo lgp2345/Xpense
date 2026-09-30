@@ -14,6 +14,9 @@ import { REQUIRE_PERMISSION_KEY } from "../iam/decorators/require-permission.dec
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import { BillsController } from "./bills.controller.js";
+import { ChargeTermsController } from "./charge-terms.controller.js";
+import { ChargeTermsRepository } from "./charge-terms.repository.js";
+import { ChargeTermsService } from "./charge-terms.service.js";
 import { ContractLifecycleService } from "./contract-lifecycle.service.js";
 import { ContractPartiesService } from "./contract-parties.service.js";
 import { ContractRelationsRepository } from "./contract-relations.repository.js";
@@ -21,11 +24,18 @@ import { ContractsController } from "./contracts.controller.js";
 import { ContractsRepository } from "./contracts.repository.js";
 import { ContractsService } from "./contracts.service.js";
 import { ContractsPolicyService } from "./contracts-policy.service.js";
+import { FinanceRequestsRepository } from "./finance-requests.repository.js";
+import { MeterReadingsController } from "./meter-readings.controller.js";
+import { MeterReadingsRepository } from "./meter-readings.repository.js";
+import { MeterReadingsService } from "./meter-readings.service.js";
+import { MonthlyBillsController } from "./monthly-bills.controller.js";
+import { MonthlyBillsService } from "./monthly-bills.service.js";
 import { PropertiesController } from "./properties.controller.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import { PropertiesService } from "./properties.service.js";
 import { PropertiesPolicyService } from "./properties-policy.service.js";
 import { RentalModule } from "./rental.module.js";
+import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
 import { SpacesController } from "./spaces.controller.js";
 import { SpacesRepository } from "./spaces.repository.js";
 import { SpacesService } from "./spaces.service.js";
@@ -120,6 +130,9 @@ describe("rental property controller", () => {
       SpacesController,
       TenantsController,
       ContractsController,
+      ChargeTermsController,
+      MeterReadingsController,
+      MonthlyBillsController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([
@@ -127,6 +140,13 @@ describe("rental property controller", () => {
         PropertiesRepository,
         PropertiesPolicyService,
         PropertiesService,
+        ChargeTermsRepository,
+        ChargeTermsService,
+        FinanceRequestsRepository,
+        MeterReadingsRepository,
+        MeterReadingsService,
+        MonthlyBillsService,
+        RentalFinanceSourceService,
       ]),
     );
     expect(Reflect.getMetadata(MODULE_METADATA.EXPORTS, RentalModule) ?? []).not.toContain(
@@ -241,6 +261,9 @@ describe("rental space controller", () => {
       SpacesController,
       TenantsController,
       ContractsController,
+      ChargeTermsController,
+      MeterReadingsController,
+      MonthlyBillsController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([SpacesRepository, SpacesPolicyService, SpacesService]),
@@ -457,6 +480,9 @@ describe("rental contract controller", () => {
       SpacesController,
       TenantsController,
       ContractsController,
+      ChargeTermsController,
+      MeterReadingsController,
+      MonthlyBillsController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([

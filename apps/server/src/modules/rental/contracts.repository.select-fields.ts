@@ -36,6 +36,7 @@ export const contractRecordFields = {
   organizationId: rentalContracts.organizationId,
   propertyId: rentalContracts.propertyId,
   contractNumber: rentalContracts.contractNumber,
+  billingMode: rentalContracts.billingMode,
   externalContractNumber: rentalContracts.externalContractNumber,
   status: rentalContracts.status,
   startDate: rentalContracts.startDate,
@@ -188,6 +189,7 @@ const depositTerms = sql<RentalContractDepositRecord[]>`COALESCE((
 export function contractDetailFields(today: string) {
   return {
     ...contractSummaryFields(today),
+    billingMode: rentalContracts.billingMode,
     billingAnchor: rentalContracts.billingAnchor,
     paymentIntervalMonths: rentalContracts.paymentIntervalMonths,
     dueDaysBefore: rentalContracts.dueDaysBefore,

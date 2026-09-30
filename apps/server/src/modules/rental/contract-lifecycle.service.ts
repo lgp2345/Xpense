@@ -11,6 +11,7 @@ import type { AppDbExecutor } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import { BillingLifecycleService } from "./billing-lifecycle.service.js";
 import { BillingSourceService } from "./billing-source.service.js";
+import { ChargeTermsRepository } from "./charge-terms.repository.js";
 import { actualContractEnd, addCalendarDays, compareCalendarDates } from "./contract-date.rules.js";
 import { ContractRelationsRepository } from "./contract-relations.repository.js";
 import { ContractsRepository } from "./contracts.repository.js";
@@ -57,6 +58,7 @@ export class ContractLifecycleService {
     private readonly transactions: DatabaseTransactionService,
     private readonly billingSources: BillingSourceService,
     private readonly billing: BillingLifecycleService,
+    private readonly chargeTerms: ChargeTermsRepository,
   ) {}
 
   /** 在固定锁顺序及单一事务中校验、固化快照并确认草稿。 */
@@ -84,6 +86,8 @@ export class ContractLifecycleService {
         today,
         transaction,
       );
+      if (detail.billingMode === "monthly_settlement" && detail.spaces.length !== 1)
+        throw this.policy.conflict("月度结算合同必须且只能关联一个空间");
       await this.policy.validateConfirmationScope(
         {
           organizationId: authContext.organizationId,
@@ -437,6 +441,7 @@ export class ContractLifecycleService {
       const draft = await this.repository.createDraft(
         {
           organizationId: authContext.organizationId,
+          billingMode: "monthly_settlement",
           propertyId: contract.propertyId,
           contractNumber,
           externalContractNumber: contract.externalContractNumber,
@@ -453,6 +458,23 @@ export class ContractLifecycleService {
         },
         transaction,
       );
+      const copiedTerms = await this.chargeTerms.find(
+        { organizationId: authContext.organizationId, contractId: contract.id },
+        transaction,
+      );
+      if (copiedTerms) {
+        await this.chargeTerms.save(
+          { organizationId: authContext.organizationId, contractId: draft.id },
+          {
+            waterUnitPrice: copiedTerms.waterUnitPrice,
+            electricityUnitPrice: copiedTerms.electricityUnitPrice,
+            fixedFees: copiedTerms.fixedFees,
+          },
+          "续租复制合同默认收费标准",
+          { userId: authContext.userId },
+          transaction,
+        );
+      }
       await this.relations.replaceDraftSpaces(
         {
           organizationId: authContext.organizationId,

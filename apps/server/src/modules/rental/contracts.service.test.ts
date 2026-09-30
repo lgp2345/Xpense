@@ -284,6 +284,34 @@ describe("ContractsService", () => {
     );
     expect(h.persisted().headers).toBe(1);
     expect(h.persisted().audits).toBe(2);
+    expect(h.repository.createDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ billingMode: "monthly_settlement" }),
+      transaction,
+    );
+  });
+
+  it("keeps multi-space drafts but rejects creating or confirming a monthly contract with two spaces", async () => {
+    const h = serviceHarness();
+    await expect(
+      h.service.createConfirmed(auth, {
+        propertyId: "property-1",
+        spaces: [{ spaceId: "space-1" }, { spaceId: "space-2" }],
+        parties: [{ tenantId: "tenant-1", isPrimaryPayer: true }],
+        startDate: "2026-09-01",
+        endDate: "2027-08-31",
+        rentAmountMinor: 10000,
+        billingAnchor: "contract_start",
+        paymentIntervalMonths: 1,
+        dueDaysBefore: 0,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(h.repository.createDraft).not.toHaveBeenCalled();
+    await expect(
+      h.service.create(auth, {
+        propertyId: "property-1",
+        spaces: [{ spaceId: "space-1" }, { spaceId: "space-2" }],
+      } as never),
+    ).resolves.toBeDefined();
   });
 
   it.each([

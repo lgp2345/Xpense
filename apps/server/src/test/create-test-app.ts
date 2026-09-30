@@ -34,8 +34,11 @@ import {
 import { OrganizationsRepository } from "../modules/organizations/organizations.repository.js";
 import { BillAdjustmentsRepository } from "../modules/rental/bill-adjustments.repository.js";
 import { BillsRepository } from "../modules/rental/bills.repository.js";
+import { ChargeTermsRepository } from "../modules/rental/charge-terms.repository.js";
 import { ContractRelationsRepository } from "../modules/rental/contract-relations.repository.js";
 import { ContractsRepository } from "../modules/rental/contracts.repository.js";
+import { FinanceRequestsRepository } from "../modules/rental/finance-requests.repository.js";
+import { MeterReadingsRepository } from "../modules/rental/meter-readings.repository.js";
 import { PropertiesRepository } from "../modules/rental/properties.repository.js";
 import { SpacesRepository } from "../modules/rental/spaces.repository.js";
 import { TenantsRepository } from "../modules/rental/tenants.repository.js";
@@ -53,6 +56,7 @@ import {
   cloneBookkeepingTestState,
   restoreBookkeepingTestState,
 } from "./bookkeeping-test-state.js";
+import { createRentalFinanceRepositoryFakes } from "./rental-finance-fixtures.js";
 import {
   createRentalDatabaseFake,
   createRentalMutationFixtureRegistry,
@@ -98,6 +102,11 @@ const rentalTestRolePermissions = {
     "rental_bills:read",
     "rental_bills:generate",
     "rental_bills:adjust",
+    "rental_charges:read",
+    "rental_charges:update",
+    "rental_meters:read",
+    "rental_meters:update",
+    "rental_monthly_bills:generate",
     "rental_properties:read",
     "rental_properties:create",
     "rental_properties:update",
@@ -118,6 +127,8 @@ const rentalTestRolePermissions = {
   ],
   member: [
     "rental_bills:read",
+    "rental_charges:read",
+    "rental_meters:read",
     "rental_properties:read",
     "rental_spaces:read",
     "rental_tenants:read",
@@ -125,6 +136,8 @@ const rentalTestRolePermissions = {
   ],
   viewer: [
     "rental_bills:read",
+    "rental_charges:read",
+    "rental_meters:read",
     "rental_properties:read",
     "rental_spaces:read",
     "rental_tenants:read",
@@ -230,6 +243,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
       rentalQuery,
       state.rentalMutation,
     );
+    const financeFakes = createRentalFinanceRepositoryFakes(state.rental);
     rentalFakes.extendLedgersRepository(bookkeepingFakes.ledgersRepository);
     moduleBuilder = moduleBuilder
       .overrideProvider(BillsRepository)
@@ -244,6 +258,12 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
       .useValue(rentalFakes.tenantsRepository)
       .overrideProvider(ContractsRepository)
       .useValue(rentalFakes.contractsRepository)
+      .overrideProvider(ChargeTermsRepository)
+      .useValue(financeFakes.chargeTermsRepository)
+      .overrideProvider(MeterReadingsRepository)
+      .useValue(financeFakes.meterReadingsRepository)
+      .overrideProvider(FinanceRequestsRepository)
+      .useValue(financeFakes.financeRequestsRepository)
       .overrideProvider(ContractRelationsRepository)
       .useValue(rentalFakes.contractRelationsRepository);
   }

@@ -1,5 +1,5 @@
 import { Test } from "@nestjs/testing";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import { rentalBillingSource } from "../../test/rental-billing-fixtures.js";
@@ -76,6 +76,77 @@ describe("只读应收查询", () => {
     await expect(
       module.get(BillsReadService).detail(auth, { id: "missing" }),
     ).rejects.toMatchObject({ status: 404 });
+    await module.close();
+  });
+
+  it("月度合同按实际月度来源键列账单，不生成旧租金覆盖计数", async () => {
+    const source = rentalBillingSource({ billingMode: "monthly_settlement" });
+    const monthlyBill = {
+      id: "monthly-bill",
+      billNumber: "RB-2026-000001",
+      contractId: source.contract.id,
+      contractNumber: source.contract.contractNumber,
+      propertyId: source.contract.propertyId,
+      propertyName: source.contract.propertyName,
+      currencyCode: "CNY",
+      type: "monthly",
+      status: "active",
+      sourceKey: "monthly:2026-09",
+      periodStart: null,
+      periodEnd: null,
+      effectiveEnd: null,
+      dueDate: "2026-09-30",
+      amountMinor: 12300,
+      dueState: null,
+      createdAt: "2026-09-01T00:00:00.000Z",
+      modelVersion: 2,
+      billingMonth: "2026-09",
+      revision: 1,
+    };
+    const sourceRead = { read: vi.fn(async () => source) };
+    const module = await Test.createTestingModule({
+      providers: [
+        BillsReadService,
+        {
+          provide: BillsRepository,
+          useValue: {
+            list: async () => ({
+              items: [monthlyBill],
+              total: 1,
+              page: 1,
+              pageSize: 20,
+              totals: { rentAmountMinor: 0, depositAmountMinor: 0, monthlyAmountMinor: 12300 },
+              coverage: null,
+            }),
+            detail: async () => null,
+          },
+        },
+        { provide: BillingSourceService, useValue: sourceRead },
+        {
+          provide: ContractsPolicyService,
+          useValue: { lockOrganizationContext: async () => ({ today: "2026-09-01" }) },
+        },
+        { provide: AccessService, useValue: { assertPermission: () => undefined } },
+        {
+          provide: DatabaseTransactionService,
+          useValue: { run: async (operation: (tx: unknown) => Promise<unknown>) => operation({}) },
+        },
+      ],
+    }).compile();
+    const page = await module.get(BillsReadService).list(
+      {
+        organizationId: "org",
+        userId: "user",
+        sessionId: "session",
+        isSuperAdmin: false,
+        permissions: ["rental_bills:read"],
+      },
+      listBillsSchema.parse({ contractId: source.contract.id }),
+    );
+
+    expect(sourceRead.read).toHaveBeenCalledWith("org", source.contract.id, expect.anything());
+    expect(page.items[0]?.sourceKey).toBe("monthly:2026-09");
+    expect(page.coverage).toBeNull();
     await module.close();
   });
 });

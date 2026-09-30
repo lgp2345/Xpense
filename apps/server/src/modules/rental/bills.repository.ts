@@ -211,6 +211,21 @@ export class BillsRepository {
     return loadBillDetails(rows, executor);
   }
 
+  /** Finance snapshots need the complete contract history, including voided obligations. */
+  async allForContract(
+    organizationId: string,
+    contractId: string,
+    executor: AppDbExecutor,
+  ): Promise<RentalBillDetail[]> {
+    const rows = await executor
+      .select()
+      .from(rentalBills)
+      .where(
+        and(eq(rentalBills.organizationId, organizationId), eq(rentalBills.contractId, contractId)),
+      );
+    return loadBillDetails(rows, executor);
+  }
+
   async hasHistory(
     organizationId: string,
     contractId: string,

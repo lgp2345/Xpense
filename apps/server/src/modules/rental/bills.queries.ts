@@ -60,6 +60,13 @@ export function toBillSummary(bill: BillRecord): RentalBillSummary {
     amountMinor: bill.amountMinor,
     dueState: null,
     createdAt: bill.createdAt.toISOString(),
+    ...(bill.modelVersion === 2
+      ? {
+          modelVersion: 2 as const,
+          billingMonth: bill.billingMonth,
+          revision: bill.revision,
+        }
+      : {}),
   };
 }
 
@@ -106,8 +113,20 @@ export async function queryBillPage(
   const [totals] = await executor
     .select({
       total: count(),
-      rent: sql<string>`coalesce(sum(case when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'rent' then ${rentalBills.amountMinor} else 0 end), 0)`,
+      rent: sql<string>`coalesce(sum(case
+        when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'rent' then ${rentalBills.amountMinor}
+        when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'monthly' then (
+          select coalesce(sum(${rentalBillLines.amountMinor}), 0)
+          from ${rentalBillLines}
+          where ${rentalBillLines.billId} = ${rentalBills.id}
+            and ${rentalBillLines.organizationId} = ${rentalBills.organizationId}
+            and ${rentalBillLines.contractId} = ${rentalBills.contractId}
+            and ${rentalBillLines.kind} = 'rent_period'
+        )
+        else 0
+      end), 0)`,
       deposit: sql<string>`coalesce(sum(case when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'deposit' then ${rentalBills.amountMinor} else 0 end), 0)`,
+      monthly: sql<string>`coalesce(sum(case when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'monthly' then ${rentalBills.amountMinor} else 0 end), 0)`,
     })
     .from(rentalBills)
     .where(condition);
@@ -119,6 +138,7 @@ export async function queryBillPage(
     totals: {
       rentAmountMinor: safeSqlAmount(totals?.rent ?? null),
       depositAmountMinor: safeSqlAmount(totals?.deposit ?? null),
+      monthlyAmountMinor: safeSqlAmount(totals?.monthly ?? null),
     },
     coverage: null,
   };

@@ -13,6 +13,9 @@ import { BillsController } from "./bills.controller.js";
 import { BillsRepository } from "./bills.repository.js";
 import { BillsService } from "./bills.service.js";
 import { BillsReadService } from "./bills-read.service.js";
+import { ChargeTermsController } from "./charge-terms.controller.js";
+import { ChargeTermsRepository } from "./charge-terms.repository.js";
+import { ChargeTermsService } from "./charge-terms.service.js";
 import { ContractLifecycleService } from "./contract-lifecycle.service.js";
 import { ContractPartiesService } from "./contract-parties.service.js";
 import { ContractReferenceService } from "./contract-reference.service.js";
@@ -21,10 +24,19 @@ import { ContractsController } from "./contracts.controller.js";
 import { ContractsRepository } from "./contracts.repository.js";
 import { ContractsService } from "./contracts.service.js";
 import { ContractsPolicyService } from "./contracts-policy.service.js";
+import { FinanceRequestsRepository } from "./finance-requests.repository.js";
+import { MeterReadingsController } from "./meter-readings.controller.js";
+import { MeterReadingsRepository } from "./meter-readings.repository.js";
+import { MeterReadingsService } from "./meter-readings.service.js";
+import { MonthlyBillsController } from "./monthly-bills.controller.js";
+import { MonthlyBillsService } from "./monthly-bills.service.js";
 import { PropertiesController } from "./properties.controller.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import { PropertiesService } from "./properties.service.js";
 import { PropertiesPolicyService } from "./properties-policy.service.js";
+import { RentalCashRepository } from "./rental-cash.repository.js";
+import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
+import { RentalSettlementsRepository } from "./rental-settlements.repository.js";
 import { SpacesController } from "./spaces.controller.js";
 import { SpacesRepository } from "./spaces.repository.js";
 import { SpacesService } from "./spaces.service.js";
@@ -44,9 +56,21 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
     SpacesController,
     TenantsController,
     ContractsController,
+    ChargeTermsController,
+    MeterReadingsController,
+    MonthlyBillsController,
   ],
   providers: [
     BillAdjustmentsRepository,
+    ChargeTermsRepository,
+    ChargeTermsService,
+    FinanceRequestsRepository,
+    MeterReadingsRepository,
+    MeterReadingsService,
+    MonthlyBillsService,
+    RentalFinanceSourceService,
+    RentalCashRepository,
+    RentalSettlementsRepository,
     BillingSourceService,
     BillingLifecycleService,
     BillingTerminationService,

@@ -43,7 +43,13 @@ function detail(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function harness(record = contract()) {
+function harness(
+  record = contract(),
+  chargeTerms = {
+    find: vi.fn().mockResolvedValue(null),
+    save: vi.fn().mockImplementation(async (_scope, terms) => ({ version: 1, ...terms })),
+  },
+) {
   type PersistedState = { lifecycleWrites: number; snapshotWrites: number; audits: number };
   let committed: PersistedState = { lifecycleWrites: 0, snapshotWrites: 0, audits: 0 };
   let pending: PersistedState | null = null;
@@ -146,11 +152,13 @@ function harness(record = contract()) {
     transactions as never,
     billingSources as never,
     billing as never,
+    chargeTerms as never,
   );
   return {
     service,
     billing,
     billingSources,
+    chargeTerms,
     repository,
     relations,
     policy,
@@ -228,6 +236,41 @@ describe("ContractLifecycleService", () => {
       transaction,
     );
     expect(persisted()).toEqual({ lifecycleWrites: 1, snapshotWrites: 1, audits: 1 });
+  });
+
+  it("keeps multi-space legacy drafts confirmable", async () => {
+    const legacy = harness(contract({ billingMode: "legacy_receivable" }));
+    legacy.repository.detail.mockResolvedValue({
+      ...detail({ billingMode: "legacy_receivable" }),
+      spaces: [
+        { spaceId: "space-1", rentAllocationMinor: 400_000 },
+        { spaceId: "space-2", rentAllocationMinor: 400_000 },
+      ],
+    } as never);
+
+    await legacy.service.confirm(auth, { id: "contract-1" } as never);
+
+    expect(legacy.status()).toBe("confirmed");
+    expect(legacy.repository.setLifecycle).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "confirmed" }),
+      transaction,
+    );
+  });
+
+  it("rejects multi-space monthly-settlement drafts", async () => {
+    const monthly = harness(contract({ billingMode: "monthly_settlement" }));
+    monthly.repository.detail.mockResolvedValue({
+      ...detail({ billingMode: "monthly_settlement" }),
+      spaces: [
+        { spaceId: "space-1", rentAllocationMinor: 400_000 },
+        { spaceId: "space-2", rentAllocationMinor: 400_000 },
+      ],
+    } as never);
+
+    await expect(
+      monthly.service.confirm(auth, { id: "contract-1" } as never),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(monthly.repository.setLifecycle).not.toHaveBeenCalled();
   });
 
   it("rejects confirming an invalid lifecycle status with 409", async () => {
@@ -415,6 +458,44 @@ describe("ContractLifecycleService", () => {
     expect(setup.drafts()).toBe(1);
     expect(setup.relations.copyTerminalPartySetToDraft).toHaveBeenCalledWith(
       expect.objectContaining({ validFrom: "2027-01-02", validTo: "2028-01-01" }),
+      transaction,
+    );
+  });
+
+  it("creates a monthly-settlement renewal and copies only default charges", async () => {
+    const source = contract({ status: "confirmed", startDate: "2026-01-01" });
+    const defaultCharges = {
+      contractId: "contract-1",
+      version: 3,
+      waterUnitPrice: "3.2500",
+      electricityUnitPrice: "5.0000",
+      fixedFees: [{ id: "fee-1", name: "物业费", monthlyAmountMinor: 5000 }],
+    };
+    const chargeTerms = {
+      find: vi.fn().mockResolvedValue(defaultCharges),
+      save: vi.fn().mockResolvedValue({ ...defaultCharges, version: 1 }),
+    };
+    const setup = harness(source, chargeTerms);
+
+    await setup.service.renew(auth, { id: "contract-1" } as never);
+
+    expect(setup.repository.createDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ billingMode: "monthly_settlement" }),
+      transaction,
+    );
+    expect(chargeTerms.find).toHaveBeenCalledWith(
+      { organizationId: auth.organizationId, contractId: "contract-1" },
+      transaction,
+    );
+    expect(chargeTerms.save).toHaveBeenCalledWith(
+      { organizationId: auth.organizationId, contractId: "draft-1" },
+      {
+        waterUnitPrice: "3.2500",
+        electricityUnitPrice: "5.0000",
+        fixedFees: defaultCharges.fixedFees,
+      },
+      "续租复制合同默认收费标准",
+      { userId: auth.userId },
       transaction,
     );
   });

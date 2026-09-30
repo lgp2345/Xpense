@@ -272,6 +272,7 @@ describe("ContractsRepository", () => {
     await repository.createDraft(
       {
         organizationId: "organization-1",
+        billingMode: "monthly_settlement",
         propertyId: "property-1",
         contractNumber: "RC-2026-000001",
         externalContractNumber: null,
