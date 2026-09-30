@@ -140,9 +140,12 @@ function extraFeeLines(
   extraFees: NonNullable<import("@xpense/shared").RentalBillRevisionInput["extraFees"]>,
   existing: RentalBillLine[],
 ): RentalBillLine[] {
-  const origin = existing.find((item) => feeSnapshot(item)?.kind === "extra_fee");
-  const savedOrigin = feeSnapshot(origin ?? ({ kind: "extra_fee" } as RentalBillLine));
-  const feeOrigin = savedOrigin?.kind === "extra_fee" ? savedOrigin.origin : "monthly";
+  const origins = new Map(
+    existing.flatMap((item) => {
+      const saved = feeSnapshot(item);
+      return saved?.kind === "extra_fee" ? [[saved.extraFeeId, saved.origin] as const] : [];
+    }),
+  );
   return extraFees.map((fee) => {
     if (!Number.isSafeInteger(fee.amountMinor)) throw new RangeError("额外费用必须是安全整数");
     return {
@@ -158,7 +161,11 @@ function extraFeeLines(
       baseRentAmountMinor: null,
       sortOrder: 0,
       note: fee.note,
-      feeSnapshot: { kind: "extra_fee", extraFeeId: fee.id, origin: feeOrigin },
+      feeSnapshot: {
+        kind: "extra_fee",
+        extraFeeId: fee.id,
+        origin: origins.get(fee.id) ?? "monthly",
+      },
     };
   });
 }
@@ -222,8 +229,9 @@ export function buildMeterCorrectionPlan(
   const bills = affected.map((bill) => {
     const revised = bill.lines
       .flatMap((item) => {
-        if (bill.id === target.id && item.kind === "extra_fee" && input.extraFees !== undefined)
+        if (bill.id === target.id && item.kind === "extra_fee" && input.extraFees !== undefined) {
           return [];
+        }
         return [item];
       })
       .map((item) => {

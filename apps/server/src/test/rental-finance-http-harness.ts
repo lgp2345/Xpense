@@ -1,9 +1,20 @@
+import { randomUUID } from "node:crypto";
 import { NotFoundException } from "@nestjs/common";
 import type { RentalBillDetail } from "@xpense/shared";
+import type {
+  BillRevisionAppendResult,
+  BillRevisionRecord,
+} from "../modules/rental/bill-revisions.repository.js";
+import { BillRevisionsRepository } from "../modules/rental/bill-revisions.repository.js";
 import { BillsRepository } from "../modules/rental/bills.repository.js";
 import type { BillRecord } from "../modules/rental/bills.repository.types.js";
+import type { MeterReadingWriteInput } from "../modules/rental/meter-readings.repository.js";
+import { MeterReadingsRepository } from "../modules/rental/meter-readings.repository.js";
 import { calculateRentalBalance } from "../modules/rental/rental-balance.rules.js";
-import type { RentalFinanceSnapshot } from "../modules/rental/rental-finance.types.js";
+import type {
+  FinanceScope,
+  RentalFinanceSnapshot,
+} from "../modules/rental/rental-finance.types.js";
 import { RentalFinanceSourceService } from "../modules/rental/rental-finance-source.service.js";
 import { login, TEST_PHONES, testIds } from "./auth-test-helpers.js";
 import { rentalBillingDetail } from "./rental-billing-fixtures.js";
@@ -123,6 +134,115 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
     },
   };
   Object.assign(setup.app.get(BillsRepository), billsRepository);
+
+  const meterReadingsRepository: Partial<MeterReadingsRepository> = {
+    reviseBoundary: async (
+      scope: FinanceScope,
+      id: string,
+      input: MeterReadingWriteInput,
+      reason: string,
+      actor: { userId: string },
+    ) => {
+      const current = state.meterReadings.find(
+        (record) =>
+          record.organizationId === scope.organizationId &&
+          record.contractId === scope.contractId &&
+          record.id === id,
+      );
+      if (!current) throw new Error("Rental test meter boundary not found in contract scope");
+      const now = new Date(FIXED_FINANCE_NOW);
+      state.meterReadingRevisions.push({
+        id: randomUUID(),
+        organizationId: scope.organizationId,
+        contractId: scope.contractId,
+        readingId: id,
+        revision: current.revision,
+        snapshot: structuredClone(current),
+        reason,
+        createdByUserId: actor.userId,
+        createdAt: now,
+      });
+      Object.assign(current, structuredClone(input), {
+        revision: current.revision + 1,
+        reason,
+        updatedByUserId: actor.userId,
+        updatedAt: now,
+      });
+      return structuredClone(current);
+    },
+  };
+  Object.assign(setup.app.get(MeterReadingsRepository), meterReadingsRepository);
+
+  const billRevisionsRepository: Partial<BillRevisionsRepository> = {
+    append: async (
+      scope: FinanceScope,
+      billId: string,
+      lines: RentalBillDetail["lines"],
+      amountMinor: number,
+      reason: string,
+      actor: { userId: string },
+    ) => {
+      const bill = state.bills.find(
+        (item) =>
+          item.organizationId === scope.organizationId &&
+          item.contractId === scope.contractId &&
+          item.id === billId,
+      );
+      if (!bill) throw new Error("Rental test bill not found in contract scope");
+      const previousRevision = bill.revision ?? 1;
+      const revision = {
+        id: randomUUID(),
+        ...scope,
+        billId,
+        revision: previousRevision,
+        amountMinor: bill.amountMinor,
+        billSnapshot: structuredClone(bill),
+        linesSnapshot: structuredClone(bill.lines),
+        reason,
+        createdByUserId: actor.userId,
+        createdAt: new Date(FIXED_FINANCE_NOW),
+      };
+      state.billRevisions.push(revision as BillRevisionRecord);
+      Object.assign(bill, {
+        amountMinor,
+        lines: structuredClone(lines),
+        revision: previousRevision + 1,
+      });
+      return {
+        bill: {
+          id: billId,
+          ...scope,
+          amountMinor,
+          revision: previousRevision + 1,
+        } as BillRevisionAppendResult["bill"],
+        revision,
+      };
+    },
+    history: async (
+      scope: FinanceScope,
+      billId: string,
+      page: { page: number; pageSize: number },
+    ) => {
+      const records = state.billRevisions
+        .filter(
+          (revision) =>
+            revision.organizationId === scope.organizationId &&
+            revision.contractId === scope.contractId &&
+            revision.billId === billId,
+        )
+        .toSorted((left, right) => right.revision - left.revision);
+      const pageNumber = Math.max(1, Math.trunc(page.page));
+      const pageSize = Math.min(100, Math.max(1, Math.trunc(page.pageSize)));
+      const offset = (pageNumber - 1) * pageSize;
+      return {
+        items: structuredClone(records.slice(offset, offset + pageSize)),
+        total: records.length,
+        page: pageNumber,
+        pageSize,
+      };
+    },
+  };
+  Object.assign(setup.app.get(BillRevisionsRepository), billRevisionsRepository);
 
   const source: Partial<RentalFinanceSourceService> = {
     read: async (scope) => {
@@ -276,6 +396,8 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
     },
   };
 }
+
+const FIXED_FINANCE_NOW = "2026-08-31T04:00:00.000Z";
 
 function safeCashTotal(
   entries: RentalFinanceSnapshot["cashEntries"],

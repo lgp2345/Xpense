@@ -241,4 +241,238 @@ describe("buildMeterCorrectionPlan", () => {
       }),
     ).toThrow(RangeError);
   });
+
+  it("replaces all extra fees while preserving each matching item's origin", () => {
+    const source = snapshot();
+    const target = source.bills[0];
+    if (!target) throw new Error("缺少目标账单");
+    target.lines.push(
+      {
+        kind: "extra_fee",
+        label: "结算补费",
+        amountMinor: 5_000,
+        periodStart: null,
+        periodEnd: null,
+        referenceStart: null,
+        referenceEnd: null,
+        coveredDays: null,
+        referenceDays: null,
+        baseRentAmountMinor: null,
+        sortOrder: 2,
+        note: "退租结算费用",
+        feeSnapshot: { kind: "extra_fee", extraFeeId: "settlement-extra", origin: "settlement" },
+      },
+      {
+        kind: "extra_fee",
+        label: "月度清洁费",
+        amountMinor: 7_000,
+        periodStart: null,
+        periodEnd: null,
+        referenceStart: null,
+        referenceEnd: null,
+        coveredDays: null,
+        referenceDays: null,
+        baseRentAmountMinor: null,
+        sortOrder: 3,
+        note: "月度附加费用",
+        feeSnapshot: { kind: "extra_fee", extraFeeId: "monthly-extra", origin: "monthly" },
+      },
+    );
+    target.amountMinor += 12_000;
+
+    const plan = buildMeterCorrectionPlan(source, {
+      billId: target.id,
+      expectedVersion: "version-1",
+      reason: "替换全部附加费用",
+      extraFees: [
+        { id: "settlement-extra", name: "更新结算费", amountMinor: 6_000, note: "保留原来源" },
+        { id: "monthly-extra", name: "更新清洁费", amountMinor: 8_000, note: "新月度金额" },
+      ],
+    });
+
+    expect(
+      plan.bills[0]?.lines
+        .filter((item) => item.kind === "extra_fee")
+        .map((item) => [item.feeSnapshot, item.amountMinor]),
+    ).toEqual([
+      [{ kind: "extra_fee", extraFeeId: "settlement-extra", origin: "settlement" }, 6_000],
+      [{ kind: "extra_fee", extraFeeId: "monthly-extra", origin: "monthly" }, 8_000],
+    ]);
+  });
+
+  it("preserves all existing extra fees when the collection is omitted", () => {
+    const source = snapshot();
+    const target = source.bills[0];
+    if (!target) throw new Error("缺少目标账单");
+    target.lines.push(
+      {
+        kind: "extra_fee",
+        label: "结算补费",
+        amountMinor: 5_000,
+        periodStart: null,
+        periodEnd: null,
+        referenceStart: null,
+        referenceEnd: null,
+        coveredDays: null,
+        referenceDays: null,
+        baseRentAmountMinor: null,
+        sortOrder: 2,
+        note: "退租结算费用",
+        feeSnapshot: { kind: "extra_fee", extraFeeId: "settlement-extra", origin: "settlement" },
+      },
+      {
+        kind: "extra_fee",
+        label: "月度清洁费",
+        amountMinor: 7_000,
+        periodStart: null,
+        periodEnd: null,
+        referenceStart: null,
+        referenceEnd: null,
+        coveredDays: null,
+        referenceDays: null,
+        baseRentAmountMinor: null,
+        sortOrder: 3,
+        note: "月度附加费用",
+        feeSnapshot: { kind: "extra_fee", extraFeeId: "monthly-extra", origin: "monthly" },
+      },
+    );
+
+    const plan = buildMeterCorrectionPlan(source, {
+      billId: target.id,
+      expectedVersion: "version-1",
+      reason: "只修正读数",
+      readings: [{ kind: "water", readingDate: "2026-09-30", reading: "101" }],
+    });
+
+    expect(
+      plan.bills[0]?.lines
+        .filter((item) => item.kind === "extra_fee")
+        .map((item) => [item.feeSnapshot, item.amountMinor]),
+    ).toEqual([
+      [{ kind: "extra_fee", extraFeeId: "settlement-extra", origin: "settlement" }, 5_000],
+      [{ kind: "extra_fee", extraFeeId: "monthly-extra", origin: "monthly" }, 7_000],
+    ]);
+  });
+
+  it("allows a full replacement that includes an existing settlement fee and preserves its origin", () => {
+    const source = snapshot();
+    const target = source.bills[0];
+    if (!target) throw new Error("缺少目标账单");
+    target.lines.push(
+      {
+        kind: "extra_fee",
+        label: "结算补费",
+        amountMinor: 5_000,
+        periodStart: null,
+        periodEnd: null,
+        referenceStart: null,
+        referenceEnd: null,
+        coveredDays: null,
+        referenceDays: null,
+        baseRentAmountMinor: null,
+        sortOrder: 2,
+        note: "退租结算费用",
+        feeSnapshot: { kind: "extra_fee", extraFeeId: "settlement-extra", origin: "settlement" },
+      },
+      {
+        kind: "extra_fee",
+        label: "月度清洁费",
+        amountMinor: 7_000,
+        periodStart: null,
+        periodEnd: null,
+        referenceStart: null,
+        referenceEnd: null,
+        coveredDays: null,
+        referenceDays: null,
+        baseRentAmountMinor: null,
+        sortOrder: 3,
+        note: "月度附加费用",
+        feeSnapshot: { kind: "extra_fee", extraFeeId: "monthly-extra", origin: "monthly" },
+      },
+    );
+    target.amountMinor += 12_000;
+
+    const plan = buildMeterCorrectionPlan(source, {
+      billId: target.id,
+      expectedVersion: "version-1",
+      reason: "替换全部附加费用",
+      extraFees: [
+        { id: "settlement-extra", name: "新结算名目", amountMinor: 6_000, note: "保留来源" },
+        { id: "new-monthly-extra", name: "新月度费用", amountMinor: 1_000, note: "新 ID 默认月度" },
+      ],
+    });
+
+    expect(
+      plan.bills[0]?.lines
+        .filter((item) => item.kind === "extra_fee")
+        .map((item) => [item.feeSnapshot, item.amountMinor]),
+    ).toEqual([
+      [{ kind: "extra_fee", extraFeeId: "settlement-extra", origin: "settlement" }, 6_000],
+      [{ kind: "extra_fee", extraFeeId: "new-monthly-extra", origin: "monthly" }, 1_000],
+    ]);
+  });
+
+  it("removes previously saved extra fees that are omitted from a replacement set", () => {
+    const source = snapshot();
+    const target = source.bills[0];
+    if (!target) throw new Error("缺少目标账单");
+    target.lines.push({
+      kind: "extra_fee",
+      label: "结算补费",
+      amountMinor: 5_000,
+      periodStart: null,
+      periodEnd: null,
+      referenceStart: null,
+      referenceEnd: null,
+      coveredDays: null,
+      referenceDays: null,
+      baseRentAmountMinor: null,
+      sortOrder: 2,
+      note: "退租结算费用",
+      feeSnapshot: { kind: "extra_fee", extraFeeId: "settlement-extra", origin: "settlement" },
+    });
+    target.amountMinor += 5_000;
+
+    const plan = buildMeterCorrectionPlan(source, {
+      billId: target.id,
+      expectedVersion: "version-1",
+      reason: "仅保留显式传入费用",
+      extraFees: [{ id: "replacement", name: "新费用", amountMinor: 100, note: "" }],
+    });
+
+    expect(plan.bills[0]?.lines.filter((item) => item.kind === "extra_fee")).toMatchObject([
+      { feeSnapshot: { extraFeeId: "replacement", origin: "monthly" }, amountMinor: 100 },
+    ]);
+  });
+
+  it("treats an empty extra-fee collection as deletion of all saved origins", () => {
+    const source = snapshot();
+    const target = source.bills[0];
+    if (!target) throw new Error("缺少目标账单");
+    target.lines.push({
+      kind: "extra_fee",
+      label: "结算补费",
+      amountMinor: 5_000,
+      periodStart: null,
+      periodEnd: null,
+      referenceStart: null,
+      referenceEnd: null,
+      coveredDays: null,
+      referenceDays: null,
+      baseRentAmountMinor: null,
+      sortOrder: 2,
+      note: "退租结算费用",
+      feeSnapshot: { kind: "extra_fee", extraFeeId: "settlement-extra", origin: "settlement" },
+    });
+    target.amountMinor += 5_000;
+
+    const plan = buildMeterCorrectionPlan(source, {
+      billId: target.id,
+      expectedVersion: "version-1",
+      reason: "删除全部附加费用",
+      extraFees: [],
+    });
+
+    expect(plan.bills[0]?.lines.filter((item) => item.kind === "extra_fee")).toEqual([]);
+  });
 });

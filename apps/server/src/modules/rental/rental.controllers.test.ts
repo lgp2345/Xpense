@@ -13,6 +13,8 @@ import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write
 import { REQUIRE_PERMISSION_KEY } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
+import { BillRevisionsRepository } from "./bill-revisions.repository.js";
+import { BillRevisionsService } from "./bill-revisions.service.js";
 import { BillsController } from "./bills.controller.js";
 import { ChargeTermsController } from "./charge-terms.controller.js";
 import { ChargeTermsRepository } from "./charge-terms.repository.js";
@@ -147,6 +149,8 @@ describe("rental property controller", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([
         BookkeepingWriteLockRepository,
+        BillRevisionsRepository,
+        BillRevisionsService,
         PropertiesRepository,
         PropertiesPolicyService,
         PropertiesService,

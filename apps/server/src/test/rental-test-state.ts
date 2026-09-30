@@ -1,4 +1,5 @@
 import type { RentalBillDetail } from "@xpense/shared";
+import type { BillRevisionRecord } from "../modules/rental/bill-revisions.repository.types.js";
 import type {
   AdjustmentRecord,
   GenerationRecord,
@@ -51,6 +52,7 @@ export type RentalTestState = {
   bills: Array<RentalBillDetail & { organizationId: string }>;
   billGenerations: GenerationRecord[];
   billAdjustments: AdjustmentRecord[];
+  billRevisions: BillRevisionRecord[];
   billCounter: number;
   chargeTerms: Map<string, ChargeTermsRecord>;
   chargeTermRevisions: ChargeTermsRevisionRecord[];
@@ -218,6 +220,7 @@ export function createRentalTestState(): RentalTestState {
     bills: [],
     billGenerations: [],
     billAdjustments: [],
+    billRevisions: [],
     billCounter: 0,
     chargeTerms: new Map(),
     chargeTermRevisions: [],
@@ -295,6 +298,7 @@ export function cloneRentalTestState(state: RentalTestState): RentalTestState {
     bills: structuredClone(state.bills),
     billGenerations: structuredClone(state.billGenerations),
     billAdjustments: structuredClone(state.billAdjustments),
+    billRevisions: structuredClone(state.billRevisions),
     billCounter: state.billCounter,
     chargeTerms: new Map(structuredClone([...state.chargeTerms.entries()])),
     chargeTermRevisions: structuredClone(state.chargeTermRevisions),
@@ -348,6 +352,11 @@ export function restoreRentalTestState(state: RentalTestState, snapshot: RentalT
     0,
     state.billAdjustments.length,
     ...structuredClone(snapshot.billAdjustments),
+  );
+  state.billRevisions.splice(
+    0,
+    state.billRevisions.length,
+    ...structuredClone(snapshot.billRevisions),
   );
   state.billCounter = snapshot.billCounter;
   replaceMap(state.chargeTerms, snapshot.chargeTerms, (record) => structuredClone(record));

@@ -6,6 +6,8 @@ import { BookkeepingModule } from "../bookkeeping/bookkeeping.module.js";
 import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import { IamModule } from "../iam/iam.module.js";
 import { BillAdjustmentsRepository } from "./bill-adjustments.repository.js";
+import { BillRevisionsRepository } from "./bill-revisions.repository.js";
+import { BillRevisionsService } from "./bill-revisions.service.js";
 import { BillingLifecycleService } from "./billing-lifecycle.service.js";
 import { BillingSourceService } from "./billing-source.service.js";
 import { BillingTerminationService } from "./billing-termination.service.js";
@@ -71,6 +73,8 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
   ],
   providers: [
     BillAdjustmentsRepository,
+    BillRevisionsRepository,
+    BillRevisionsService,
     ChargeTermsRepository,
     ChargeTermsService,
     FinanceRequestsRepository,
