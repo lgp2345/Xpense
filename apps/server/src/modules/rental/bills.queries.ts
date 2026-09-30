@@ -160,9 +160,21 @@ export async function loadBillDetails(
       : [];
     const byBill = new Map<string, RentalBillLine[]>();
     for (const line of lines) {
-      const { id: _id, organizationId: _org, contractId: _contract, billId, ...item } = line;
+      const {
+        id: _id,
+        organizationId: _org,
+        contractId: _contract,
+        billId,
+        note,
+        feeSnapshot,
+        ...item
+      } = line;
       const items = byBill.get(billId) ?? [];
-      items.push(item);
+      items.push({
+        ...item,
+        ...(note === null ? {} : { note }),
+        ...(feeSnapshot === null ? {} : { feeSnapshot }),
+      });
       byBill.set(billId, items);
     }
     const byAdjustment = new Map(

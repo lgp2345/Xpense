@@ -2,6 +2,7 @@ import type {
   RentalBillSnapshot,
   RentalBillTotals,
   RentalContractDepositTerm,
+  RentalFeeSnapshot,
 } from "@xpense/shared";
 import { rentalBillLineKinds, rentalBillTypes } from "@xpense/shared";
 import { sql } from "drizzle-orm";
@@ -163,6 +164,9 @@ export const rentalBills = snakeCase.table(
     currencyCode: text().notNull(),
     type: rentalBillType().notNull(),
     status: rentalBillStatus().notNull().default("active"),
+    modelVersion: integer().notNull().default(1),
+    billingMonth: text(),
+    revision: integer().notNull().default(1),
     sourceKey: text().notNull(),
     periodStart: date({ mode: "string" }),
     periodEnd: date({ mode: "string" }),
@@ -188,6 +192,11 @@ export const rentalBills = snakeCase.table(
     uniqueIndex("rental_bills_active_source_unique")
       .on(table.organizationId, table.contractId, table.type, table.sourceKey)
       .where(sql`${table.status} = 'active'`),
+    uniqueIndex("rental_bills_monthly_current_unique")
+      .on(table.organizationId, table.contractId, table.billingMonth)
+      .where(
+        sql`${table.status} = 'active' AND ${table.modelVersion} = 2 AND ${table.billingMonth} IS NOT NULL`,
+      ),
     foreignKey({
       name: "rental_bills_contract_scope_fk",
       columns: [table.organizationId, table.contractId],
@@ -218,8 +227,16 @@ export const rentalBills = snakeCase.table(
     }),
     check("rental_bills_amount_check", sql`${table.amountMinor} BETWEEN 0 AND 9007199254740991`),
     check(
+      "rental_bills_model_version_check",
+      sql`${table.modelVersion} IN (1, 2) AND ${table.revision} >= 1`,
+    ),
+    check(
+      "rental_bills_billing_month_check",
+      sql`(${table.type}::text = 'monthly' AND ${table.modelVersion} = 2 AND ${table.billingMonth} IS NOT NULL AND ${table.billingMonth} ~ '^\\d{4}-(0[1-9]|1[0-2])$') OR (${table.type}::text <> 'monthly' AND ${table.billingMonth} IS NULL)`,
+    ),
+    check(
       "rental_bills_period_check",
-      sql`(${table.type} = 'deposit' AND ${table.periodStart} IS NULL AND ${table.periodEnd} IS NULL AND ${table.effectiveEnd} IS NULL) OR (${table.type} = 'rent' AND ${table.periodStart} IS NOT NULL AND ${table.periodEnd} IS NOT NULL AND ${table.effectiveEnd} IS NOT NULL AND ${table.effectiveEnd} BETWEEN ${table.periodStart} AND ${table.periodEnd})`,
+      sql`(${table.type}::text = 'deposit' AND ${table.periodStart} IS NULL AND ${table.periodEnd} IS NULL AND ${table.effectiveEnd} IS NULL) OR (${table.type}::text = 'rent' AND ${table.modelVersion} = 1 AND ${table.periodStart} IS NOT NULL AND ${table.periodEnd} IS NOT NULL AND ${table.effectiveEnd} IS NOT NULL AND ${table.effectiveEnd} BETWEEN ${table.periodStart} AND ${table.periodEnd}) OR (${table.type}::text = 'monthly' AND ${table.modelVersion} = 2 AND ${table.periodStart} IS NULL AND ${table.periodEnd} IS NULL AND ${table.effectiveEnd} IS NULL AND ${table.billingMonth} IS NOT NULL)`,
     ),
     check(
       "rental_bills_void_check",
@@ -230,6 +247,47 @@ export const rentalBills = snakeCase.table(
       table.status,
       table.dueDate,
       table.id,
+    ),
+  ],
+);
+
+/** 每次更正前保存完整账单头和明细，当前账单 ID 保持稳定。 */
+export const rentalBillRevisions = snakeCase.table(
+  "rental_bill_revisions",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    organizationId: uuid().notNull(),
+    contractId: uuid().notNull(),
+    billId: uuid().notNull(),
+    revision: integer().notNull(),
+    amountMinor: bigint({ mode: "number" }).notNull(),
+    billSnapshot: jsonb().notNull(),
+    linesSnapshot: jsonb().notNull(),
+    reason: text().notNull(),
+    createdByUserId: uuid()
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("rental_bill_revisions_version_unique").on(
+      table.organizationId,
+      table.contractId,
+      table.billId,
+      table.revision,
+    ),
+    foreignKey({
+      name: "rental_bill_revisions_bill_scope_fk",
+      columns: [table.organizationId, table.contractId, table.billId],
+      foreignColumns: [rentalBills.organizationId, rentalBills.contractId, rentalBills.id],
+    }),
+    check(
+      "rental_bill_revisions_amount_check",
+      sql`${table.amountMinor} BETWEEN 0 AND 9007199254740991 AND ${table.revision} >= 1`,
+    ),
+    check(
+      "rental_bill_revisions_reason_check",
+      sql`char_length(btrim(${table.reason})) BETWEEN 1 AND 1000`,
     ),
   ],
 );
@@ -245,6 +303,8 @@ export const rentalBillLines = snakeCase.table(
     kind: rentalBillLineKind().notNull(),
     label: text().notNull(),
     amountMinor: bigint({ mode: "number" }).notNull(),
+    note: text(),
+    feeSnapshot: jsonb().$type<RentalFeeSnapshot>(),
     periodStart: date({ mode: "string" }),
     periodEnd: date({ mode: "string" }),
     referenceStart: date({ mode: "string" }),
@@ -265,9 +325,16 @@ export const rentalBillLines = snakeCase.table(
       table.billId,
       table.sortOrder,
     ),
+    unique("rental_bill_lines_scope_bill_id_kind_unique").on(
+      table.organizationId,
+      table.contractId,
+      table.billId,
+      table.id,
+      table.kind,
+    ),
     check(
       "rental_bill_lines_money_check",
-      sql`${table.amountMinor} BETWEEN -9007199254740991 AND 9007199254740991 AND (${table.kind} = 'termination_adjustment' OR ${table.amountMinor} >= 0)`,
+      sql`${table.amountMinor} BETWEEN -9007199254740991 AND 9007199254740991 AND (${table.kind}::text IN ('termination_adjustment', 'extra_fee') OR ${table.amountMinor} >= 0)`,
     ),
     check(
       "rental_bill_lines_reference_check",

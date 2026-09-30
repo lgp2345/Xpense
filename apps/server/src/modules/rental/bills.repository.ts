@@ -8,6 +8,7 @@ import { DB } from "../../db/db.tokens.js";
 import {
   rentalBillGenerations,
   rentalBillLines,
+  rentalBillMeterIntervals,
   rentalBillNumberCounters,
   rentalBills,
 } from "../../db/schema.js";
@@ -108,6 +109,9 @@ export class BillsRepository {
             currencyCode: source.currencyCode,
             type: draft.type,
             status: "active" as const,
+            modelVersion: draft.modelVersion ?? 1,
+            billingMonth: draft.billingMonth ?? null,
+            revision: draft.revision ?? 1,
             sourceKey: draft.sourceKey,
             periodStart: draft.periodStart,
             periodEnd: draft.periodEnd,
@@ -127,7 +131,10 @@ export class BillsRepository {
         throw new Error("Failed to persist complete rental bill batch");
       const lines = batch.flatMap(({ draft, id }) =>
         draft.lines.map((line) => ({
+          id: randomUUID(),
           ...line,
+          note: line.note ?? null,
+          feeSnapshot: line.feeSnapshot ?? null,
           billId: id,
           organizationId: context.organizationId,
           contractId: contract.id,
@@ -135,6 +142,28 @@ export class BillsRepository {
       );
       for (let lineOffset = 0; lineOffset < lines.length; lineOffset += 500)
         await executor.insert(rentalBillLines).values(lines.slice(lineOffset, lineOffset + 500));
+      const spaceId = contract.spaces.length === 1 ? contract.spaces[0]?.spaceId : undefined;
+      const intervals = lines.flatMap((line) => {
+        const snapshot = line.feeSnapshot;
+        if (!snapshot || (snapshot.kind !== "water" && snapshot.kind !== "electricity")) return [];
+        if (!spaceId) throw new Error("Meter interval requires the contract's scoped space");
+        return [
+          {
+            organizationId: context.organizationId,
+            contractId: contract.id,
+            spaceId,
+            billId: line.billId,
+            billLineId: line.id,
+            kind: snapshot.kind,
+            startReadingId: snapshot.startReadingId,
+            endReadingId: snapshot.endReadingId,
+          },
+        ];
+      });
+      for (let offset = 0; offset < intervals.length; offset += 500)
+        await executor
+          .insert(rentalBillMeterIntervals)
+          .values(intervals.slice(offset, offset + 500));
       result.push(...inserted);
     }
     return result;

@@ -58,8 +58,15 @@ export type BillingSource = {
   activeBills: RentalBillDetail[];
   adjustment: RentalBillAdjustment | null;
 };
-export type PersistableBillingDraft = BillingDraft & {
+type PersistableBillingDraftBase = BillingDraft & {
   dueDate: string;
   adjustmentId: string | null;
 };
+/** 旧租金/押金调用默认落成 v1；v2 月度需月份，v2 押金月份留空。 */
+export type PersistableBillingDraft = PersistableBillingDraftBase &
+  (
+    | { modelVersion?: 1; billingMonth?: null; revision?: number }
+    | { type: "monthly"; modelVersion: 2; billingMonth: string; revision?: number }
+    | { type: "deposit"; modelVersion: 2; billingMonth?: null; revision?: number }
+  );
 export type BillingWriteContext = { organizationId: string; userId: string; today: string };
