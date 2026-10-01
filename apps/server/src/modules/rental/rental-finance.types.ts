@@ -73,6 +73,8 @@ export type BillRevisionPlan = {
 
 export type SettlementPlan = {
   effectiveEndDate: string;
+  /** 本次结算撤回的结束月之后有效月账单；历史 ID 与现金目标保留。 */
+  withdrawnBillIds: string[];
   finalBills: Array<{
     billId: string | null;
     billingMonth: string;

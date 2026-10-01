@@ -1141,6 +1141,125 @@ describe("RentalCashService", () => {
     expect(h.cash.insert.mock.calls.map((call) => call[1].amountMinor)).toEqual([100_000, 10_000]);
   });
 
+  it("refunds original receipts on a voided monthly bill by its preserved bill ID", async () => {
+    const receipt = {
+      id: "cash-receipt-for-removed-obligation",
+      contractId: financeContractId,
+      target,
+      kind: "receipt",
+      purpose: "bill_receipt",
+      amountMinor: 100_000,
+      occurredOn: "2026-09-01",
+      note: null,
+      createdAt: "2026-09-01T00:00:00.000Z",
+      createdByUserId: "user",
+      revokedAt: null,
+      revokedByUserId: null,
+      revokeReason: null,
+    };
+    const snapshot = financeSnapshot([receipt] as never);
+    const monthlyBill = snapshot.bills[0];
+    if (!monthlyBill) throw new Error("Expected monthly bill in finance snapshot");
+    snapshot.bills[0] = { ...monthlyBill, status: "voided", amountMinor: 0 };
+    const h = harness(snapshot);
+    const request = {
+      target,
+      occurredOn: "2026-09-30",
+      expectedVersion: h.version(target),
+      idempotencyKey: "00000000-0000-4000-8000-000000000075",
+    };
+
+    const refund = await h.service.confirmRefund(rentalFinanceAuth as never, request as never);
+
+    expect(refund).toMatchObject({ target, kind: "refund", amountMinor: 100_000 });
+    expect(h.cash.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ contractId: financeContractId }),
+      expect.objectContaining({ target, kind: "refund", amountMinor: 100_000 }),
+      expect.anything(),
+      h.tx,
+    );
+  });
+
+  it("refunds original receipts on a voided V2 deposit source by its preserved bill ID", async () => {
+    const receipt = {
+      id: "cash-receipt-for-removed-deposit-source",
+      contractId: financeContractId,
+      target,
+      kind: "receipt",
+      purpose: "deposit_receipt",
+      amountMinor: 300_000,
+      occurredOn: "2026-09-01",
+      note: null,
+      createdAt: "2026-09-01T00:00:00.000Z",
+      createdByUserId: "user",
+      revokedAt: null,
+      revokedByUserId: null,
+      revokeReason: null,
+    };
+    const snapshot = financeSnapshot([receipt] as never);
+    const depositBill = snapshot.bills[0];
+    if (!depositBill) throw new Error("Expected deposit bill in finance snapshot");
+    snapshot.bills[0] = {
+      ...depositBill,
+      type: "deposit",
+      status: "voided",
+      modelVersion: 2,
+      amountMinor: 0,
+    };
+    const h = harness(snapshot);
+    const request = {
+      target,
+      occurredOn: "2026-09-30",
+      expectedVersion: h.version(target),
+      idempotencyKey: "00000000-0000-4000-8000-000000000077",
+    };
+
+    await expect(
+      h.service.confirmRefund(rentalFinanceAuth as never, request as never),
+    ).resolves.toMatchObject({ target, kind: "refund", amountMinor: 300_000 });
+  });
+
+  it("allows revoking a refund after the original monthly obligation was voided", async () => {
+    const receipt = {
+      id: "cash-receipt-before-voided-refund-revoke",
+      contractId: financeContractId,
+      target,
+      kind: "receipt",
+      purpose: "bill_receipt",
+      amountMinor: 100_000,
+      occurredOn: "2026-09-01",
+      note: null,
+      createdAt: "2026-09-01T00:00:00.000Z",
+      createdByUserId: "user",
+      revokedAt: null,
+      revokedByUserId: null,
+      revokeReason: null,
+    };
+    const refund = {
+      ...receipt,
+      id: "cash-refund-after-voided-obligation",
+      kind: "refund",
+      purpose: "refund",
+      occurredOn: "2026-09-30",
+    };
+    const snapshot = financeSnapshot([receipt, refund] as never);
+    const monthlyBill = snapshot.bills[0];
+    if (!monthlyBill) throw new Error("Expected monthly bill in finance snapshot");
+    snapshot.bills[0] = { ...monthlyBill, status: "voided", amountMinor: 0 };
+    const h = harness(snapshot);
+    const request = {
+      entryId: refund.id,
+      reason: "来源义务已撤销",
+      expectedVersion: h.version(target),
+      idempotencyKey: "00000000-0000-4000-8000-000000000076",
+    };
+
+    await expect(
+      h.service.revokeRefund(rentalFinanceAuth as never, request as never),
+    ).resolves.toMatchObject({ id: refund.id, kind: "refund", amountMinor: 100_000 });
+    expect(h.cash.revoke).toHaveBeenCalledOnce();
+  });
+
   it("rejects a delayed original-bill receipt after settlement and leaves its existing cash target intact", async () => {
     const h = harness({
       ...financeSnapshot(),

@@ -8,6 +8,7 @@ import type {
 import { BillRevisionsRepository } from "../modules/rental/bill-revisions.repository.js";
 import { BillsRepository } from "../modules/rental/bills.repository.js";
 import type { BillRecord } from "../modules/rental/bills.repository.types.js";
+import { organizationDate } from "../modules/rental/contract-date.rules.js";
 import type { MeterReadingWriteInput } from "../modules/rental/meter-readings.repository.js";
 import { MeterReadingsRepository } from "../modules/rental/meter-readings.repository.js";
 import { calculateRentalBalance } from "../modules/rental/rental-balance.rules.js";
@@ -16,6 +17,8 @@ import type {
   RentalFinanceSnapshot,
 } from "../modules/rental/rental-finance.types.js";
 import { RentalFinanceSourceService } from "../modules/rental/rental-finance-source.service.js";
+import { RentalSettlementsRepository } from "../modules/rental/rental-settlements.repository.js";
+import type { RentalSettlementRecord } from "../modules/rental/rental-settlements.repository.types.js";
 import { login, TEST_PHONES, testIds } from "./auth-test-helpers.js";
 import { rentalBillingDetail } from "./rental-billing-fixtures.js";
 import { createRentalBillingHttpHarness } from "./rental-billing-http-harness.js";
@@ -136,6 +139,27 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
   Object.assign(setup.app.get(BillsRepository), billsRepository);
 
   const meterReadingsRepository: Partial<MeterReadingsRepository> = {
+    appendBoundary: async (
+      scope: FinanceScope,
+      input: MeterReadingWriteInput,
+      reason: string,
+      actor: { userId: string },
+    ) => {
+      const now = new Date(FIXED_FINANCE_NOW);
+      const record = {
+        id: randomUUID(),
+        ...scope,
+        ...structuredClone(input),
+        revision: 1,
+        reason,
+        createdByUserId: actor.userId,
+        updatedByUserId: actor.userId,
+        createdAt: now,
+        updatedAt: now,
+      };
+      state.meterReadings.push(record);
+      return structuredClone(record);
+    },
     reviseBoundary: async (
       scope: FinanceScope,
       id: string,
@@ -362,13 +386,54 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
         bills,
         cashEntries,
         settlement,
-        cancelledOn: null,
+        cancelledOn: header.cancelledAt
+          ? organizationDate(header.cancelledAt, setup.source.timezone)
+          : null,
       };
       lastSnapshot = snapshot;
       return snapshot;
     },
   };
   Object.assign(setup.app.get(RentalFinanceSourceService), source);
+
+  const settlements: Partial<RentalSettlementsRepository> = {
+    create: async (scope, plan, event, actor) => {
+      const now = new Date(FIXED_FINANCE_NOW);
+      const record = {
+        id: event.settlementId ?? randomUUID(),
+        ...scope,
+        eventId: event.eventId,
+        kind: event.kind,
+        effectiveEndDate: plan.effectiveEndDate,
+        version: event.version,
+        revision: 1,
+        finalCostMinor: plan.finalCostMinor,
+        status: event.status,
+        snapshot: structuredClone(plan),
+        confirmedAt: now,
+        confirmedByUserId: actor.userId,
+        updatedAt: now,
+      } as RentalSettlementRecord;
+      state.settlements.push(record);
+      return structuredClone(record);
+    },
+    linkBills: async (scope, settlementId, billIds) => {
+      state.settlementBills = state.settlementBills.filter(
+        (link) =>
+          link.organizationId !== scope.organizationId ||
+          link.contractId !== scope.contractId ||
+          link.settlementId !== settlementId,
+      );
+      for (const billId of new Set(billIds))
+        state.settlementBills.push({
+          ...scope,
+          settlementId,
+          billId,
+          createdAt: new Date(FIXED_FINANCE_NOW),
+        });
+    },
+  };
+  Object.assign(setup.app.get(RentalSettlementsRepository), settlements);
 
   const memberTokens = await login(setup.app, TEST_PHONES.manager);
   const memberHeaders = { authorization: `Bearer ${memberTokens.accessToken}` };

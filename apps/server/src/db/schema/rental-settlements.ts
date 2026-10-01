@@ -21,6 +21,8 @@ import { rentalContracts } from "./rental-tenancy.js";
 
 type SettlementSnapshot = {
   effectiveEndDate: string;
+  /** 老快照缺少该字段时按空集合读取。 */
+  withdrawnBillIds?: string[];
   finalBills: Array<{
     billId: string | null;
     billingMonth: string;

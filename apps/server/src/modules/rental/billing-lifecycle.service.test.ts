@@ -11,6 +11,7 @@ import { BillingLifecycleService } from "./billing-lifecycle.service.js";
 import { normalBillingDrafts } from "./billing-plan.rules.js";
 import { BillingTerminationService } from "./billing-termination.service.js";
 import { BillsRepository } from "./bills.repository.js";
+import { MonthlyBillingLifecycleService } from "./monthly-billing-lifecycle.service.js";
 
 const auth: AuthContext = {
   organizationId: "org",
@@ -39,6 +40,14 @@ async function harness() {
       BillingLifecycleService,
       { provide: BillsRepository, useValue: bills },
       { provide: BillingTerminationService, useValue: termination },
+      {
+        provide: MonthlyBillingLifecycleService,
+        useValue: {
+          onCancel: vi.fn(),
+          onTerminate: vi.fn(),
+          onRevokeTermination: vi.fn(),
+        },
+      },
       { provide: AuditService, useValue: { appendRequired: vi.fn() } },
       {
         provide: AccessService,
@@ -94,11 +103,68 @@ describe("合同账单联动", () => {
     const h = await harness();
     const source = withBills(rentalBillingSource());
     await expect(
-      h.service.onCancel({ ...auth, permissions: [] }, source, {} as never),
+      h.service.onCancel(
+        { ...auth, permissions: [] },
+        source,
+        { ...source, cancelledOn: "2026-01-01" },
+        {} as never,
+      ),
     ).rejects.toMatchObject({ status: 403 });
     expect(h.bills.voidBills).not.toHaveBeenCalled();
-    await h.service.onCancel(auth, source, {} as never);
+    await h.service.onCancel(auth, source, { ...source, cancelledOn: "2026-01-01" }, {} as never);
     expect(h.bills.voidBills.mock.calls[0]?.[1]).toHaveLength(6);
+    await h.module.close();
+  });
+
+  it("月结合同预约终止不进入旧账单调整流程", async () => {
+    const h = await harness();
+    const source = rentalBillingSource({ billingMode: "monthly_settlement" });
+    const dto = {
+      id: source.contract.id,
+      terminationDate: "2026-10-20",
+      reason: "计划终止",
+    };
+    const recordedAt = new Date("2026-09-30T02:00:00.000Z");
+    await h.service.onTerminate(auth, source, dto, {} as never, recordedAt);
+    const monthly = h.module.get(MonthlyBillingLifecycleService);
+    expect(monthly.onTerminate).toHaveBeenCalledWith(
+      auth,
+      source,
+      {
+        ...source,
+        contract: {
+          ...source.contract,
+          lifecycleStatus: "terminated",
+          terminationDate: dto.terminationDate,
+        },
+        terminationRecordedAt: recordedAt.toISOString(),
+      },
+      expect.anything(),
+    );
+    expect(h.module.get(BillingTerminationService).onTerminate).not.toHaveBeenCalled();
+    await h.module.close();
+  });
+
+  it("月结合同撤销未来终止不进入旧账单调整流程", async () => {
+    const h = await harness();
+    const source = rentalBillingSource({ billingMode: "monthly_settlement" });
+    await h.service.onRevokeTermination(auth, source, {} as never);
+    const monthly = h.module.get(MonthlyBillingLifecycleService);
+    expect(monthly.onRevokeTermination).toHaveBeenCalledWith(
+      auth,
+      source,
+      {
+        ...source,
+        contract: {
+          ...source.contract,
+          lifecycleStatus: "confirmed",
+          terminationDate: null,
+        },
+        terminationRecordedAt: null,
+      },
+      expect.anything(),
+    );
+    expect(h.module.get(BillingTerminationService).onRevokeTermination).not.toHaveBeenCalled();
     await h.module.close();
   });
 });

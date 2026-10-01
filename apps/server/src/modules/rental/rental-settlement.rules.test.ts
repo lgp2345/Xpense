@@ -299,6 +299,305 @@ function refundScenarioSnapshot(): RentalFinanceSnapshot {
 }
 
 describe("buildRentalSettlementPlan", () => {
+  it("withdraws an empty future monthly bill instead of retaining it as a zero-value final bill", () => {
+    const source = baseSnapshot();
+    source.contract = {
+      ...source.contract,
+      endDate: "2026-12-31",
+      actualEndDate: "2026-10-15",
+      terminationDate: "2026-10-15",
+      paymentIntervalMonths: 1,
+    };
+    source.bills.push(
+      monthlyBill("bill-nov", "2026-11", [
+        {
+          ...line("rent_period", "11 月租金", 100_000, "2026-11-01", "2026-11-30"),
+          referenceStart: "2026-11-01",
+          referenceEnd: "2026-11-30",
+          coveredDays: 30,
+          referenceDays: 30,
+          baseRentAmountMinor: 100_000,
+        },
+        {
+          ...line("fixed_fee", "网费", 10_000, "2026-11-01", "2026-11-30"),
+          referenceStart: "2026-11-01",
+          referenceEnd: "2026-11-30",
+          coveredDays: 30,
+          referenceDays: 30,
+          feeSnapshot: {
+            kind: "fixed_fee",
+            feeId: "network",
+            monthlyAmountMinor: 10_000,
+            overrideReason: null,
+          },
+        },
+      ]),
+    );
+
+    const plan = buildRentalSettlementPlan(source, {
+      contractId: "contract-1",
+      finalReadings: [],
+      extraFees: [],
+    });
+
+    expect(plan).toMatchObject({
+      withdrawnBillIds: ["bill-nov"],
+      finalBills: expect.not.arrayContaining([expect.objectContaining({ billId: "bill-nov" })]),
+    });
+    expect(plan.finalBills.every(({ billingMonth }) => billingMonth <= "2026-10")).toBe(true);
+  });
+
+  it("withdraws future rent and monthly extras without requiring a future-extra policy", () => {
+    const source = baseSnapshot();
+    source.contract = {
+      ...source.contract,
+      endDate: "2026-12-31",
+      actualEndDate: "2026-10-15",
+      terminationDate: "2026-10-15",
+      paymentIntervalMonths: 1,
+    };
+    source.bills.push(
+      monthlyBill("bill-nov", "2026-11", [
+        {
+          ...line("rent_period", "11 月租金", 100_000, "2026-11-01", "2026-11-30"),
+          referenceStart: "2026-11-01",
+          referenceEnd: "2026-11-30",
+          coveredDays: 30,
+          referenceDays: 30,
+          baseRentAmountMinor: 100_000,
+        },
+        {
+          ...line("extra_fee", "月度加收", 5_000, "2026-11-01", "2026-11-30"),
+          feeSnapshot: { kind: "extra_fee", extraFeeId: "nov-fee", origin: "monthly" },
+        },
+        {
+          ...line("extra_fee", "月度减免", -2_000, "2026-11-01", "2026-11-30"),
+          feeSnapshot: { kind: "extra_fee", extraFeeId: "nov-discount", origin: "monthly" },
+        },
+      ]),
+    );
+
+    const plan = buildRentalSettlementPlan(source, {
+      contractId: "contract-1",
+      finalReadings: [],
+      extraFees: [],
+    });
+
+    expect(plan.withdrawnBillIds).toEqual(["bill-nov"]);
+    expect(plan.finalBills.every(({ billingMonth }) => billingMonth <= "2026-10")).toBe(true);
+    expect(
+      plan.finalBills.flatMap(({ lines }) => lines).some(({ label }) => label.includes("11 月")),
+    ).toBe(false);
+  });
+
+  it("replaces a charged P-to-E interval with P-to-T at its saved price and counts it once", () => {
+    const source = baseSnapshot();
+    source.contract = {
+      ...source.contract,
+      actualEndDate: "2026-10-15",
+      terminationDate: "2026-10-15",
+    };
+    const terminal = reading("w-terminal", "water", "2026-10-15", "105", "w-0");
+    source.readings.push(terminal);
+    const later = source.readings.find(({ id }) => id === "w-1");
+    if (!later) throw new Error("Expected the later real water reading");
+    later.predecessorId = terminal.id;
+
+    const plan = buildRentalSettlementPlan(source, {
+      contractId: "contract-1",
+      finalReadings: [
+        { kind: "water", readingDate: terminal.readingDate, reading: terminal.reading },
+      ],
+      extraFees: [],
+    });
+
+    const waterLines = plan.finalBills.flatMap(({ billId, lines }) =>
+      lines.filter((item) => item.kind === "water").map((item) => ({ billId, item })),
+    );
+    expect(waterLines).toHaveLength(1);
+    expect(waterLines[0]).toMatchObject({
+      billId: "bill-oct",
+      item: {
+        amountMinor: 1_500,
+        feeSnapshot: {
+          kind: "water",
+          startReadingId: "w-0",
+          endReadingId: "w-terminal",
+          endDate: "2026-10-15",
+          startReading: "100",
+          endReading: "105",
+          unitPrice: "3",
+        },
+      },
+    });
+    expect(later).toMatchObject({
+      id: "w-1",
+      readingDate: "2026-10-31",
+      reading: "110",
+      predecessorId: "w-terminal",
+    });
+  });
+
+  it("拒绝重算出高于真实后继表读数的终值", () => {
+    const source = baseSnapshot();
+    source.contract = {
+      ...source.contract,
+      actualEndDate: "2026-10-15",
+      terminationDate: "2026-10-15",
+    };
+    const terminal = reading("w-terminal", "water", "2026-10-15", "120", "w-0");
+    source.readings.push(terminal);
+    const later = source.readings.find(({ id }) => id === "w-1");
+    if (!later) throw new Error("Expected the later real water reading");
+    later.predecessorId = terminal.id;
+
+    expect(() =>
+      buildRentalSettlementPlan(source, {
+        contractId: "contract-1",
+        finalReadings: [
+          { kind: "water", readingDate: terminal.readingDate, reading: terminal.reading },
+        ],
+        extraFees: [],
+      }),
+    ).toThrow("末次读数不能高于后续水电读数");
+  });
+
+  it("将结束月之后原账单中的跨界水费移入结束月并沿用该行历史单价", () => {
+    const source = baseSnapshot();
+    const previous = reading("w-january", "water", "2026-01-01", "100", null);
+    const terminal = reading("w-june", "water", "2026-06-30", "110", previous.id);
+    const later = reading("w-august", "water", "2026-08-31", "120", terminal.id);
+    const electricity = source.readings.find(({ kind }) => kind === "electricity");
+    if (!electricity) throw new Error("Expected an electricity baseline");
+    source.contract = {
+      ...source.contract,
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+      actualEndDate: "2026-06-30",
+      terminationDate: "2026-06-30",
+      paymentIntervalMonths: 1,
+    };
+    source.terms = {
+      contractId: "contract-1",
+      version: "terms-current",
+      waterUnitPrice: "4",
+      electricityUnitPrice: "1",
+      fixedFees: [],
+    };
+    source.readings = [previous, terminal, later, electricity];
+    source.bills = [
+      monthlyBill("bill-august", "2026-08", [
+        {
+          ...line("water", "历史水费", 6_000, previous.readingDate, later.readingDate),
+          feeSnapshot: {
+            kind: "water",
+            startReadingId: previous.id,
+            endReadingId: later.id,
+            startDate: previous.readingDate,
+            endDate: later.readingDate,
+            startReading: previous.reading,
+            endReading: later.reading,
+            unitPrice: "3",
+            overrideReason: "历史覆盖价",
+          },
+        },
+      ]),
+    ];
+
+    const plan = buildRentalSettlementPlan(source, {
+      contractId: "contract-1",
+      finalReadings: [
+        { kind: "water", readingDate: terminal.readingDate, reading: terminal.reading },
+      ],
+      extraFees: [],
+    });
+
+    const waterLines = plan.finalBills.flatMap(({ billId, billingMonth, lines }) =>
+      lines.filter((item) => item.kind === "water").map((item) => ({ billId, billingMonth, item })),
+    );
+    expect(waterLines).toHaveLength(1);
+    expect(waterLines[0]).toMatchObject({
+      billId: null,
+      billingMonth: "2026-06",
+      item: {
+        amountMinor: 3_000,
+        feeSnapshot: {
+          startReadingId: previous.id,
+          endReadingId: terminal.id,
+          unitPrice: "3",
+          overrideReason: "历史覆盖价",
+        },
+      },
+    });
+  });
+
+  it("将完整发生在结束日前的未来账单水电区间移入结束月且只计一次", () => {
+    const source = baseSnapshot();
+    source.contract = {
+      ...source.contract,
+      actualEndDate: "2026-10-15",
+      terminationDate: "2026-10-15",
+    };
+    const start = source.readings.find(({ id }) => id === "w-0");
+    const oldEnd = source.readings.find(({ id }) => id === "w-1");
+    const priorBill = source.bills[0];
+    if (!start || !oldEnd) throw new Error("Expected the water reading chain");
+    if (!priorBill) throw new Error("Expected the prior monthly bill");
+    const happenedEnd = reading("w-happened", "water", "2026-10-10", "105", start.id);
+    oldEnd.predecessorId = happenedEnd.id;
+    source.bills[0] = {
+      ...priorBill,
+      lines: priorBill.lines.filter((item) => item.kind !== "water"),
+    };
+    source.readings.push(happenedEnd);
+    source.bills.push(
+      monthlyBill("bill-nov", "2026-11", [
+        {
+          ...line("water", "历史水费", 1_500, start.readingDate, happenedEnd.readingDate),
+          feeSnapshot: {
+            kind: "water",
+            startReadingId: start.id,
+            endReadingId: happenedEnd.id,
+            startDate: start.readingDate,
+            endDate: happenedEnd.readingDate,
+            startReading: start.reading,
+            endReading: happenedEnd.reading,
+            unitPrice: "3",
+            overrideReason: "历史覆盖价",
+          },
+        },
+      ]),
+    );
+
+    const plan = buildRentalSettlementPlan(source, {
+      contractId: "contract-1",
+      finalReadings: [],
+      extraFees: [],
+    });
+
+    const water = plan.finalBills.flatMap(({ billingMonth, billId, lines }) =>
+      lines.filter((item) => item.kind === "water").map((item) => ({ billingMonth, billId, item })),
+    );
+    expect(water).toHaveLength(1);
+    expect(water[0]).toMatchObject({
+      billingMonth: "2026-10",
+      billId: "bill-oct",
+      item: {
+        amountMinor: 1_500,
+        feeSnapshot: {
+          startReadingId: start.id,
+          endReadingId: happenedEnd.id,
+          unitPrice: "3",
+          overrideReason: "历史覆盖价",
+        },
+      },
+    });
+    expect(plan.withdrawnBillIds).toEqual(["bill-nov"]);
+    expect(
+      plan.finalBills.flatMap(({ lines }) => lines).filter(({ kind }) => kind === "water"),
+    ).toHaveLength(1);
+  });
+
   it("preserves quarterly rent coverage, adds a missing month, avoids billed meter intervals and counts all valid cash", () => {
     const source = baseSnapshot();
     const plan = buildRentalSettlementPlan(source, {

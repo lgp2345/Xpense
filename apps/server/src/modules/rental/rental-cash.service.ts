@@ -156,9 +156,14 @@ export class RentalCashService {
         if (request.target.kind === "bill") {
           if (source.settlement) throw this.conflict("结算确认后请使用结算目标登记退款");
           if (current.kind !== "bill") throw this.notFound();
-          this.assertActiveV2Bill(current.bill);
+          this.assertRefundableV2Bill(current.bill);
         }
-        const balance = balanceFor(source, request.target, current.amountMinor, current.dueDate);
+        const balance = balanceFor(
+          source,
+          request.target,
+          this.balanceAmount(current),
+          current.dueDate,
+        );
         if (balance.refundableMinor <= 0) throw this.badRequest("当前目标没有待退金额");
         return {
           target: request.target,
@@ -449,7 +454,7 @@ export class RentalCashService {
     balanceFor(
       source,
       entry.target,
-      resolvedTarget.amountMinor,
+      this.balanceAmount(resolvedTarget),
       resolvedTarget.dueDate,
       cashEntries,
     );
@@ -478,6 +483,22 @@ export class RentalCashService {
   private assertActiveV2Bill(bill: RentalFinanceSnapshot["bills"][number]) {
     if (bill.status !== "active" || bill.modelVersion !== 2)
       throw this.conflict("仅可对有效的新版账单登记收退款");
+  }
+
+  private assertRefundableV2Bill(bill: RentalFinanceSnapshot["bills"][number]) {
+    if (bill.status === "voided" && bill.modelVersion === 2) return;
+    this.assertActiveV2Bill(bill);
+  }
+
+  private balanceAmount(target: ResolvedTarget) {
+    if (
+      target.kind === "bill" &&
+      target.bill.status === "voided" &&
+      target.bill.modelVersion === 2
+    ) {
+      return 0;
+    }
+    return target.amountMinor;
   }
 
   private async refreshSettlement(

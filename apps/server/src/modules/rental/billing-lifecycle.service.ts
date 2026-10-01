@@ -12,6 +12,7 @@ import { finalDepositAmount } from "./contract.rules.js";
 import type { MutableContractAggregate } from "./contract-lifecycle.service.js";
 import type { PreviewTerminationDto } from "./dto/preview-termination.dto.js";
 import type { TerminateContractDto } from "./dto/terminate-contract.dto.js";
+import { MonthlyBillingLifecycleService } from "./monthly-billing-lifecycle.service.js";
 
 /** 合同事务内的账单联动，不反向调用合同 service。 */
 @Injectable()
@@ -21,6 +22,7 @@ export class BillingLifecycleService {
     private readonly termination: BillingTerminationService,
     private readonly access: AccessService,
     private readonly audit: AuditService,
+    private readonly monthly: MonthlyBillingLifecycleService,
   ) {}
 
   /** 写入合同前按已验证的聚合判断条件权限。 */
@@ -58,6 +60,10 @@ export class BillingLifecycleService {
     after: BillingSource,
     tx: AppDbTransaction,
   ): Promise<void> {
+    if (before.contract.billingMode === "monthly_settlement") {
+      await this.monthly.onCorrection(auth, before, after, tx);
+      return;
+    }
     await this.void(
       auth,
       before,
@@ -66,7 +72,16 @@ export class BillingLifecycleService {
       tx,
     );
   }
-  async onCancel(auth: AuthContext, source: BillingSource, tx: AppDbTransaction): Promise<void> {
+  async onCancel(
+    auth: AuthContext,
+    source: BillingSource,
+    after: BillingSource & { cancelledOn: string },
+    tx: AppDbTransaction,
+  ): Promise<void> {
+    if (source.contract.billingMode === "monthly_settlement") {
+      await this.monthly.onCancel(auth, source, after, tx);
+      return;
+    }
     await this.void(
       auth,
       source,
@@ -85,9 +100,33 @@ export class BillingLifecycleService {
     tx: AppDbTransaction,
     recordedAt?: Date,
   ) {
+    if (source.contract.billingMode === "monthly_settlement") {
+      const after: BillingSource = {
+        ...source,
+        contract: {
+          ...source.contract,
+          lifecycleStatus: "terminated",
+          terminationDate: dto.terminationDate,
+        },
+        terminationRecordedAt: recordedAt?.toISOString() ?? null,
+      };
+      return this.monthly.onTerminate(auth, source, after, tx);
+    }
     return this.termination.onTerminate(auth, source, dto, tx, recordedAt);
   }
   onRevokeTermination(auth: AuthContext, source: BillingSource, tx: AppDbTransaction) {
+    if (source.contract.billingMode === "monthly_settlement") {
+      const after: BillingSource = {
+        ...source,
+        contract: {
+          ...source.contract,
+          lifecycleStatus: "confirmed",
+          terminationDate: null,
+        },
+        terminationRecordedAt: null,
+      };
+      return this.monthly.onRevokeTermination(auth, source, after, tx);
+    }
     return this.termination.onRevokeTermination(auth, source, tx);
   }
 

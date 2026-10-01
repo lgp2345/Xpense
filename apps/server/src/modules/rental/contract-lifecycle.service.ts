@@ -12,7 +12,12 @@ import { AuditService } from "../audit/audit.service.js";
 import { BillingLifecycleService } from "./billing-lifecycle.service.js";
 import { BillingSourceService } from "./billing-source.service.js";
 import { ChargeTermsRepository } from "./charge-terms.repository.js";
-import { actualContractEnd, addCalendarDays, compareCalendarDates } from "./contract-date.rules.js";
+import {
+  actualContractEnd,
+  addCalendarDays,
+  compareCalendarDates,
+  organizationDate,
+} from "./contract-date.rules.js";
 import { ContractRelationsRepository } from "./contract-relations.repository.js";
 import { ContractsRepository } from "./contracts.repository.js";
 import type {
@@ -155,18 +160,25 @@ export class ContractLifecycleService {
         await this.repository.findForUpdate(authContext.organizationId, dto.id, transaction),
       );
       this.policy.assertCancellationAllowed(contract, today);
-      await this.billing.onCancel(
-        authContext,
-        await this.billingSources.read(authContext.organizationId, contract.id, transaction),
+      const before = await this.billingSources.read(
+        authContext.organizationId,
+        contract.id,
         transaction,
       );
+      const cancelledAt = new Date();
+      const after = {
+        ...before,
+        contract: { ...before.contract, lifecycleStatus: "cancelled" as const },
+        cancelledOn: organizationDate(cancelledAt, before.timezone),
+      };
+      await this.billing.onCancel(authContext, before, after, transaction);
       await this.repository.setLifecycle(
         {
           organizationId: authContext.organizationId,
           id: contract.id,
           status: "cancelled",
           updatedByUserId: authContext.userId,
-          cancelledAt: new Date(),
+          cancelledAt,
           cancelledByUserId: authContext.userId,
           cancellationReason: dto.reason,
         },

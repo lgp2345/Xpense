@@ -1,8 +1,9 @@
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import { rentalBillLines, rentalBills } from "../../db/schema.js";
-import { loadBillDetails, queryBillPage } from "./bills.queries.js";
+import { loadBillDetails, queryBillPage, withBillFinancial } from "./bills.queries.js";
 import type { BillRecord } from "./bills.repository.types.js";
+import type { RentalCashProjectionFacts } from "./rental-cash-projection.repository.types.js";
 
 describe("账单明细兼容可选财务快照", () => {
   it("legacy 空值字段不泄漏，新费用行保留 note 和 feeSnapshot", async () => {
@@ -179,5 +180,106 @@ describe("月度账单列表投影", () => {
     expect(new PgDialect().sqlToQuery(totalsSelection?.deposit as never).sql).toContain(
       `"rental_bills"."type" = 'deposit' then "rental_bills"."amount_minor"`,
     );
+  });
+
+  it("按现金命令对已作废新版账单用零应收投影，保留历史票据金额且不改旧版账单", () => {
+    const bill = {
+      id: "voided-deposit",
+      billNumber: "RB-2026-000002",
+      contractId: "contract",
+      contractNumber: "RC-2026-0001",
+      propertyId: "property",
+      propertyName: "房产",
+      currencyCode: "CNY",
+      type: "deposit",
+      status: "voided",
+      sourceKey: "deposit:original",
+      periodStart: null,
+      periodEnd: null,
+      effectiveEnd: null,
+      dueDate: "2026-12-01",
+      amountMinor: 300_000,
+      dueState: null,
+      createdAt: "2026-08-01T00:00:00.000Z",
+      modelVersion: 2,
+      billingMonth: null,
+      revision: 1,
+    } as const;
+    const facts = (refunded: boolean): RentalCashProjectionFacts => ({
+      organizationId: "org",
+      contractId: "contract",
+      contract: {
+        billingMode: "monthly_settlement",
+        lifecycleStatus: "confirmed",
+        startDate: "2026-12-01",
+        endDate: "2027-11-30",
+        rentAmountMinor: 50_000,
+        billingAnchor: "contract_start",
+        paymentIntervalMonths: 1,
+        dueDaysBefore: 0,
+        terminationDate: null,
+        cancelledAt: null,
+      },
+      bills: [
+        {
+          id: bill.id,
+          type: bill.type,
+          status: bill.status,
+          modelVersion: bill.modelVersion,
+          billingMonth: bill.billingMonth,
+          revision: bill.revision,
+          amountMinor: bill.amountMinor,
+          sourceKey: bill.sourceKey,
+          dueDate: bill.dueDate,
+        },
+      ],
+      cashEntries: [
+        {
+          id: "receipt",
+          contractId: "contract",
+          billId: bill.id,
+          settlementId: null,
+          target: { kind: "bill", billId: bill.id },
+          kind: "receipt",
+          purpose: "deposit_receipt",
+          amountMinor: 300_000,
+          occurredOn: "2026-12-01",
+          revokedAt: null,
+        },
+        ...(refunded
+          ? [
+              {
+                id: "refund",
+                contractId: "contract",
+                billId: bill.id,
+                settlementId: null,
+                target: { kind: "bill" as const, billId: bill.id },
+                kind: "refund",
+                purpose: "refund",
+                amountMinor: 300_000,
+                occurredOn: "2026-12-01",
+                revokedAt: null,
+              },
+            ]
+          : []),
+      ],
+      settlement: null,
+      settlementBillIds: [],
+      readings: [],
+    });
+
+    const beforeRefund = withBillFinancial(bill, facts(false), "2026-12-01", "org");
+    expect(beforeRefund).toMatchObject({
+      amountMinor: 300_000,
+      status: "voided",
+      financial: { outstandingMinor: 0, refundableMinor: 300_000 },
+    });
+    const afterRefund = withBillFinancial(bill, facts(true), "2026-12-01", "org");
+    expect(afterRefund).toMatchObject({
+      financial: { outstandingMinor: 0, refundableMinor: 0 },
+    });
+
+    const legacy = { ...bill, modelVersion: 1 as const };
+    expect(withBillFinancial(legacy, facts(false), "2026-12-01", "org")).toBe(legacy);
   });
 });

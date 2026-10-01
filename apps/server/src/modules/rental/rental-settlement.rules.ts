@@ -18,6 +18,7 @@ import type {
   SettlementPlan,
 } from "./rental-finance.types.js";
 import { projectRentalRentThroughDate } from "./rental-rent-projection.rules.js";
+import { assertSettlementReadingMonotonicity } from "./rental-settlement-readings.rules.js";
 
 const maximum = BigInt(Number.MAX_SAFE_INTEGER);
 
@@ -201,7 +202,84 @@ function terminalReading(
       item.spaceId === space.spaceId,
   );
   if (matches.length !== 1) throw new RangeError("末次读数没有唯一匹配的内部读数记录");
+  assertSettlementReadingMonotonicity(source, requested, space.spaceId);
   return matches[0] as RentalMeterReading;
+}
+
+function clipCrossingMeterLine(
+  line: RentalBillLine,
+  source: RentalFinanceSnapshot,
+  requested: { kind: RentalMeterKind; readingDate: string; reading: string }[],
+  effectiveEndDate: string,
+): RentalBillLine | null {
+  const saved = line.feeSnapshot;
+  if (!isMeterSnapshot(saved) || saved.endDate <= effectiveEndDate) return null;
+  const requestedBoundary = requested.find(
+    (item) =>
+      item.kind === saved.kind &&
+      item.readingDate > saved.startDate &&
+      item.readingDate < saved.endDate,
+  );
+  if (!requestedBoundary) return null;
+  const terminal = terminalReading(source, requestedBoundary, effectiveEndDate);
+  if (terminal.predecessorId !== saved.startReadingId) {
+    throw new RangeError("最终读数必须直接延续已计费水电区间的起点");
+  }
+  return {
+    ...line,
+    amountMinor: calculateMeterCharge(saved.startReading, terminal.reading, saved.unitPrice),
+    periodEnd: terminal.readingDate,
+    feeSnapshot: {
+      ...saved,
+      endReadingId: terminal.id,
+      endDate: terminal.readingDate,
+      endReading: terminal.reading,
+    },
+  };
+}
+
+function moveFutureMeterLinesToEndingMonth(
+  futureBills: RentalBillDetail[],
+  requested: { kind: RentalMeterKind; readingDate: string; reading: string }[],
+  source: RentalFinanceSnapshot,
+  effectiveEndDate: string,
+  bills: Map<string, PlannedBill>,
+): void {
+  const endingMonth = effectiveEndDate.slice(0, 7);
+  const target = bills.get(endingMonth) ?? {
+    billId: null,
+    billingMonth: endingMonth,
+    lines: [],
+  };
+  const intervals = new Set(
+    [...bills.values()].flatMap((bill) =>
+      bill.lines.flatMap((line) => {
+        const snapshot = line.feeSnapshot;
+        return isMeterSnapshot(snapshot)
+          ? [`${snapshot.kind}:${snapshot.startReadingId}:${snapshot.endReadingId}`]
+          : [];
+      }),
+    ),
+  );
+
+  for (const bill of futureBills) {
+    for (const line of bill.lines) {
+      const snapshot = line.feeSnapshot;
+      if (!isMeterSnapshot(snapshot) || snapshot.startDate > effectiveEndDate) continue;
+      const moved =
+        snapshot.endDate > effectiveEndDate
+          ? clipCrossingMeterLine(line, source, requested, effectiveEndDate)
+          : line;
+      if (!moved) continue;
+      const movedSnapshot = moved.feeSnapshot;
+      if (!isMeterSnapshot(movedSnapshot)) throw new RangeError("结算水电快照不完整");
+      const key = `${movedSnapshot.kind}:${movedSnapshot.startReadingId}:${movedSnapshot.endReadingId}`;
+      if (intervals.has(key)) throw new RangeError("结算计划包含重复水电计费区间");
+      target.lines.push(moved);
+      intervals.add(key);
+    }
+  }
+  if (target.lines.length > 0) bills.set(endingMonth, target);
 }
 
 function addTerminalMeterLines(
@@ -214,6 +292,19 @@ function addTerminalMeterLines(
   const billedEnds = new Map<RentalMeterKind, Array<{ date: string; id: string }>>();
   for (const bill of source.bills) {
     if (bill.type !== "monthly" || bill.status !== "active" || bill.modelVersion !== 2) continue;
+    for (const line of bill.lines) {
+      const saved = line.feeSnapshot;
+      if (!isMeterSnapshot(saved)) continue;
+      existingIntervals.add(`${saved.kind}:${saved.startReadingId}:${saved.endReadingId}`);
+      if (saved.endDate <= effectiveEndDate) {
+        billedEnds.set(saved.kind, [
+          ...(billedEnds.get(saved.kind) ?? []),
+          { date: saved.endDate, id: saved.endReadingId },
+        ]);
+      }
+    }
+  }
+  for (const bill of bills.values()) {
     for (const line of bill.lines) {
       const saved = line.feeSnapshot;
       if (!isMeterSnapshot(saved)) continue;
@@ -243,6 +334,17 @@ function addTerminalMeterLines(
               isMeterSnapshot(saved) && saved.kind === value.kind && saved.endReadingId === end.id
             );
           }),
+      )
+    )
+      continue;
+    if (
+      [...bills.values()].some((bill) =>
+        bill.lines.some((line) => {
+          const saved = line.feeSnapshot;
+          return (
+            isMeterSnapshot(saved) && saved.kind === value.kind && saved.endReadingId === end.id
+          );
+        }),
       )
     )
       continue;
@@ -331,8 +433,13 @@ export function buildRentalSettlementPlan(
   if (source.contract.lifecycleStatus === "cancelled") {
     if (!source.cancelledOn) throw new RangeError("取消结算缺少已保存取消日期");
     parseCalendarDate(source.cancelledOn);
+    const endMonth = source.cancelledOn.slice(0, 7);
     return {
       effectiveEndDate: source.cancelledOn,
+      withdrawnBillIds: [...activeMonthlyBills(source)]
+        .filter(([billingMonth]) => billingMonth > endMonth)
+        .map(([, bill]) => bill.id)
+        .sort(),
       finalBills: [],
       finalCostMinor: 0,
       differenceMinor: validCashDifference(source, 0),
@@ -351,6 +458,10 @@ export function buildRentalSettlementPlan(
   const workByMonth = new Map<string, PlannedBill>();
   const firstMonth = terms.startDate.slice(0, 7);
   const lastMonth = effectiveEndDate.slice(0, 7);
+  const futureBills = [...activeBills]
+    .filter(([billingMonth]) => billingMonth > lastMonth)
+    .map(([, bill]) => bill);
+  const withdrawnBillIds = futureBills.map(({ id }) => id).sort();
   for (const [billingMonth, bill] of activeBills) {
     if (billingMonth < firstMonth || billingMonth > lastMonth) continue;
     const lines: RentalBillLine[] = [];
@@ -366,11 +477,28 @@ export function buildRentalSettlementPlan(
         if (clipped) lines.push(clipped);
         continue;
       }
-      if (isMeterSnapshot(saved) && saved.endDate > effectiveEndDate) continue;
+      if (isMeterSnapshot(saved) && saved.endDate > effectiveEndDate) {
+        const clipped = clipCrossingMeterLine(
+          item,
+          source,
+          input.finalReadings ?? [],
+          effectiveEndDate,
+        );
+        if (clipped) lines.push(clipped);
+        continue;
+      }
       lines.push(item);
     }
     workByMonth.set(billingMonth, { billId: bill.id, billingMonth, lines });
   }
+
+  moveFutureMeterLinesToEndingMonth(
+    futureBills,
+    input.finalReadings ?? [],
+    source,
+    effectiveEndDate,
+    workByMonth,
+  );
 
   for (const { billingMonth, lines: rentLines } of projectRentalRentThroughDate(
     terms,
@@ -404,7 +532,19 @@ export function buildRentalSettlementPlan(
       billingMonth: finalMonth,
       lines: [],
     };
+    const retainedMonthlyFeeIds = new Set(
+      bill.lines.flatMap((line) =>
+        line.feeSnapshot?.kind === "extra_fee" && line.feeSnapshot.origin === "monthly"
+          ? [line.feeSnapshot.extraFeeId]
+          : [],
+      ),
+    );
+    const settlementFeeIds = new Set<string>();
     for (const fee of input.extraFees) {
+      if (settlementFeeIds.has(fee.id)) throw new RangeError("结算额外费用ID不能重复");
+      if (retainedMonthlyFeeIds.has(fee.id))
+        throw new RangeError("结算额外费用ID与保留月度额外费用冲突");
+      settlementFeeIds.add(fee.id);
       if (!Number.isSafeInteger(fee.amountMinor))
         throw new RangeError("结算额外费用必须是安全整数");
       bill.lines.push(
@@ -421,7 +561,6 @@ export function buildRentalSettlementPlan(
   }
 
   const finalBills = [...workByMonth.values()]
-    .filter((bill) => bill.lines.length > 0)
     .sort((left, right) => left.billingMonth.localeCompare(right.billingMonth))
     .map((bill) => {
       const lines = bill.lines.map((item, sortOrder) => ({ ...item, sortOrder }));
@@ -437,6 +576,7 @@ export function buildRentalSettlementPlan(
   const finalCostMinor = Number(cost);
   return {
     effectiveEndDate,
+    withdrawnBillIds,
     finalBills,
     finalCostMinor,
     differenceMinor: validCashDifference(source, finalCostMinor),

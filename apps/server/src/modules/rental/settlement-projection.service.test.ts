@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { financeContractId, rentalFinanceSnapshot } from "../../test/rental-finance-fixtures.js";
 import { rentalCashSourceVersion } from "./rental-cash.version.rules.js";
 import type { RentalFinanceSnapshot } from "./rental-finance.types.js";
+import type { RentalSettlementRecord } from "./rental-settlements.repository.types.js";
 import { SettlementProjectionService } from "./settlement-projection.service.js";
 
 const settlementId = "00000000-0000-4000-8000-000000000040";
@@ -15,7 +16,7 @@ const scope = { organizationId: "org", contractId: financeContractId };
 const actor = "user";
 const tx = {};
 
-function settlementRecord() {
+function settlementRecord(): RentalSettlementRecord {
   return {
     id: settlementId,
     ...scope,
@@ -26,8 +27,10 @@ function settlementRecord() {
     revision: 1,
     finalCostMinor: 1,
     status: "settled",
+    updatedAt: new Date("2026-09-01T00:00:00.000Z"),
     snapshot: {
       effectiveEndDate: "2026-08-31",
+      withdrawnBillIds: [],
       finalBills: [],
       finalCostMinor: 1,
       differenceMinor: 0,
@@ -214,6 +217,24 @@ describe("SettlementProjectionService", () => {
 
     await expect(h.service.refresh(scope, actor, tx as never)).resolves.toBeNull();
     expect(h.settlements.revise).not.toHaveBeenCalled();
+  });
+
+  it("preserves the saved withdrawn-bill IDs and treats an older snapshot as empty", async () => {
+    const current = settlementRecord();
+    current.snapshot.withdrawnBillIds = [voidBillId];
+    const h = harness(financeSnapshot(), current);
+
+    await h.service.refresh(scope, actor, tx as never);
+
+    expect(h.settlements.revise.mock.calls[0]?.[2].plan.withdrawnBillIds).toEqual([voidBillId]);
+
+    const legacy = settlementRecord();
+    delete legacy.snapshot.withdrawnBillIds;
+    const oldSnapshotHarness = harness(financeSnapshot(), legacy);
+    await oldSnapshotHarness.service.refresh(scope, actor, tx as never);
+    expect(oldSnapshotHarness.settlements.revise.mock.calls[0]?.[2].plan.withdrawnBillIds).toEqual(
+      [],
+    );
   });
 
   it("refreshes from actual linked current bills and all contract cash while preserving the saved event date", async () => {

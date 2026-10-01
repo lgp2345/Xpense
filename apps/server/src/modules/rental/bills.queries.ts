@@ -87,7 +87,7 @@ export function withBillFinancial<T extends RentalBillSummary>(
   const balance = calculateRentalCashBalance(
     facts.cashEntries,
     target,
-    bill.amountMinor,
+    bill.status === "voided" ? 0 : bill.amountMinor,
     bill.dueDate,
     today,
   );

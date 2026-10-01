@@ -11,6 +11,8 @@ export type RentalSettlementRevisionRecord = typeof rentalSettlementRevisions.$i
 export type RentalSettlementBillRecord = typeof rentalSettlementBills.$inferSelect;
 export type RentalSettlementActor = { userId: string };
 export type RentalSettlementEvent = {
+  /** 仅由服务端预分配；客户端请求不能选择结算 ID。 */
+  settlementId?: string;
   eventId: string;
   kind: RentalSettlementKind;
   status: RentalSettlementStatus;

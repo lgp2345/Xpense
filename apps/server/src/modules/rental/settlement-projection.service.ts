@@ -85,6 +85,7 @@ export class SettlementProjectionService {
       throw new RangeError("结算差额超出安全整数范围");
     const plan: SettlementPlan = {
       effectiveEndDate: current.effectiveEndDate,
+      withdrawnBillIds: current.snapshot.withdrawnBillIds ?? [],
       finalBills,
       finalCostMinor,
       differenceMinor: Number(difference),

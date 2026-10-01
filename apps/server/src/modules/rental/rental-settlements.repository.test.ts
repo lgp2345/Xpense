@@ -116,7 +116,7 @@ describe("RentalSettlementsRepository", () => {
     ]);
   });
 
-  it("create 保留独立生命周期 eventId 和服务端操作者", async () => {
+  it("create 持久化服务端预分配的稳定结算 ID", async () => {
     const input: Record<string, unknown>[] = [];
     const record = { id: "settlement", ...scope, eventId: "event", revision: 1 };
     const executor = {
@@ -133,11 +133,18 @@ describe("RentalSettlementsRepository", () => {
       scope,
       {
         effectiveEndDate: "2026-09-29",
+        withdrawnBillIds: [],
         finalBills: [],
         finalCostMinor: 100,
         differenceMinor: 0,
       },
-      { eventId: "event", kind: "termination", status: "settled", version: "v1" },
+      {
+        eventId: "event",
+        settlementId: "00000000-0000-4000-8000-000000000007",
+        kind: "termination",
+        status: "settled",
+        version: "v1",
+      },
       actor,
       executor as never,
     );
@@ -145,6 +152,7 @@ describe("RentalSettlementsRepository", () => {
     expect(input[0]).toMatchObject({
       ...scope,
       eventId: "event",
+      id: "00000000-0000-4000-8000-000000000007",
       kind: "termination",
       effectiveEndDate: "2026-09-29",
       finalCostMinor: 100,

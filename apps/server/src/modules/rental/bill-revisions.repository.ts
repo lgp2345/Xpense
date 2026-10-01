@@ -121,7 +121,7 @@ export class BillRevisionsRepository {
       ...scope,
       billId,
     }));
-    await executor.insert(rentalBillLines).values(newLines);
+    if (newLines.length > 0) await executor.insert(rentalBillLines).values(newLines);
     const intervals = await this.buildIntervals(scope, newLines, executor);
     if (intervals.length) await executor.insert(rentalBillMeterIntervals).values(intervals);
 

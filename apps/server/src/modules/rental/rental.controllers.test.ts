@@ -43,6 +43,7 @@ import { RentalCashProjectionRepository } from "./rental-cash-projection.reposit
 import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
 import { RentalReceiptsController } from "./rental-receipts.controller.js";
 import { RentalRefundsController } from "./rental-refunds.controller.js";
+import { RentalSettlementsController } from "./rental-settlements.controller.js";
 import { RentalSettlementsRepository } from "./rental-settlements.repository.js";
 import { SettlementProjectionService } from "./settlement-projection.service.js";
 import { SpacesController } from "./spaces.controller.js";
@@ -145,6 +146,7 @@ describe("rental property controller", () => {
       RentalReceiptsController,
       RentalRefundsController,
       RentalCashController,
+      RentalSettlementsController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([
@@ -285,6 +287,7 @@ describe("rental space controller", () => {
       RentalReceiptsController,
       RentalRefundsController,
       RentalCashController,
+      RentalSettlementsController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([SpacesRepository, SpacesPolicyService, SpacesService]),
@@ -507,6 +510,7 @@ describe("rental contract controller", () => {
       RentalReceiptsController,
       RentalRefundsController,
       RentalCashController,
+      RentalSettlementsController,
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([

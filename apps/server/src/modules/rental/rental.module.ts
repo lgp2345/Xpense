@@ -30,6 +30,7 @@ import { FinanceRequestsRepository } from "./finance-requests.repository.js";
 import { MeterReadingsController } from "./meter-readings.controller.js";
 import { MeterReadingsRepository } from "./meter-readings.repository.js";
 import { MeterReadingsService } from "./meter-readings.service.js";
+import { MonthlyBillingLifecycleService } from "./monthly-billing-lifecycle.service.js";
 import { MonthlyBillsController } from "./monthly-bills.controller.js";
 import { MonthlyBillsService } from "./monthly-bills.service.js";
 import { PropertiesController } from "./properties.controller.js";
@@ -43,7 +44,9 @@ import { RentalCashProjectionRepository } from "./rental-cash-projection.reposit
 import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
 import { RentalReceiptsController } from "./rental-receipts.controller.js";
 import { RentalRefundsController } from "./rental-refunds.controller.js";
+import { RentalSettlementsController } from "./rental-settlements.controller.js";
 import { RentalSettlementsRepository } from "./rental-settlements.repository.js";
+import { RentalSettlementsService } from "./rental-settlements.service.js";
 import { SettlementProjectionService } from "./settlement-projection.service.js";
 import { SpacesController } from "./spaces.controller.js";
 import { SpacesRepository } from "./spaces.repository.js";
@@ -70,6 +73,7 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
     RentalReceiptsController,
     RentalRefundsController,
     RentalCashController,
+    RentalSettlementsController,
   ],
   providers: [
     BillAdjustmentsRepository,
@@ -86,7 +90,9 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
     RentalCashProjectionRepository,
     RentalCashService,
     RentalSettlementsRepository,
+    RentalSettlementsService,
     SettlementProjectionService,
+    MonthlyBillingLifecycleService,
     BillingSourceService,
     BillingLifecycleService,
     BillingTerminationService,

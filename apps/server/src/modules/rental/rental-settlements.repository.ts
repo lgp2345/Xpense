@@ -98,6 +98,7 @@ export class RentalSettlementsRepository {
     const [record] = await executor
       .insert(rentalSettlements)
       .values({
+        ...(event.settlementId ? { id: event.settlementId } : {}),
         ...scope,
         eventId: event.eventId,
         kind: event.kind,

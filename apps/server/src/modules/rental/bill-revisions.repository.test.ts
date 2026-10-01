@@ -15,6 +15,68 @@ const actor = { userId: "user" };
 const dialect = new PgDialect();
 
 describe("BillRevisionsRepository", () => {
+  it("can revise an ended bill to zero lines without asking Drizzle to insert an empty batch", async () => {
+    const bill = {
+      id: "bill-ended",
+      ...scope,
+      type: "monthly",
+      modelVersion: 2,
+      billingMonth: "2026-11",
+      revision: 1,
+      amountMinor: 100,
+    };
+    const emptyBatchWrites: unknown[] = [];
+    const inserts: unknown[] = [];
+    const executor = {
+      select: vi.fn(() => ({
+        from: vi.fn((table: unknown) => ({
+          where: vi.fn(() => Promise.resolve(table === rentalBills ? [bill] : [])),
+        })),
+      })),
+      insert: vi.fn((table: unknown) => ({
+        values: vi.fn((value: unknown) => {
+          if (table === rentalBillLines && Array.isArray(value) && value.length === 0) {
+            emptyBatchWrites.push(value);
+            throw new Error("Drizzle does not accept an empty values batch");
+          }
+          inserts.push({ table, value });
+          return {
+            returning: vi
+              .fn()
+              .mockResolvedValue([{ id: "revision", ...(value as Record<string, unknown>) }]),
+          };
+        }),
+      })),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(() => ({
+            returning: vi.fn().mockResolvedValue([{ ...bill, amountMinor: 0, revision: 2 }]),
+          })),
+        })),
+      })),
+      delete: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })),
+    };
+
+    const result = await new BillRevisionsRepository().append(
+      scope,
+      bill.id,
+      [],
+      0,
+      "结束后的账单义务归零",
+      actor,
+      executor as never,
+    );
+
+    expect(result.bill).toMatchObject({ id: bill.id, amountMinor: 0, revision: 2 });
+    expect(
+      inserts.some((entry) => (entry as { table: unknown }).table === rentalBillRevisions),
+    ).toBe(true);
+    expect(emptyBatchWrites).toEqual([]);
+    expect(inserts.some((entry) => (entry as { table: unknown }).table === rentalBillLines)).toBe(
+      false,
+    );
+  });
+
   it("append 保留当前快照，稳定账单 ID 并递增 revision、替换带真实行 ID 的区间", async () => {
     const currentBill = {
       id: "bill",

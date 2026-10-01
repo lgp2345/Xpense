@@ -141,6 +141,45 @@ describe("租赁收退款 HTTP", () => {
     expect(harness.state.bookkeeping).toEqual(originalBookkeeping);
   });
 
+  it("来源取消并归零后仍可按原账单 ID 退还已收现金", async () => {
+    const bill = await createMonthlyBill();
+    let detail = await getBill(bill.id);
+    const receipt = await harness.request("/rental-receipts/create", {
+      target: { kind: "bill", billId: bill.id },
+      amountMinor: 1_000,
+      occurredOn: "2026-08-31",
+      expectedVersion: detail.financial.version,
+      idempotencyKey: randomUUID(),
+    });
+    expect(receipt.statusCode, receipt.payload).toBe(200);
+    detail = await getBill(bill.id);
+
+    const stored = harness.state.rental.bills.find(({ id }) => id === bill.id);
+    if (!stored) throw new Error("Generated original obligation was not retained");
+    Object.assign(stored, { status: "voided", amountMinor: 0, lines: [] });
+    detail = await getBill(bill.id);
+
+    const refund = await harness.request("/rental-refunds/create", {
+      target: { kind: "bill", billId: bill.id },
+      occurredOn: "2026-08-31",
+      expectedVersion: detail.financial.version,
+      idempotencyKey: randomUUID(),
+    });
+
+    expect(refund.statusCode, refund.payload).toBe(200);
+    expect(
+      harness.parse<{ target: { kind: string; billId: string }; amountMinor: number }>(refund),
+    ).toMatchObject({
+      target: { kind: "bill", billId: bill.id },
+      amountMinor: 1_000,
+    });
+    expect((await getBill(bill.id)).financial).toMatchObject({
+      receivedMinor: 1_000,
+      refundedMinor: 1_000,
+      refundableMinor: 0,
+    });
+  });
+
   it("结算关联账单的收款刷新投影，审计失败回滚现金、结算修订、幂等和审计", async () => {
     const bill = await createMonthlyBill();
     const state = harness.state.rental;

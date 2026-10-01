@@ -110,6 +110,7 @@ const rentalTestRolePermissions = {
     "rental_refunds:create",
     "rental_refunds:revoke",
     "rental_settlements:read",
+    "rental_settlements:confirm",
     "rental_charges:read",
     "rental_charges:update",
     "rental_meters:read",
