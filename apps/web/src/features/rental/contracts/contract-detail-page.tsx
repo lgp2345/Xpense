@@ -9,8 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
 import type { RentalBillsApi } from "../../../services/rental-bills-api";
+import type { RentalFinanceApi } from "../../../services/rental-finance-api";
 import { rentalQueryOptions } from "../../../services/rental-query";
 import { ContractBillsSection } from "../bills/contract-bills-section";
+import { ContractChargesSection } from "../charges/contract-charges-section";
 import { ContractActions } from "./contract-actions";
 import {
   DepositSection,
@@ -24,6 +26,7 @@ import { ContractStatusBadge } from "./contract-status";
 export function ContractDetailPage({
   api,
   billsApi,
+  financeApi,
   organizationId,
   contractId,
   permissions,
@@ -32,6 +35,7 @@ export function ContractDetailPage({
 }: {
   api: RentalApi;
   billsApi?: RentalBillsApi;
+  financeApi?: RentalFinanceApi;
   organizationId: string;
   contractId: string;
   permissions: readonly PermissionKey[];
@@ -115,6 +119,15 @@ export function ContractDetailPage({
         </div>
       ) : null}
       <Overview contract={contract} />
+      {contract.billingMode === "monthly_settlement" && financeApi ? (
+        <ContractChargesSection
+          key={`charges:${organizationId}:${contract.id}`}
+          organizationId={organizationId}
+          contractId={contract.id}
+          api={financeApi}
+          permissions={permissions}
+        />
+      ) : null}
       {contract.lifecycleStatus === "confirmed" && contract.displayStatus === "upcoming" ? (
         <p className="text-sm text-muted-foreground">
           修正计费相关信息会作废受影响的有效账单，需要重新预览补齐；无关备注不会影响账单。
@@ -122,10 +135,12 @@ export function ContractDetailPage({
       ) : null}
       {billsApi ? (
         <ContractBillsSection
-          key={`${organizationId}:${contract.id}`}
+          key={`bills:${organizationId}:${contract.id}`}
           organizationId={organizationId}
           contractId={contract.id}
           api={billsApi}
+          financeApi={financeApi}
+          billingMode={contract.billingMode}
           permissions={permissions}
           canGenerate={
             contract.lifecycleStatus === "confirmed" || contract.lifecycleStatus === "terminated"

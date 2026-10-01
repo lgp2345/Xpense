@@ -117,6 +117,7 @@ function createSession(overrides: Partial<WebSessionDependency> = {}): WebSessio
     } as unknown as IamApi,
     menuStore,
     rentalBillsApi: {} as WebSessionDependency["rentalBillsApi"],
+    rentalFinanceApi: {} as WebSessionDependency["rentalFinanceApi"],
     rentalApi: {} as WebSessionDependency["rentalApi"],
     restoreSession: vi.fn().mockResolvedValue(true),
     ...overrides,

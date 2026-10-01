@@ -87,6 +87,7 @@ function session(api: Partial<RentalApi> = {}): WebSessionDependency {
     } as never,
     menuStore,
     rentalBillsApi: {} as WebSessionDependency["rentalBillsApi"],
+    rentalFinanceApi: {} as WebSessionDependency["rentalFinanceApi"],
     rentalApi: {
       listTenants: vi.fn().mockResolvedValue({ items: [tenant], total: 1, page: 1, pageSize: 20 }),
       tenantDetail: vi.fn().mockResolvedValue(tenant),

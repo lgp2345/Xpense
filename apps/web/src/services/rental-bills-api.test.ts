@@ -69,4 +69,44 @@ describe("账单请求边界", () => {
       attempt.request.idempotencyKey,
     );
   });
+
+  it("新版独立押金预览和生成保留 deposits scope", async () => {
+    const client = { get: vi.fn().mockResolvedValue({}), post: vi.fn().mockResolvedValue({}) };
+    const api = createRentalBillsApi(client as unknown as ApiClient);
+    await api.previewBills({ contractId: "contract", scope: "deposits", depositDueDates: {} });
+    await api.generateBills({
+      contractId: "contract",
+      scope: "deposits",
+      depositDueDates: { deposit: "2026-08-31" },
+      expectedVersion: "deposit-v1",
+      idempotencyKey: "deposit-key",
+    });
+
+    expect(client.post).toHaveBeenNthCalledWith(1, "/rental-bills/preview", {
+      contractId: "contract",
+      scope: "deposits",
+      depositDueDates: {},
+    });
+    expect(client.post).toHaveBeenNthCalledWith(2, "/rental-bills/generate", {
+      contractId: "contract",
+      scope: "deposits",
+      depositDueDates: { deposit: "2026-08-31" },
+      expectedVersion: "deposit-v1",
+      idempotencyKey: "deposit-key",
+    });
+  });
+
+  it("按服务端修订端点读取账单历史并安全编码分页目标", async () => {
+    const client = {
+      get: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
+      post: vi.fn(),
+    };
+    const api = createRentalBillsApi(client as unknown as ApiClient);
+
+    await api.listRevisions({ billId: "bill/1", page: 2, pageSize: 50 });
+
+    expect(client.get).toHaveBeenCalledWith(
+      "/rental-bills/revisions?billId=bill%2F1&page=2&pageSize=50",
+    );
+  });
 });

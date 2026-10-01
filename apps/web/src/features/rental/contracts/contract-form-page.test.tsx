@@ -426,7 +426,7 @@ describe("ContractFormPage", () => {
     expect(await screen.findByRole("heading", { name: "选择房产与空间" })).toBeInTheDocument();
     await user.click(screen.getByRole("combobox", { name: "房产" }));
     await user.click(await screen.findByRole("option", { name: "阳光公寓" }));
-    expect(screen.getByText("已选择房产：阳光公寓")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "房产" })).toHaveTextContent("阳光公寓");
   });
 
   it("clears pending operation when the draft session changes", async () => {
@@ -477,7 +477,58 @@ describe("ContractFormPage", () => {
 
   it("resets new-contract values when the seeded property changes", async () => {
     const otherPropertyId = "77777777-7777-4777-8777-777777777777";
-    const api = baseApi();
+    const otherProperty = {
+      id: otherPropertyId,
+      ledgerId: "ledger-1",
+      name: "海棠公寓",
+      type: "apartment_building" as const,
+      customTypeName: null,
+      countryCode: "CN",
+      province: null,
+      city: null,
+      district: null,
+      addressLine: "2号",
+      isActive: true,
+      spaceCount: 1,
+      rentableSpaceCount: 1,
+      updatedAt: "2026-08-30T00:00:00.000Z",
+    };
+    const api = baseApi({
+      listProperties: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: propertyId,
+            ledgerId: "ledger-1",
+            name: "阳光公寓",
+            type: "apartment_building",
+            customTypeName: null,
+            countryCode: "CN",
+            province: null,
+            city: null,
+            district: null,
+            addressLine: "1号",
+            isActive: true,
+            spaceCount: 1,
+            rentableSpaceCount: 1,
+            updatedAt: "2026-08-30T00:00:00.000Z",
+          },
+          otherProperty,
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      }),
+      getProperty: vi.fn().mockImplementation(async (id) => ({
+        ...(id === otherPropertyId
+          ? otherProperty
+          : {
+              id: propertyId,
+              name: "阳光公寓",
+              isActive: true,
+            }),
+        note: null,
+      })),
+    });
     let setSearch: ((next: { propertyId?: string }) => void) | undefined;
     const navigate = vi.fn().mockResolvedValue(undefined);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -507,9 +558,13 @@ describe("ContractFormPage", () => {
         <Harness />
       </QueryClientProvider>,
     );
-    expect(await screen.findByText(`已选择房产：${propertyId}`)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "房产" })).toHaveTextContent("阳光公寓"),
+    );
     act(() => setSearch?.({ propertyId: otherPropertyId }));
-    expect(await screen.findByText(`已选择房产：${otherPropertyId}`)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "房产" })).toHaveTextContent("海棠公寓"),
+    );
   });
 
   it("keeps local selections when moving back from parties without changing the route", async () => {

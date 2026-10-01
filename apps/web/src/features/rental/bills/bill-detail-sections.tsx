@@ -43,10 +43,10 @@ export function BillDetailSections({ bill }: { bill: RentalBillDetail }) {
       </section>
       <section className="space-y-3 rounded-lg border p-4">
         <h2 className="font-semibold">原计划与调整明细</h2>
-        <Table className="min-w-[560px]">
+        <Table className="min-w-[640px]">
           <TableHeader>
             <TableRow>
-              {["项目", "覆盖期间", "参考分母", "金额"].map((text) => (
+              {["项目", "实际计量与覆盖期间", "参考分母", "金额"].map((text) => (
                 <TableHead key={text}>{text}</TableHead>
               ))}
             </TableRow>
@@ -55,12 +55,41 @@ export function BillDetailSections({ bill }: { bill: RentalBillDetail }) {
             {bill.lines.map((line) => (
               <TableRow key={`${line.sortOrder}:${line.kind}`}>
                 <TableCell className="max-w-48 whitespace-normal break-words">
-                  {line.label}
+                  <p>{line.label}</p>
+                  {line.feeSnapshot?.kind === "extra_fee" ? (
+                    <p className="text-xs text-muted-foreground">
+                      {line.feeSnapshot.origin === "settlement" ? "退租结算费用" : "月度额外费用"}
+                    </p>
+                  ) : null}
+                  {line.note ? (
+                    <p className="text-xs text-muted-foreground">备注：{line.note}</p>
+                  ) : null}
                 </TableCell>
                 <TableCell>
                   {line.periodStart ? `${line.periodStart} 至 ${line.periodEnd}` : "—"}
                   {line.coveredDays !== null ? (
                     <p className="text-xs text-muted-foreground">覆盖 {line.coveredDays} 天</p>
+                  ) : null}
+                  {line.feeSnapshot?.kind === "water" ||
+                  line.feeSnapshot?.kind === "electricity" ? (
+                    <div className="text-xs text-muted-foreground">
+                      <p>
+                        {line.feeSnapshot.kind === "water" ? "水表" : "电表"}{" "}
+                        {line.feeSnapshot.startReading} → {line.feeSnapshot.endReading}
+                      </p>
+                      <p>
+                        读数区间：{line.feeSnapshot.startDate} 至 {line.feeSnapshot.endDate} · 单价{" "}
+                        {line.feeSnapshot.unitPrice}
+                      </p>
+                      {line.feeSnapshot.overrideReason ? (
+                        <p>本期改价原因：{line.feeSnapshot.overrideReason}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {line.feeSnapshot?.kind === "fixed_fee" && line.feeSnapshot.overrideReason ? (
+                    <p className="text-xs text-muted-foreground">
+                      本期改价原因：{line.feeSnapshot.overrideReason}
+                    </p>
                   ) : null}
                 </TableCell>
                 <TableCell>

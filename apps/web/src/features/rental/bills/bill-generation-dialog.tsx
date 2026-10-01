@@ -29,16 +29,20 @@ type Props = {
   organizationId: string;
   contractId: string;
   api: RentalBillsApi;
+  scope?: "deposits";
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onGenerated: (result: RentalBillGenerationResult) => void;
 };
 export function BillGenerationDialog(props: Props) {
   return props.open ? (
-    <GenerationSession key={`${props.organizationId}:${props.contractId}`} {...props} />
+    <GenerationSession
+      key={`${props.organizationId}:${props.contractId}:${props.scope ?? "all"}`}
+      {...props}
+    />
   ) : null;
 }
-function GenerationSession({ contractId, api, onOpenChange, onGenerated }: Props) {
+function GenerationSession({ contractId, api, scope, onOpenChange, onGenerated }: Props) {
   const form = useForm({
     defaultValues: {
       depositDueDates: {},
@@ -81,6 +85,7 @@ function GenerationSession({ contractId, api, onOpenChange, onGenerated }: Props
     try {
       const input = {
         contractId,
+        ...(scope ? { scope } : {}),
         depositDueDates: form.state.values.depositDueDates,
         ...(confirmation() ? { terminationConfirmation: confirmation() } : {}),
         page,
@@ -91,6 +96,7 @@ function GenerationSession({ contractId, api, onOpenChange, onGenerated }: Props
         result = await api.previewBills({ ...input, expectedVersion: preview?.version });
       } else {
         const base = await api.previewBills({ ...input, depositDueDates: {} });
+        if (!mounted.current || sequence !== requestSequence.current) return;
         const dates = Object.fromEntries(
           base.missingDepositSourceKeys
             .filter((key) => input.depositDueDates[key])
@@ -145,6 +151,7 @@ function GenerationSession({ contractId, api, onOpenChange, onGenerated }: Props
     setError(null);
     attempt.current ??= createRentalBillGenerationAttempt(api, {
       contractId,
+      ...(scope ? { scope } : {}),
       depositDueDates: form.state.values.depositDueDates,
       expectedVersion: preview.version,
       ...(confirmation() ? { terminationConfirmation: confirmation() } : {}),
@@ -183,8 +190,14 @@ function GenerationSession({ contractId, api, onOpenChange, onGenerated }: Props
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>预览并生成合同应收</DialogTitle>
-          <DialogDescription>本阶段仅记录应收，收款情况尚未登记</DialogDescription>
+          <DialogTitle>
+            {scope === "deposits" ? "预览并生成押金账单" : "预览并生成合同应收"}
+          </DialogTitle>
+          <DialogDescription>
+            {scope === "deposits"
+              ? "仅生成合同押金应收，押金金额由服务端计算。"
+              : "本阶段仅记录应收，收款情况尚未登记"}
+          </DialogDescription>
         </DialogHeader>
         {busy && !preview ? <p role="status">正在读取完整计费计划…</p> : null}
         {preview ? (

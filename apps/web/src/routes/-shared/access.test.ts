@@ -61,6 +61,7 @@ function contextWithSession(
   const session = {
     authStore,
     menuStore,
+    rentalFinanceApi: {} as WebSessionDependency["rentalFinanceApi"],
     iamApi: {
       getAuthorizedMenus: options.getAuthorizedMenus ?? vi.fn().mockResolvedValue(menus),
       resolveMenuRoute: options.resolveMenuRoute ?? vi.fn(),

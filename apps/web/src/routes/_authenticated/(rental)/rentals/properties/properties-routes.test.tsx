@@ -90,6 +90,7 @@ function session(api: Partial<RentalApi> = {}): WebSessionDependency {
     } as never,
     menuStore,
     rentalBillsApi: {} as WebSessionDependency["rentalBillsApi"],
+    rentalFinanceApi: {} as WebSessionDependency["rentalFinanceApi"],
     rentalApi: {
       listProperties: vi
         .fn()

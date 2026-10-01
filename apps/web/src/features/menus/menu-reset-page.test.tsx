@@ -71,6 +71,7 @@ function createHarness() {
       listOrganizations: vi.fn().mockResolvedValue(organizations),
     },
     authStore,
+    rentalFinanceApi: {} as WebSessionDependency["rentalFinanceApi"],
     iamApi: {
       getAuthorizedMenus: vi.fn().mockResolvedValue([]),
       resetOrganizationMenus: vi.fn().mockResolvedValue(undefined),

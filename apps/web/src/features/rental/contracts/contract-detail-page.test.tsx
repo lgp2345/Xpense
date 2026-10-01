@@ -12,7 +12,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
 import { rentalKeys } from "../../../services/rental-query";
-import { billsApiFixture } from "../bills/bill-test-fixtures";
+import { billsApiFixture, financeApiFixture } from "../bills/bill-test-fixtures";
 import { ContractActions } from "./contract-actions";
 import { ContractDetailPage } from "./contract-detail-page";
 
@@ -164,6 +164,37 @@ function renderPage({
 }
 
 describe("ContractDetailPage", () => {
+  it("monthly_settlement 合同加载收费底数并显示月度出账入口", async () => {
+    const api = createApi({
+      contractDetail: vi.fn().mockResolvedValue({ ...detail, billingMode: "monthly_settlement" }),
+    });
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ContractDetailPage
+          api={api}
+          billsApi={billsApiFixture()}
+          financeApi={financeApiFixture()}
+          organizationId="org-a"
+          contractId="contract-1"
+          permissions={[
+            "rental_contracts:read",
+            "rental_bills:read",
+            "rental_charges:read",
+            "rental_meters:read",
+            "rental_monthly_bills:generate",
+          ]}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("水费单价 CNY 3.0000 / 立方米")).toBeInTheDocument();
+    expect(screen.getByText("入住水表底数 100 · 2026/01/01")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "生成本月账单" })).toBeInTheDocument();
+    expect(screen.queryByText("本阶段仅记录应收，收款情况尚未登记")).not.toBeInTheDocument();
+  });
+
   it("renders the single detail response without duplicate detail requests", async () => {
     const api = createApi();
     renderPage({ api });

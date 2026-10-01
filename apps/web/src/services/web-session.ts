@@ -14,6 +14,7 @@ import { type BookkeepingApi, createBookkeepingApi } from "./bookkeeping-api";
 import { createIamApi, type IamApi } from "./iam-api";
 import { createRentalApi, type RentalApi } from "./rental-api";
 import { createRentalBillsApi, type RentalBillsApi } from "./rental-bills-api";
+import { createRentalFinanceApi, type RentalFinanceApi } from "./rental-finance-api";
 
 /** 登录与恢复流程需要的接口边界，允许测试注入不依赖真实网络的实现。 */
 export type SessionAuthApi = {
@@ -39,6 +40,7 @@ export type WebSessionDependency = {
   menuStore: MenuStoreApi;
   rentalApi: RentalApi;
   rentalBillsApi: RentalBillsApi;
+  rentalFinanceApi: RentalFinanceApi;
   restoreSession: () => Promise<boolean>;
 };
 
@@ -449,6 +451,7 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
   const iamApi = createIamApi(apiClient);
   const rentalApi = createRentalApi(apiClient);
   const rentalBillsApi = createRentalBillsApi(apiClient);
+  const rentalFinanceApi = createRentalFinanceApi(apiClient);
   const menuBootstrap = { iamApi, menuStore: sessionMenuStore };
   bindMenuBootstrap(options.authStore, menuBootstrap);
 
@@ -460,6 +463,7 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
     menuStore: sessionMenuStore,
     rentalApi,
     rentalBillsApi,
+    rentalFinanceApi,
     restoreSession: () => restoreWebSession(authApi, options.authStore, menuBootstrap),
   };
 }
@@ -475,6 +479,7 @@ export const webBookkeepingApi = webSession.bookkeepingApi;
 export const webIamApi = webSession.iamApi;
 export const webRentalApi = webSession.rentalApi;
 export const webRentalBillsApi = webSession.rentalBillsApi;
+export const webRentalFinanceApi = webSession.rentalFinanceApi;
 
 /** 恢复应用默认会话，返回值与 restoreWebSession 一致。 */
 export function restoreCurrentWebSession(): Promise<boolean> {

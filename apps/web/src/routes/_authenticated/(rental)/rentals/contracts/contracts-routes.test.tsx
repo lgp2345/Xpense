@@ -98,6 +98,7 @@ function session(
     } as never,
     menuStore,
     rentalBillsApi: {} as WebSessionDependency["rentalBillsApi"],
+    rentalFinanceApi: {} as WebSessionDependency["rentalFinanceApi"],
     rentalApi: {
       listContracts: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
     } as unknown as RentalApi,
@@ -191,6 +192,7 @@ describe("rental contract file routes", () => {
     );
     expect(detailProps).toMatchObject({
       api: activeSession.rentalApi,
+      financeApi: activeSession.rentalFinanceApi,
       contractId,
       organizationId: "org-1",
     });

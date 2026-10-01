@@ -35,6 +35,28 @@ export function BillCalculationLines({
               {formatBillAmount(line.baseRentAmountMinor ?? 0, currencyCode)}
             </p>
           ) : null}
+          {line.feeSnapshot?.kind === "water" || line.feeSnapshot?.kind === "electricity" ? (
+            <p className="text-xs text-muted-foreground">
+              {line.feeSnapshot.kind === "water" ? "水表" : "电表"} {line.feeSnapshot.startReading}{" "}
+              → {line.feeSnapshot.endReading} · 单价 {line.feeSnapshot.unitPrice}
+              {line.feeSnapshot.overrideReason
+                ? ` · 本期改价原因：${line.feeSnapshot.overrideReason}`
+                : ""}
+            </p>
+          ) : null}
+          {line.feeSnapshot?.kind === "fixed_fee" && line.feeSnapshot.overrideReason ? (
+            <p className="text-xs text-muted-foreground">
+              本期改价原因：{line.feeSnapshot.overrideReason}
+            </p>
+          ) : null}
+          {line.feeSnapshot?.kind === "extra_fee" ? (
+            <p className="text-xs text-muted-foreground">
+              {line.feeSnapshot.origin === "settlement" ? "退租结算费用" : "月度额外费用"}
+              {line.note ? ` · ${line.note}` : ""}
+            </p>
+          ) : line.note ? (
+            <p className="text-xs text-muted-foreground">备注：{line.note}</p>
+          ) : null}
         </li>
       ))}
     </ul>

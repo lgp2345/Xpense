@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../../services/api-client";
@@ -184,6 +184,38 @@ describe("完整计划确认", () => {
     await userEvent.click(screen.getByRole("button", { name: "更新预览" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
   });
+
+  it("新版押金出账预览和原键重试都携带 deposits scope", async () => {
+    const api = billsApiFixture({
+      generateBills: vi.fn().mockRejectedValueOnce(new Error("lost")),
+    });
+    render(
+      <BillGenerationDialog
+        organizationId="org"
+        contractId="contract"
+        api={api}
+        scope="deposits"
+        open
+        onOpenChange={vi.fn()}
+        onGenerated={vi.fn()}
+      />,
+    );
+    expect(await screen.findByText(/新增 6 张/)).toBeInTheDocument();
+    await dates();
+    await userEvent.click(screen.getByRole("button", { name: "确认生成" }));
+    await userEvent.click(await screen.findByRole("button", { name: "重试原请求" }));
+
+    await waitFor(() => expect(api.generateBills).toHaveBeenCalledTimes(2));
+    expect(api.previewBills).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scope: "deposits" }),
+    );
+    expect(vi.mocked(api.generateBills).mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ scope: "deposits" }),
+    );
+    expect(vi.mocked(api.generateBills).mock.calls[1]?.[0]).toEqual(
+      vi.mocked(api.generateBills).mock.calls[0]?.[0],
+    );
+  });
   it("组织切换丢弃迟到预览", async () => {
     let resolve: (value: typeof previewFixture) => void = () => {};
     const api = billsApiFixture({
@@ -219,5 +251,73 @@ describe("完整计划确认", () => {
     resolve(previewFixture);
     expect(await screen.findByText(/新增 1 张/)).toBeInTheDocument();
     expect(screen.queryByText(/新增 6 张/)).not.toBeInTheDocument();
+  });
+
+  it("押金预览切换组织和合同后不为旧会话发送已填日期的第二次预览", async () => {
+    let resolveOldBase: (value: typeof previewFixture) => void = () => {
+      throw new Error("旧会话基础预览尚未开始");
+    };
+    const api = billsApiFixture({
+      previewBills: vi
+        .fn()
+        .mockResolvedValueOnce(previewFixture)
+        .mockImplementationOnce(
+          () =>
+            new Promise<typeof previewFixture>((resolve) => {
+              resolveOldBase = resolve;
+            }),
+        )
+        .mockResolvedValueOnce({
+          ...previewFixture,
+          createCount: 1,
+          missingDepositSourceKeys: [],
+          canGenerate: true,
+        })
+        .mockResolvedValue({ ...previewFixture, createCount: 99 }),
+    });
+    const view = render(
+      <BillGenerationDialog
+        organizationId="org-a"
+        contractId="contract-a"
+        api={api}
+        scope="deposits"
+        open
+        onOpenChange={vi.fn()}
+        onGenerated={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText(/新增 6 张/)).toBeInTheDocument();
+    await dates();
+    expect(api.previewBills).toHaveBeenCalledTimes(2);
+
+    view.rerender(
+      <BillGenerationDialog
+        organizationId="org-b"
+        contractId="contract-b"
+        api={api}
+        scope="deposits"
+        open
+        onOpenChange={vi.fn()}
+        onGenerated={vi.fn()}
+      />,
+    );
+    expect(await screen.findByText(/新增 1 张/)).toBeInTheDocument();
+
+    await act(async () => {
+      resolveOldBase({ ...previewFixture, missingDepositSourceKeys: ["source-4"] });
+    });
+
+    expect(api.previewBills).toHaveBeenCalledTimes(3);
+    expect(
+      vi
+        .mocked(api.previewBills)
+        .mock.calls.some(
+          ([input]) =>
+            input.contractId === "contract-a" && Object.keys(input.depositDueDates).length > 0,
+        ),
+    ).toBe(false);
+    expect(screen.getByText(/新增 1 张/)).toBeInTheDocument();
+    expect(screen.queryByText(/新增 99 张/)).not.toBeInTheDocument();
   });
 });

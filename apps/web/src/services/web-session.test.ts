@@ -207,6 +207,7 @@ describe("web session", () => {
     expect(session.bookkeepingApi).toBeDefined();
     expect(session.rentalApi).toBeDefined();
     expect(session.rentalBillsApi).toBeDefined();
+    expect(session.rentalFinanceApi).toBeDefined();
     await expect(session.restoreSession()).resolves.toBe(true);
     await expect(session.bookkeepingApi.listLedgers()).resolves.toEqual([]);
     await expect(session.rentalApi.listProperties()).resolves.toEqual([]);
