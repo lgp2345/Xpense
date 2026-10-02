@@ -76,6 +76,7 @@ const routePermissions = {
   RentalContractCreate: "rental_contracts:read",
   RentalBills: "rental_bills:read",
   RentalBillDetail: "rental_bills:read",
+  RentalSettlement: "rental_settlements:read",
 } as const satisfies Record<RouteKey, PermissionKey>;
 
 function authorizedMenu<Key extends RouteKey>(

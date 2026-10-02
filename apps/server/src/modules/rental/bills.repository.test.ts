@@ -146,6 +146,66 @@ describe("账单仓储作用域及原子编号", () => {
     expect(query.sql).not.toContain('"status"');
     expect(query.sql).not.toContain("limit");
   });
+  it("全筛选财务账单读取使用调用方事务并返回完整身份行", async () => {
+    const selections: Record<string, unknown>[] = [];
+    let condition: unknown;
+    const rows = [{ id: "bill-1", contractId: "contract-1", modelVersion: 2 }];
+    const executor = {
+      select: (selection: Record<string, unknown>) => {
+        selections.push(selection);
+        return {
+          from: (table: unknown) => ({
+            where: async (where: unknown) => {
+              expect(table).toBe(rentalBills);
+              condition = where;
+              return rows;
+            },
+          }),
+        };
+      },
+    };
+    const repository = new BillsRepository({} as never);
+    const matchingFinancialBills = (repository as unknown as Record<string, unknown>)
+      .matchingFinancialBills;
+    expect(matchingFinancialBills).toBeTypeOf("function");
+    if (typeof matchingFinancialBills !== "function") return;
+
+    await expect(
+      matchingFinancialBills.call(
+        repository,
+        "org-1",
+        {
+          contractId: "contract-1",
+          propertyId: "property-1",
+          type: "monthly",
+          status: "voided",
+          dueDateFrom: "2026-09-01",
+          dueDateTo: "2026-09-30",
+          page: 2,
+          pageSize: 1,
+        },
+        executor as never,
+      ),
+    ).resolves.toEqual(rows);
+
+    expect(selections).toHaveLength(1);
+    expect(Object.keys(selections[0] ?? {}).sort()).toEqual(["contractId", "id", "modelVersion"]);
+    const query = dialect.sqlToQuery(condition as never);
+    expect(query.params).toEqual(
+      expect.arrayContaining([
+        "org-1",
+        "contract-1",
+        "property-1",
+        "monthly",
+        "voided",
+        "2026-09-01",
+        "2026-09-30",
+      ]),
+    );
+    expect(query.sql.toLowerCase()).not.toContain("limit");
+    expect(query.sql.toLowerCase()).not.toContain("offset");
+    expect(query.sql.toLowerCase()).not.toContain("join");
+  });
   it("批量保存快照不携带承租人电话或证件，明细归属同一事务账单", async () => {
     const source = {
       currencyCode: "CNY",

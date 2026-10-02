@@ -185,6 +185,50 @@ describe("租赁月度财务数据库契约", () => {
     );
   });
 
+  it("增量权限迁移只为既有系统 owner/admin 增权，不修改组织角色或菜单", async () => {
+    const migrations = new URL("./migrations/", import.meta.url);
+    const entries = await readdir(migrations);
+    const name = entries.find((entry) => entry.endsWith("_rental_monthly_permissions"));
+    expect(name).toBeDefined();
+    if (!name) throw new Error("missing rental monthly permissions migration");
+
+    const sqlText = await readFile(new URL(`${name}/migration.sql`, migrations), "utf8");
+    const permissionKeys = [
+      "rental_charges:read",
+      "rental_charges:update",
+      "rental_meters:read",
+      "rental_meters:update",
+      "rental_monthly_bills:generate",
+      "rental_monthly_bills:adjust",
+      "rental_receipts:create",
+      "rental_receipts:revoke",
+      "rental_refunds:create",
+      "rental_refunds:revoke",
+      "rental_settlements:read",
+      "rental_settlements:confirm",
+    ];
+
+    expect(sqlText).toMatch(/INSERT\s+INTO\s+"permissions"/i);
+    expect(sqlText).toMatch(/ON\s+CONFLICT\s*\("key"\)\s*DO\s+NOTHING/i);
+    for (const key of permissionKeys) {
+      const [resource, action] = key.split(":");
+      expect(sqlText).toContain(`('${key}', '${key}', '${resource}', '${action}', '${key}')`);
+    }
+    const rolePermissionSql = sqlText.slice(sqlText.indexOf('INSERT INTO "role_permissions"'));
+    expect(rolePermissionSql).toMatch(/INSERT\s+INTO\s+"role_permissions"[\s\S]*?SELECT/i);
+    expect(rolePermissionSql).toMatch(/r\."is_system"\s*=\s*TRUE/i);
+    expect(rolePermissionSql).toMatch(/r\."organization_id"\s+IS\s+NULL/i);
+    expect(rolePermissionSql).toMatch(/r\."key"\s+IN\s*\('owner',\s*'admin'\)/i);
+    for (const key of permissionKeys) {
+      expect(rolePermissionSql).toContain(`'${key}'`);
+    }
+    expect(sqlText).toMatch(/ON\s+CONFLICT\s+DO\s+NOTHING/i);
+    expect(sqlText).not.toMatch(/INSERT\s+INTO\s+"menus"/i);
+    expect(sqlText).not.toMatch(
+      /\b(?:UPDATE|DELETE\s+FROM)\s+"?(?:roles|role_permissions|menus)\b/i,
+    );
+  });
+
   it("真实 PostgreSQL runner 演练明确留到 Task 10", (context) => {
     if (process.env.RENTAL_MIGRATION_TEST_DATABASE_URL) {
       context.skip("Task 3 未获准执行真实 DDL；完整 runner 与并发演练留待 Task 10");

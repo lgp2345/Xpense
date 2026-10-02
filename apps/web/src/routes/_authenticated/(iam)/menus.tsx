@@ -35,6 +35,7 @@ const ROUTE_LABELS = {
   RentalBills: "租赁账单",
   RentalBillDetail: "账单详情",
   RentalContractCreate: "新增合同",
+  RentalSettlement: "退租结算",
 } satisfies Record<RouteKey, string>;
 
 const ROUTE_OPTIONS = (Object.keys(ROUTE_DEFINITIONS) as RouteKey[]).map((key) => ({

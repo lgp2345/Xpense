@@ -27,6 +27,12 @@ export const rentalFinanceKeys = {
     billId: string,
     filters: FinanceFilters = {},
   ) => key(organizationId, "cash", contractId, { ...filters, billId }),
+  settlementCash: (
+    organizationId: string,
+    contractId: string,
+    settlementId: string,
+    filters: FinanceFilters = {},
+  ) => key(organizationId, "cash", contractId, { ...filters, settlementId }),
   billRevisions: (
     organizationId: string,
     contractId: string,

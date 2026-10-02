@@ -87,5 +87,5 @@ function BillDetailRoutePage({
     { organizationId, permissions },
   );
 
-  return <BillDetailPage {...props} />;
+  return <BillDetailPage {...props} navigate={navigate} />;
 }

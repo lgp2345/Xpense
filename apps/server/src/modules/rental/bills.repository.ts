@@ -17,8 +17,19 @@ import type {
   BillingWriteContext,
   PersistableBillingDraft,
 } from "./billing.types.js";
-import { loadBillDetails, queryBillDetail, queryBillPage } from "./bills.queries.js";
-import type { BillRecord, GenerationRecord, NewGeneration } from "./bills.repository.types.js";
+import {
+  billListCondition,
+  loadBillDetails,
+  queryBillDetail,
+  queryBillPage,
+  queryMatchingFinancialBills,
+} from "./bills.queries.js";
+import type {
+  BillFinanceSummaryRow,
+  BillRecord,
+  GenerationRecord,
+  NewGeneration,
+} from "./bills.repository.types.js";
 
 /** 整批原子领取编号，竞争者不会领取相同范围。 */
 export function buildNextBillNumbersStatement(organizationId: string, year: number, count: number) {
@@ -247,6 +258,13 @@ export class BillsRepository {
     executor: AppDbExecutor = this.db,
   ): Promise<RentalBillPage> {
     return queryBillPage(organizationId, query, executor);
+  }
+  matchingFinancialBills(
+    organizationId: string,
+    query: ListRentalBillsQuery,
+    executor: AppDbExecutor,
+  ): Promise<BillFinanceSummaryRow[]> {
+    return queryMatchingFinancialBills(billListCondition(organizationId, query), executor);
   }
   detail(
     organizationId: string,

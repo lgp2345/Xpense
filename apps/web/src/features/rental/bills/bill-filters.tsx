@@ -16,7 +16,7 @@ const schema = z
     keyword: z.string(),
     contractId: z.string(),
     propertyId: z.string(),
-    type: z.enum(["all", "rent", "deposit"]),
+    type: z.enum(["all", "rent", "deposit", "monthly"]),
     status: z.enum(["active", "voided"]),
     dueDateFrom: date,
     dueDateTo: date,
@@ -91,6 +91,7 @@ function FilterForm({
             <option value="all">全部费用</option>
             <option value="rent">租金</option>
             <option value="deposit">押金</option>
+            <option value="monthly">月度综合账单</option>
           </select>
         </label>
         <label className="space-y-1 text-sm">

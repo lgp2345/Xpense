@@ -89,7 +89,11 @@ export function getAvailableActions(
     actions.push("changeParties");
     if (!contract.hasScheduledTermination) actions.push("terminate");
   }
-  if (canUpdate && contract.lifecycleStatus === "confirmed" && contract.hasScheduledTermination)
+  if (
+    canUpdate &&
+    contract.hasScheduledTermination &&
+    (contract.lifecycleStatus === "confirmed" || contract.lifecycleStatus === "terminated")
+  )
     actions.push("revoke");
   if (
     canUpdate &&

@@ -5,6 +5,7 @@ import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import { AccessService } from "../iam/access.service.js";
+import { calculateBillFinancialTotals } from "./bill-financial-summary.rules.js";
 import { billingCoverage } from "./billing-plan.rules.js";
 import { BillingSourceService } from "./billing-source.service.js";
 import { withBillFinancial } from "./bills.queries.js";
@@ -13,6 +14,7 @@ import { ContractsPolicyService } from "./contracts-policy.service.js";
 import type { BillDetailDto } from "./dto/bill-detail.dto.js";
 import type { ListBillsDto } from "./dto/list-bills.dto.js";
 import { RentalCashProjectionRepository } from "./rental-cash-projection.repository.js";
+import type { RentalCashProjectionFacts } from "./rental-cash-projection.repository.types.js";
 
 function dueState<T extends RentalBillSummary>(bill: T, today: string): T {
   return {
@@ -45,15 +47,47 @@ export class BillsReadService {
     return this.transactions.run(async (tx) => {
       const { today } = await this.policy.lockOrganizationContext(auth.organizationId, tx);
       const page = await this.bills.list(auth.organizationId, dto, tx);
-      const financialBills = page.items.filter((bill) => bill.modelVersion === 2);
-      const facts = financialBills.length
-        ? await this.projectionSources.readMany(
-            auth.organizationId,
-            [...new Set(financialBills.map(({ contractId }) => contractId))],
-            tx,
-          )
-        : [];
+      // Prepare full-filter facts; aggregate cash fields below follow policy A's selected bill and settlement scopes.
+      const matchingBills = await this.bills.matchingFinancialBills(auth.organizationId, dto, tx);
+      if (matchingBills.some((bill) => bill.modelVersion !== 1 && bill.modelVersion !== 2))
+        throw new Error("Unsupported rental bill model version");
+      const financialBills = matchingBills.filter((bill) => bill.modelVersion === 2);
+      const contractIds = [...new Set(financialBills.map(({ contractId }) => contractId))];
+      const requestedContractIds = new Set(contractIds);
+      const facts: RentalCashProjectionFacts[] = [];
+      for (let offset = 0; offset < contractIds.length; offset += 500) {
+        const batch = contractIds.slice(offset, offset + 500);
+        facts.push(...(await this.projectionSources.readMany(auth.organizationId, batch, tx)));
+      }
       const factsByContract = new Map(facts.map((item) => [item.contractId, item]));
+      const billVersionsByContract = new Map(
+        facts.map((item) => [
+          item.contractId,
+          new Map(item.bills.map((bill) => [bill.id, bill.modelVersion])),
+        ]),
+      );
+      if (
+        facts.length !== factsByContract.size ||
+        facts.some(
+          (item) =>
+            item.organizationId !== auth.organizationId ||
+            !requestedContractIds.has(item.contractId),
+        )
+      ) {
+        throw new Error("Rental bill finance facts do not match the requested scope");
+      }
+      for (const bill of financialBills) {
+        const modelVersion = billVersionsByContract.get(bill.contractId)?.get(bill.id);
+        if (modelVersion !== bill.modelVersion) {
+          throw new Error("Rental bill finance facts could not be loaded");
+        }
+      }
+      const financialTotals = calculateBillFinancialTotals(
+        matchingBills,
+        facts,
+        auth.organizationId,
+        today,
+      );
       const source = dto.contractId
         ? await this.sources.read(auth.organizationId, dto.contractId, tx)
         : null;
@@ -65,6 +99,7 @@ export class BillsReadService {
             : null;
       return {
         ...page,
+        totals: financialTotals ? { ...page.totals, financial: financialTotals } : page.totals,
         coverage,
         items: page.items.map((bill) => {
           const contractFacts = factsByContract.get(bill.contractId);

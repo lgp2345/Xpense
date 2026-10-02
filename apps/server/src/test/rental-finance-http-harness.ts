@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NotFoundException } from "@nestjs/common";
-import type { RentalBillDetail } from "@xpense/shared";
+import type { ListRentalBillsQuery, RentalBillDetail } from "@xpense/shared";
 import type {
   BillRevisionAppendResult,
   BillRevisionRecord,
@@ -79,7 +79,30 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
     })),
   );
 
+  const matchingFinancialBills = async (org: string, query: ListRentalBillsQuery) =>
+    state.bills
+      .filter(
+        (bill) =>
+          bill.organizationId === org &&
+          (!query.contractId || bill.contractId === query.contractId) &&
+          (!query.propertyId || bill.propertyId === query.propertyId) &&
+          bill.status === (query.status ?? "active") &&
+          (!query.type || bill.type === query.type) &&
+          (!query.keyword ||
+            `${bill.billNumber} ${bill.contractNumber} ${bill.propertyName}`.includes(
+              query.keyword,
+            )) &&
+          (!query.dueDateFrom || bill.dueDate >= query.dueDateFrom) &&
+          (!query.dueDateTo || bill.dueDate <= query.dueDateTo),
+      )
+      .map(({ id, contractId, modelVersion }) => ({
+        id,
+        contractId,
+        modelVersion: modelVersion ?? 1,
+      }));
+
   const billsRepository: Partial<BillsRepository> = {
+    matchingFinancialBills,
     insertBills: async (context, billingSource, generationId, drafts, _executor) => {
       state.billCounter += drafts.length;
       const inserted = drafts.map((draft, index) => {
@@ -136,7 +159,34 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
       return structuredClone(inserted);
     },
   };
-  Object.assign(setup.app.get(BillsRepository), billsRepository);
+  const repository = setup.app.get(BillsRepository);
+  const originalList = repository.list.bind(repository);
+  billsRepository.list = async (org, query, executor) => {
+    const page = await originalList(org, query, executor);
+    const matchingIds = new Set((await matchingFinancialBills(org, query)).map(({ id }) => id));
+    const monthlyBills = state.bills.filter(
+      (bill) => matchingIds.has(bill.id) && bill.type === "monthly" && bill.status === "active",
+    );
+    // Mirror the SQL fee composition seam; cash totals still use real services.
+    const monthlyRent = monthlyBills.reduce(
+      (total, bill) =>
+        total +
+        bill.lines.reduce(
+          (sum, line) => sum + (line.kind === "rent_period" ? line.amountMinor : 0),
+          0,
+        ),
+      0,
+    );
+    return {
+      ...page,
+      totals: {
+        ...page.totals,
+        rentAmountMinor: page.totals.rentAmountMinor + monthlyRent,
+        monthlyAmountMinor: monthlyBills.reduce((total, bill) => total + bill.amountMinor, 0),
+      },
+    };
+  };
+  Object.assign(repository, billsRepository);
 
   const meterReadingsRepository: Partial<MeterReadingsRepository> = {
     appendBoundary: async (
@@ -431,6 +481,27 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
           billId,
           createdAt: new Date(FIXED_FINANCE_NOW),
         });
+    },
+    history: async (scope, page) => {
+      const records = state.settlementRevisions
+        .filter(
+          (revision) =>
+            revision.organizationId === scope.organizationId &&
+            revision.contractId === scope.contractId,
+        )
+        .toSorted(
+          (left, right) =>
+            right.createdAt.getTime() - left.createdAt.getTime() || right.revision - left.revision,
+        );
+      const pageNumber = Math.max(1, Math.trunc(page.page));
+      const pageSize = Math.min(100, Math.max(1, Math.trunc(page.pageSize)));
+      const offset = (pageNumber - 1) * pageSize;
+      return {
+        items: structuredClone(records.slice(offset, offset + pageSize)),
+        total: records.length,
+        page: pageNumber,
+        pageSize,
+      };
     },
   };
   Object.assign(setup.app.get(RentalSettlementsRepository), settlements);

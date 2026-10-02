@@ -58,6 +58,40 @@ it("终止一次提交整期财务确认，零金额合法且刷新账单缓存"
   });
 });
 
+it("月度结算合同仅预约终止，不要求旧账单整期金额确认", async () => {
+  const terminateContract = vi.fn().mockResolvedValue(detail);
+  const billsApi = billsApiFixture();
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ContractActions
+        api={createApi({ terminateContract })}
+        billsApi={billsApi}
+        organizationId="org-a"
+        contract={{ ...detail, billingMode: "monthly_settlement", hasScheduledTermination: false }}
+        permissions={[
+          "rental_contracts:read",
+          "rental_contracts:update",
+          "rental_bills:read",
+          "rental_bills:adjust",
+        ]}
+      />
+    </QueryClientProvider>,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "提前终止" }));
+  fireEvent.change(screen.getByLabelText("终止日期"), { target: { value: "2026/09/15" } });
+  await userEvent.type(screen.getByLabelText("原因"), "协商终止");
+
+  expect(screen.queryByLabelText("终止当期财务确认")).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "确认提前终止" }));
+
+  expect(terminateContract).toHaveBeenCalledExactlyOnceWith({
+    id: "contract-1",
+    terminationDate: "2026-09-15",
+    reason: "协商终止",
+  });
+  expect(billsApi.previewTermination).not.toHaveBeenCalled();
+});
+
 const detail: RentalContractDetail = {
   id: "contract-1",
   propertyId: "property-1",
@@ -164,6 +198,34 @@ function renderPage({
 }
 
 describe("ContractDetailPage", () => {
+  it("月度结算合同已安排终止时提供权限受控的结算入口", async () => {
+    const navigate = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ContractDetailPage
+          api={createApi({
+            contractDetail: vi.fn().mockResolvedValue({
+              ...detail,
+              billingMode: "monthly_settlement",
+              hasScheduledTermination: true,
+            }),
+          })}
+          organizationId="org-a"
+          contractId="contract-1"
+          permissions={["rental_contracts:read", "rental_settlements:read"]}
+          navigate={navigate as never}
+        />
+      </QueryClientProvider>,
+    );
+
+    await userEvent.click(await screen.findByRole("button", { name: "查看退租结算" }));
+
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({
+      to: "/rentals/settlements/$contractId",
+      params: { contractId: "contract-1" },
+    });
+  });
+
   it("monthly_settlement 合同加载收费底数并显示月度出账入口", async () => {
     const api = createApi({
       contractDetail: vi.fn().mockResolvedValue({ ...detail, billingMode: "monthly_settlement" }),
@@ -193,6 +255,46 @@ describe("ContractDetailPage", () => {
     expect(screen.getByText("入住水表底数 100 · 2026/01/01")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "生成本月账单" })).toBeInTheDocument();
     expect(screen.queryByText("本阶段仅记录应收，收款情况尚未登记")).not.toBeInTheDocument();
+  });
+
+  it("future terminated 月结合同保留费用与底数只读信息但不显示编辑入口", async () => {
+    const api = createApi({
+      contractDetail: vi.fn().mockResolvedValue({
+        ...detail,
+        billingMode: "monthly_settlement",
+        lifecycleStatus: "terminated",
+        displayStatus: "expiring_soon",
+        actualEndDate: "2026-10-20",
+        terminationDate: "2026-10-20",
+        hasScheduledTermination: true,
+      }),
+    });
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ContractDetailPage
+          api={api}
+          financeApi={financeApiFixture()}
+          organizationId="org-a"
+          contractId="contract-1"
+          permissions={[
+            "rental_contracts:read",
+            "rental_charges:read",
+            "rental_charges:update",
+            "rental_meters:read",
+            "rental_meters:update",
+          ]}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("水费单价 CNY 3.0000 / 立方米")).toBeInTheDocument();
+    expect(screen.getByText("入住水表底数 100 · 2026/01/01")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "编辑收费标准" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "登记底数" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "调整合同默认收费标准" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "登记或更正入住底数" })).not.toBeInTheDocument();
   });
 
   it("renders the single detail response without duplicate detail requests", async () => {
@@ -299,6 +401,28 @@ describe("ContractDetailPage", () => {
     expect(screen.queryByRole("button", { name: "提前终止" })).not.toBeInTheDocument();
   });
 
+  it("shows revoke for a future termination returned with terminated lifecycle status", () => {
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ContractActions
+          api={createApi()}
+          organizationId="org-a"
+          contract={{
+            ...detail,
+            lifecycleStatus: "terminated",
+            displayStatus: "terminated",
+            hasScheduledTermination: true,
+          }}
+          permissions={["rental_contracts:update"]}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "撤销预定终止" })).toBeInTheDocument();
+  });
+
   it("requires a reason before revoke and preserves the server conflict message", async () => {
     const user = userEvent.setup();
     const conflict = "该合同已有后续合同，不能撤销终止";
@@ -319,6 +443,9 @@ describe("ContractDetailPage", () => {
       </QueryClientProvider>,
     );
     await user.click(screen.getByRole("button", { name: "撤销预定终止" }));
+    expect(
+      screen.getByText("撤销终止会作废本次终止替代账单；原作废账单不会自动恢复，请重新预览补齐。"),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "确认撤销预定终止" }));
     expect(api.revokeContractTermination).not.toHaveBeenCalled();
     expect(screen.getByText("请输入原因。")).toBeInTheDocument();
@@ -330,6 +457,39 @@ describe("ContractDetailPage", () => {
       id: "contract-1",
       reason: "冲突复核",
     });
+  });
+
+  it("uses monthly settlement copy that leaves existing bills and cash records unchanged", async () => {
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ContractActions
+          api={createApi()}
+          organizationId="org-a"
+          contract={{
+            ...detail,
+            billingMode: "monthly_settlement",
+            lifecycleStatus: "terminated",
+            displayStatus: "terminated",
+            hasScheduledTermination: true,
+          }}
+          permissions={["rental_contracts:update"]}
+        />
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "撤销预定终止" }));
+
+    expect(
+      screen.getByText("撤销预定终止会恢复合同原租期，不修改已生成的月度账单和收退款记录。"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "撤销终止会作废本次终止替代账单；原作废账单不会自动恢复，请重新预览补齐。",
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("does not call cancel when the reason is blank", async () => {

@@ -51,7 +51,9 @@ export function BillTable({
             <TableCell className="max-w-48 whitespace-normal break-words">
               {bill.propertyName}
             </TableCell>
-            <TableCell>{bill.type === "rent" ? "租金" : "押金"}</TableCell>
+            <TableCell>
+              {bill.type === "rent" ? "租金" : bill.type === "deposit" ? "押金" : "月度综合账单"}
+            </TableCell>
             <TableCell>
               {bill.periodStart ? `${bill.periodStart} 至 ${bill.periodEnd}` : "—"}
             </TableCell>

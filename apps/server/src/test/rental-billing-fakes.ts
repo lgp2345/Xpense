@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { RentalBillDetail } from "@xpense/shared";
+import type { ListRentalBillsQuery, RentalBillDetail } from "@xpense/shared";
 import type { BillAdjustmentsRepository } from "../modules/rental/bill-adjustments.repository.js";
 import { billingTotals } from "../modules/rental/billing-plan.rules.js";
 import type { BillsRepository } from "../modules/rental/bills.repository.js";
@@ -15,6 +15,21 @@ export function createRentalBillingFakes(state: RentalTestState) {
       throw new Error(`Rental billing failure: ${operation}`);
     }
   };
+  const matchingBills = (organizationId: string, query: ListRentalBillsQuery) =>
+    state.bills.filter(
+      (bill) =>
+        bill.organizationId === organizationId &&
+        (!query.contractId || bill.contractId === query.contractId) &&
+        (!query.propertyId || bill.propertyId === query.propertyId) &&
+        bill.status === (query.status ?? "active") &&
+        (!query.type || bill.type === query.type) &&
+        (!query.keyword ||
+          `${bill.billNumber} ${bill.contractNumber} ${bill.propertyName}`.includes(
+            query.keyword,
+          )) &&
+        (!query.dueDateFrom || bill.dueDate >= query.dueDateFrom) &&
+        (!query.dueDateTo || bill.dueDate <= query.dueDateTo),
+    );
   const billsRepository: Partial<BillsRepository> = {
     findGeneration: async (org, key) =>
       state.billGenerations.find(
@@ -78,20 +93,7 @@ export function createRentalBillingFakes(state: RentalTestState) {
     hasHistory: async (org, id) =>
       state.bills.some((bill) => bill.organizationId === org && bill.contractId === id),
     list: async (org, query) => {
-      const all = state.bills.filter(
-        (bill) =>
-          bill.organizationId === org &&
-          (!query.contractId || bill.contractId === query.contractId) &&
-          (!query.propertyId || bill.propertyId === query.propertyId) &&
-          bill.status === (query.status ?? "active") &&
-          (!query.type || bill.type === query.type) &&
-          (!query.keyword ||
-            `${bill.billNumber} ${bill.contractNumber} ${bill.propertyName}`.includes(
-              query.keyword,
-            )) &&
-          (!query.dueDateFrom || bill.dueDate >= query.dueDateFrom) &&
-          (!query.dueDateTo || bill.dueDate <= query.dueDateTo),
-      );
+      const all = matchingBills(org, query);
       const page = query.page ?? 1;
       const pageSize = query.pageSize ?? 20;
       return {
@@ -103,6 +105,12 @@ export function createRentalBillingFakes(state: RentalTestState) {
         coverage: null,
       };
     },
+    matchingFinancialBills: async (org, query) =>
+      matchingBills(org, query).map(({ id, contractId, modelVersion }) => ({
+        id,
+        contractId,
+        modelVersion: modelVersion ?? 1,
+      })),
     detail: async (org, id) => {
       const bill = state.bills.find((item) => item.organizationId === org && item.id === id);
       if (!bill) return null;

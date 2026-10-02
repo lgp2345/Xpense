@@ -91,16 +91,36 @@ export function ContractDetailPage({
               </span>
             </div>
           </div>
-          <ContractActions
-            key={`${organizationId}:${contract.id}`}
-            api={api}
-            billsApi={billsApi}
-            organizationId={organizationId}
-            contract={contract}
-            permissions={permissions}
-            search={search}
-            navigate={navigate}
-          />
+          <div className="flex flex-wrap gap-2">
+            <ContractActions
+              key={`${organizationId}:${contract.id}`}
+              api={api}
+              billsApi={billsApi}
+              organizationId={organizationId}
+              contract={contract}
+              permissions={permissions}
+              search={search}
+              navigate={navigate}
+            />
+            {contract.billingMode === "monthly_settlement" &&
+            permissions.includes("rental_settlements:read") &&
+            (contract.hasScheduledTermination ||
+              contract.lifecycleStatus === "terminated" ||
+              contract.lifecycleStatus === "cancelled" ||
+              contract.displayStatus === "expired") ? (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  void navigate?.({
+                    to: "/rentals/settlements/$contractId",
+                    params: { contractId: contract.id },
+                  })
+                }
+              >
+                查看退租结算
+              </Button>
+            ) : null}
+          </div>
         </div>
       </header>
       {contract.hasScheduledTermination ? (
@@ -126,6 +146,7 @@ export function ContractDetailPage({
           contractId={contract.id}
           api={financeApi}
           permissions={permissions}
+          canEdit={contract.lifecycleStatus === "confirmed"}
         />
       ) : null}
       {contract.lifecycleStatus === "confirmed" && contract.displayStatus === "upcoming" ? (

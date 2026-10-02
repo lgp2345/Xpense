@@ -52,6 +52,38 @@ function harness() {
 }
 
 describe("ChargeTermsService", () => {
+  it.each([
+    "2026-09-30",
+    "2026-10-20",
+  ])("终止日为%s的月结合同可读取收费，但不能新增收费修改", async (terminationDate) => {
+    const h = harness();
+    h.snapshot.context.today = "2026-10-01";
+    h.snapshot.contract.lifecycleStatus = "terminated";
+    h.snapshot.contract.terminationDate = terminationDate;
+    const current = await h.service.detail(rentalFinanceAuth as never, {
+      contractId: financeContractId,
+    });
+    expect(current).toMatchObject({
+      contractId: financeContractId,
+      waterUnitPrice: "3.0000",
+      electricityUnitPrice: "4.0000",
+    });
+    await expect(
+      h.service.update(rentalFinanceAuth as never, {
+        contractId: financeContractId,
+        expectedVersion: current.version,
+        idempotencyKey: "00000000-0000-4000-8000-000000000024",
+        reason: "终止后不可修改标准",
+        waterUnitPrice: "5",
+        electricityUnitPrice: "4",
+        fixedFees: [],
+      }),
+    ).rejects.toThrow("只有履行中的合同可以修改收费标准");
+    expect(h.terms.save).not.toHaveBeenCalled();
+    expect(h.audit.appendRequired).not.toHaveBeenCalled();
+    expect(h.financeRequests.complete).not.toHaveBeenCalled();
+  });
+
   it("updates defaults with an audit and completed same-transaction request", async () => {
     const h = harness();
     const currentVersion = await h.service.detail(rentalFinanceAuth as never, {

@@ -63,7 +63,7 @@ export class ChargeTermsService {
         { organizationId: auth.organizationId, contractId: dto.contractId },
         tx,
       );
-      this.assertMonthlyContract(snapshot);
+      this.assertMonthlyMode(snapshot);
       return currentTerms(snapshot);
     });
   }

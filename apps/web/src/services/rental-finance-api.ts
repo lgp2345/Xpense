@@ -38,19 +38,31 @@ export type RentalCashListQuery = {
   pageSize?: number;
 };
 
+export type RentalFinanceSettlementVersionSnapshot = Omit<RentalSettlementDetail, "balance"> & {
+  organizationId: string;
+  snapshot: {
+    effectiveEndDate: string;
+    withdrawnBillIds?: string[];
+    finalBills: Array<{
+      billId: string | null;
+      billingMonth: string;
+      lines: unknown[];
+      amountMinor: number;
+    }>;
+    finalCostMinor: number;
+    differenceMinor: number;
+  };
+  updatedAt: string;
+};
+
 export type RentalFinanceSettlementHistoryItem = {
   id: string;
-  contractId: string;
-  eventId: string;
-  kind: RentalSettlementDetail["kind"];
-  effectiveEndDate: string;
-  version: string;
+  settlementId: string;
   revision: number;
-  finalCostMinor: number;
-  balance: RentalSettlementDetail["balance"];
-  status: RentalSettlementDetail["status"];
-  confirmedAt: string;
-  confirmedByUserId: string;
+  settlement: RentalFinanceSettlementVersionSnapshot;
+  reason: string | null;
+  createdByUserId: string;
+  createdAt: string;
 };
 
 export type AdjustRentalBillRequest = RentalBillRevisionInput & { idempotencyKey: string };

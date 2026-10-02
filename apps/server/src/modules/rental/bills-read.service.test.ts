@@ -86,6 +86,7 @@ describe("只读应收查询", () => {
               totals: { rentAmountMinor: 0, depositAmountMinor: 0 },
               coverage: null,
             }),
+            matchingFinancialBills: async () => [],
             detail: async () => null,
           },
         },
@@ -179,6 +180,9 @@ describe("只读应收查询", () => {
               totals: { rentAmountMinor: 0, depositAmountMinor: 0, monthlyAmountMinor: 12300 },
               coverage: null,
             }),
+            matchingFinancialBills: vi.fn(async () => [
+              { id: monthlyBill.id, contractId: source.contract.id, modelVersion: 2 },
+            ]),
             detail: async () => null,
           },
         },
@@ -207,11 +211,24 @@ describe("只读应收查询", () => {
     );
 
     expect(sourceRead.read).toHaveBeenCalledWith("org", source.contract.id, expect.anything());
+    expect(
+      (module.get(BillsRepository) as unknown as Record<string, unknown>).matchingFinancialBills,
+    ).toHaveBeenCalledWith(
+      "org",
+      expect.objectContaining({ contractId: source.contract.id }),
+      expect.anything(),
+    );
     expect(page.items[0]?.sourceKey).toBe("monthly:2026-09");
     expect(page.items[0]?.financial).toMatchObject({
       receivedMinor: 0,
       outstandingMinor: 12_300,
       version: rentalCashSourceVersion(financialFacts, { kind: "bill", billId: monthlyBill.id }),
+    });
+    expect(page.totals.financial).toEqual({
+      receivedMinor: 0,
+      refundedMinor: 0,
+      outstandingMinor: 12_300,
+      refundableMinor: 0,
     });
     expect(projectionSources.readMany).toHaveBeenCalledWith(
       "org",
@@ -265,6 +282,13 @@ describe("只读应收查询", () => {
         totals: { rentAmountMinor: 0, depositAmountMinor: 0, monthlyAmountMinor: 3_000 },
         coverage: null,
       })),
+      matchingFinancialBills: vi.fn(async () =>
+        summaries.map((summary) => ({
+          id: summary.id,
+          contractId: summary.contractId,
+          modelVersion: 2,
+        })),
+      ),
       detail: vi.fn(async () => ({
         ...secondSummary,
         lines: [],
@@ -303,6 +327,225 @@ describe("只读应收查询", () => {
       outstandingMinor: 1_000,
       version: rentalCashSourceVersion(secondFact, { kind: "bill", billId: billB }),
     });
+    expect(page.totals.financial).toEqual({
+      receivedMinor: 1_000,
+      refundedMinor: 0,
+      outstandingMinor: 2_000,
+      refundableMinor: 0,
+    });
     expect(detail.financial?.version).toBe(page.items[1]?.financial?.version);
+  });
+
+  it("页1、页2和越界空页返回相同的全筛选财务总计", async () => {
+    const summaries = [
+      {
+        id: "bill-a",
+        billNumber: "RB-2026-A",
+        contractId: "contract-a",
+        contractNumber: "RC-A",
+        propertyId: "property",
+        propertyName: "房产",
+        currencyCode: "CNY",
+        type: "monthly" as const,
+        status: "active" as const,
+        sourceKey: "monthly:2026-09",
+        periodStart: "2026-09-01",
+        periodEnd: "2026-09-30",
+        effectiveEnd: null,
+        dueDate: "2026-09-30",
+        amountMinor: 100,
+        dueState: null,
+        createdAt: "2026-09-01T00:00:00.000Z",
+        modelVersion: 2 as const,
+        billingMonth: "2026-09",
+        revision: 1,
+      },
+      {
+        id: "bill-b",
+        billNumber: "RB-2026-B",
+        contractId: "contract-b",
+        contractNumber: "RC-B",
+        propertyId: "property",
+        propertyName: "房产",
+        currencyCode: "CNY",
+        type: "monthly" as const,
+        status: "active" as const,
+        sourceKey: "monthly:2026-09",
+        periodStart: "2026-09-01",
+        periodEnd: "2026-09-30",
+        effectiveEnd: null,
+        dueDate: "2026-09-30",
+        amountMinor: 0,
+        dueState: null,
+        createdAt: "2026-09-02T00:00:00.000Z",
+        modelVersion: 2 as const,
+        billingMonth: "2026-09",
+        revision: 1,
+      },
+    ];
+    const facts = [
+      cashFacts("contract-a", "bill-a", 100),
+      cashFacts("contract-b", "bill-b", 0, 70),
+    ];
+    const bills = {
+      list: vi.fn(async (_organizationId: string, query: { page: number; pageSize: number }) => ({
+        items: summaries.slice((query.page - 1) * query.pageSize, query.page * query.pageSize),
+        total: summaries.length,
+        page: query.page,
+        pageSize: query.pageSize,
+        totals: { rentAmountMinor: 0, depositAmountMinor: 0, monthlyAmountMinor: 100 },
+        coverage: null,
+      })),
+      matchingFinancialBills: vi.fn(async () =>
+        summaries.map(({ id, contractId }) => ({ id, contractId, modelVersion: 2 })),
+      ),
+    };
+    const projectionSources = {
+      readMany: vi.fn(async (_organizationId: string, contractIds: string[]) =>
+        facts.filter(({ contractId }) => contractIds.includes(contractId)),
+      ),
+    };
+    const service = new BillsReadService(
+      bills as never,
+      projectionSources as never,
+      { read: vi.fn() } as never,
+      { lockOrganizationContext: vi.fn(async () => ({ today: "2026-09-01" })) } as never,
+      { assertPermission: vi.fn() } as never,
+      { run: vi.fn((operation) => operation({ transaction: "same" })) } as never,
+    );
+    const auth = { organizationId: "org" } as never;
+
+    const pages = await Promise.all(
+      [1, 2, 3].map((page) => service.list(auth, listBillsSchema.parse({ page, pageSize: 1 }))),
+    );
+
+    expect(pages.map(({ totals }) => totals.financial)).toEqual([
+      { receivedMinor: 70, refundedMinor: 0, outstandingMinor: 100, refundableMinor: 70 },
+      { receivedMinor: 70, refundedMinor: 0, outstandingMinor: 100, refundableMinor: 70 },
+      { receivedMinor: 70, refundedMinor: 0, outstandingMinor: 100, refundableMinor: 70 },
+    ]);
+    expect(pages.map(({ items }) => items.length)).toEqual([1, 1, 0]);
+  });
+
+  it("空分页仍读取全部筛选身份及完整合同事实，并在同一事务中按500合同分批", async () => {
+    const financialBills = Array.from({ length: 501 }, (_, index) => ({
+      id: `bill-${index}`,
+      contractId: `contract-${index}`,
+      modelVersion: 2,
+    }));
+    const query = listBillsSchema.parse({ page: 9, pageSize: 1, status: "voided" });
+    const tx = { transaction: "same" };
+    const bills = {
+      list: vi.fn(async () => ({
+        items: [],
+        total: 501,
+        page: 9,
+        pageSize: 1,
+        totals: { rentAmountMinor: 0, depositAmountMinor: 0, monthlyAmountMinor: 0 },
+        coverage: null,
+      })),
+      matchingFinancialBills: vi.fn(async () => financialBills),
+      detail: vi.fn(),
+    };
+    const projectionSources = {
+      readMany: vi.fn(async (_organizationId: string, ids: string[]) =>
+        ids.map((contractId) => {
+          const bill = financialBills.find((item) => item.contractId === contractId);
+          if (!bill) throw new Error("missing test financial bill");
+          return cashFacts(contractId, bill.id, 100);
+        }),
+      ),
+    };
+    const service = new BillsReadService(
+      bills as never,
+      projectionSources as never,
+      { read: vi.fn() } as never,
+      { lockOrganizationContext: vi.fn(async () => ({ today: "2026-09-01" })) } as never,
+      { assertPermission: vi.fn() } as never,
+      { run: vi.fn((operation) => operation(tx)) } as never,
+    );
+
+    const page = await service.list({ organizationId: "org" } as never, query);
+
+    expect(bills.list).toHaveBeenCalledWith("org", query, tx);
+    expect(bills.matchingFinancialBills).toHaveBeenCalledWith("org", query, tx);
+    expect(projectionSources.readMany).toHaveBeenNthCalledWith(
+      1,
+      "org",
+      financialBills.slice(0, 500).map(({ contractId }) => contractId),
+      tx,
+    );
+    expect(projectionSources.readMany).toHaveBeenNthCalledWith(
+      2,
+      "org",
+      [financialBills[500]?.contractId],
+      tx,
+    );
+    expect(page.items).toEqual([]);
+    expect(page.totals.financial).toEqual({
+      receivedMinor: 0,
+      refundedMinor: 0,
+      outstandingMinor: 50_100,
+      refundableMinor: 0,
+    });
+  });
+
+  it("legacy-only 筛选省略可选 financial 字段", async () => {
+    const totals = { rentAmountMinor: 1_000, depositAmountMinor: 0 };
+    const bills = {
+      list: vi.fn(async () => ({
+        items: [{ id: "legacy-bill", contractId: "legacy-contract", modelVersion: 1 }],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totals,
+        coverage: null,
+      })),
+      matchingFinancialBills: vi.fn(async () => [
+        { id: "legacy-bill", contractId: "legacy-contract", modelVersion: 1 },
+      ]),
+    };
+    const projectionSources = { readMany: vi.fn(async () => []) };
+    const service = new BillsReadService(
+      bills as never,
+      projectionSources as never,
+      { read: vi.fn() } as never,
+      { lockOrganizationContext: vi.fn(async () => ({ today: "2026-09-01" })) } as never,
+      { assertPermission: vi.fn() } as never,
+      { run: vi.fn((operation) => operation({})) } as never,
+    );
+
+    const page = await service.list({ organizationId: "org" } as never, listBillsSchema.parse({}));
+
+    expect(page.totals).toEqual(totals);
+    expect(page.totals).not.toHaveProperty("financial");
+    expect(projectionSources.readMany).not.toHaveBeenCalled();
+  });
+
+  it("匹配新版账单但批量合同事实缺失时失败，不把缺失事实当作零", async () => {
+    const query = listBillsSchema.parse({ page: 2, pageSize: 1 });
+    const bill = { id: "bill-a", contractId: "contract-a", modelVersion: 2 };
+    const service = new BillsReadService(
+      {
+        list: vi.fn(async () => ({
+          items: [],
+          total: 1,
+          page: 2,
+          pageSize: 1,
+          totals: { rentAmountMinor: 0, depositAmountMinor: 0, monthlyAmountMinor: 0 },
+          coverage: null,
+        })),
+        matchingFinancialBills: vi.fn(async () => [bill]),
+      } as never,
+      { readMany: vi.fn(async () => []) } as never,
+      { read: vi.fn() } as never,
+      { lockOrganizationContext: vi.fn(async () => ({ today: "2026-09-01" })) } as never,
+      { assertPermission: vi.fn() } as never,
+      { run: vi.fn((operation) => operation({})) } as never,
+    );
+
+    await expect(service.list({ organizationId: "org" } as never, query)).rejects.toThrow(
+      "Rental bill finance facts could not be loaded",
+    );
   });
 });

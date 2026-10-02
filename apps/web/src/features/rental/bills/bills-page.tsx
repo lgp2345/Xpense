@@ -42,7 +42,7 @@ export function BillsPage({
     <main className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8">
       <header>
         <h1 className="text-2xl font-bold">租赁账单</h1>
-        <p className="mt-2 text-sm text-muted-foreground">本阶段仅记录应收，收款情况尚未登记</p>
+        <p className="mt-2 text-sm text-muted-foreground">按条件查询合同账单及费用汇总</p>
       </header>
       <BillFilters key={organizationId} search={search} onChange={onSearchChange} />
       {query.isPending ? (
@@ -60,13 +60,38 @@ export function BillsPage({
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap gap-4 rounded-lg border bg-muted/30 p-4 text-sm tabular-nums">
-            <span>有效租金 {formatBillAmount(query.data.totals.rentAmountMinor)}</span>
-            <span>有效押金 {formatBillAmount(query.data.totals.depositAmountMinor)}</span>
-            <span className="text-muted-foreground">
-              组织本位币 · 当前筛选全量汇总 · 作废账单不计入
-            </span>
-          </div>
+          <section className="space-y-3 rounded-lg border p-4 text-sm" aria-label="费用构成汇总">
+            <h2 className="font-medium">费用构成</h2>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 tabular-nums">
+              <span>有效租金 {formatBillAmount(query.data.totals.rentAmountMinor)}</span>
+              <span>有效押金 {formatBillAmount(query.data.totals.depositAmountMinor)}</span>
+              {query.data.totals.monthlyAmountMinor !== undefined ? (
+                <span>有效月度账单 {formatBillAmount(query.data.totals.monthlyAmountMinor)}</span>
+              ) : null}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              组织本位币 · 当前筛选全量汇总 · 作废账单不计入费用
+            </p>
+            {query.data.totals.monthlyAmountMinor !== undefined ? (
+              <p className="text-xs text-muted-foreground">
+                月度账单金额已包含租金，押金单独统计。
+              </p>
+            ) : null}
+          </section>
+          {query.data.totals.financial ? (
+            <section className="space-y-3 rounded-lg border p-4 text-sm" aria-label="收退款汇总">
+              <h2 className="font-medium">实际收退与余额</h2>
+              <div className="flex flex-wrap gap-x-6 gap-y-2 tabular-nums">
+                <span>累计已收 {formatBillAmount(query.data.totals.financial.receivedMinor)}</span>
+                <span>累计已退 {formatBillAmount(query.data.totals.financial.refundedMinor)}</span>
+                <span>待收 {formatBillAmount(query.data.totals.financial.outstandingMinor)}</span>
+                <span>待退 {formatBillAmount(query.data.totals.financial.refundableMinor)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                费用按筛选账单统计；已纳入结算的收退与余额按整个合同统计。
+              </p>
+            </section>
+          ) : null}
           {query.data.items.length ? (
             <div className="min-w-0 rounded-lg border">
               <BillTable items={query.data.items} onNavigate={onNavigate} />

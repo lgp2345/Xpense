@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { UseNavigateResult } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -18,12 +19,14 @@ export function BillDetailPage({
   api,
   financeApi,
   permissions,
+  navigate,
 }: {
   organizationId: string;
   billId: string;
   api: RentalBillsApi;
   financeApi?: RentalFinanceApi;
   permissions: readonly PermissionKey[];
+  navigate?: UseNavigateResult<"/rentals/bills/$billId">;
 }) {
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [revisionOpen, setRevisionOpen] = useState(false);
@@ -103,21 +106,43 @@ export function BillDetailPage({
         {bill.modelVersion === 2 && bill.financial ? (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <span className="tabular-nums">
-              已收 {formatBillAmount(bill.financial.receivedMinor, bill.currencyCode)}
+              {bill.settlementId ? "本账单已收 " : "已收 "}
+              {formatBillAmount(bill.financial.receivedMinor, bill.currencyCode)}
             </span>
             <span className="tabular-nums">
-              已退 {formatBillAmount(bill.financial.refundedMinor, bill.currencyCode)}
+              {bill.settlementId ? "本账单已退 " : "已退 "}
+              {formatBillAmount(bill.financial.refundedMinor, bill.currencyCode)}
             </span>
-            <span className="tabular-nums">
-              待收 {formatBillAmount(bill.financial.outstandingMinor, bill.currencyCode)}
-            </span>
-            <span className="tabular-nums">
-              可退 {formatBillAmount(bill.financial.refundableMinor, bill.currencyCode)}
-            </span>
+            {!bill.settlementId ? (
+              <>
+                <span className="tabular-nums">
+                  待收 {formatBillAmount(bill.financial.outstandingMinor, bill.currencyCode)}
+                </span>
+                <span className="tabular-nums">
+                  可退 {formatBillAmount(bill.financial.refundableMinor, bill.currencyCode)}
+                </span>
+              </>
+            ) : null}
             {bill.settlementId ? (
-              <span className="rounded-md border bg-muted/40 px-2 py-1">
-                已纳入退租结算（{bill.settlementId}）
-              </span>
+              <>
+                <span className="rounded-md border bg-muted/40 px-2 py-1">
+                  已纳入退租结算（{bill.settlementId}）
+                </span>
+                <span className="text-muted-foreground">当前补收、退款以合同结算为准。</span>
+              </>
+            ) : null}
+            {bill.settlementId && permissions.includes("rental_settlements:read") ? (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  void navigate?.({
+                    to: "/rentals/settlements/$contractId",
+                    params: { contractId: bill.contractId },
+                  })
+                }
+              >
+                查看退租结算
+              </Button>
             ) : null}
             {financeApi &&
             !bill.settlementId &&

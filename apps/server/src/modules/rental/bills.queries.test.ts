@@ -1,7 +1,13 @@
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import { rentalBillLines, rentalBills } from "../../db/schema.js";
-import { loadBillDetails, queryBillPage, withBillFinancial } from "./bills.queries.js";
+import * as billQueries from "./bills.queries.js";
+import {
+  billListCondition,
+  loadBillDetails,
+  queryBillPage,
+  withBillFinancial,
+} from "./bills.queries.js";
 import type { BillRecord } from "./bills.repository.types.js";
 import type { RentalCashProjectionFacts } from "./rental-cash-projection.repository.types.js";
 
@@ -281,5 +287,68 @@ describe("月度账单列表投影", () => {
 
     const legacy = { ...bill, modelVersion: 1 as const };
     expect(withBillFinancial(legacy, facts(false), "2026-12-01", "org")).toBe(legacy);
+  });
+});
+
+describe("全筛选财务账单身份查询", () => {
+  it("复用全部列表筛选，只取身份字段且不分页、不联接明细或现金", async () => {
+    const selected: Record<string, unknown>[] = [];
+    const conditions: unknown[] = [];
+    const rows = [{ id: "bill-a", contractId: "contract-a", modelVersion: 2 }];
+    const executor = {
+      select: (selection: Record<string, unknown>) => {
+        selected.push(selection);
+        return {
+          from: (table: unknown) => ({
+            where: (condition: unknown) => {
+              expect(table).toBe(rentalBills);
+              conditions.push(condition);
+              return Promise.resolve(rows);
+            },
+          }),
+        };
+      },
+    };
+    const queryMatching = (billQueries as unknown as Record<string, unknown>)
+      .queryMatchingFinancialBills;
+    expect(queryMatching).toBeTypeOf("function");
+    if (typeof queryMatching !== "function") return;
+
+    await expect(
+      queryMatching(
+        billListCondition("org", {
+          contractId: "contract-a",
+          propertyId: "property-a",
+          type: "monthly",
+          status: "voided",
+          dueDateFrom: "2026-09-01",
+          dueDateTo: "2026-09-30",
+          keyword: "RB%_",
+          page: 9,
+          pageSize: 1,
+        }),
+        executor as never,
+      ),
+    ).resolves.toEqual(rows);
+
+    expect(selected).toHaveLength(1);
+    expect(Object.keys(selected[0] ?? {}).sort()).toEqual(["contractId", "id", "modelVersion"]);
+    const query = new PgDialect().sqlToQuery(conditions[0] as never);
+    expect(query.params).toEqual(
+      expect.arrayContaining([
+        "org",
+        "contract-a",
+        "property-a",
+        "monthly",
+        "voided",
+        "2026-09-01",
+        "2026-09-30",
+      ]),
+    );
+    expect(query.sql).toContain('"organization_id"');
+    expect(query.sql).toContain('"bill_number"');
+    expect(query.sql.toLowerCase()).not.toContain("limit");
+    expect(query.sql.toLowerCase()).not.toContain("offset");
+    expect(query.sql.toLowerCase()).not.toContain("join");
   });
 });

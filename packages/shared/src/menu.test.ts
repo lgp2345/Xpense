@@ -117,6 +117,7 @@ describe("organization menu shared contract", () => {
       "RentalContractCreate",
       "RentalBills",
       "RentalBillDetail",
+      "RentalSettlement",
     ]);
     expect(ROUTE_DEFINITIONS.Menus.path).toBe("/menus");
     expect(ROUTE_DEFINITIONS.Transactions.path).toBe("/transactions");
@@ -129,6 +130,7 @@ describe("organization menu shared contract", () => {
     expect(ROUTE_DEFINITIONS.RentalContracts.path).toBe("/rentals/contracts");
     expect(ROUTE_DEFINITIONS.RentalContractDetail.path).toBe("/rentals/contracts/$contractId");
     expect(ROUTE_DEFINITIONS.RentalContractCreate.path).toBe("/rentals/contracts/new");
+    expect(ROUTE_DEFINITIONS.RentalSettlement.path).toBe("/rentals/settlements/$contractId");
   });
 
   it("keeps menu types and icon keys stable across clients", () => {

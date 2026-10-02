@@ -79,7 +79,7 @@ export class MeterReadingsService {
         { organizationId: auth.organizationId, contractId: dto.contractId },
         tx,
       );
-      this.assertMonthlyContract(snapshot);
+      this.assertMonthlyMode(snapshot);
       return detail(snapshot);
     });
   }

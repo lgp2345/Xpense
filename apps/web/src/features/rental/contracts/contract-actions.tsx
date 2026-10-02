@@ -74,6 +74,7 @@ export function ContractActions({
   );
   const needsFinancialCheck = Boolean(
     billsApi &&
+      contract.billingMode !== "monthly_settlement" &&
       permissions.includes("rental_bills:read") &&
       dialog.tag === "open" &&
       dialog.kind === "terminate",
@@ -299,7 +300,9 @@ export function ContractActions({
               {dialog.tag === "open" && dialog.kind === "cancel"
                 ? "取消合同会作废全部有效账单，保留历史记录。"
                 : dialog.tag === "open" && dialog.kind === "revoke"
-                  ? "撤销终止会作废本次终止替代账单；原作废账单不会自动恢复，请重新预览补齐。"
+                  ? contract.billingMode === "monthly_settlement"
+                    ? "撤销预定终止会恢复合同原租期，不修改已生成的月度账单和收退款记录。"
+                    : "撤销终止会作废本次终止替代账单；原作废账单不会自动恢复，请重新预览补齐。"
                   : "请确认操作并填写必要信息，最终结果以服务端校验为准。"}
             </DialogDescription>
           </DialogHeader>
@@ -309,6 +312,7 @@ export function ContractActions({
           {dialog.tag === "open" &&
           dialog.kind === "terminate" &&
           billsApi &&
+          contract.billingMode !== "monthly_settlement" &&
           permissions.includes("rental_bills:read") ? (
             <ContractTerminationBilling
               key={`${contextKey}:${dialog.terminationDate}`}

@@ -127,6 +127,8 @@ describe("buildRbacSeedPlan", () => {
         "rental_contracts:read",
         "rental_bills:read",
       ]);
+      expect(role?.permissions).not.toContain("rental_settlements:read");
+      expect(role?.permissions).not.toContain("rental_settlements:confirm");
       expect(role?.permissions).not.toEqual(expect.arrayContaining([...rentalWritePermissionKeys]));
     }
   });

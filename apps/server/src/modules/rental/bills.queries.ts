@@ -177,6 +177,20 @@ export async function queryBillPage(
   };
 }
 
+export function queryMatchingFinancialBills(
+  condition: SQL,
+  executor: AppDbExecutor,
+): Promise<Array<Pick<BillRecord, "id" | "contractId" | "modelVersion">>> {
+  return executor
+    .select({
+      id: rentalBills.id,
+      contractId: rentalBills.contractId,
+      modelVersion: rentalBills.modelVersion,
+    })
+    .from(rentalBills)
+    .where(condition);
+}
+
 /** 用有界批次加载明细和调整，查询次数不随账单行数线性增长。 */
 export async function loadBillDetails(
   records: BillRecord[],

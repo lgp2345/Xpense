@@ -21,6 +21,7 @@ describe("租赁财务查询缓存", () => {
       rentalFinanceKeys.contractBills("org-a", "contract-a", { page: 2 }),
       rentalFinanceKeys.billCash("org-a", "contract-a", "bill-a", { page: 1 }),
       rentalFinanceKeys.settlement("org-a", "contract-a"),
+      rentalFinanceKeys.settlementCash("org-a", "contract-a", "settlement-a", { page: 2 }),
       rentalBillsKeys.list("org-a", { page: 1 }),
       rentalBillsKeys.list("org-a", { page: 2 }),
       rentalBillsKeys.list("org-a", { contractId: "contract-a", page: 1 }),
@@ -62,5 +63,27 @@ describe("租赁财务查询缓存", () => {
     for (const key of retainedKeys)
       expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
     queryClient.clear();
+  });
+
+  it("结算流水按组织、合同和结算目标隔离", () => {
+    expect(
+      rentalFinanceKeys.settlementCash("org-a", "contract-a", "settlement-a", { page: 2 }),
+    ).toEqual([
+      "rental",
+      "org-a",
+      "finance",
+      "cash",
+      "contract-a",
+      { page: 2, settlementId: "settlement-a" },
+    ]);
+    expect(rentalFinanceKeys.settlementCash("org-b", "contract-a", "settlement-a")).not.toEqual(
+      rentalFinanceKeys.settlementCash("org-a", "contract-a", "settlement-a"),
+    );
+    expect(rentalFinanceKeys.settlementCash("org-a", "contract-b", "settlement-a")).not.toEqual(
+      rentalFinanceKeys.settlementCash("org-a", "contract-a", "settlement-a"),
+    );
+    expect(rentalFinanceKeys.settlementCash("org-a", "contract-a", "settlement-b")).not.toEqual(
+      rentalFinanceKeys.settlementCash("org-a", "contract-a", "settlement-a"),
+    );
   });
 });

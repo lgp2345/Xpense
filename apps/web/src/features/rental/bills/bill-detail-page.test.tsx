@@ -1,5 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { RentalCashEntry } from "@xpense/shared";
 import { expect, it, vi } from "vitest";
 import { ApiError } from "../../../services/api-client";
 import { BillDetailPage } from "./bill-detail-page";
@@ -224,6 +226,7 @@ it("v2综合账单显示服务端实际收款余额，不套用legacy未知收�
 
   expect(await screen.findByText("已收 CNY 400.00")).toBeInTheDocument();
   expect(screen.getByText("待收 CNY 500.00")).toBeInTheDocument();
+  expect(screen.queryByText("当前补收、退款以合同结算为准。")).not.toBeInTheDocument();
   expect(screen.queryByText(/收款情况尚未登记/)).not.toBeInTheDocument();
   expect(screen.getByText("备注：上月多收冲减")).toBeInTheDocument();
   expect(screen.getByText("水表 100 → 110")).toBeInTheDocument();
@@ -249,6 +252,120 @@ it("v2综合账单详情标示月度综合账单而非押金", async () => {
   expect(await screen.findByText("月度综合账单 · 有效")).toBeInTheDocument();
   expect(screen.queryByText("押金 · 有效")).not.toBeInTheDocument();
 });
+it("关联结算的有效账单保留原目标资金历史但不显示独立待收", async () => {
+  const billReceipt: RentalCashEntry = {
+    id: "bill-receipt",
+    contractId: "contract",
+    target: { kind: "bill", billId: "bill" },
+    kind: "receipt",
+    purpose: "bill_receipt",
+    amountMinor: 30000,
+    occurredOn: "2026-09-30",
+    note: "原账单收款",
+    createdAt: "2026-09-30T10:00:00.000Z",
+    createdByUserId: "user",
+    revokedAt: null,
+    revokedByUserId: null,
+    revokeReason: null,
+  };
+  const api = billsApiFixture({
+    getBill: vi.fn().mockResolvedValue({
+      ...billFixture,
+      type: "monthly",
+      modelVersion: 2,
+      amountMinor: 80000,
+      settlementId: "settlement-a",
+      financial: {
+        receivedMinor: 30000,
+        refundedMinor: 0,
+        netReceivedMinor: 30000,
+        outstandingMinor: 50000,
+        refundableMinor: 0,
+        state: "partial",
+        overdue: false,
+        version: "bill-cash-v1",
+      },
+    }),
+  });
+  const financeApi = financeApiFixture({
+    listCash: vi.fn().mockResolvedValue({
+      items: [billReceipt],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    }),
+  });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <BillDetailPage
+        organizationId="org"
+        billId="bill"
+        api={api}
+        financeApi={financeApi}
+        permissions={["rental_bills:read"]}
+      />
+    </QueryClientProvider>,
+  );
+
+  expect(await screen.findByText("当前补收、退款以合同结算为准。")).toBeInTheDocument();
+  expect(screen.getByText("本账单已收 CNY 300.00")).toBeInTheDocument();
+  expect(screen.getByText("本账单已退 CNY 0.00")).toBeInTheDocument();
+  expect(await screen.findByText(/收款 · CNY 300\.00 · 2026-09-30/)).toBeInTheDocument();
+  expect(screen.getByText("已纳入退租结算（settlement-a）")).toBeInTheDocument();
+  expect(screen.queryByText("待收 CNY 500.00")).not.toBeInTheDocument();
+  expect(screen.queryByText("待收 CNY 0.00")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "查看退租结算" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "登记收退款" })).not.toBeInTheDocument();
+  expect(financeApi.listCash).toHaveBeenCalledWith(
+    { target: { kind: "bill", billId: "bill" }, page: 1, pageSize: 20 },
+    expect.objectContaining({ signal: expect.any(AbortSignal) }),
+  );
+  expect(financeApi.getSettlement).not.toHaveBeenCalled();
+});
+
+it("关联结算的作废账单保留本账单已收已退并隐藏独立可退差额", async () => {
+  const api = billsApiFixture({
+    getBill: vi.fn().mockResolvedValue({
+      ...billFixture,
+      type: "monthly",
+      modelVersion: 2,
+      status: "voided",
+      amountMinor: 0,
+      settlementId: "settlement-a",
+      financial: {
+        receivedMinor: 30000,
+        refundedMinor: 0,
+        netReceivedMinor: 30000,
+        outstandingMinor: 0,
+        refundableMinor: 30000,
+        state: "refundable",
+        overdue: false,
+        version: "bill-cash-v2",
+      },
+    }),
+  });
+  const navigate = vi.fn();
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <BillDetailPage
+        organizationId="org"
+        billId="bill"
+        api={api}
+        permissions={["rental_bills:read", "rental_settlements:read"]}
+        navigate={navigate as never}
+      />
+    </QueryClientProvider>,
+  );
+
+  expect(await screen.findByText("当前补收、退款以合同结算为准。")).toBeInTheDocument();
+  expect(screen.getByText("本账单已收 CNY 300.00")).toBeInTheDocument();
+  expect(screen.getByText("本账单已退 CNY 0.00")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "查看退租结算" })).toBeInTheDocument();
+  expect(screen.queryByText("可退 CNY 300.00")).not.toBeInTheDocument();
+  expect(screen.queryByText("可退 CNY 0.00")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "登记收退款" })).not.toBeInTheDocument();
+});
+
 it("未知 ID 显示错误，不请求当前合同替换快照", async () => {
   const api = billsApiFixture({
     getBill: vi.fn().mockRejectedValue(new ApiError(404, "NOT_FOUND", "missing")),
@@ -266,4 +383,76 @@ it("未知 ID 显示错误，不请求当前合同替换快照", async () => {
     </QueryClientProvider>,
   );
   expect(await screen.findByText("账单不存在或无权访问。")).toBeInTheDocument();
+});
+
+it("已纳入结算的账单通过有权入口跳转到该合同的真实结算", async () => {
+  const api = billsApiFixture({
+    getBill: vi.fn().mockResolvedValue({
+      ...billFixture,
+      modelVersion: 2,
+      settlementId: "settlement-1",
+      financial: {
+        receivedMinor: 900_000,
+        refundedMinor: 0,
+        netReceivedMinor: 900_000,
+        outstandingMinor: 0,
+        refundableMinor: 0,
+        state: "settled",
+        overdue: false,
+        version: "cash-v1",
+      },
+    }),
+  });
+  const navigate = vi.fn();
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <BillDetailPage
+        organizationId="org"
+        billId="bill"
+        api={api}
+        permissions={["rental_bills:read", "rental_settlements:read"]}
+        navigate={navigate as never}
+      />
+    </QueryClientProvider>,
+  );
+
+  await userEvent.click(await screen.findByRole("button", { name: "查看退租结算" }));
+
+  expect(navigate).toHaveBeenCalledExactlyOnceWith({
+    to: "/rentals/settlements/$contractId",
+    params: { contractId: "contract" },
+  });
+});
+
+it("没有结算查看权限时保留原账单详情且不暴露结算入口", async () => {
+  const api = billsApiFixture({
+    getBill: vi.fn().mockResolvedValue({
+      ...billFixture,
+      modelVersion: 2,
+      settlementId: "settlement-1",
+      financial: {
+        receivedMinor: 900_000,
+        refundedMinor: 0,
+        netReceivedMinor: 900_000,
+        outstandingMinor: 0,
+        refundableMinor: 0,
+        state: "settled",
+        overdue: false,
+        version: "cash-v1",
+      },
+    }),
+  });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <BillDetailPage
+        organizationId="org"
+        billId="bill"
+        api={api}
+        permissions={["rental_bills:read"]}
+      />
+    </QueryClientProvider>,
+  );
+
+  expect(await screen.findByText("RB-2026-000001")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "查看退租结算" })).not.toBeInTheDocument();
 });

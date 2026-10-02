@@ -17,6 +17,64 @@ describe("合同统一结算 HTTP", () => {
     if (harness) await harness.app.close();
   });
 
+  it.each([
+    "2026-09-30",
+    "2026-10-20",
+  ])("实际终止接口登记%s后，收费与底数可读且新的修改仍被拒绝", async (terminationDate) => {
+    harness.source.today = "2026-10-01";
+    const terminated = await harness.request("/rental-contracts/terminate", {
+      id: harness.financeContractId,
+      terminationDate,
+      reason: "只读合同资料回归",
+    });
+    expect(terminated.statusCode, terminated.payload).toBe(200);
+    const chargesResponse = await harness.request(
+      `/rental-charges/detail?id=${harness.financeContractId}`,
+    );
+    expect(chargesResponse.statusCode, chargesResponse.payload).toBe(200);
+    const charges = harness.parse<{ version: string; waterUnitPrice: string }>(chargesResponse);
+    expect(charges.waterUnitPrice).toBe("3.0000");
+    const meterResponse = await harness.request(
+      `/rental-meters/detail?id=${harness.financeContractId}`,
+    );
+    expect(meterResponse.statusCode, meterResponse.payload).toBe(200);
+    const meters = harness.parse<{
+      version: string;
+      readings: Array<{ kind: string; reading: string }>;
+    }>(meterResponse);
+    expect(meters.readings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "water", reading: "100" }),
+        expect.objectContaining({ kind: "electricity", reading: "50" }),
+      ]),
+    );
+    const chargesBefore = structuredClone(harness.state.rental.chargeTerms);
+    const metersBefore = structuredClone(harness.state.rental.meterReadings);
+    const changedCharges = await harness.request("/rental-charges/update", {
+      contractId: harness.financeContractId,
+      expectedVersion: charges.version,
+      idempotencyKey: randomUUID(),
+      reason: "终止后禁止新的收费修改",
+      waterUnitPrice: "5",
+      electricityUnitPrice: "4",
+      fixedFees: [],
+    });
+    expect(changedCharges.statusCode, changedCharges.payload).toBe(409);
+    const changedMeters = await harness.request("/rental-meters/update", {
+      contractId: harness.financeContractId,
+      expectedVersion: meters.version,
+      idempotencyKey: randomUUID(),
+      reason: "终止后禁止重新登记底数",
+      readings: [
+        { kind: "water", readingDate: "2026-01-01", reading: "101" },
+        { kind: "electricity", readingDate: "2026-01-01", reading: "51" },
+      ],
+    });
+    expect(changedMeters.statusCode, changedMeters.payload).toBe(409);
+    expect(harness.state.rental.chargeTerms).toEqual(chargesBefore);
+    expect(harness.state.rental.meterReadings).toEqual(metersBefore);
+  });
+
   it("结算9月未清50000、10月多收30000和实际押金300000，退款后原目标余额归零", async () => {
     setContractEnd("2026-10-31");
     await generateMonth("2026-09", "2026-09-30");
@@ -52,6 +110,16 @@ describe("合同统一结算 HTTP", () => {
       reason: "十月账单已生成后的实际九月退租",
     });
     expect(terminated.statusCode, terminated.payload).toBe(200);
+
+    const emptyHistory = await harness.request(
+      `/rental-settlements/history?contractId=${harness.financeContractId}&page=1&pageSize=20`,
+    );
+    expect(emptyHistory.statusCode, emptyHistory.payload).toBe(200);
+    expect(
+      harness.parse<{ total: number; page: number; pageSize: number; items: unknown[] }>(
+        emptyHistory,
+      ),
+    ).toEqual({ items: [], total: 0, page: 1, pageSize: 20 });
 
     const previewResponse = await harness.request("/rental-settlements/preview", {
       contractId: harness.financeContractId,
@@ -112,6 +180,45 @@ describe("合同统一结算 HTTP", () => {
       status: "pending_refund",
       balance: { refundableMinor: 280_000, outstandingMinor: 0 },
     });
+    const monthlyTotalsAfterConfirm = await harness.request(
+      `/rental-bills/list?contractId=${harness.financeContractId}&type=monthly&page=1&pageSize=20`,
+    );
+    expect(monthlyTotalsAfterConfirm.statusCode, monthlyTotalsAfterConfirm.payload).toBe(200);
+    expect(
+      harness.parse<{
+        totals: {
+          financial?: {
+            receivedMinor: number;
+            refundedMinor: number;
+            outstandingMinor: number;
+            refundableMinor: number;
+          };
+        };
+      }>(monthlyTotalsAfterConfirm).totals.financial,
+    ).toEqual({
+      receivedMinor: 330_000,
+      refundedMinor: 0,
+      outstandingMinor: 0,
+      refundableMinor: 280_000,
+    });
+    for (const page of [1, 9]) {
+      const filtered = await harness.request(
+        `/rental-bills/list?contractId=${harness.financeContractId}&type=monthly&page=${page}&pageSize=20`,
+      );
+      expect(filtered.statusCode, filtered.payload).toBe(200);
+      expect(harness.parse<{ totals: unknown }>(filtered).totals).toMatchObject({
+        rentAmountMinor: 50_000,
+        depositAmountMinor: 0,
+        monthlyAmountMinor: 50_000,
+        financial: {
+          receivedMinor: 330_000,
+          refundedMinor: 0,
+          outstandingMinor: 0,
+          refundableMinor: 280_000,
+        },
+      });
+      if (page === 9) expect(harness.parse<{ items: unknown[] }>(filtered).items).toEqual([]);
+    }
     const withdrawnOctober = harness.state.rental.bills.find(({ id }) => id === october.id);
     expect(withdrawnOctober).toMatchObject({
       id: october.id,
@@ -248,6 +355,27 @@ describe("合同统一结算 HTTP", () => {
     });
     expect(refund.statusCode, refund.payload).toBe(200);
     const refundEntry = harness.parse<{ id: string }>(refund);
+    const monthlyTotalsAfterRefund = await harness.request(
+      `/rental-bills/list?contractId=${harness.financeContractId}&type=monthly&page=1&pageSize=20`,
+    );
+    expect(monthlyTotalsAfterRefund.statusCode, monthlyTotalsAfterRefund.payload).toBe(200);
+    expect(
+      harness.parse<{
+        totals: {
+          financial?: {
+            receivedMinor: number;
+            refundedMinor: number;
+            outstandingMinor: number;
+            refundableMinor: number;
+          };
+        };
+      }>(monthlyTotalsAfterRefund).totals.financial,
+    ).toEqual({
+      receivedMinor: 330_000,
+      refundedMinor: 280_000,
+      outstandingMinor: 0,
+      refundableMinor: 0,
+    });
 
     const detailAfterRefund = await harness.request(
       `/rental-settlements/detail?contractId=${harness.financeContractId}`,
@@ -267,6 +395,64 @@ describe("合同统一结算 HTTP", () => {
       status: "settled",
       balance: { refundableMinor: 0, outstandingMinor: 0 },
     });
+    const recordedRevision = harness.state.rental.settlementRevisions[0];
+    if (!recordedRevision) throw new Error("Expected a persisted rental settlement revision");
+    harness.state.rental.settlementRevisions.push(
+      {
+        ...structuredClone(recordedRevision),
+        id: randomUUID(),
+        organizationId: randomUUID(),
+      },
+      { ...structuredClone(recordedRevision), id: randomUUID(), contractId: randomUUID() },
+    );
+    const firstSettlementHistory = await harness.request(
+      `/rental-settlements/history?contractId=${harness.financeContractId}&page=1&pageSize=20`,
+    );
+    expect(firstSettlementHistory.statusCode, firstSettlementHistory.payload).toBe(200);
+    const firstHistoryPage = harness.parse<{
+      total: number;
+      items: Array<{
+        settlementId: string;
+        revision: number;
+        settlement: {
+          status: string;
+          revision: number;
+          effectiveEndDate: string;
+          finalCostMinor: number;
+        };
+        reason: string;
+        createdByUserId: string;
+        createdAt: string;
+      }>;
+    }>(firstSettlementHistory);
+    expect(firstHistoryPage).toMatchObject({
+      total: 2,
+      items: [
+        {
+          settlementId: publicSettlement.id,
+          revision: 2,
+          settlement: {
+            status: "pending_refund",
+            revision: 2,
+            effectiveEndDate: "2026-09-30",
+            finalCostMinor: 50_000,
+          },
+          reason: "同步结算关联账单与资金",
+          createdByUserId: testIds.ownerUser,
+        },
+        {
+          settlementId: publicSettlement.id,
+          revision: 1,
+          settlement: {
+            status: "pending_refund",
+            revision: 1,
+            effectiveEndDate: "2026-09-30",
+            finalCostMinor: 50_000,
+          },
+        },
+      ],
+    });
+    expect(firstHistoryPage.items[0]?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(
       harness.state.rental.settlements.find(({ id }) => id === publicSettlement.id)?.snapshot
         .withdrawnBillIds,
@@ -305,6 +491,92 @@ describe("合同统一结算 HTTP", () => {
     ).toMatchObject({
       status: "pending_refund",
       balance: { refundableMinor: 280_000, outstandingMinor: 0 },
+    });
+    const monthlyTotalsAfterRevoke = await harness.request(
+      `/rental-bills/list?contractId=${harness.financeContractId}&type=monthly&page=1&pageSize=20`,
+    );
+    expect(monthlyTotalsAfterRevoke.statusCode, monthlyTotalsAfterRevoke.payload).toBe(200);
+    expect(
+      harness.parse<{
+        totals: {
+          financial?: {
+            receivedMinor: number;
+            refundedMinor: number;
+            outstandingMinor: number;
+            refundableMinor: number;
+          };
+        };
+      }>(monthlyTotalsAfterRevoke).totals.financial,
+    ).toEqual({
+      receivedMinor: 330_000,
+      refundedMinor: 0,
+      outstandingMinor: 0,
+      refundableMinor: 280_000,
+    });
+    const latestSettlementHistory = await harness.request(
+      `/rental-settlements/history?contractId=${harness.financeContractId}&page=1&pageSize=1`,
+    );
+    const previousSettlementHistory = await harness.request(
+      `/rental-settlements/history?contractId=${harness.financeContractId}&page=2&pageSize=1`,
+    );
+    const oldestSettlementHistory = await harness.request(
+      `/rental-settlements/history?contractId=${harness.financeContractId}&page=3&pageSize=1`,
+    );
+    expect(latestSettlementHistory.statusCode, latestSettlementHistory.payload).toBe(200);
+    expect(previousSettlementHistory.statusCode, previousSettlementHistory.payload).toBe(200);
+    expect(oldestSettlementHistory.statusCode, oldestSettlementHistory.payload).toBe(200);
+    expect(
+      harness.parse<{
+        total: number;
+        page: number;
+        pageSize: number;
+        items: Array<{ revision: number; settlementId: string; settlement: { status: string } }>;
+      }>(latestSettlementHistory),
+    ).toMatchObject({
+      total: 3,
+      page: 1,
+      pageSize: 1,
+      items: [
+        { revision: 3, settlementId: publicSettlement.id, settlement: { status: "settled" } },
+      ],
+    });
+    expect(
+      harness.parse<{
+        total: number;
+        page: number;
+        pageSize: number;
+        items: Array<{ revision: number; settlementId: string; settlement: { status: string } }>;
+      }>(previousSettlementHistory),
+    ).toMatchObject({
+      total: 3,
+      page: 2,
+      pageSize: 1,
+      items: [
+        {
+          revision: 2,
+          settlementId: publicSettlement.id,
+          settlement: { status: "pending_refund" },
+        },
+      ],
+    });
+    expect(
+      harness.parse<{
+        total: number;
+        page: number;
+        pageSize: number;
+        items: Array<{ revision: number; settlementId: string; settlement: { status: string } }>;
+      }>(oldestSettlementHistory),
+    ).toMatchObject({
+      total: 3,
+      page: 3,
+      pageSize: 1,
+      items: [
+        {
+          revision: 1,
+          settlementId: publicSettlement.id,
+          settlement: { status: "pending_refund" },
+        },
+      ],
     });
   });
 
@@ -817,6 +1089,29 @@ describe("合同统一结算 HTTP", () => {
       idempotencyKey: randomUUID(),
     });
     expect(adjusted.statusCode, adjusted.payload).toBe(200);
+    const correctedMonth = harness.state.rental.bills.find(({ id }) => id === month.id);
+    if (!correctedMonth) throw new Error("Expected the corrected monthly bill");
+    const totalsAfterCorrection = await harness.request(
+      `/rental-bills/list?contractId=${harness.financeContractId}&type=monthly&page=1&pageSize=20`,
+    );
+    expect(totalsAfterCorrection.statusCode, totalsAfterCorrection.payload).toBe(200);
+    expect(
+      harness.parse<{
+        totals: {
+          financial?: {
+            receivedMinor: number;
+            refundedMinor: number;
+            outstandingMinor: number;
+            refundableMinor: number;
+          };
+        };
+      }>(totalsAfterCorrection).totals.financial,
+    ).toEqual({
+      receivedMinor: 0,
+      refundedMinor: 0,
+      outstandingMinor: correctedMonth.amountMinor,
+      refundableMinor: 0,
+    });
 
     const idempotencyKey = randomUUID();
     const staleConfirm = await harness.request("/rental-settlements/confirm", {

@@ -14,6 +14,7 @@ describe("合同收费与入住底数", () => {
           contractId="contract"
           api={api}
           permissions={["rental_charges:read", "rental_meters:read"]}
+          canEdit={true}
         />
       </QueryClientProvider>,
     );
@@ -33,6 +34,7 @@ describe("合同收费与入住底数", () => {
           contractId="contract"
           api={api}
           permissions={[]}
+          canEdit={true}
         />
       </QueryClientProvider>,
     );

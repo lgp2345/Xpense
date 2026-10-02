@@ -42,6 +42,39 @@ function harness(snapshot = rentalFinanceSnapshot()) {
 }
 
 describe("MeterReadingsService", () => {
+  it.each([
+    "2026-09-30",
+    "2026-10-20",
+  ])("终止日为%s的月结合同可读取入住底数，但不能重新登记", async (terminationDate) => {
+    const h = harness();
+    h.snapshot.context.today = "2026-10-01";
+    h.snapshot.contract.lifecycleStatus = "terminated";
+    h.snapshot.contract.terminationDate = terminationDate;
+    const current = await h.service.detail(rentalFinanceAuth as never, {
+      contractId: financeContractId,
+    });
+    expect(current.readings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "water", reading: "100" }),
+        expect.objectContaining({ kind: "electricity", reading: "50" }),
+      ]),
+    );
+    await expect(
+      h.service.update(rentalFinanceAuth as never, {
+        contractId: financeContractId,
+        expectedVersion: current.version,
+        idempotencyKey: "00000000-0000-4000-8000-000000000033",
+        reason: "终止后不可重写入住底数",
+        readings: [
+          { kind: "water", readingDate: "2026-01-01", reading: "101" },
+          { kind: "electricity", readingDate: "2026-01-01", reading: "51" },
+        ],
+      }),
+    ).rejects.toThrow("只有履行中的合同可以登记入住底数");
+    expect(h.readings.saveBaseline).not.toHaveBeenCalled();
+    expect(h.financeRequests.complete).not.toHaveBeenCalled();
+  });
+
   it("saves both baselines against the contract's only space and records the reason", async () => {
     const h = harness();
     const current = await h.service.detail(rentalFinanceAuth as never, {

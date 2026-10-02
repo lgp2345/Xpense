@@ -40,6 +40,7 @@ export function createRentalRepositoryFakes(
     extendLedgersRepository: (repository: Partial<LedgersRepository>) =>
       Object.assign(repository, createRentalLedgersRepository(state, bookkeeping)),
   };
+  assertRepositoryCapabilities("bills", fakes.billsRepository, ["matchingFinancialBills"]);
   assertRepositoryCapabilities("properties", fakes.propertiesRepository, [
     "list",
     "findActiveOwned",

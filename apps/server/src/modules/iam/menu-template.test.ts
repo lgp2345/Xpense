@@ -22,6 +22,19 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
         (node) => node.parentTemplateKey === "rental-bills" && node.type === "button",
       ).map((node) => node.permissionCode),
     ).toEqual(["rental_bills:generate", "rental_bills:adjust"]);
+    expect(RENTAL_MENU_TEMPLATE.find((node) => node.routeKey === "RentalSettlement")).toMatchObject(
+      {
+        parentTemplateKey: "rental-bills",
+        permissionCode: "rental_settlements:read",
+        isVisible: false,
+        keepAlive: false,
+      },
+    );
+    expect(
+      RENTAL_MENU_TEMPLATE.filter(
+        (node) => node.parentTemplateKey === "rental-settlement" && node.type === "button",
+      ).map((node) => node.permissionCode),
+    ).toEqual(["rental_settlements:confirm"]);
   });
   it("includes tenant, contract, and contract creation routes in the rental template", () => {
     expect(RENTAL_MENU_TEMPLATE.map(({ templateKey }) => templateKey)).toEqual(
@@ -174,6 +187,7 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       "RentalContractCreate",
       "RentalBills",
       "RentalBillDetail",
+      "RentalSettlement",
       "Members",
       "Roles",
       "Menus",
@@ -441,6 +455,24 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
         keepAlive: false,
       },
       {
+        key: "rental-settlement",
+        parent: "rental-bills",
+        type: "menu",
+        route: "RentalSettlement",
+        permission: "rental_settlements:read",
+        visible: false,
+        keepAlive: false,
+      },
+      {
+        key: "rental-settlement.confirm",
+        parent: "rental-settlement",
+        type: "button",
+        route: null,
+        permission: "rental_settlements:confirm",
+        visible: null,
+        keepAlive: null,
+      },
+      {
         key: "rental-bills.generate",
         parent: "rental-bills",
         type: "button",
@@ -521,6 +553,7 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       "rental_contracts:create",
       "rental_contracts:update",
       "rental_contracts:delete",
+      "rental_settlements:confirm",
       "rental_bills:generate",
       "rental_bills:adjust",
       "members:create",

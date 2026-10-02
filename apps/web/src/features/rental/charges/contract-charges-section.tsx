@@ -13,17 +13,21 @@ export function ContractChargesSection({
   contractId,
   api,
   permissions,
+  canEdit,
 }: {
   organizationId: string;
   contractId: string;
   api: RentalFinanceApi;
   permissions: readonly PermissionKey[];
+  canEdit: boolean;
 }) {
   const queryClient = useQueryClient();
   const [editCharges, setEditCharges] = useState(false);
   const [editBaseline, setEditBaseline] = useState(false);
   const canReadCharges = permissions.includes("rental_charges:read");
   const canReadMeters = permissions.includes("rental_meters:read");
+  const canUpdateCharges = canEdit && permissions.includes("rental_charges:update");
+  const canUpdateMeters = canEdit && permissions.includes("rental_meters:update");
   const terms = useQuery({
     queryKey: rentalFinanceKeys.chargeTerms(organizationId, contractId),
     queryFn: ({ signal }) => api.getChargeTerms(contractId, { signal }),
@@ -49,7 +53,7 @@ export function ContractChargesSection({
               <h2 id="contract-charge-title" className="font-medium">
                 合同收费标准
               </h2>
-              {permissions.includes("rental_charges:update") && terms.data ? (
+              {canUpdateCharges && terms.data ? (
                 <Button variant="outline" size="sm" onClick={() => setEditCharges((open) => !open)}>
                   {editCharges ? "收起收费编辑" : "编辑收费标准"}
                 </Button>
@@ -78,7 +82,7 @@ export function ContractChargesSection({
                 ) : null}
               </div>
             ) : null}
-            {editCharges && terms.data ? (
+            {canUpdateCharges && editCharges && terms.data ? (
               <ContractChargesForm
                 organizationId={organizationId}
                 contractId={contractId}
@@ -95,7 +99,7 @@ export function ContractChargesSection({
               <h2 id="contract-meter-title" className="font-medium">
                 入住计量底数
               </h2>
-              {permissions.includes("rental_meters:update") && baseline.data ? (
+              {canUpdateMeters && baseline.data ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -130,7 +134,7 @@ export function ContractChargesSection({
                 ) : null}
               </div>
             ) : null}
-            {editBaseline && baseline.data ? (
+            {canUpdateMeters && editBaseline && baseline.data ? (
               <MeterBaselineForm
                 organizationId={organizationId}
                 contractId={contractId}

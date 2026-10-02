@@ -25,6 +25,14 @@ it("解析分页/费用/日期，拒绝非法日期和枚举", () => {
   expect(
     validateRentalBillsSearch({ page: 0, pageSize: 101, status: "paid", type: "rent2" }),
   ).toEqual({});
+  expect(validateRentalBillsSearch({ type: "monthly" })).toEqual({ type: "monthly" });
+});
+it("支持按月度综合账单过滤", async () => {
+  const onChange = vi.fn();
+  render(<BillFilters search={{}} onChange={onChange} />);
+  await userEvent.selectOptions(screen.getByLabelText("费用分类"), "monthly");
+  await userEvent.click(screen.getByRole("button", { name: "查询" }));
+  expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ type: "monthly", page: 1 }));
 });
 it("筛选重置页码，并拦截反向日期", async () => {
   const onChange = vi.fn();
