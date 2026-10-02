@@ -6,7 +6,7 @@
 | --- | --- | --- | --- | --- |
 | Explorer | gpt-6-luna | medium | fast | 只读定位大型代码库中的主要文件、入口与调用关系 |
 | Executor | gpt-6-luna | xhigh | 继承主 Agent | 在明确且独占的写入范围内完成实施 |
-| Reviewer | gpt-6-sol | high | 继承主 Agent | 从独立上下文评审稳定产物，仅在分配范围内保存审查报告 |
+| Reviewer | gpt-6.1-sol | high | 继承主 Agent | 从独立上下文评审稳定产物，仅在分配范围内保存审查报告 |
 | ExpertAdvisor | 派发时选择，未指定则继承 | 派发时选择，未指定则继承 | 继承主 Agent | 复杂决策、建模、自动化或反复未解决的问题 |
 
 主 Agent 负责拆解、集成和最终验收；最多同时打开 3 个子 Agent。简单任务直接处理，子 Agent 不再派发子 Agent。并行实施必须分配互不重叠的文件所有权，共享类型或接口由主 Agent 协调。

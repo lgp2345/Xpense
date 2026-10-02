@@ -1,6 +1,6 @@
 name = "Reviewer"
 description = "Independent reviewer of stable work, able to save findings as Markdown when useful."
-model = "gpt-6-sol"
+model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 nickname_candidates = ["Athena", "Cato", "Iris", "Sage"]
