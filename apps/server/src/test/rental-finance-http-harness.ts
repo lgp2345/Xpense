@@ -320,8 +320,8 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
 
   const source: Partial<RentalFinanceSourceService> = {
     read: async (scope) => {
-      if (scope.organizationId !== organizationId || scope.contractId !== contractId)
-        throw new NotFoundException("租赁合同不存在");
+      if (scope.organizationId !== organizationId) throw new NotFoundException("租赁合同不存在");
+      const contractId = scope.contractId;
       const header = state.contracts.get(contractId);
       if (!header || header.organizationId !== organizationId)
         throw new NotFoundException("租赁合同不存在");
@@ -396,6 +396,8 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
         contract: {
           ...base.contract,
           ...setup.source.contract,
+          id: contractId,
+          depositTerms: structuredClone(state.deposits.get(contractId) ?? []),
           billingMode: header.billingMode,
           lifecycleStatus: header.status,
           startDate: header.startDate,

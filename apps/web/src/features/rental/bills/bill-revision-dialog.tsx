@@ -1,14 +1,7 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  PermissionKey,
-  RentalBillDetail,
-  RentalBillRevisionInput,
-  RentalBillRevisionPreview,
-  RentalExtraFeeInput,
-} from "@xpense/shared";
+import type { PermissionKey, RentalBillDetail, RentalBillRevisionPreview } from "@xpense/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,8 +21,15 @@ import {
 } from "../../../services/rental-finance-api";
 import { invalidateRentalFinance, rentalFinanceKeys } from "../../../services/rental-finance-query";
 import { formatBillAmount } from "./bill-format";
+import { BillRevisionChargeFields } from "./bill-revision-charge-fields";
+import {
+  type BillRevisionValues,
+  billRevisionErrors,
+  billRevisionFormSchema,
+  initialBillRevisionValues,
+  toBillRevisionInput,
+} from "./bill-revision-form";
 import { ExtraFeeFields } from "./extra-fee-fields";
-import { type MonthlyBillExtraFeeDraft, parseSignedMoneyMinor } from "./monthly-bill-form";
 
 type Props = {
   organizationId: string;
@@ -42,92 +42,11 @@ type Props = {
   onAdjusted: (preview: RentalBillRevisionPreview) => void;
 };
 
-type FeeDraft = MonthlyBillExtraFeeDraft & { origin: "monthly" | "settlement" };
-type Values = { extraFees: FeeDraft[]; reason: string };
-
-const feeDraftSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().trim().min(1, "请输入额外费用名称。"),
-  amount: z
-    .string()
-    .refine((value) => parseSignedMoneyMinor(value) !== null, "请输入有效费用金额。"),
-  note: z.string().trim().min(1, "请输入额外费用备注。"),
-  origin: z.enum(["monthly", "settlement"]),
-});
-const revisionFormSchema = z.object({
-  extraFees: z.array(feeDraftSchema),
-  reason: z.string().trim().min(1, "请输入账单更正原因。"),
-});
-
-function feeErrorsFor(values: Values) {
-  const result = revisionFormSchema.safeParse(values);
-  const errors = new Map<string, Partial<Record<"name" | "amount" | "note", string>>>();
-  if (result.success) return errors;
-  for (const issue of result.error.issues) {
-    if (
-      issue.path[0] !== "extraFees" ||
-      typeof issue.path[1] !== "number" ||
-      !["name", "amount", "note"].includes(String(issue.path[2]))
-    )
-      continue;
-    const fee = values.extraFees[issue.path[1]];
-    const field = issue.path[2] as "name" | "amount" | "note";
-    if (fee) errors.set(fee.id, { ...errors.get(fee.id), [field]: issue.message });
-  }
-  return errors;
-}
-
 function validationMessage(error: unknown): string | undefined {
   if (typeof error === "string") return error;
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string")
     return error.message;
   return undefined;
-}
-
-function minorToText(amountMinor: number): string {
-  const amount = BigInt(amountMinor);
-  const negative = amount < 0n;
-  const absolute = negative ? -amount : amount;
-  const whole = absolute / 100n;
-  const fraction = String(absolute % 100n)
-    .padStart(2, "0")
-    .replace(/0+$/, "");
-  return `${negative ? "-" : ""}${whole}${fraction ? `.${fraction}` : ""}`;
-}
-
-function initialFees(bill: RentalBillDetail): FeeDraft[] {
-  return bill.lines.flatMap((line) => {
-    if (line.kind !== "extra_fee") return [];
-    const snapshot = line.feeSnapshot?.kind === "extra_fee" ? line.feeSnapshot : null;
-    return [
-      {
-        id: snapshot?.extraFeeId ?? crypto.randomUUID(),
-        name: line.label,
-        amount: minorToText(line.amountMinor),
-        note: line.note ?? "",
-        origin: snapshot?.origin ?? "monthly",
-      },
-    ];
-  });
-}
-
-function toInput(
-  bill: RentalBillDetail,
-  values: Values,
-): Omit<RentalBillRevisionInput, "idempotencyKey"> | null {
-  if (!bill.financial || !values.reason.trim()) return null;
-  const extraFees: RentalExtraFeeInput[] = [];
-  for (const fee of values.extraFees) {
-    const amountMinor = parseSignedMoneyMinor(fee.amount);
-    if (!fee.name.trim() || amountMinor === null || !fee.note.trim()) return null;
-    extraFees.push({ id: fee.id, name: fee.name.trim(), amountMinor, note: fee.note.trim() });
-  }
-  return {
-    billId: bill.id,
-    expectedVersion: bill.financial.version,
-    extraFees,
-    reason: values.reason.trim(),
-  };
 }
 
 export function BillRevisionDialog(props: Props) {
@@ -173,11 +92,12 @@ function RevisionSession({
       mounted.current = false;
     };
   }, []);
+  const revisionSchema = useMemo(() => billRevisionFormSchema(bill), [bill]);
   const form = useForm({
-    defaultValues: { extraFees: initialFees(bill), reason: "" },
-    validators: { onChange: revisionFormSchema, onSubmit: revisionFormSchema },
+    defaultValues: initialBillRevisionValues(bill),
+    validators: { onChange: revisionSchema, onSubmit: revisionSchema },
     onSubmit: async ({ value }) => {
-      const submittedInput = toInput(bill, value);
+      const submittedInput = toBillRevisionInput(bill, value);
       const submittedFingerprint = submittedInput ? JSON.stringify(submittedInput) : "";
       const submittedPreview = preview?.fingerprint === submittedFingerprint ? preview.data : null;
       if (!submittedInput || !submittedPreview || submitBusy || !canAdjust) return;
@@ -214,8 +134,18 @@ function RevisionSession({
     },
   });
   const values = useStore(form.store, (state) => state.values);
-  const feeErrors = feeErrorsFor(values);
-  const input = useMemo(() => toInput(bill, values), [bill, values]);
+  const errors = billRevisionErrors(bill, values);
+  const feeErrors = new Map(
+    values.extraFees.map((fee, index) => [
+      fee.id,
+      {
+        name: errors.get(`extraFees.${index}.name`),
+        amount: errors.get(`extraFees.${index}.amount`),
+        note: errors.get(`extraFees.${index}.note`),
+      },
+    ]),
+  );
+  const input = useMemo(() => toBillRevisionInput(bill, values), [bill, values]);
   const fingerprint = input ? JSON.stringify(input) : "";
   const currentPreview = preview?.fingerprint === fingerprint ? preview.data : null;
 
@@ -258,7 +188,10 @@ function RevisionSession({
     };
   }, [api, bill.id, canAdjust, fingerprint, input, organizationId, previewNonce]);
 
-  const update = (next: Values) => {
+  const update = (next: BillRevisionValues) => {
+    if (submitBusy) return;
+    form.setFieldValue("meters", next.meters);
+    form.setFieldValue("fixedFees", next.fixedFees);
     form.setFieldValue("extraFees", next.extraFees);
     form.setFieldValue("reason", next.reason);
     setPreview(null);
@@ -331,6 +264,13 @@ function RevisionSession({
                   </p>
                 ))}
               </div>
+              <BillRevisionChargeFields
+                bill={bill}
+                values={values}
+                errors={errors}
+                disabled={submitBusy}
+                onChange={(next) => update({ ...values, ...next })}
+              />
               <ExtraFeeFields
                 fees={values.extraFees}
                 errorsById={feeErrors}
@@ -359,6 +299,7 @@ function RevisionSession({
                         id="bill-revision-reason"
                         aria-label="账单更正原因"
                         value={field.state.value}
+                        disabled={submitBusy}
                         aria-invalid={Boolean(fieldError)}
                         aria-describedby={fieldError ? `${field.name}-error` : undefined}
                         onChange={(event) => {

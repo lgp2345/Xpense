@@ -1,7 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
-
+import { eq, sql } from "drizzle-orm";
 import { getTableConfig, PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
+import { rentalTestDatabaseUrl } from "../test/rental-postgres-corpus.js";
+import { insertRentalPostgresFixture } from "../test/rental-postgres-fixtures.js";
+import { withRentalPostgres } from "../test/rental-postgres-harness.js";
 
 import * as schema from "./schema.js";
 
@@ -229,11 +233,181 @@ describe("租赁月度财务数据库契约", () => {
     );
   });
 
-  it("真实 PostgreSQL runner 演练明确留到 Task 10", (context) => {
-    if (process.env.RENTAL_MIGRATION_TEST_DATABASE_URL) {
-      context.skip("Task 3 未获准执行真实 DDL；完整 runner 与并发演练留待 Task 10");
-      return;
-    }
-    context.skip("专用迁移库未配置；完整 runner 与并发演练留待 Task 10");
-  });
+  const url = rentalTestDatabaseUrl(process.env);
+  it.skipIf(!url)(
+    "空 schema 使用真实 runner 一次应用14段，重复运行不重复提交",
+    async () => {
+      if (!url) throw new Error("专用库和 DDL 许可缺失");
+      await withRentalPostgres(url, async (pg) => {
+        const corpus = await pg.applyMigrations();
+        const history =
+          await pg.client`SELECT name, hash, created_at FROM __drizzle_migrations ORDER BY name`;
+        expect(history.map((row) => row.name)).toEqual(corpus.entries.map((entry) => entry.name));
+        expect(history.map((row) => row.hash)).toEqual(
+          corpus.entries.map((entry) => entry.copiedHash),
+        );
+        await pg.applyMigrations();
+        expect(
+          await pg.client`SELECT name, hash, created_at FROM __drizzle_migrations ORDER BY name`,
+        ).toEqual(history);
+        const fixture = await insertRentalPostgresFixture(pg.db);
+        const bills = await pg.db.select().from(schema.rentalBills);
+        expect(bills).toHaveLength(3);
+        expect(bills.every((bill) => bill.modelVersion === 2)).toBe(true);
+        const bill = bills.find((item) => item.id === fixture.ids.january);
+        if (!bill) throw new Error("真实账单缺失");
+        await expect(
+          pg.db.transaction((tx) =>
+            tx
+              .update(schema.rentalBills)
+              .set({ amountMinor: -1 })
+              .where(eq(schema.rentalBills.id, bill.id)),
+          ),
+        ).rejects.toThrow();
+        await expect(
+          pg.db.transaction((tx) =>
+            tx.insert(schema.rentalCashEntries).values({
+              ...fixture.scope,
+              kind: "receipt",
+              purpose: "bill_receipt",
+              billId: randomUUID(),
+              amountMinor: 1,
+              occurredOn: "2026-01-01",
+              createdByUserId: fixture.userId,
+            }),
+          ),
+        ).rejects.toThrow();
+        await expect(
+          pg.db.transaction((tx) =>
+            tx.insert(schema.rentalCashEntries).values({
+              ...fixture.scope,
+              kind: "refund",
+              purpose: "refund",
+              billId: bill.id,
+              amountMinor: 0,
+              occurredOn: "2026-01-01",
+              createdByUserId: fixture.userId,
+            }),
+          ),
+        ).rejects.toThrow();
+        const intervals = await pg.db.select().from(schema.rentalBillMeterIntervals);
+        const interval = intervals[0];
+        if (!interval) throw new Error("真实区间缺失");
+        await expect(
+          pg.db.transaction((tx) =>
+            tx
+              .update(schema.rentalMeterReadings)
+              .set({ predecessorId: null })
+              .where(eq(schema.rentalMeterReadings.id, interval.endReadingId)),
+          ),
+        ).rejects.toThrow();
+        expect(await pg.db.select().from(schema.rentalCashEntries)).toHaveLength(0);
+        expect(await pg.db.select().from(schema.rentalBills)).toEqual(bills);
+        expect(await pg.db.select().from(schema.rentalBillMeterIntervals)).toEqual(intervals);
+      });
+    },
+    120000,
+  );
+
+  it.skipIf(!url)(
+    "旧11段提交后枚举/财务/权限一起升级，保留v1和自定义授权菜单",
+    async () => {
+      if (!url) throw new Error("专用库和 DDL 许可缺失");
+      await withRentalPostgres(url, async (pg) => {
+        const prefix = await pg.applyMigrations(true);
+        expect(prefix.entries).toHaveLength(11);
+        const fixture = await insertRentalPostgresFixture(pg.db, true);
+        const oldBills =
+          await pg.client`SELECT id, source_key, amount_minor, snapshot FROM rental_bills ORDER BY id`;
+        const oldLines =
+          await pg.client`SELECT id, bill_id, amount_minor, kind::text FROM rental_bill_lines ORDER BY id`;
+        const ownerId = randomUUID();
+        const adminId = randomUUID();
+        const viewerId = randomUUID();
+        const customId = randomUUID();
+        await pg.db.insert(schema.roles).values([
+          { id: ownerId, key: "owner", name: "系统房东", isSystem: true },
+          { id: adminId, key: "admin", name: "系统管理", isSystem: true },
+          { id: viewerId, key: "viewer", name: "系统只读", isSystem: true },
+          {
+            id: customId,
+            organizationId: fixture.organizationId,
+            key: "owner",
+            name: "组织自定义",
+            isSystem: false,
+          },
+        ]);
+        const permissionId = randomUUID();
+        await pg.db.insert(schema.permissions).values({
+          id: permissionId,
+          key: "custom:test",
+          name: "自定义许可",
+          resource: "custom",
+          action: "test",
+          description: "测试",
+        });
+        await pg.db.insert(schema.rolePermissions).values([
+          { roleId: customId, permissionId },
+          { roleId: viewerId, permissionId },
+        ]);
+        await pg.db.insert(schema.menus).values({
+          organizationId: fixture.organizationId,
+          name: "测试自定义菜单",
+          type: "directory",
+          isVisible: true,
+        });
+        const menusBefore = await pg.db.select().from(schema.menus);
+        const full = await pg.applyMigrations();
+        expect(full.entries).toHaveLength(14);
+        expect(
+          await pg.client`SELECT id, source_key, amount_minor, snapshot FROM rental_bills ORDER BY id`,
+        ).toEqual(oldBills);
+        expect(
+          await pg.client`SELECT id, bill_id, amount_minor, kind::text FROM rental_bill_lines ORDER BY id`,
+        ).toEqual(oldLines);
+        const updatedBills = await pg.db.select().from(schema.rentalBills);
+        expect(
+          updatedBills.map((bill) => [bill.modelVersion, bill.billingMonth, bill.revision]),
+        ).toEqual([
+          [1, null, 1],
+          [1, null, 1],
+        ]);
+        const [contract] = await pg.db
+          .select()
+          .from(schema.rentalContracts)
+          .where(eq(schema.rentalContracts.id, fixture.scope.contractId));
+        expect(contract?.billingMode).toBe("legacy_receivable");
+        const checkGrants = async () => {
+          const grants = await pg.db.select().from(schema.rolePermissions);
+          expect(grants.filter((grant) => grant.roleId === ownerId)).toHaveLength(12);
+          expect(grants.filter((grant) => grant.roleId === adminId)).toHaveLength(12);
+          expect(grants.filter((grant) => grant.roleId === viewerId)).toEqual([
+            { roleId: viewerId, permissionId },
+          ]);
+          expect(grants.filter((grant) => grant.roleId === customId)).toEqual([
+            { roleId: customId, permissionId },
+          ]);
+          expect(await pg.db.select().from(schema.menus)).toEqual(menusBefore);
+        };
+        await checkGrants();
+        const permissionsMigration = full.entries.at(-1);
+        if (!permissionsMigration) throw new Error("权限迁移缺失");
+        const permissionSql = await readFile(permissionsMigration.originalPath, "utf8");
+        // 单独重复真实权限 DML，区别于 runner 按名称跳过。
+        await pg.db.transaction(async (tx) => {
+          for (const statement of permissionSql.split("--> statement-breakpoint"))
+            await tx.execute(sql.raw(statement));
+        });
+        await checkGrants();
+        const history = await pg.client`SELECT name, hash FROM __drizzle_migrations ORDER BY name`;
+        expect(history).toHaveLength(14);
+        await pg.applyMigrations();
+        expect(await pg.client`SELECT name, hash FROM __drizzle_migrations ORDER BY name`).toEqual(
+          history,
+        );
+        await checkGrants();
+      });
+    },
+    120000,
+  );
 });
