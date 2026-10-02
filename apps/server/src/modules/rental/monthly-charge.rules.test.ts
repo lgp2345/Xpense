@@ -36,6 +36,8 @@ function chargeInput(overrides: Partial<MonthlyChargeInput> = {}): MonthlyCharge
     chargeTerms: {
       contractId: "contract-1",
       version: "terms-v1",
+      waterCollectionEnabled: true,
+      electricityCollectionEnabled: true,
       waterUnitPrice: "1",
       electricityUnitPrice: "0.5",
       fixedFees: [
@@ -60,6 +62,22 @@ function chargeInput(overrides: Partial<MonthlyChargeInput> = {}): MonthlyCharge
 }
 
 describe("calculateMonthlyCharges", () => {
+  it.each([
+    ["2026-10-16", "2026-12-31", "2026-10", null],
+    ["2026-10-01", "2026-12-31", "2026-10", "2026-10-16"],
+    ["2028-02-16", "2028-12-31", "2028-02", null],
+  ])("不足月固定费仍为5000分 %s", (startDate, endDate, billingMonth, effectiveEndDate) => {
+    const input = chargeInput();
+    input.billingTerms = { ...input.billingTerms, startDate, endDate };
+    input.billingMonth = billingMonth;
+    input.effectiveEndDate = effectiveEndDate;
+    input.chargeTerms.fixedFees = [{ id: "management", name: "管理费", monthlyAmountMinor: 5000 }];
+    input.readings = { water: null, electricity: null };
+    const fixed = calculateMonthlyCharges(input).lines.find(({ kind }) => kind === "fixed_fee");
+    expect(fixed?.amountMinor).toBe(5000);
+    expect(fixed?.feeSnapshot).toMatchObject({ calculationMode: "full_month" });
+  });
+
   it("combines October rent, actual meter charges, fixed fees and a negative extra fee", () => {
     const result = calculateMonthlyCharges(chargeInput());
 
@@ -124,7 +142,7 @@ describe("calculateMonthlyCharges", () => {
     expect(result.lines.find((line) => line.kind === "rent_period")?.amountMinor).toBe(160_000);
   });
 
-  it("includes the termination day when prorating fixed monthly charges", () => {
+  it("退租日租金继续折算而固定月费收全额", () => {
     const result = calculateMonthlyCharges(
       chargeInput({
         billingTerms: { ...chargeInput().billingTerms, rentAmountMinor: 200_000 },
@@ -139,7 +157,7 @@ describe("calculateMonthlyCharges", () => {
     );
 
     expect(result.lines.find((line) => line.kind === "rent_period")?.amountMinor).toBe(129_032);
-    expect(result.lines.find((line) => line.kind === "fixed_fee")?.amountMinor).toBe(6_452);
+    expect(result.lines.find((line) => line.kind === "fixed_fee")?.amountMinor).toBe(10_000);
   });
 
   it("rounds each fixed fee separately and rejects a negative total", () => {

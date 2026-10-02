@@ -110,10 +110,7 @@ function fixedFeeLines(
     if (!Number.isSafeInteger(fee.monthlyAmountMinor) || fee.monthlyAmountMinor < 0) {
       throw new RangeError("固定月费必须是非负安全整数");
     }
-    const numerator = BigInt(fee.monthlyAmountMinor) * BigInt(coveredDays);
-    const amountMinor = Number(
-      (numerator * 2n + BigInt(referenceDays)) / (BigInt(referenceDays) * 2n),
-    );
+    const amountMinor = fee.monthlyAmountMinor;
     return addLine({
       kind: "fixed_fee",
       label: fee.name,
@@ -127,6 +124,7 @@ function fixedFeeLines(
       feeSnapshot: {
         kind: "fixed_fee",
         feeId: fee.id,
+        calculationMode: "full_month",
         monthlyAmountMinor: fee.monthlyAmountMinor,
         overrideReason: null,
       },
@@ -155,7 +153,10 @@ function clipFixedFee(line: RentalBillLine, effectiveEndDate: string): RentalBil
   const numerator = BigInt(saved.monthlyAmountMinor) * BigInt(coveredDays);
   return {
     ...line,
-    amountMinor: Number((numerator * 2n + BigInt(referenceDays)) / (BigInt(referenceDays) * 2n)),
+    amountMinor:
+      saved.calculationMode === "full_month" || saved.calculationMode === "manual_amount"
+        ? line.amountMinor
+        : Number((numerator * 2n + BigInt(referenceDays)) / (BigInt(referenceDays) * 2n)),
     periodEnd: effectiveEndDate,
     coveredDays,
     referenceDays,

@@ -299,6 +299,45 @@ function refundScenarioSnapshot(): RentalFinanceSnapshot {
 }
 
 describe("buildRentalSettlementPlan", () => {
+  it.each([
+    ["full_month", 5000],
+    ["manual_amount", 2000],
+  ] as const)("退租裁剪保留%s固定费金额", (calculationMode, amountMinor) => {
+    const source = baseSnapshot();
+    source.readings = [];
+    source.bills = [
+      monthlyBill("bill-nov", "2026-11", [
+        {
+          ...line("fixed_fee", "管理费", amountMinor, "2026-11-01", "2026-11-30"),
+          referenceStart: "2026-11-01",
+          referenceEnd: "2026-11-30",
+          coveredDays: 30,
+          referenceDays: 30,
+          feeSnapshot: {
+            kind: "fixed_fee",
+            feeId: "management",
+            monthlyAmountMinor: 5000,
+            overrideReason: null,
+            calculationMode,
+          },
+        },
+      ]),
+    ];
+    const plan = buildRentalSettlementPlan(source, {
+      contractId: source.contract.id,
+      extraFees: [],
+      finalReadings: [],
+    });
+    const fixed = plan.finalBills
+      .flatMap(({ lines }) => lines)
+      .find(
+        ({ feeSnapshot }) =>
+          feeSnapshot?.kind === "fixed_fee" && feeSnapshot.feeId === "management",
+      );
+    expect(fixed?.amountMinor).toBe(amountMinor);
+    expect(fixed?.periodEnd).toBe("2026-11-15");
+  });
+
   it("withdraws an empty future monthly bill instead of retaining it as a zero-value final bill", () => {
     const source = baseSnapshot();
     source.contract = {
@@ -618,7 +657,7 @@ describe("buildRentalSettlementPlan", () => {
       ]),
     ).toEqual([
       ["bill-oct", "2026-10", 163_200],
-      [null, "2026-11", 6_600],
+      [null, "2026-11", 11_600],
     ]);
     expect(
       plan.finalBills[0]?.lines
@@ -644,8 +683,8 @@ describe("buildRentalSettlementPlan", () => {
       ["w-1", "w-2"],
       ["e-1", "e-2"],
     ]);
-    expect(plan.finalCostMinor).toBe(169_800);
-    expect(plan.differenceMinor).toBe(-320_200);
+    expect(plan.finalCostMinor).toBe(174_800);
+    expect(plan.differenceMinor).toBe(-315_200);
   });
 
   it("calculates the brief's 350968 refund and 50968 remaining refund after a 300000 refund", () => {

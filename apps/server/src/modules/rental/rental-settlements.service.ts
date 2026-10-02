@@ -277,6 +277,12 @@ export class RentalSettlementsService {
     if (source.contract.lifecycleStatus === "cancelled") return [];
     const missing: string[] = [];
     for (const kind of ["water", "electricity"] as const) {
+      if (
+        source.terms?.[
+          kind === "water" ? "waterCollectionEnabled" : "electricityCollectionEnabled"
+        ] === false
+      )
+        continue;
       const requested = input.finalReadings?.some((reading) => reading.kind === kind) ?? false;
       const billedAtEnd = plan.finalBills.some((bill) =>
         bill.lines.some((line) => {

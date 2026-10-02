@@ -54,7 +54,12 @@ export function proposeSettlementReadings(
   idFactory: (index: number) => string = () => randomUUID(),
 ): SettlementReadingCandidate[] {
   if (source.contract.lifecycleStatus === "cancelled") return [];
-  const requested = input.finalReadings ?? [];
+  const requested = (input.finalReadings ?? []).filter(
+    ({ kind }) =>
+      source.terms?.[
+        kind === "water" ? "waterCollectionEnabled" : "electricityCollectionEnabled"
+      ] !== false,
+  );
   const kinds = new Set<RentalMeterKind>();
   for (const item of requested) {
     if (kinds.has(item.kind)) throw new RangeError("结算读数类型不能重复");

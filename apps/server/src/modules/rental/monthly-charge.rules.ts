@@ -15,10 +15,6 @@ import { projectRentalRentThroughDate } from "./rental-rent-projection.rules.js"
 
 const maximumSafeAmount = BigInt(Number.MAX_SAFE_INTEGER);
 
-function roundHalfUp(numerator: bigint, denominator: bigint): bigint {
-  return (numerator * 2n + denominator) / (denominator * 2n);
-}
-
 function line(
   fields: Partial<RentalBillLine> & Pick<RentalBillLine, "kind" | "label" | "amountMinor">,
 ): RentalBillLine {
@@ -97,7 +93,7 @@ function fixedFeeLines(input: MonthlyChargeInput, leaseEnd: string): RentalBillL
     return line({
       kind: "fixed_fee",
       label: fee.name,
-      amountMinor: Number(roundHalfUp(BigInt(amount) * BigInt(coveredDays), BigInt(monthDays))),
+      amountMinor: amount,
       periodStart,
       periodEnd,
       referenceStart: monthStart,
@@ -107,6 +103,7 @@ function fixedFeeLines(input: MonthlyChargeInput, leaseEnd: string): RentalBillL
       feeSnapshot: {
         kind: "fixed_fee",
         feeId: fee.id,
+        calculationMode: "full_month",
         monthlyAmountMinor: amount,
         overrideReason: overrides.has(fee.id) ? (input.overrides?.reason ?? null) : null,
       },
@@ -135,6 +132,12 @@ export function calculateMonthlyCharges(input: MonthlyChargeInput): MonthlyCharg
   );
   const lines: RentalBillLine[] = rent ? [...rent.lines] : [];
   for (const kind of ["water", "electricity"] as const) {
+    if (
+      input.chargeTerms[
+        kind === "water" ? "waterCollectionEnabled" : "electricityCollectionEnabled"
+      ] === false
+    )
+      continue;
     const interval = input.readings[kind];
     if (!interval) continue;
     const unitPrice =

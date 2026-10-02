@@ -15,6 +15,16 @@ const requests: RentalMeterReadingInput[] = [
 ];
 
 describe("结算末次读数准备", () => {
+  it("不代收项目不构造新的末次读数", () => {
+    const source = meteredSource();
+    if (!source.terms) throw new Error("缺标准");
+    source.terms.waterCollectionEnabled = false;
+    source.terms.electricityCollectionEnabled = false;
+    expect(
+      proposeSettlementReadings(source, { contractId, extraFees: [], finalReadings: requests }),
+    ).toEqual([]);
+  });
+
   it("为已计费的 P→E 区间构造不持久化的 P→T 候选", () => {
     const source = meteredSource();
     const existingCount = source.readings.length;
