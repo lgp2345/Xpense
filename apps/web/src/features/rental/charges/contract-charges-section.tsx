@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RentalFinanceApi } from "../../../services/rental-finance-api";
 import { invalidateRentalFinance, rentalFinanceKeys } from "../../../services/rental-finance-query";
+import { fixedFeeAmountText } from "./contract-charge-form";
 import { ContractChargesForm } from "./contract-charges-form";
 import { MeterBaselineForm } from "./meter-baseline-form";
 
@@ -70,11 +71,19 @@ export function ContractChargesSection({
             ) : null}
             {terms.data ? (
               <div className="space-y-1 text-sm">
-                <p className="tabular-nums">水费单价 CNY {terms.data.waterUnitPrice} / 立方米</p>
-                <p className="tabular-nums">电费单价 CNY {terms.data.electricityUnitPrice} / 度</p>
+                <p className="tabular-nums">
+                  {terms.data.waterCollectionEnabled
+                    ? `水费单价 CNY ${terms.data.waterUnitPrice} / 立方米`
+                    : "水费：不代收"}
+                </p>
+                <p className="tabular-nums">
+                  {terms.data.electricityCollectionEnabled
+                    ? `电费单价 CNY ${terms.data.electricityUnitPrice} / 度`
+                    : "电费：不代收"}
+                </p>
                 {terms.data.fixedFees.map((fee) => (
                   <p className="tabular-nums" key={fee.id}>
-                    {fee.name} CNY {(fee.monthlyAmountMinor / 100).toFixed(2)} / 月
+                    {fee.name} {fixedFeeAmountText(fee.monthlyAmountMinor)} 元/月
                   </p>
                 ))}
                 {terms.data.fixedFees.length === 0 ? (
@@ -121,25 +130,31 @@ export function ContractChargesSection({
             {baseline.data ? (
               <div className="space-y-1 text-sm tabular-nums">
                 {(["water", "electricity"] as const).map((kind) => {
+                  if (canReadCharges && !terms.data?.[`${kind}CollectionEnabled`]) return null;
                   const reading = baseline.data.readings.find((item) => item.kind === kind);
                   return reading ? (
                     <p key={kind}>
                       入住{kind === "water" ? "水表" : "电表"}底数 {reading.reading} ·{" "}
                       {reading.readingDate.replaceAll("-", "/")}
                     </p>
-                  ) : null;
+                  ) : (
+                    <p key={kind} className="text-muted-foreground">
+                      {kind === "water" ? "水表" : "电表"}底数待补
+                    </p>
+                  );
                 })}
                 {baseline.data.readings.length === 0 ? (
                   <p className="text-muted-foreground">尚未登记入住底数。</p>
                 ) : null}
               </div>
             ) : null}
-            {canUpdateMeters && editBaseline && baseline.data ? (
+            {canUpdateMeters && editBaseline && baseline.data && (!canReadCharges || terms.data) ? (
               <MeterBaselineForm
                 organizationId={organizationId}
                 contractId={contractId}
                 api={api}
                 baseline={baseline.data}
+                terms={terms.data}
                 onSaved={refresh}
               />
             ) : null}

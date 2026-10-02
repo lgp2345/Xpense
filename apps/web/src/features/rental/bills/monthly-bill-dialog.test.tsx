@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import type { RentalBillLine, RentalMonthlyBillPreview } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
-import { financeApiFixture } from "./bill-test-fixtures";
+import { chargeTermsFixture, financeApiFixture } from "./bill-test-fixtures";
 import { MonthlyBillDialog } from "./monthly-bill-dialog";
 
 const preview = {
@@ -13,6 +13,8 @@ const preview = {
   defaults: {
     contractId: "contract",
     version: "charges-v1",
+    waterCollectionEnabled: true,
+    electricityCollectionEnabled: true,
     waterUnitPrice: "3.0000",
     electricityUnitPrice: "4.0000",
     fixedFees: [],
@@ -369,4 +371,39 @@ describe("月度综合账单", () => {
     expect(changedAttempt).not.toEqual(firstAttempt);
     expect(changedAttempt.idempotencyKey).not.toBe(firstAttempt.idempotencyKey);
   });
+});
+
+it("全不代收时不录抄表即可确认，缺底数预览显示中文且阻止确认", async () => {
+  const api = financeApiFixture({
+    getChargeTerms: vi.fn().mockResolvedValue({
+      ...chargeTermsFixture,
+      waterCollectionEnabled: false,
+      electricityCollectionEnabled: false,
+    }),
+    previewMonthlyBill: vi.fn().mockResolvedValue(preview),
+  });
+  renderDialog(api);
+  await screen.findByText("水费：不代收");
+  expect(screen.queryByLabelText("水表读数")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("账单月份"), { target: { value: "2026-08" } });
+  fireEvent.change(screen.getByLabelText("账单到期日"), { target: { value: "2026-08-31" } });
+  await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
+  await userEvent.click(screen.getByRole("button", { name: "确认生成" }));
+  expect(api.generateMonthlyBill).toHaveBeenCalledWith(expect.objectContaining({ readings: [] }));
+});
+it("底数缺失显示登记提示且不可确认", async () => {
+  renderDialog(
+    financeApiFixture({
+      previewMonthlyBill: vi.fn().mockResolvedValue({
+        ...preview,
+        canConfirm: false,
+        missingFields: ["waterBaseline", "waterReading"],
+      }),
+    }),
+  );
+  fireEvent.change(screen.getByLabelText("账单月份"), { target: { value: "2026-08" } });
+  fireEvent.change(screen.getByLabelText("账单到期日"), { target: { value: "2026-08-31" } });
+  expect(await screen.findByText("尚缺：水表入住底数、水表本期读数")).toBeInTheDocument();
+  expect(screen.getByText(/请关闭账单窗口/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "确认生成" })).toBeDisabled();
 });

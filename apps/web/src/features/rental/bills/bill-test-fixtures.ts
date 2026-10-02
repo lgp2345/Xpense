@@ -6,9 +6,11 @@ import type { RentalFinanceApi, RentalMeterBaseline } from "../../../services/re
 export const chargeTermsFixture: RentalChargeTerms = {
   contractId: "contract",
   version: "charges-v1",
+  waterCollectionEnabled: true,
+  electricityCollectionEnabled: true,
   waterUnitPrice: "3.0000",
   electricityUnitPrice: "4.0000",
-  fixedFees: [{ id: "fee-clean", name: "物业费", monthlyAmountMinor: 50000 }],
+  fixedFees: [{ id: "11111111-1111-4111-8111-111111111111", name: "物业费", monthlyAmountMinor: 50000 }],
 };
 
 export const meterBaselineFixture: RentalMeterBaseline = {

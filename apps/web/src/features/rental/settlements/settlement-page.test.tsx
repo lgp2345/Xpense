@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { RentalSettlementDetail } from "@xpense/shared";
+import type { PermissionKey, RentalSettlementDetail } from "@xpense/shared";
 import { expect, it, vi } from "vitest";
 import { invalidateRentalFinance, rentalFinanceKeys } from "../../../services/rental-finance-query";
-import { financeApiFixture } from "../bills/bill-test-fixtures";
+import { chargeTermsFixture, financeApiFixture } from "../bills/bill-test-fixtures";
 import { SettlementPage } from "./settlement-page";
 
 it("缺少退租结算查看权限时不读取合同结算或资金", () => {
@@ -180,11 +180,7 @@ it("更正费用后刷新服务端余额并重新显示应退金额", async () =
 
 function renderPage(
   api: ReturnType<typeof financeApiFixture>,
-  permissions: readonly (
-    | "rental_settlements:read"
-    | "rental_receipts:create"
-    | "rental_refunds:create"
-  )[],
+  permissions: readonly PermissionKey[],
 ) {
   return render(
     <QueryClientProvider
@@ -228,3 +224,26 @@ function settlementFixture(
     ...overrides,
   };
 }
+
+it("结算只询问代收项目，未代收项目缺项不会露出输入", async () => {
+  const api = financeApiFixture({
+    getChargeTerms: vi
+      .fn()
+      .mockResolvedValue({ ...chargeTermsFixture, electricityCollectionEnabled: false }),
+    previewSettlement: vi.fn().mockResolvedValue({
+      version: "p",
+      canConfirm: false,
+      missingFields: ["waterReading", "electricityReading"],
+      effectiveEndDate: "2026-09-30",
+      billChanges: [],
+      finalCostMinor: 0,
+      receivedMinor: 0,
+      refundedMinor: 0,
+      differenceMinor: 0,
+    }),
+  });
+  renderPage(api, ["rental_settlements:read", "rental_settlements:confirm", "rental_charges:read"]);
+  await userEvent.click(await screen.findByRole("button", { name: "预览结算" }));
+  expect(await screen.findByLabelText("水表终读数")).toBeInTheDocument();
+  expect(screen.queryByLabelText("电表终读数")).not.toBeInTheDocument();
+});

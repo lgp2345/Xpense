@@ -1,17 +1,19 @@
 import type { RentalMeterKind } from "@xpense/shared";
 import { DatePickerInput } from "@/components/date-picker";
 import { Input } from "@/components/ui/input";
-import type { MonthlyBillDraft } from "./monthly-bill-form";
+import type { MeterCollection, MonthlyBillDraft } from "./monthly-bill-form";
 
 export function MeterReadingFields({
   readings,
   onChange,
   disabled = false,
   errors,
+  terms = { waterCollectionEnabled: true, electricityCollectionEnabled: true },
 }: {
   readings: MonthlyBillDraft["readings"];
   onChange: (kind: RentalMeterKind, field: "readingDate" | "reading", value: string) => void;
   disabled?: boolean;
+  terms?: MeterCollection;
   errors?: Readonly<
     Partial<Record<RentalMeterKind, Partial<Record<"readingDate" | "reading", string>>>>
   >;
@@ -20,6 +22,7 @@ export function MeterReadingFields({
     <fieldset disabled={disabled} className="grid gap-3 sm:grid-cols-2">
       <legend className="mb-2 text-sm font-medium">本期抄表</legend>
       {(["water", "electricity"] as const).map((kind) => {
+        if (!terms[`${kind}CollectionEnabled`]) return null;
         const label = kind === "water" ? "水表" : "电表";
         const dateError = errors?.[kind]?.readingDate;
         const readingError = errors?.[kind]?.reading;

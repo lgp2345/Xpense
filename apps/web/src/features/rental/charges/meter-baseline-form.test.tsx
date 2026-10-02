@@ -1,7 +1,11 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { financeApiFixture, meterBaselineFixture } from "../bills/bill-test-fixtures";
+import {
+  chargeTermsFixture,
+  financeApiFixture,
+  meterBaselineFixture,
+} from "../bills/bill-test-fixtures";
 import { MeterBaselineForm } from "./meter-baseline-form";
 
 describe("入住水电底数", () => {
@@ -131,4 +135,25 @@ describe("入住水电底数", () => {
     });
     expect(onSaved).not.toHaveBeenCalled();
   });
+});
+
+it("只登记代收水表，未填写电表不阻止保存", async () => {
+  const user = userEvent.setup();
+  const api = financeApiFixture();
+  render(
+    <MeterBaselineForm
+      organizationId="org"
+      contractId="contract"
+      api={api}
+      baseline={{ ...meterBaselineFixture, readings: [meterBaselineFixture.readings[0]!] }}
+      terms={{ ...chargeTermsFixture, electricityCollectionEnabled: false }}
+      onSaved={vi.fn()}
+    />,
+  );
+  expect(screen.queryByLabelText("电表底数")).not.toBeInTheDocument();
+  await user.type(screen.getByLabelText("底数变更原因"), "交房");
+  await user.click(screen.getByRole("button", { name: "保存入住底数" }));
+  expect(api.updateMeterBaseline).toHaveBeenCalledWith(
+    expect.objectContaining({ readings: [expect.objectContaining({ kind: "water" })] }),
+  );
 });

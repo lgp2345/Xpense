@@ -1,5 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   PermissionKey,
   PreviewRentalSettlementRequest,
@@ -15,7 +15,7 @@ import {
   createRentalFinanceAttempt,
   type RentalFinanceApi,
 } from "../../../services/rental-finance-api";
-import { invalidateRentalFinance } from "../../../services/rental-finance-query";
+import { invalidateRentalFinance, rentalFinanceKeys } from "../../../services/rental-finance-query";
 import { parseSignedMoneyMinor } from "../bills/monthly-bill-form";
 import {
   FieldInput,
@@ -38,6 +38,14 @@ export function SettlementEditor({
 }) {
   const queryClient = useQueryClient();
   const canConfirm = permissions.includes("rental_settlements:confirm");
+  const canReadCharges = permissions.includes("rental_charges:read");
+  const terms = useQuery({
+    queryKey: rentalFinanceKeys.chargeTerms(organizationId, contractId),
+    queryFn: ({ signal }) => api.getChargeTerms(contractId, { signal }),
+    enabled: canReadCharges,
+  });
+  const collected = (kind: "water" | "electricity") =>
+    !canReadCharges || Boolean(terms.data?.[`${kind}CollectionEnabled`]);
   const contextKey = `${organizationId}:${contractId}`;
   const liveContext = useRef(contextKey);
   liveContext.current = contextKey;
@@ -72,7 +80,16 @@ export function SettlementEditor({
     validators: { onSubmit: settlementDraftSchema },
     onSubmit: async ({ value }) => {
       if (!canConfirm || operation === "confirm") return;
-      const request = createPreviewRequest(contractId, value, effectiveEndDate);
+      if (canReadCharges && !terms.data) return;
+      const request = createPreviewRequest(
+        contractId,
+        {
+          ...value,
+          waterReading: collected("water") ? value.waterReading : "",
+          electricityReading: collected("electricity") ? value.electricityReading : "",
+        },
+        effectiveEndDate,
+      );
       if (!request) return;
       setOperation("preview");
       setError(null);
@@ -167,7 +184,7 @@ export function SettlementEditor({
               合同结束后录入终读数和退租补充费用，再查看最终差额。
             </p>
           </div>
-          {missingFields.includes("waterReading") || values.waterReading ? (
+          {collected("water") && (missingFields.includes("waterReading") || values.waterReading) ? (
             <form.Field name="waterReading">
               {(field) => (
                 <ReadingField
@@ -186,7 +203,8 @@ export function SettlementEditor({
               )}
             </form.Field>
           ) : null}
-          {missingFields.includes("electricityReading") || values.electricityReading ? (
+          {collected("electricity") &&
+          (missingFields.includes("electricityReading") || values.electricityReading) ? (
             <form.Field name="electricityReading">
               {(field) => (
                 <ReadingField
@@ -276,11 +294,19 @@ export function SettlementEditor({
               )}
             </form.Field>
           </div>
-          <Button type="submit" disabled={busy || !canConfirm}>
+          <Button type="submit" disabled={busy || !canConfirm || (canReadCharges && !terms.data)}>
             {operation === "preview" ? "正在读取预览…" : "预览结算"}
           </Button>
         </fieldset>
       </form>
+      {canReadCharges && terms.isError ? (
+        <p role="alert">
+          收费标准读取失败，
+          <Button variant="outline" onClick={() => void terms.refetch()}>
+            重试收费标准
+          </Button>
+        </p>
+      ) : null}
       {preview ? <SettlementPreview preview={preview} /> : null}
       <Button disabled={!canConfirm || !preview?.canConfirm || busy} onClick={() => void confirm()}>
         确认结算

@@ -27,10 +27,11 @@ import { formatBillAmount } from "./bill-format";
 import { ExtraFeeFields } from "./extra-fee-fields";
 import { MeterReadingFields } from "./meter-reading-fields";
 import {
+  createMonthlyBillDraftSchema,
   type MonthlyBillDraft,
-  monthlyBillDraftSchema,
   toMonthlyBillPreviewRequest,
 } from "./monthly-bill-form";
+import { monthlyMissingFieldLabel } from "./monthly-missing-fields";
 
 type Props = {
   organizationId: string;
@@ -53,6 +54,13 @@ function MonthlyBillSession({ organizationId, contractId, api, onOpenChange, onG
   const confirmAction = useRef<() => Promise<void>>(async () => {});
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set());
+  const terms = useQuery({
+    queryKey: rentalFinanceKeys.chargeTerms(organizationId, contractId),
+    queryFn: ({ signal }) => api.getChargeTerms(contractId, { signal }),
+  });
+  const schema = createMonthlyBillDraftSchema(
+    terms.data ?? { waterCollectionEnabled: true, electricityCollectionEnabled: true },
+  );
   const form = useForm({
     defaultValues: {
       billingMonth: "",
@@ -63,11 +71,11 @@ function MonthlyBillSession({ organizationId, contractId, api, onOpenChange, onG
       },
       extraFees: [] as MonthlyBillDraft["extraFees"],
     } satisfies MonthlyBillDraft,
-    validators: { onChange: monthlyBillDraftSchema, onSubmit: monthlyBillDraftSchema },
+    validators: { onChange: schema, onSubmit: schema },
     onSubmit: async () => confirmAction.current(),
   });
   const draft = useStore(form.store, (state) => state.values);
-  const draftValidation = monthlyBillDraftSchema.safeParse(draft);
+  const draftValidation = schema.safeParse(draft);
   const draftIssues = draftValidation.success ? [] : draftValidation.error.issues;
   const showFieldError = (path: string, value: string) =>
     Boolean(value) || validationAttempted || touched.has(path);
@@ -107,14 +115,10 @@ function MonthlyBillSession({ organizationId, contractId, api, onOpenChange, onG
     }
   }
   const request = useMemo(
-    () => toMonthlyBillPreviewRequest(contractId, draft),
-    [contractId, draft],
+    () => (terms.data ? toMonthlyBillPreviewRequest(contractId, draft, terms.data) : null),
+    [contractId, draft, terms.data],
   );
   const fingerprint = request ? JSON.stringify(request) : "";
-  const terms = useQuery({
-    queryKey: rentalFinanceKeys.chargeTerms(organizationId, contractId),
-    queryFn: ({ signal }) => api.getChargeTerms(contractId, { signal }),
-  });
   const baseline = useQuery({
     queryKey: rentalFinanceKeys.meterBaseline(organizationId, contractId),
     queryFn: ({ signal }) => api.getMeterBaseline(contractId, { signal }),
@@ -314,27 +318,34 @@ function MonthlyBillSession({ organizationId, contractId, api, onOpenChange, onG
           ) : (
             <section className="rounded-md border bg-muted/30 p-3 text-sm">
               <h3 className="font-medium">合同收费依据与入住底数</h3>
-              <p className="tabular-nums">
-                水费单价 CNY {terms.data.waterUnitPrice} / 立方米 · 电费单价 CNY{" "}
-                {terms.data.electricityUnitPrice} / 度
-              </p>
+              {(["water", "electricity"] as const).map((kind) => (
+                <p key={kind}>
+                  {kind === "water" ? "水费" : "电费"}：
+                  {terms.data[`${kind}CollectionEnabled`]
+                    ? `${terms.data[`${kind}UnitPrice`]} 元`
+                    : "不代收"}
+                </p>
+              ))}
               {terms.data.fixedFees.map((fee) => (
                 <p key={fee.id} className="tabular-nums">
                   {fee.name} CNY {(fee.monthlyAmountMinor / 100).toFixed(2)} / 月
                 </p>
               ))}
-              {baseline.data.readings.map((reading) => (
-                <p key={reading.kind}>
-                  入住{reading.kind === "water" ? "水表" : "电表"}底数 {reading.reading} ·{" "}
-                  {reading.readingDate}
-                </p>
-              ))}
+              {baseline.data.readings
+                .filter((reading) => terms.data[`${reading.kind}CollectionEnabled`])
+                .map((reading) => (
+                  <p key={reading.kind}>
+                    入住{reading.kind === "water" ? "水表" : "电表"}底数 {reading.reading} ·{" "}
+                    {reading.readingDate}
+                  </p>
+                ))}
             </section>
           )}
           <p className="rounded-md border-l-2 pl-3 text-sm text-muted-foreground">
             租金由服务端按合同计算，本表不提供租金编辑入口。
           </p>
           <MeterReadingFields
+            terms={terms.data}
             readings={draft.readings}
             onChange={setReading}
             errors={readingErrors}
@@ -371,8 +382,11 @@ function MonthlyBillSession({ organizationId, contractId, api, onOpenChange, onG
               ))}
               {currentPreview.missingFields.length ? (
                 <p className="text-sm text-destructive">
-                  尚缺：{currentPreview.missingFields.join("、")}
+                  尚缺：{currentPreview.missingFields.map(monthlyMissingFieldLabel).join("、")}
                 </p>
+              ) : null}
+              {currentPreview.missingFields.some((field) => field.endsWith("Baseline")) ? (
+                <p className="text-sm">请关闭账单窗口，在合同详情的“登记底数”中补录入住底数。</p>
               ) : null}
             </section>
           ) : null}

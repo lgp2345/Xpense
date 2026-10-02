@@ -1,4 +1,4 @@
-import type { PreviewRentalMonthlyBillRequest } from "@xpense/shared";
+import type { PreviewRentalMonthlyBillRequest, RentalChargeTerms } from "@xpense/shared";
 import { z } from "zod";
 import { isCalendarDate } from "../contracts/contract-action-model";
 
@@ -42,72 +42,91 @@ function isReading(value: string): boolean {
   return /^\d+(?:\.\d{1,4})?$/.test(value.trim());
 }
 
-export const monthlyBillDraftSchema = z.object({
-  billingMonth: z
-    .string()
-    .regex(/^\d{4}-\d{2}$/, "请选择有效账单月份。")
-    .refine((value) => isCalendarDate(`${value}-01`), "请选择有效账单月份。"),
-  dueDate: z.string().refine(isCalendarDate, "请选择有效账单到期日。"),
-  readings: z.object({
-    water: z.object({
-      readingDate: z.string().refine(isCalendarDate, "请选择水表读数日期。"),
-      reading: z.string().refine(isReading, "请输入最多四位小数的水表读数。"),
-    }),
-    electricity: z.object({
-      readingDate: z.string().refine(isCalendarDate, "请选择电表读数日期。"),
-      reading: z.string().refine(isReading, "请输入最多四位小数的电表读数。"),
-    }),
-  }),
-  extraFees: z
-    .array(
-      z.object({
-        id: z.string().min(1),
-        name: z.string(),
-        amount: z.string(),
-        note: z.string(),
+export type MeterCollection = Pick<
+  RentalChargeTerms,
+  "waterCollectionEnabled" | "electricityCollectionEnabled"
+>;
+
+export function createMonthlyBillDraftSchema(terms: MeterCollection) {
+  return z
+    .object({
+      billingMonth: z
+        .string()
+        .regex(/^\d{4}-\d{2}$/, "请选择有效账单月份。")
+        .refine((value) => isCalendarDate(`${value}-01`), "请选择有效账单月份。"),
+      dueDate: z.string().refine(isCalendarDate, "请选择有效账单到期日。"),
+      readings: z.object({
+        water: z.object({ readingDate: z.string(), reading: z.string() }),
+        electricity: z.object({ readingDate: z.string(), reading: z.string() }),
       }),
-    )
-    .superRefine((fees, context) => {
-      fees.forEach((fee, index) => {
-        if (!fee.name.trim() && !fee.amount.trim() && !fee.note.trim()) return;
-        if (!fee.name.trim())
+      extraFees: z
+        .array(
+          z.object({
+            id: z.string().min(1),
+            name: z.string(),
+            amount: z.string(),
+            note: z.string(),
+          }),
+        )
+        .superRefine((fees, context) => {
+          fees.forEach((fee, index) => {
+            if (!fee.name.trim() && !fee.amount.trim() && !fee.note.trim()) return;
+            if (!fee.name.trim())
+              context.addIssue({
+                code: "custom",
+                path: [index, "name"],
+                message: "请输入额外费用名称。",
+              });
+            if (parseSignedMoneyMinor(fee.amount) === null)
+              context.addIssue({
+                code: "custom",
+                path: [index, "amount"],
+                message: "请输入有效费用金额。",
+              });
+            if (!fee.note.trim())
+              context.addIssue({
+                code: "custom",
+                path: [index, "note"],
+                message: "请输入额外费用备注。",
+              });
+          });
+        }),
+    })
+    .superRefine((value, context) => {
+      for (const kind of ["water", "electricity"] as const) {
+        if (!terms[`${kind}CollectionEnabled`]) continue;
+        const reading = value.readings[kind];
+        if (!reading.reading && !reading.readingDate) continue;
+        if (!isCalendarDate(reading.readingDate))
           context.addIssue({
             code: "custom",
-            path: [index, "name"],
-            message: "请输入额外费用名称。",
+            path: ["readings", kind, "readingDate"],
+            message: "请选择有效抄表日期。",
           });
-        if (parseSignedMoneyMinor(fee.amount) === null)
+        if (!isReading(reading.reading))
           context.addIssue({
             code: "custom",
-            path: [index, "amount"],
-            message: "请输入有效费用金额。",
+            path: ["readings", kind, "reading"],
+            message: `请输入最多四位小数的${kind === "water" ? "水表" : "电表"}读数。`,
           });
-        if (!fee.note.trim())
-          context.addIssue({
-            code: "custom",
-            path: [index, "note"],
-            message: "请输入额外费用备注。",
-          });
-      });
-    }),
+      }
+    });
+}
+export const monthlyBillDraftSchema = createMonthlyBillDraftSchema({
+  waterCollectionEnabled: true,
+  electricityCollectionEnabled: true,
 });
 
 /** 只做字段完整性和十进制转换；正式账单金额完全来自服务端预览。 */
 export function toMonthlyBillPreviewRequest(
   contractId: string,
   draft: MonthlyBillDraft,
+  terms: MeterCollection,
 ): PreviewRentalMonthlyBillRequest | null {
-  if (!/^\d{4}-\d{2}$/.test(draft.billingMonth)) return null;
-  if (!isCalendarDate(`${draft.billingMonth}-01`) || !isCalendarDate(draft.dueDate)) return null;
-  const readings = [
-    { kind: "water" as const, ...draft.readings.water },
-    { kind: "electricity" as const, ...draft.readings.electricity },
-  ];
-  if (
-    readings.some(({ readingDate, reading }) => !isCalendarDate(readingDate) || !isReading(reading))
-  ) {
-    return null;
-  }
+  if (!createMonthlyBillDraftSchema(terms).safeParse(draft).success) return null;
+  const readings = (["water", "electricity"] as const)
+    .filter((kind) => terms[`${kind}CollectionEnabled`] && Boolean(draft.readings[kind].reading))
+    .map((kind) => ({ kind, ...draft.readings[kind] }));
 
   const extraFees: PreviewRentalMonthlyBillRequest["extraFees"] = [];
   for (const fee of draft.extraFees) {

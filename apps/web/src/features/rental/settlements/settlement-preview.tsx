@@ -54,6 +54,8 @@ export const settlementDraftSchema = z
 const missingFieldLabels: Record<string, string> = {
   waterReading: "水表终读数尚未填写。",
   electricityReading: "电表终读数尚未填写。",
+  waterBaseline: "水表入住底数待补，请在合同详情登记。",
+  electricityBaseline: "电表入住底数待补，请在合同详情登记。",
 };
 
 export function SettlementPreview({ preview }: { preview: RentalSettlementPreviewData }) {
@@ -74,7 +76,7 @@ export function SettlementPreview({ preview }: { preview: RentalSettlementPrevie
       {!preview.canConfirm && preview.missingFields.length ? (
         <ul className="space-y-1 text-sm text-destructive" aria-label="待补信息">
           {preview.missingFields.map((field) => (
-            <li key={field}>{missingFieldLabels[field] ?? `结算信息尚未补齐：${field}`}</li>
+            <li key={field}>{missingFieldLabels[field] ?? "结算资料尚未补齐。"}</li>
           ))}
         </ul>
       ) : null}

@@ -1,5 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import type { RentalMeterReadingInput } from "@xpense/shared";
+import type { RentalChargeTerms, RentalMeterReadingInput } from "@xpense/shared";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { DatePickerInput } from "@/components/date-picker";
@@ -20,24 +20,56 @@ type Values = {
   electricityReading: string;
   reason: string;
 };
-const meterBaselineSchema = z.object({
-  waterDate: z.string().refine(isCalendarDate, "请输入有效水表读数日期。"),
-  waterReading: z.string().regex(/^\d+(?:\.\d{1,4})?$/, "请输入最多四位小数的水表底数。"),
-  electricityDate: z.string().refine(isCalendarDate, "请输入有效电表读数日期。"),
-  electricityReading: z.string().regex(/^\d+(?:\.\d{1,4})?$/, "请输入最多四位小数的电表底数。"),
-  reason: z.string().trim().min(1, "请填写底数变更原因。"),
-});
+function meterBaselineSchema(terms?: RentalChargeTerms) {
+  return z
+    .object({
+      waterDate: z.string(),
+      waterReading: z.string(),
+      electricityDate: z.string(),
+      electricityReading: z.string(),
+      reason: z.string().trim().min(1, "请填写底数变更原因。"),
+    })
+    .superRefine((value, context) => {
+      let count = 0;
+      for (const kind of ["water", "electricity"] as const) {
+        if (terms && !terms[`${kind}CollectionEnabled`]) continue;
+        const date = value[`${kind}Date`],
+          reading = value[`${kind}Reading`];
+        if (!date && !reading) continue;
+        count++;
+        if (!isCalendarDate(date))
+          context.addIssue({
+            code: "custom",
+            path: [`${kind}Date`],
+            message: `请输入有效${kind === "water" ? "水表" : "电表"}读数日期。`,
+          });
+        if (!/^\d+(?:\.\d{1,4})?$/.test(reading))
+          context.addIssue({
+            code: "custom",
+            path: [`${kind}Reading`],
+            message: `请输入最多四位小数的${kind === "water" ? "水表" : "电表"}底数。`,
+          });
+      }
+      if (!count)
+        context.addIssue({
+          code: "custom",
+          path: ["reason"],
+          message: "请至少登记一个代收项目的底数。",
+        });
+    });
+}
 
 export function MeterBaselineForm(props: {
   organizationId: string;
   contractId: string;
   api: RentalFinanceApi;
   baseline: RentalMeterBaseline;
+  terms?: RentalChargeTerms;
   onSaved: () => void;
 }) {
   return (
     <MeterBaselineSession
-      key={`${props.organizationId}:${props.contractId}:${props.baseline.version}`}
+      key={`${props.organizationId}:${props.contractId}:${props.baseline.version}:${props.terms?.version ?? "meters-only"}`}
       {...props}
     />
   );
@@ -47,6 +79,7 @@ function MeterBaselineSession({
   contractId,
   api,
   baseline,
+  terms,
   onSaved,
 }: Parameters<typeof MeterBaselineForm>[0]) {
   const reading = (kind: RentalMeterReadingInput["kind"]) =>
@@ -63,6 +96,7 @@ function MeterBaselineSession({
       mounted.current = false;
     };
   }, []);
+  const schema = meterBaselineSchema(terms);
   const form = useForm({
     defaultValues: {
       waterDate: reading("water")?.readingDate ?? "",
@@ -71,7 +105,7 @@ function MeterBaselineSession({
       electricityReading: reading("electricity")?.reading ?? "",
       reason: "",
     } satisfies Values,
-    validators: { onChange: meterBaselineSchema, onSubmit: meterBaselineSchema },
+    validators: { onChange: schema, onSubmit: schema },
     onSubmit: async ({ value }) => {
       setBusy(true);
       setError(null);
@@ -80,18 +114,16 @@ function MeterBaselineSession({
         expectedVersion: baseline.version,
         idempotencyKey: crypto.randomUUID(),
         reason: value.reason.trim(),
-        readings: [
-          {
-            kind: "water" as const,
-            readingDate: value.waterDate,
-            reading: value.waterReading.trim(),
-          },
-          {
-            kind: "electricity" as const,
-            readingDate: value.electricityDate,
-            reading: value.electricityReading.trim(),
-          },
-        ],
+        readings: (["water", "electricity"] as const)
+          .filter(
+            (kind) =>
+              (!terms || terms[`${kind}CollectionEnabled`]) && Boolean(value[`${kind}Reading`]),
+          )
+          .map((kind) => ({
+            kind,
+            readingDate: value[`${kind}Date`],
+            reading: value[`${kind}Reading`].trim(),
+          })),
       };
       attempt.current ??= createRentalFinanceAttempt(api.updateMeterBaseline, input);
       try {
@@ -114,7 +146,7 @@ function MeterBaselineSession({
     },
   });
   const values = useStore(form.store, (state) => state.values);
-  const parsed = meterBaselineSchema.safeParse(values);
+  const parsed = schema.safeParse(values);
   const issues = parsed.success ? [] : parsed.error.issues;
   const fieldError = (name: keyof Values, value: string) =>
     value || touched.has(name) || validationAttempted
@@ -140,6 +172,7 @@ function MeterBaselineSession({
       <h3 className="font-medium">登记或更正入住底数</h3>
       <div className="grid gap-3 sm:grid-cols-2">
         {(["water", "electricity"] as const).map((kind) => {
+          if (terms && !terms[`${kind}CollectionEnabled`]) return null;
           const prefix = kind === "water" ? "water" : "electricity";
           const label = kind === "water" ? "水表" : "电表";
           const dateKey = `${prefix}Date` as "waterDate" | "electricityDate";

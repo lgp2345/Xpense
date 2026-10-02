@@ -17,8 +17,8 @@ describe("合同收费标准表单", () => {
         onSaved={vi.fn()}
       />,
     );
-    await user.clear(screen.getByLabelText("水费单价"));
-    await user.type(screen.getByLabelText("水费单价"), "3.25");
+    await user.clear(screen.getByLabelText("水费单价（元）"));
+    await user.type(screen.getByLabelText("水费单价（元）"), "3.25");
     await user.type(screen.getByLabelText("收费标准变更原因"), "供应商调价");
     await user.click(screen.getByRole("button", { name: "保存收费标准" }));
 
@@ -28,7 +28,9 @@ describe("合同收费标准表单", () => {
         expectedVersion: "charges-v1",
         reason: "供应商调价",
         waterUnitPrice: "3.25",
-        fixedFees: [{ id: "fee-clean", name: "物业费", monthlyAmountMinor: 50000 }],
+        fixedFees: [
+          { id: "11111111-1111-4111-8111-111111111111", name: "物业费", monthlyAmountMinor: 50000 },
+        ],
       }),
     );
   });
@@ -58,14 +60,14 @@ describe("合同收费标准表单", () => {
         onSaved={vi.fn()}
       />,
     );
-    const amount = screen.getByLabelText("固定费用金额（元） 1");
+    const amount = screen.getByLabelText("月费金额 1");
     await user.clear(amount);
     await user.type(amount, "12.");
     expect(amount).toHaveValue("12.");
 
     await user.click(screen.getByRole("button", { name: "保存收费标准" }));
     expect(
-      await screen.findByText("请输入有效固定费用金额。", { selector: "[role=alert]" }),
+      await screen.findByText("请输入非负且最多两位小数的月费金额", { selector: "[role=alert]" }),
     ).toBeInTheDocument();
     expect(amount).toHaveAttribute("aria-invalid", "true");
     expect(api.updateChargeTerms).not.toHaveBeenCalled();
@@ -140,7 +142,13 @@ describe("合同收费标准表单", () => {
     const api = financeApiFixture();
     const terms = {
       ...chargeTermsFixture,
-      fixedFees: [{ id: "fee-large", name: "大额费用", monthlyAmountMinor: 9007199254740990 }],
+      fixedFees: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "大额费用",
+          monthlyAmountMinor: 9007199254740990,
+        },
+      ],
     };
     render(
       <ContractChargesForm
@@ -151,13 +159,19 @@ describe("合同收费标准表单", () => {
         onSaved={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("固定费用金额（元） 1")).toHaveValue("90071992547409.90");
+    expect(screen.getByLabelText("月费金额 1")).toHaveValue("90071992547409.90");
     await user.type(screen.getByLabelText("收费标准变更原因"), "复核");
     await user.click(screen.getByRole("button", { name: "保存收费标准" }));
     await waitFor(() =>
       expect(api.updateChargeTerms).toHaveBeenCalledWith(
         expect.objectContaining({
-          fixedFees: [{ id: "fee-large", name: "大额费用", monthlyAmountMinor: 9007199254740990 }],
+          fixedFees: [
+            {
+              id: "22222222-2222-4222-8222-222222222222",
+              name: "大额费用",
+              monthlyAmountMinor: 9007199254740990,
+            },
+          ],
         }),
       ),
     );
