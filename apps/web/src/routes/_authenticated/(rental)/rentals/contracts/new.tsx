@@ -66,6 +66,7 @@ export function createRentalContractCreateRoutePageProps(
   return {
     ...context,
     api: input.session.rentalApi,
+    financeApi: input.session.rentalFinanceApi,
     canCreate: context.permissions.includes("rental_contracts:create"),
     navigate: (options) => input.navigate(options as never),
     search: input.search,

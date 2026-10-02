@@ -16,6 +16,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import type { RentalFinanceApi } from '@/services/rental-finance-api'
+import { defaultContractChargeValues } from '../charges/contract-charge-form'
 import type { RentalApi } from '@/services/rental-api'
 import { ContractFieldErrorsContext, ContractFieldFocusContext } from './contract-field-feedback'
 import { ContractFormLayout } from './contract-form-layout'
@@ -48,6 +50,7 @@ export type ContractFormNavigate = (
 
 export type ContractFormPageInput = {
   api: RentalApi
+  financeApi?: RentalFinanceApi
   organizationId: string
   permissions: readonly PermissionKey[]
   canCreate: boolean
@@ -63,6 +66,7 @@ export type ContractFormPageProps = ContractFormPageInput & {
 
 export function ContractFormPage({
   api,
+  financeApi,
   organizationId,
   permissions,
   canCreate,
@@ -70,10 +74,13 @@ export function ContractFormPage({
   search,
   onNonDraft,
 }: ContractFormPageProps) {
+  const canEditCharges = permissions.includes('rental_charges:update') && (!search.draftId || permissions.includes('rental_charges:read'))
+  const canEditMeters = permissions.includes('rental_meters:update') && (!search.draftId || permissions.includes('rental_meters:read'))
+  const newValues = (propertyId?: string) => ({ ...defaultContractFormValues(propertyId), chargeSetup: canEditCharges ? defaultContractChargeValues() : null })
   const canRead = permissions.includes('rental_contracts:read')
   const canUpdate = permissions.includes('rental_contracts:update')
   const form = useForm({
-    defaultValues: { contract: defaultContractFormValues(search.propertyId) },
+    defaultValues: { contract: newValues(search.propertyId) },
   })
   const values = useStore(form.store, (state) => state.values.contract)
   const setValues = useCallback(
@@ -107,7 +114,7 @@ export function ContractFormPage({
     hydratedDraftId.current = undefined
     seenBaselineVersion.current = 0
     seenCanonicalResetVersion.current = 0
-    setValues(defaultContractFormValues(search.propertyId))
+    setValues(newValues(search.propertyId))
     setSelectionNames({})
     setPropertyValidationError(null)
     setPropertyValidationGeneration(null)
@@ -133,6 +140,11 @@ export function ContractFormPage({
   )
   const draft = useContractDraft({
     api,
+    financeApi,
+    canEditCharges,
+    canEditMeters,
+    canReadCharges: permissions.includes('rental_charges:read'),
+    canReadMeters: permissions.includes('rental_meters:read'),
     organizationId,
     draftId: search.draftId,
     seed: search.propertyId ? { propertyId: search.propertyId, spaces: [] } : undefined,
@@ -144,6 +156,9 @@ export function ContractFormPage({
   })
   const updateValues = useCallback(
     (next: ContractFormValues) => {
+      if (next.chargeSetup && valuesRef.current.spaces.map(({ spaceId }) => spaceId).join(',') !== next.spaces.map(({ spaceId }) => spaceId).join(',')) {
+        next = { ...next, chargeSetup: { ...next.chargeSetup, waterReading: '', waterReadingDate: '', electricityReading: '', electricityReadingDate: '' } }
+      }
       setValues(next)
       draft.revalidate(next)
     },
@@ -324,7 +339,7 @@ export function ContractFormPage({
                       onChange={updateValues}
                     />
                   ) : step === 2 ? (
-                    <ContractTermsStep values={values} onChange={updateValues} />
+                    <ContractTermsStep values={values} onChange={updateValues} canEditMeters={canEditMeters} />
                   ) : !search.draftId ? (
                     <ContractLocalReviewStep
                       values={values}

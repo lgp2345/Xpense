@@ -3,7 +3,13 @@ import type { RentalContractAvailability, RentalContractDetail } from "@xpense/s
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
+import type { RentalFinanceApi } from "../../../services/rental-finance-api";
 import { invalidateContractMutation, rentalKeys } from "../../../services/rental-query";
+import {
+  type ContractChargeFormValues,
+  defaultContractChargeValues,
+  toContractChargeValues,
+} from "../charges/contract-charge-form";
 import {
   type ContractFormValues,
   contractFormSchema,
@@ -33,6 +39,11 @@ export type DraftError = {
 
 type Options = {
   api: RentalApi;
+  financeApi?: RentalFinanceApi;
+  canEditCharges?: boolean;
+  canEditMeters?: boolean;
+  canReadCharges?: boolean;
+  canReadMeters?: boolean;
   organizationId: string;
   draftId?: string;
   seed?: Pick<ContractFormValues, "propertyId" | "spaces">;
@@ -47,6 +58,11 @@ type RequestToken = { id: number; generation: number; sessionKey: string };
 export function useContractDraft(options: Options) {
   const {
     api,
+    financeApi,
+    canEditCharges = false,
+    canEditMeters = false,
+    canReadCharges = false,
+    canReadMeters = false,
     organizationId,
     draftId,
     seed,
@@ -64,7 +80,7 @@ export function useContractDraft(options: Options) {
       : api.createConfirmedContract && api.checkContractAvailability,
   );
   const requestReady = permissionsReady && contractApiReady;
-  const permissionGate = `${canRead ? "1" : "0"}${canCreate ? "1" : "0"}${canUpdate ? "1" : "0"}`;
+  const permissionGate = `${canEditCharges}:${canReadCharges}:${canReadMeters}:${canRead ? "1" : "0"}${canCreate ? "1" : "0"}${canUpdate ? "1" : "0"}`;
   const routeKey = `${organizationId}:${draftId ?? "new"}:${seed?.propertyId ?? ""}:${permissionGate}:${contractApiReady ? "1" : "0"}`;
   const sessionRef = useRef(routeKey);
   const generationRef = useRef(0);
@@ -73,7 +89,7 @@ export function useContractDraft(options: Options) {
   const confirmedContractId = useRef<string | undefined>(undefined);
   const notifiedNonDraft = useRef<string | undefined>(undefined);
   const lastSave = useRef<{ step: ContractStep } | undefined>(undefined);
-  const baseline = useRef(defaultContractFormValues(seed?.propertyId ?? ""));
+  const baseline = useRef({ ...defaultContractFormValues(seed?.propertyId ?? ""), chargeSetup: canEditCharges ? defaultContractChargeValues() : null });
   const baselinePropertyId = useRef<string | undefined>(undefined);
   const currentValues = useRef<ContractFormValues | null>(null);
   const editRevision = useRef(0);
@@ -86,6 +102,7 @@ export function useContractDraft(options: Options) {
   }
 
   const [step, setStep] = useState<ContractStep>(0);
+  const [serverCharges, setServerCharges] = useState<ContractChargeFormValues | null>(null);
   const [serverDraft, setServerDraft] = useState<RentalContractDetail | null>(null);
   const [operation, setOperation] = useState<DraftOperation>("idle");
   const [error, setError] = useState<DraftError | null>(null);
@@ -145,10 +162,32 @@ export function useContractDraft(options: Options) {
     };
   }, [invalidateSession]);
 
+  const readCharges = useCallback(
+    async (id: string) => {
+      if (!canEditCharges || !canReadCharges) return null;
+      if (!financeApi) throw new Error("收费服务暂不可用");
+      const [terms, baseline] = await Promise.all([
+        financeApi.getChargeTerms(id),
+        canReadMeters ? financeApi.getMeterBaseline(id) : Promise.resolve(null),
+      ]);
+      return toContractChargeValues(terms, baseline?.readings ?? []);
+    },
+    [canEditCharges, canReadCharges, canReadMeters, financeApi],
+  );
   const draftQuery = useQuery({
-    queryKey: rentalKeys.contractDraft(organizationId, draftId ?? "none"),
-    queryFn: () =>
-      api.contractDetail?.(draftId ?? "") ?? Promise.reject(new Error("合同详情 API 不可用")),
+    queryKey: [
+      ...rentalKeys.contractDraft(organizationId, draftId ?? "none"),
+      "charges",
+      permissionGate,
+    ],
+    queryFn: async () => {
+      if (!api.contractDetail || !draftId) throw new Error("合同详情 API 不可用");
+      const [detail, charges] = await Promise.all([
+        api.contractDetail(draftId),
+        readCharges(draftId),
+      ]);
+      return { detail, charges };
+    },
     enabled: Boolean(requestReady && organizationId && draftId),
     retry: false,
   });
@@ -158,12 +197,13 @@ export function useContractDraft(options: Options) {
     setOperation("idle");
     setEffectiveDraftId(draftId);
     setServerDraft(null);
+    setServerCharges(null);
     setStep(0);
     setError(null);
     setAvailability(null);
     lastSave.current = undefined;
     notifiedNonDraft.current = undefined;
-    baseline.current = defaultContractFormValues(seed?.propertyId ?? "");
+    baseline.current = { ...defaultContractFormValues(seed?.propertyId ?? ""), chargeSetup: canEditCharges ? defaultContractChargeValues() : null };
     baselinePropertyId.current = undefined;
     currentValues.current = null;
     editRevision.current = 0;
@@ -172,7 +212,7 @@ export function useContractDraft(options: Options) {
   }, [draftId, routeKey, seed?.propertyId]);
 
   useEffect(() => {
-    const detail = draftQuery.data;
+    const detail = draftQuery.data?.detail;
     if (!detail || !requestReady || !draftId || detail.id !== draftId) return;
     if (detail.lifecycleStatus !== "draft") {
       if (notifiedNonDraft.current !== detail.id) {
@@ -185,8 +225,9 @@ export function useContractDraft(options: Options) {
       currentValues.current !== null &&
       JSON.stringify(currentValues.current) !== JSON.stringify(baseline.current);
     setServerDraft(detail);
+    setServerCharges(draftQuery.data?.charges ?? null);
     setEffectiveDraftId(detail.id);
-    baseline.current = toContractFormValues(detail);
+    baseline.current = toContractFormValues(detail, draftQuery.data?.charges ?? null);
     baselinePropertyId.current = detail.propertyId;
     setBaselineVersion((version) => version + 1);
     if (!wasDirty) setStep(inferStep(detail));
@@ -198,14 +239,18 @@ export function useContractDraft(options: Options) {
   }, [draftId, draftQuery.error, draftQuery.isError, requestReady]);
 
   const initialValues = useMemo(() => {
-    if (serverDraft) return toContractFormValues(serverDraft);
-    const values = defaultContractFormValues(seed?.propertyId ?? "");
+    if (serverDraft) return toContractFormValues(serverDraft, serverCharges);
+    const values = {
+      ...defaultContractFormValues(seed?.propertyId ?? ""),
+      chargeSetup: canEditCharges ? defaultContractChargeValues() : null,
+    };
     return seed ? { ...values, spaces: seed.spaces } : values;
-  }, [seed, serverDraft]);
+  }, [canEditCharges, seed, serverDraft, serverCharges]);
   const resetBaseline = useCallback(
-    (detail: RentalContractDetail) => {
+    (detail: RentalContractDetail, charges: ContractChargeFormValues | null = serverCharges) => {
       setServerDraft(detail);
-      baseline.current = toContractFormValues(detail);
+      setServerCharges(charges);
+      baseline.current = toContractFormValues(detail, charges);
       baselinePropertyId.current = detail.propertyId;
       setBaselineVersion((version) => version + 1);
       queryClient.setQueryData(
@@ -215,7 +260,7 @@ export function useContractDraft(options: Options) {
         detail,
       );
     },
-    [organizationId, queryClient],
+    [organizationId, queryClient, serverCharges],
   );
 
   const save = useCallback(
@@ -236,13 +281,16 @@ export function useContractDraft(options: Options) {
         if (!tokenIsCurrent(token)) return null;
         const oldPropertyId = baselinePropertyId.current ?? serverDraft?.propertyId;
         const request = toStepUpdateRequest(id, values, saveStep === 3 ? 2 : saveStep);
+        if (request.chargeSetup && !canEditMeters) request.chargeSetup.baselineReadings = [];
         if (!api.updateContract) return null;
         const saveRevision = editRevision.current;
         const next = await api.updateContract(request);
         if (!tokenIsCurrent(token)) return null;
         const hadConcurrentEdit = editRevision.current !== saveRevision;
-        resetBaseline(next);
-        if (!hadConcurrentEdit) currentValues.current = toContractFormValues(next);
+        const charges = await readCharges(next.id);
+        if (!tokenIsCurrent(token)) return null;
+        resetBaseline(next, charges);
+        if (!hadConcurrentEdit) currentValues.current = toContractFormValues(next, charges);
         if (!hadConcurrentEdit) setCanonicalResetVersion((version) => version + 1);
         await invalidateContractMutation(queryClient, organizationId, next.id, [
           oldPropertyId ?? "",
@@ -260,6 +308,7 @@ export function useContractDraft(options: Options) {
     },
     [
       api,
+      canEditMeters,
       beginRequest,
       effectiveDraftId,
       finishRequest,
@@ -267,6 +316,7 @@ export function useContractDraft(options: Options) {
       queryClient,
       requestReady,
       resetBaseline,
+      readCharges,
       serverDraft?.propertyId,
       step,
       tokenIsCurrent,
@@ -328,7 +378,7 @@ export function useContractDraft(options: Options) {
         setError({ kind: "confirm", message: "请先保存合同草稿。" });
         return false;
       }
-      let canonical = id && serverDraft ? toContractFormValues(serverDraft) : values;
+      let canonical = id && serverDraft ? toContractFormValues(serverDraft, serverCharges) : values;
       if (id && JSON.stringify(values) !== JSON.stringify(baseline.current)) {
         const dirtyStep = inferDirtyStep(values, baseline.current);
         const saved = await save(values, dirtyStep);
@@ -336,7 +386,7 @@ export function useContractDraft(options: Options) {
           setStep(dirtyStep);
           return false;
         }
-        canonical = toContractFormValues(saved);
+        canonical = toContractFormValues(saved, baseline.current.chargeSetup);
       }
       const parsed = contractFormSchema.safeParse(canonical);
       if (!parsed.success) {
@@ -356,7 +406,7 @@ export function useContractDraft(options: Options) {
       const submit = id
         ? confirmContract && (() => confirmContract({ id }))
         : createConfirmedContract &&
-          (() => createConfirmedContract(toConfirmedContractRequest(canonical)));
+          (() => createConfirmedContract(toConfirmedContractRequest(canEditMeters || !canonical.chargeSetup ? canonical : { ...canonical, chargeSetup: { ...canonical.chargeSetup, waterReading: "", waterReadingDate: "", electricityReading: "", electricityReadingDate: "" } })));
       if (!submit) {
         setError({ kind: "confirm", message: "合同服务暂不可用，请稍后重试。" });
         return false;
@@ -412,6 +462,7 @@ export function useContractDraft(options: Options) {
     },
     [
       api,
+      canEditMeters,
       beginRequest,
       effectiveDraftId,
       finishRequest,
@@ -422,6 +473,7 @@ export function useContractDraft(options: Options) {
       resetBaseline,
       save,
       serverDraft,
+      serverCharges,
       tokenIsCurrent,
     ],
   );

@@ -24,13 +24,16 @@ import {
   useContractFieldFeedback,
 } from '../contract-field-feedback'
 import { type ContractFormValues, isValidDate } from '../contract-form-schema'
+import { ContractChargeFields } from '../../charges/contract-charge-fields'
 import { BillingPeriodPreview } from './billing-period-preview'
 
 export function ContractTermsStep({
   values,
   onChange,
+  canEditMeters = true,
 }: {
   values: ContractFormValues
+  canEditMeters?: boolean
   onChange: (values: ContractFormValues) => void
 }) {
   const errors = useContext(ContractFieldErrorsContext)
@@ -482,6 +485,8 @@ export function ContractTermsStep({
           </FieldGroup>
         ))}
       </FieldSet>
+      {values.chargeSetup ? <ContractChargeFields value={values.chargeSetup} onChange={(next) => set('chargeSetup', next)} errors={errors} showBaselines={canEditMeters} /> : null}
+      {values.chargeSetup ? <p className="text-xs text-muted-foreground">入住底数与所选空间绑定，更换空间后须重新登记。</p> : null}
       {values.startDate && values.endDate && values.billingAnchor ? (
         <BillingPeriodPreview
           anchor={values.billingAnchor}

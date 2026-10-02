@@ -8,8 +8,14 @@ import type {
   UpdateRentalContractRequest,
 } from "@xpense/shared";
 import { z } from "zod";
+import {
+  type ContractChargeFormValues,
+  contractChargeFormSchema,
+  toContractChargeSetup,
+} from "../charges/contract-charge-form";
 
 export type ContractFormValues = {
+  chargeSetup: ContractChargeFormValues | null;
   propertyId: string;
   spaces: { spaceId: string; rentAllocationText: string }[];
   parties: { tenantId: string; isPrimaryPayer: boolean }[];
@@ -58,6 +64,7 @@ export const contractFormSchema = z
     paymentIntervalMonths: z.enum(["1", "3", "6", "12"], { error: "请选择付款周期" }),
     dueDaysBeforeText: z.string().regex(/^\d+$/, "到期规则必须是整数"),
     deposits: z.array(deposit),
+    chargeSetup: contractChargeFormSchema.nullable().default(null),
     note: z.string(),
   })
   .superRefine((value, ctx) => {
@@ -130,6 +137,7 @@ export const stepSchemas = {
       dueDaysBeforeText: z.string().regex(/^\d+$/, "到期规则必须是整数"),
       spaces: z.array(space).min(1, "至少选择一个空间"),
       deposits: z.array(deposit),
+      chargeSetup: contractChargeFormSchema.nullable().default(null),
       note: z.string(),
     })
     .superRefine((value, ctx) => {
@@ -178,6 +186,7 @@ export const stepSchemas = {
 export function defaultContractFormValues(propertyId = ""): ContractFormValues {
   return {
     propertyId,
+    chargeSetup: null,
     spaces: [],
     parties: [],
     externalContractNumber: "",
@@ -192,8 +201,12 @@ export function defaultContractFormValues(propertyId = ""): ContractFormValues {
   };
 }
 
-export function toContractFormValues(detail: RentalContractDetail): ContractFormValues {
+export function toContractFormValues(
+  detail: RentalContractDetail,
+  chargeSetup: ContractChargeFormValues | null = null,
+): ContractFormValues {
   return {
+    chargeSetup,
     propertyId: detail.propertyId,
     spaces: detail.spaces.map((item) => ({
       spaceId: item.spaceId,
@@ -348,6 +361,7 @@ export function toStepUpdateRequest(
     dueDaysBefore: parsed.dueDaysBeforeText ? Number(parsed.dueDaysBeforeText) : null,
     spaces: parsed.spaces.map(toSpaceInput),
     depositTerms: parsed.deposits.map((item, sortOrder) => toDepositInput(item, sortOrder)),
+    ...(parsed.chargeSetup ? { chargeSetup: toContractChargeSetup(parsed.chargeSetup) } : {}),
     note: nullable(parsed.note),
   };
 }
@@ -402,6 +416,7 @@ export function toConfirmedContractRequest(
     paymentIntervalMonths: Number(parsed.paymentIntervalMonths) as RentalPaymentIntervalMonths,
     dueDaysBefore: Number(parsed.dueDaysBeforeText),
     depositTerms: parsed.deposits.map(toDepositInput),
+    ...(parsed.chargeSetup ? { chargeSetup: toContractChargeSetup(parsed.chargeSetup) } : {}),
     note: nullable(parsed.note),
   };
 }

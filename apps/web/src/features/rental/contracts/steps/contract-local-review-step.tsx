@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { ContractChargeSummary } from "../../charges/contract-charge-fields";
 import type { ContractFormValues } from "../contract-form-schema";
 import { BillingPeriodPreview } from "./billing-period-preview";
 import { calendarPreview } from "./contract-terms-step";
@@ -66,6 +67,7 @@ export function ContractLocalReviewStep({
             : "无"}
         </p>
         <p>备注：{values.note || "无"}</p>
+        <ContractChargeSummary value={values.chargeSetup} />
       </div>
       {values.startDate && values.endDate && values.billingAnchor ? (
         <BillingPeriodPreview

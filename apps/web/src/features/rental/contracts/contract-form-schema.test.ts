@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { defaultContractChargeValues } from "../charges/contract-charge-form";
 
 import {
   contractFormSchema,
@@ -27,6 +28,27 @@ const base = () => ({
 });
 
 describe("contract form schema", () => {
+  it("合同创建和条款更新一次提交收费设置，启用单价缺失阻止提交", () => {
+    const chargeSetup = {
+      ...defaultContractChargeValues(),
+      waterUnitPrice: "3",
+      electricityCollectionEnabled: false,
+    };
+    expect(toConfirmedContractRequest({ ...base(), chargeSetup })).toMatchObject({
+      chargeSetup: {
+        chargeTerms: { waterCollectionEnabled: true, electricityCollectionEnabled: false },
+        baselineReadings: [],
+      },
+    });
+    expect(toStepUpdateRequest("contract", { ...base(), chargeSetup }, 2)).toHaveProperty(
+      "chargeSetup",
+    );
+    expect(
+      contractFormSchema.safeParse({ ...base(), chargeSetup: defaultContractChargeValues() })
+        .success,
+    ).toBe(false);
+  });
+
   it("serializes all local steps together, preserving exact money and deposit terms", () => {
     expect(
       toConfirmedContractRequest({

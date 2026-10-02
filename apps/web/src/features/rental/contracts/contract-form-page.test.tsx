@@ -13,6 +13,10 @@ import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
+import {
+  createRentalFinanceApi,
+  type RentalFinanceApi,
+} from "../../../services/rental-finance-api";
 import { rentalKeys } from "../../../services/rental-query";
 import { ContractFormPage } from "./contract-form-page";
 import {
@@ -129,6 +133,7 @@ function renderPage(
     "rental_tenants:read",
   ],
   search: { draftId?: string; propertyId?: string; spaceIds?: string[] } = {},
+  financeApi?: RentalFinanceApi,
 ) {
   const navigate = vi.fn().mockResolvedValue(undefined);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -136,6 +141,7 @@ function renderPage(
     <QueryClientProvider client={queryClient}>
       <ContractFormPage
         api={api}
+        financeApi={financeApi}
         organizationId="org-a"
         permissions={permissions}
         canCreate={permissions.includes("rental_contracts:create")}
@@ -324,6 +330,68 @@ function latestBlockerOptions() {
 }
 
 describe("ContractFormPage", () => {
+  it("草稿财务数据合并后复核，真实零底数保留", async () => {
+    const api = baseApi({ contractDetail: vi.fn().mockResolvedValue(completeDetail()) });
+    const financeApi = {
+      ...createRentalFinanceApi({} as never),
+      getChargeTerms: vi.fn().mockResolvedValue({
+        contractId: draftId,
+        version: "v1",
+        waterCollectionEnabled: true,
+        electricityCollectionEnabled: false,
+        waterUnitPrice: "3",
+        electricityUnitPrice: "0",
+        fixedFees: [{ id: "fee", name: "管理费", monthlyAmountMinor: 5000 }],
+      }),
+      getMeterBaseline: vi.fn().mockResolvedValue({
+        contractId: draftId,
+        version: "v1",
+        readings: [{ kind: "water", readingDate: "2026-09-01", reading: "0" }],
+      }),
+    };
+    renderPage(
+      api,
+      [
+        "rental_contracts:create",
+        "rental_contracts:read",
+        "rental_contracts:update",
+        "rental_charges:read",
+        "rental_charges:update",
+        "rental_meters:read",
+        "rental_meters:update",
+      ],
+      { draftId },
+      financeApi,
+    );
+    await screen.findByRole("heading", { name: "复核并确认" });
+    expect(screen.getByText(/入住底数 0/)).toBeInTheDocument();
+    expect(screen.getByText(/管理费：50.00 元\/月/)).toBeInTheDocument();
+    expect(screen.getByText(/电费：不代收/)).toBeInTheDocument();
+  });
+
+  it("草稿财务读取失败时不回填空标准或允许提交", async () => {
+    const api = baseApi({ contractDetail: vi.fn().mockResolvedValue(completeDetail()) });
+    const financeApi = {
+      ...createRentalFinanceApi({} as never),
+      getChargeTerms: vi.fn().mockRejectedValue(new Error("无法读取")),
+    };
+    renderPage(
+      api,
+      [
+        "rental_contracts:create",
+        "rental_contracts:read",
+        "rental_contracts:update",
+        "rental_charges:read",
+        "rental_charges:update",
+      ],
+      { draftId },
+      financeApi,
+    );
+    await screen.findByRole("button", { name: /重试/ });
+    expect(screen.queryByRole("heading", { name: "复核并确认" })).not.toBeInTheDocument();
+    expect(api.updateContract).not.toHaveBeenCalled();
+  });
+
   it("clears pending property validation when permissions are revoked and restored", async () => {
     const user = userEvent.setup();
     const resolvers: Array<(value: RentalPropertyDetail) => void> = [];

@@ -1,9 +1,11 @@
 import type { RentalContractAvailability, RentalContractDetail } from "@xpense/shared";
 import { Button } from "@/components/ui/button";
+import { ContractChargeSummary } from "../../charges/contract-charge-fields";
 import type { ContractFormValues } from "../contract-form-schema";
 import { calendarPreview } from "./contract-terms-step";
 
 export function ContractReviewStep({
+  values,
   serverDraft,
   availability,
   dirty = false,
@@ -78,6 +80,7 @@ export function ContractReviewStep({
               : missing}
         </p>
         <p>备注：{serverDraft?.note || (serverDraft ? "无" : missing)}</p>
+        <ContractChargeSummary value={values.chargeSetup} />
       </div>
       {serverDraft?.startDate && serverDraft.endDate && serverDraft.billingAnchor ? (
         <div className="rounded-md border p-3 text-sm">
