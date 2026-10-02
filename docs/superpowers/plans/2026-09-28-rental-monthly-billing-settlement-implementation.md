@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-28-rental-monthly-billing-settlement-design.md`。实施前必须与本计划一起阅读；上一阶段规范只用于兼容旧数据和复用既有规则。
 
-**Status:** 实施完成，等待 Task 10 独立提交确认。用户选择“按 Task 小队实施与评审”，沿用 `feature/rental-billing` 工作区，并于 2026-09-30 明确要求每个 Task 的改动分别 commit。Task 1—9 已独立提交（`28e5530`、`9a1935d`、`af36b66`、`50fc5bc`、`75a0241`、`df298d2`、`c58c50f`、`07e3def`、`a5db6cc`）；Task 10 的真实 PostgreSQL 演练、完整回归、页面与权限门禁及增量独立复核均已完成，仅剩提交。逐 Task 提交、不推送。执行记录见文末。
+**Status:** 实施完成，Task 10 已独立提交 `679ffec`（`test: 补齐租赁收费与结算回归验证`，20 路径，未推送）。用户选择“按 Task 小队实施与评审”，沿用 `feature/rental-billing` 工作区，并于 2026-09-30 明确要求每个 Task 的改动分别 commit。Task 1—9 已独立提交（`28e5530`、`9a1935d`、`af36b66`、`50fc5bc`、`75a0241`、`df298d2`、`c58c50f`、`07e3def`、`a5db6cc`）；Task 10 的真实 PostgreSQL 演练、完整回归、页面与权限门禁、增量独立复核及独立提交均已完成。逐 Task 提交、不推送。执行记录见文末。
 
 ## Global Constraints
 
@@ -557,7 +557,7 @@ Task10必需真实用例为2迁移+9并发/清理，每轮创建12个随机测�
 - 主题与宽度：1440 浅色／深色、390×844 浅色／深色截图均已人工核对；390 下 `documentElement.scrollWidth === innerWidth === 390`，无横向溢出；Esc 可关闭弹窗。
 - 只读账号（`13800000003`，viewer）：账单详情无“更正账单”和“登记收退款”入口，仅读到应收 170.00，未发起任何写请求。
 
-证据：`task-10-visual/*.jpg`（12 张）、`task-10-visual-owner-report.json`、`task-10-visual-viewer-report.json`、`task-10-visual-api*.log`；驱动脚本 `task-10-visual-lib.mjs`、`task-10-owner.mjs`、`task-10-viewer.mjs`、`task-10-visual-server.ts`（均在忽略的 SDD 目录，未进入提交）。边界：内存 harness 不能作为 PostgreSQL／真实转账证据；两段旧价的**页面**渲染仍由 `bill-revision-dialog.test.tsx` 断言覆盖，本轮页面证据是单区间账单＋固定月费＋正负额外费用；CDP 首次鼠标点击需重试、Enter 需 `char` 事件才触发默认动作，属工具环境差异，不是产品缺陷。
+证据：`task-10-visual/*.jpg`（12 张）、`task-10-visual/task-10-visual-owner-report.json`、`task-10-visual/task-10-visual-viewer-report.json`、`task-10-visual-api*.log`；驱动脚本 `task-10-visual-lib.mjs`、`task-10-owner.mjs`、`task-10-viewer.mjs`、`task-10-visual-server.ts`（均在忽略的 SDD 目录，未进入提交）。边界：内存 harness 不能作为 PostgreSQL／真实转账证据；两段旧价的**页面**渲染仍由 `bill-revision-dialog.test.tsx` 断言覆盖，本轮页面证据是单区间账单＋固定月费＋正负额外费用；CDP 首次鼠标点击需重试、Enter 需 `char` 事件才触发默认动作，属工具环境差异，不是产品缺陷。
 
 **既有失败（与本增量无关，按用户裁决记录并继续）。** `apps/web/src/components/layout/authenticated-layout.test.tsx > AuthenticatedLayout > 在退出请求失败且壳层卸载后仍显示全局错误反馈` 稳定失败：“网络异常，请检查网络连接”出现 2 个 toast（断言要求 1）。独立复核确认与该增量无因果关联：该用例依赖图内文件均与 HEAD 字节一致，且 `components/layout`、`routes/-shared`、`web-session`、`auth-store` 均不引用 `features/rental`。来源收敛到紧邻前序用例 `authenticated-layout.test.tsx:641-676`——它是该文件唯一未注入 `MockAdapter` 实例、会真实请求 `http://localhost:4000` 的会话，其提示残留到下一用例。本机 4000 端口当前有正在运行的 API，故该文件在本环境稳定失败，而今日早先两轮全量回归（`task-10-final-all.log` 822 项全通过、`task-10-final-all2.log` 仅房产移动超时）中它通过。未修改该文件、未弱化断言。建议（未执行，需单独授权）：为前序用例注入 mock 实例，或在 `afterEach` 清理 sonner 全局 toast。
 
@@ -567,3 +567,5 @@ Task10必需真实用例为2迁移+9并发/清理，每轮创建12个随机测�
 - `turbo run lint check build --filter=@xpense/shared --filter=@xpense/server --filter=@xpense/web`：shared／server 的 lint、check、build 全部通过；web check／build 通过，web lint 仍为 19 项既有错误、1 项警告，全部位于 `src/components/ui/multi-select.tsx`、`src/components/layout/page-cache-host.tsx`、`src/context/search-provider.tsx`、`contracts/steps/*` 等既有文件，与 Task 10 基线一致；本次增量 5 个文件在整包 lint 输出中 0 诊断（同一 Reviewer 单独 Biome 复核亦为 0）。日志 `task-10-final-lintcheck4.log`。
 - `git diff --check` 通过；未执行 DDL、seed、推送或 PR；账户、流水与核心交易未被本次改动触碰。
 - 剩余风险：真实 PostgreSQL 演练证据限于 PG 18.4 与临时副本首段 namespace 重定位，不证明原 `public` ACL、首段原 hash 部署或其他版本；内存事务不能替代真实并发；结束月之后额外费用／减免策略已在 Task 7 按用户直接要求落地，本轮未再改动金额政策。
+
+Task 10 独立提交：`679ffec`（`test: 补齐租赁收费与结算回归验证`）。实际暂存 20 个路径＝本 Task 的 18 个代码／测试／配置路径＋本计划与被忽略的设计文档（`git add -f`）；用户自己的 `.codex/README.md`、`.codex/agents/Reviewer.toml` 改动与生成缓存 `apps/web/.tanstack/` 未纳入。`git diff --cached --check` 通过，提交后分支 `feature/rental-billing` 领先 `origin/feature/rental-billing` 10 个提交，未推送、未创建 PR。
