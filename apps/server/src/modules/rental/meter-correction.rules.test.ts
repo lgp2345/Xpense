@@ -1,4 +1,9 @@
-import type { RentalBillDetail, RentalBillLine, RentalCashEntry } from "@xpense/shared";
+import type {
+  RentalBillDetail,
+  RentalBillLine,
+  RentalBillRevisionInput,
+  RentalCashEntry,
+} from "@xpense/shared";
 import { describe, expect, it } from "vitest";
 import { buildMeterCorrectionPlan } from "./meter-correction.rules.js";
 import type { RentalFinanceSnapshot, RentalMeterReading } from "./rental-finance.types.js";
@@ -146,6 +151,139 @@ function snapshot(): RentalFinanceSnapshot {
     cancelledOn: null,
   };
 }
+
+function fixedSource() {
+  const source = snapshot();
+  for (const bill of source.bills) {
+    bill.lines.push({
+      kind: "fixed_fee",
+      label: "管理费",
+      amountMinor: 5_000,
+      periodStart: "2026-09-16",
+      periodEnd: "2026-09-30",
+      referenceStart: "2026-09-01",
+      referenceEnd: "2026-09-30",
+      coveredDays: 15,
+      referenceDays: 30,
+      baseRentAmountMinor: null,
+      sortOrder: 2,
+      feeSnapshot: {
+        kind: "fixed_fee",
+        feeId: "management",
+        monthlyAmountMinor: 5_000,
+        overrideReason: null,
+      },
+    });
+    bill.amountMinor += 5_000;
+  }
+  return source;
+}
+
+describe("本张账单固定费调整", () => {
+  const input = { billId: "bill-sep", expectedVersion: "v", reason: "本期协商费用" };
+  it.each([2_000, 0])("最终金额 %i 不再折算，保留月标准并标记手工金额", (amountMinor) => {
+    const source = fixedSource();
+    const before = structuredClone(source);
+    const plan = buildMeterCorrectionPlan(source, {
+      ...input,
+      fixedFeeAdjustments: [{ feeId: "management", action: "set_amount", amountMinor }],
+    });
+    expect(plan.affectedBillIds).toEqual(["bill-sep"]);
+    expect(plan.bills[0]?.amountMinor).toBe(203_000 + amountMinor);
+    expect(plan.bills[0]?.lines.find(({ kind }) => kind === "fixed_fee")).toMatchObject({
+      amountMinor,
+      feeSnapshot: {
+        monthlyAmountMinor: 5_000,
+        calculationMode: "manual_amount",
+        overrideReason: input.reason,
+      },
+    });
+    expect(plan.readings).toEqual([]);
+    expect(source).toEqual(before);
+  });
+  it("合同已删除标准也可删除历史账单费用，只移除目标行", () => {
+    const source = fixedSource();
+    source.terms = null;
+    const plan = buildMeterCorrectionPlan(source, {
+      ...input,
+      fixedFeeAdjustments: [{ feeId: "management", action: "remove" }],
+    });
+    expect(plan.bills[0]?.lines.some(({ kind }) => kind === "fixed_fee")).toBe(false);
+    expect(plan.bills[0]?.amountMinor).toBe(203_000);
+    expect(source.bills[1]?.lines.find(({ kind }) => kind === "fixed_fee")?.amountMinor).toBe(
+      5_000,
+    );
+  });
+  it("仅调整费用不校正已保存水电金额、日期及快照", () => {
+    const source = fixedSource();
+    const water = source.bills[0]?.lines.find(({ kind }) => kind === "water");
+    if (!water) throw new Error("missing water");
+    water.amountMinor = 2_750;
+    const prior = structuredClone(water);
+    const plan = buildMeterCorrectionPlan(source, {
+      ...input,
+      fixedFeeAdjustments: [{ feeId: "management", action: "set_amount", amountMinor: 2_000 }],
+    });
+    expect(plan.bills[0]?.lines.find(({ kind }) => kind === "water")).toEqual(prior);
+  });
+  it.each([
+    { adjustments: [{ feeId: "unknown", action: "remove" }] },
+    {
+      adjustments: [
+        { feeId: "management", action: "remove" },
+        { feeId: "management", action: "remove" },
+      ],
+    },
+    { adjustments: [{ feeId: "management", action: "set_amount", amountMinor: -1 }] },
+  ])("拒绝未知、重复或负数调整 %#", ({ adjustments: fixedFeeAdjustments }) => {
+    expect(() =>
+      buildMeterCorrectionPlan(fixedSource(), {
+        ...input,
+        fixedFeeAdjustments: fixedFeeAdjustments as RentalBillRevisionInput["fixedFeeAdjustments"],
+      }),
+    ).toThrow(RangeError);
+  });
+  it("拒绝同项新旧覆盖字段重叠", () => {
+    expect(() =>
+      buildMeterCorrectionPlan(fixedSource(), {
+        ...input,
+        fixedFeeAdjustments: [{ feeId: "management", action: "remove" }],
+        overrides: {
+          fixedFees: [{ id: "management", monthlyAmountMinor: 2_000 }],
+          reason: input.reason,
+        },
+      }),
+    ).toThrow(RangeError);
+  });
+  it("edit_unpaid 不能更正共享读数", () => {
+    expect(() =>
+      buildMeterCorrectionPlan(fixedSource(), {
+        ...input,
+        mode: "edit_unpaid",
+        readings: [{ kind: "water", readingDate: "2026-09-30", reading: "101" }],
+      }),
+    ).toThrow(RangeError);
+  });
+  it.each([
+    "full_month",
+    "daily_proration",
+  ] as const)("旧月额覆盖遵守保存的 %s 计算模式", (calculationMode) => {
+    const source = fixedSource();
+    const fee = source.bills[0]?.lines.find(({ kind }) => kind === "fixed_fee");
+    if (fee?.feeSnapshot?.kind !== "fixed_fee") throw new Error("missing fixed");
+    fee.feeSnapshot.calculationMode = calculationMode;
+    const plan = buildMeterCorrectionPlan(source, {
+      ...input,
+      overrides: {
+        fixedFees: [{ id: "management", monthlyAmountMinor: 2_000 }],
+        reason: input.reason,
+      },
+    });
+    expect(plan.bills[0]?.lines.find(({ kind }) => kind === "fixed_fee")?.amountMinor).toBe(
+      calculationMode === "full_month" ? 2_000 : 1_000,
+    );
+  });
+});
 
 describe("buildMeterCorrectionPlan", () => {
   it("reprices both sides of a shared reading with each bill's saved unit price", () => {

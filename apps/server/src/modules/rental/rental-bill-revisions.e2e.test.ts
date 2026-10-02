@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { RentalBillDetail } from "@xpense/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
@@ -19,6 +20,102 @@ describe("月度账单更正 HTTP", () => {
 
   afterEach(async () => {
     if (harness) await harness.app.close();
+  });
+
+  it("本期固定费精确调整、归零和删除均保留修订，月标准及相邻表计账单不变", async () => {
+    const role = [...harness.state.roles.values()].find(({ key }) => key === "owner");
+    const terms = harness.state.rental.chargeTerms.get(
+      `${testIds.organization}/${harness.financeContractId}`,
+    );
+    if (!role || !terms) throw new Error("missing charge terms");
+    role.permissions.push("rental_monthly_bills:adjust");
+    const feeId = randomUUID();
+    terms.fixedFees = [{ id: feeId, name: "管理费", monthlyAmountMinor: 5_000 }];
+    const generate = async (billingMonth: string, readingDate: string, water: string) => {
+      const input = {
+        contractId: harness.financeContractId,
+        billingMonth,
+        dueDate: readingDate,
+        readings: [
+          { kind: "water", readingDate, reading: water },
+          { kind: "electricity", readingDate, reading: "60" },
+        ],
+        extraFees: [],
+      };
+      const preview = await harness.request("/rental-monthly-bills/preview", input);
+      expect(preview.statusCode, preview.payload).toBe(200);
+      const result = await harness.request("/rental-monthly-bills/generate", {
+        ...input,
+        expectedVersion: harness.parse<{ version: string }>(preview).version,
+        idempotencyKey: randomUUID(),
+      });
+      expect(result.statusCode, result.payload).toBe(200);
+      return harness.parse<RentalBillDetail>(result);
+    };
+    const first = await generate("2026-08", "2026-08-31", "110");
+    const next = await generate("2026-09", "2026-09-30", "120");
+    const originalReadings = structuredClone(harness.state.rental.meterReadings);
+    const originalNext = structuredClone(
+      harness.state.rental.bills.find(({ id }) => id === next.id),
+    );
+    const originalMeter = first.lines.filter(
+      ({ kind }) => kind === "water" || kind === "electricity",
+    );
+    const adjust = async (action: "set_amount" | "remove", amountMinor?: number) => {
+      const input = {
+        billId: first.id,
+        expectedVersion: "preview",
+        mode: "edit_unpaid",
+        reason: "本期费用协商",
+        fixedFeeAdjustments:
+          action === "remove" ? [{ feeId, action }] : [{ feeId, action, amountMinor }],
+      };
+      const preview = await harness.request("/rental-monthly-bills/adjust-preview", input);
+      expect(preview.statusCode, preview.payload).toBe(200);
+      expect(
+        harness.parse<{ affectedBills: Array<{ billId: string }> }>(preview).affectedBills,
+      ).toMatchObject([{ billId: first.id }]);
+      const result = await harness.request("/rental-monthly-bills/adjust", {
+        ...input,
+        expectedVersion: harness.parse<{ version: string }>(preview).version,
+        idempotencyKey: randomUUID(),
+      });
+      expect(result.statusCode, result.payload).toBe(200);
+      const detail = await harness.request(`/rental-bills/detail?id=${first.id}`);
+      expect(detail.statusCode, detail.payload).toBe(200);
+      return harness.parse<RentalBillDetail>(detail);
+    };
+    const revised = await adjust("set_amount", 2_000);
+    expect(revised.lines.find(({ kind }) => kind === "fixed_fee")).toMatchObject({
+      amountMinor: 2_000,
+      feeSnapshot: { monthlyAmountMinor: 5_000, calculationMode: "manual_amount" },
+    });
+    expect(revised.lines.filter(({ kind }) => kind === "water" || kind === "electricity")).toEqual(
+      originalMeter,
+    );
+    expect(terms.fixedFees[0]?.monthlyAmountMinor).toBe(5_000);
+    const zero = await adjust("set_amount", 0);
+    expect(zero.lines.find(({ kind }) => kind === "fixed_fee")?.amountMinor).toBe(0);
+    terms.fixedFees = [];
+    const removed = await adjust("remove");
+    expect(removed.lines.some(({ kind }) => kind === "fixed_fee")).toBe(false);
+    expect(harness.state.rental.meterReadings).toEqual(originalReadings);
+    expect(harness.state.rental.bills.find(({ id }) => id === next.id)).toEqual(originalNext);
+    expect(next.lines.find(({ kind }) => kind === "fixed_fee")?.amountMinor).toBe(5_000);
+    const history = await harness.request(
+      `/rental-bills/revisions?billId=${first.id}&page=1&pageSize=20`,
+    );
+    expect(history.statusCode, history.payload).toBe(200);
+    const saved = harness.parse<{
+      total: number;
+      items: Array<{ linesSnapshot: RentalBillDetail["lines"] }>;
+    }>(history);
+    expect(saved.total).toBe(3);
+    expect(
+      saved.items.map(
+        ({ linesSnapshot }) => linesSnapshot.find(({ kind }) => kind === "fixed_fee")?.amountMinor,
+      ),
+    ).toEqual([0, 2_000, 5_000]);
   });
 
   it("校验原因、权限与组织边界，并联动共享读数、相邻账单和历史快照", async () => {

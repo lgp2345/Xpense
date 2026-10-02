@@ -147,26 +147,59 @@ describe("已确认账单的更正输入", () => {
     expect(toBillRevisionInput(bill, values)).toBeNull();
     expect(billRevisionErrors(bill, values).has("meters.0.endReading")).toBe(true);
   });
-  it("价格和固定月费按原feeId单独覆盖，金额精确到分", () => {
+  it("价格和本期固定费按原feeId单独调整，金额精确到分", () => {
     const values = draft();
     values.meters[0].unitPrice = "2.5000";
     values.fixedFees[0].amount = "35.25";
     expect(toBillRevisionInput(bill, values)?.overrides).toEqual({
       waterUnitPrice: "2.5000",
-      fixedFees: [{ id: "fixed-id", monthlyAmountMinor: 3525 }],
       reason: values.reason,
     });
+    expect(toBillRevisionInput(bill, values)?.fixedFeeAdjustments).toEqual([
+      { feeId: "fixed-id", action: "set_amount", amountMinor: 3525 },
+    ]);
   });
   it("允许固定月费改为零，但拒绝负额、过量精度和numeric范围外读数", () => {
     const values = draft();
     values.fixedFees[0].amount = "0";
-    expect(toBillRevisionInput(bill, values)?.overrides?.fixedFees).toEqual([
-      { id: "fixed-id", monthlyAmountMinor: 0 },
+    expect(toBillRevisionInput(bill, values)?.fixedFeeAdjustments).toEqual([
+      { feeId: "fixed-id", action: "set_amount", amountMinor: 0 },
     ]);
     for (const invalid of ["115.00001", "10000000000000000", "-1"]) {
       values.meters[0].endReading = invalid;
       expect(toBillRevisionInput(bill, values)).toBeNull();
     }
+  });
+  it("历史折算固定费初始值取行金额，删除只发送目标feeId", () => {
+    const historical = structuredClone(bill);
+    const fixed = historical.lines.find((line) => line.kind === "fixed_fee");
+    if (!fixed) throw new Error("missing fixed");
+    fixed.amountMinor = 1_500;
+    const values = initialBillRevisionValues(historical);
+    expect(values.fixedFees[0]?.amount).toBe("15");
+    values.fixedFees = [];
+    values.reason = "本期免收";
+    expect(toBillRevisionInput(historical, values)?.fixedFeeAdjustments).toEqual([
+      { feeId: "fixed-id", action: "remove" },
+    ]);
+  });
+  it("费用入口依据有效receivedMinor选模式，净额归零仍走更正并不提交读数", () => {
+    const values = draft();
+    values.meters[0].endReading = "116";
+    expect(toBillRevisionInput(bill, values, "fees")).toMatchObject({ mode: "edit_unpaid" });
+    expect(toBillRevisionInput(bill, values, "fees")?.readings).toBeUndefined();
+    if (!bill.financial) throw new Error("missing financial");
+    const paid = {
+      ...bill,
+      financial: {
+        ...bill.financial,
+        receivedMinor: 5_000,
+        refundedMinor: 5_000,
+        netReceivedMinor: 0,
+      },
+    };
+    expect(toBillRevisionInput(paid, values, "fees")?.mode).toBe("correction");
+    expect(toBillRevisionInput(bill, values, "readings")?.mode).toBe("correction");
   });
   it("退租转入同种表计的第二段保持各自保存价格，未编辑也能预览", () => {
     const values = { ...initialBillRevisionValues(splitBill), reason: "仅改说明" };

@@ -3,6 +3,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RentalBillDetail, RentalBillLine } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
+import { ApiError } from "../../../services/api-client";
 import { BillRevisionDialog } from "./bill-revision-dialog";
 import { billFixture, billsApiFixture, financeApiFixture } from "./bill-test-fixtures";
 
@@ -115,6 +116,7 @@ const meteredBill = {
 function renderMeterRevision(
   api: ReturnType<typeof financeApiFixture>,
   bill: RentalBillDetail = meteredBill,
+  intent: "fees" | "readings" = "readings",
 ) {
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -123,6 +125,7 @@ function renderMeterRevision(
         bill={bill}
         api={api}
         billsApi={billsApiFixture()}
+        intent={intent}
         permissions={["rental_bills:read", "rental_monthly_bills:adjust"]}
         open
         onOpenChange={vi.fn()}
@@ -195,9 +198,15 @@ describe("历史读数与非租金费用更正", () => {
         expect.objectContaining({
           overrides: {
             waterUnitPrice: "2.50",
-            fixedFees: [{ id: "00000000-0000-4000-8000-000000000012", monthlyAmountMinor: 3525 }],
             reason: "更正当月保存价格",
           },
+          fixedFeeAdjustments: [
+            {
+              feeId: "00000000-0000-4000-8000-000000000012",
+              action: "set_amount",
+              amountMinor: 3525,
+            },
+          ],
         }),
         expect.anything(),
       ),
@@ -287,6 +296,171 @@ describe("历史读数与非租金费用更正", () => {
     expect(screen.getAllByRole("alert").length).toBeGreaterThanOrEqual(3);
     expect(screen.getByRole("button", { name: "确认更正" })).toBeDisabled();
     expect(api.previewBillRevision).not.toHaveBeenCalled();
+  });
+});
+
+describe("仅影响本张账单的费用编辑", () => {
+  it("结算关联账单只展示结算差额，不把本账单已收作为可退依据", async () => {
+    const api = financeApiFixture({
+      previewBillRevision: vi.fn().mockResolvedValue({
+        ...revisionPreview,
+        affectedBills: [
+          { billId: meteredBill.id, beforeAmountMinor: 5_000, afterAmountMinor: 3_000 },
+        ],
+        settlementDifferenceMinor: 1_000,
+      }),
+    });
+    renderMeterRevision(
+      api,
+      {
+        ...meteredBill,
+        settlementId: "settlement",
+        financial: { ...meteredBill.financial, receivedMinor: 5_000, netReceivedMinor: 5_000 },
+      },
+      "fees",
+    );
+    await userEvent.type(screen.getByLabelText("账单更正原因"), "结算账单费用调整");
+    expect(await screen.findByText("结算差额 CNY 10.00")).toBeInTheDocument();
+    expect(screen.queryByText("可退 CNY 20.00")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^应补 /)).not.toBeInTheDocument();
+  });
+  it("切换组织及目标账单后忽略旧预览，读取失败时禁用确认并可重试", async () => {
+    const user = userEvent.setup();
+    let resolveOld!: (preview: typeof revisionPreview) => void;
+    const oldApi = financeApiFixture({
+      previewBillRevision: vi.fn(
+        () =>
+          new Promise<typeof revisionPreview>((resolve) => {
+            resolveOld = resolve;
+          }),
+      ),
+    });
+    const newApi = financeApiFixture({
+      previewBillRevision: vi
+        .fn()
+        .mockRejectedValueOnce(new ApiError(500, "FAILED", "不可用"))
+        .mockResolvedValue(revisionPreview),
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const props = {
+      bill: meteredBill,
+      billsApi: billsApiFixture(),
+      intent: "fees" as const,
+      permissions: ["rental_bills:read", "rental_monthly_bills:adjust"] as const,
+      open: true,
+      onOpenChange: vi.fn(),
+      onAdjusted: vi.fn(),
+    };
+    const view = render(
+      <QueryClientProvider client={queryClient}>
+        <BillRevisionDialog {...props} organizationId="org-a" api={oldApi} />
+      </QueryClientProvider>,
+    );
+    await user.type(screen.getByLabelText("账单更正原因"), "旧组织费用");
+    await waitFor(() => expect(oldApi.previewBillRevision).toHaveBeenCalledOnce());
+    view.rerender(
+      <QueryClientProvider client={queryClient}>
+        <BillRevisionDialog
+          {...props}
+          bill={{ ...meteredBill, id: "new-bill" }}
+          organizationId="org-b"
+          api={newApi}
+        />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByLabelText("账单更正原因")).toHaveValue("");
+    await act(async () => resolveOld(revisionPreview));
+    expect(screen.queryByText("服务端更正预览")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "确认更正" })).toBeDisabled();
+    await user.type(screen.getByLabelText("账单更正原因"), "新组织费用");
+    expect(await screen.findByText("更正预览失败，请重试。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "确认更正" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "重新预览" }));
+    expect(await screen.findByText("服务端更正预览")).toBeInTheDocument();
+    expect(newApi.adjustBill).not.toHaveBeenCalled();
+  });
+  it("预览后的收款冲突保持原编辑模式，不自动降级保存", async () => {
+    const user = userEvent.setup();
+    const api = financeApiFixture({
+      previewBillRevision: vi
+        .fn()
+        .mockResolvedValueOnce(revisionPreview)
+        .mockRejectedValue(new ApiError(409, "CONFLICT", "已收款")),
+      adjustBill: vi.fn().mockRejectedValue(new ApiError(409, "CONFLICT", "收款事实变化")),
+    });
+    renderMeterRevision(api, meteredBill, "fees");
+    await user.type(screen.getByLabelText("账单更正原因"), "费用减免");
+    await screen.findByText("服务端更正预览");
+    await user.click(screen.getByRole("button", { name: "确认更正" }));
+    expect(await screen.findByText("账单来源已变化，请刷新后重试。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "确认更正" })).toBeDisabled();
+    expect(api.adjustBill).toHaveBeenCalledOnce();
+    expect(vi.mocked(api.adjustBill).mock.calls[0]?.[0].mode).toBe("edit_unpaid");
+    expect(vi.mocked(api.previewBillRevision).mock.calls.at(-1)?.[0].mode).toBe("edit_unpaid");
+  });
+  it("取历史最终金额并二次确认删除，未收款走edit_unpaid且无读数字段", async () => {
+    const user = userEvent.setup();
+    const historical = structuredClone(meteredBill);
+    const fixed = historical.lines.find((line) => line.kind === "fixed_fee");
+    if (!fixed) throw new Error("missing fixed");
+    fixed.amountMinor = 1_500;
+    const api = financeApiFixture({
+      previewBillRevision: vi.fn().mockResolvedValue(revisionPreview),
+    });
+    renderMeterRevision(api, historical, "fees");
+    expect(screen.getByText(/仅影响本张账单，合同标准/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("本次水表读数")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("固定月费（元） 1")).toHaveValue("15");
+    await user.click(screen.getByRole("button", { name: "删除 物业费" }));
+    expect(screen.getByLabelText("固定月费（元） 1")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "取消" }));
+    expect(screen.getByLabelText("固定月费（元） 1")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "删除 物业费" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+    expect(screen.queryByLabelText("固定月费（元） 1")).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("账单更正原因"), "本期免收管理费");
+    await waitFor(() =>
+      expect(api.previewBillRevision).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          mode: "edit_unpaid",
+          fixedFeeAdjustments: [
+            { feeId: "00000000-0000-4000-8000-000000000012", action: "remove" },
+          ],
+        }),
+        expect.anything(),
+      ),
+    );
+    expect(vi.mocked(api.previewBillRevision).mock.lastCall?.[0].readings).toBeUndefined();
+    expect(api.getChargeTerms).not.toHaveBeenCalled();
+  });
+  it("有效收款后显示更正与可退余额，保存处理中禁止再次确认", async () => {
+    const user = userEvent.setup();
+    const bill = {
+      ...meteredBill,
+      financial: { ...meteredBill.financial, receivedMinor: 5_000, netReceivedMinor: 5_000 },
+    };
+    let resolve!: (value: typeof revisionPreview) => void;
+    const api = financeApiFixture({
+      previewBillRevision: vi.fn().mockResolvedValue({
+        ...revisionPreview,
+        affectedBills: [{ billId: bill.id, beforeAmountMinor: 5_000, afterAmountMinor: 3_000 }],
+      }),
+      adjustBill: vi.fn(
+        () =>
+          new Promise<typeof revisionPreview>((done) => {
+            resolve = done;
+          }),
+      ),
+    });
+    renderMeterRevision(api, bill, "fees");
+    await user.type(screen.getByLabelText("账单更正原因"), "本期减免");
+    expect(await screen.findByText("可退 CNY 20.00")).toBeInTheDocument();
+    expect(screen.getByText(/不会自动退款/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "确认更正" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "正在确认…" })).toBeDisabled());
+    expect(api.adjustBill).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(api.adjustBill).mock.calls[0]?.[0].mode).toBe("correction");
+    await act(async () => resolve(revisionPreview));
   });
 });
 

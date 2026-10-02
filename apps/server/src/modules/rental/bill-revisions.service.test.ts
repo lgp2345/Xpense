@@ -11,6 +11,7 @@ import type {
   RentalSettlementDetail,
 } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
+import type { AuthContext } from "../../common/auth/auth-context.js";
 import {
   financeContractId,
   rentalFinanceAuth,
@@ -24,7 +25,7 @@ import type { RentalCashProjectionFacts } from "./rental-cash-projection.reposit
 import type { RentalFinanceSnapshot, RentalMeterReading } from "./rental-finance.types.js";
 import { financeSourceVersion } from "./rental-finance-request.rules.js";
 
-const revisionAuth = {
+const revisionAuth: AuthContext = {
   ...rentalFinanceAuth,
   permissions: [
     ...rentalFinanceAuth.permissions,
@@ -453,6 +454,111 @@ function cashProjectionFacts(source: RentalFinanceSnapshot): RentalCashProjectio
     })),
   };
 }
+
+describe("未收款费用编辑的收款事实检查", () => {
+  const input: RentalBillRevisionInput = {
+    billId: targetBillId,
+    mode: "edit_unpaid",
+    expectedVersion: "preview",
+    reason: "修改本期费用",
+    extraFees: [{ id: "extra", name: "管理费", amountMinor: 2_000, note: "协商" }],
+  };
+  it("收到后又全额退款仍拒绝编辑，要求走更正", async () => {
+    const source = sourceSnapshot();
+    const receipt = source.cashEntries[0];
+    if (!receipt) throw new Error("missing receipt");
+    source.cashEntries.push({ ...receipt, id: "refund", kind: "refund", purpose: "refund" });
+    const context = harness(source);
+    await expect(context.service.preview(revisionAuth, input)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(context.state().billRevisions).toEqual([]);
+  });
+  it("锁后读取来源，已撤销收款不阻止未收款编辑", async () => {
+    const source = sourceSnapshot();
+    source.cashEntries = source.cashEntries.map((entry) => ({
+      ...entry,
+      revokedAt: "2026-10-01T00:00:00Z",
+    }));
+    const context = harness(source);
+    const preview = await context.service.preview(revisionAuth, input);
+    expect(preview.affectedBills).toEqual([
+      { billId: targetBillId, beforeAmountMinor: 203_000, afterAmountMinor: 205_000 },
+    ]);
+    expect(context.contracts.findForUpdate.mock.invocationCallOrder[0]).toBeLessThan(
+      context.source.read.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+  it("预览后新增收款返回版本冲突并不降级更正", async () => {
+    const source = sourceSnapshot();
+    const context = harness({ ...source, cashEntries: [] });
+    const preview = await context.service.preview(revisionAuth, input);
+    context.source.read.mockResolvedValueOnce(source);
+    await expect(
+      context.service.adjust(revisionAuth, {
+        ...input,
+        expectedVersion: preview.version,
+        idempotencyKey,
+      }),
+    ).rejects.toMatchObject({
+      response: { message: "账单或读数来源已变化，请重新预览" },
+    });
+    expect(context.state().billRevisions).toEqual([]);
+    expect(context.state().requests).toEqual([]);
+  });
+  it("已收款更正只追加应收版本，保留现金并推导可退余额", async () => {
+    const source = sourceSnapshot();
+    const target = source.bills[0];
+    const rent = target?.lines[0];
+    const receipt = source.cashEntries[0];
+    if (!target || !rent || !receipt) throw new Error("missing target");
+    target.lines = [
+      {
+        ...rent,
+        kind: "fixed_fee",
+        amountMinor: 5_000,
+        baseRentAmountMinor: null,
+        feeSnapshot: {
+          kind: "fixed_fee",
+          feeId: "management",
+          monthlyAmountMinor: 5_000,
+          overrideReason: null,
+        },
+      },
+    ];
+    target.amountMinor = 5_000;
+    source.cashEntries = [{ ...receipt, amountMinor: 5_000 }];
+    source.settlement = null;
+    const context = harness(source);
+    const correction: RentalBillRevisionInput = {
+      ...input,
+      mode: "correction",
+      extraFees: undefined,
+      fixedFeeAdjustments: [{ feeId: "management", action: "set_amount", amountMinor: 3_000 }],
+    };
+    const preview = await context.service.preview(revisionAuth, correction);
+    await context.service.adjust(revisionAuth, {
+      ...correction,
+      expectedVersion: preview.version,
+      idempotencyKey,
+    });
+    expect(context.state().cashEntries).toEqual(source.cashEntries);
+    expect(context.state().billRevisions[0]).toMatchObject({
+      amountMinor: 5_000,
+      reason: input.reason,
+    });
+    expect(context.state().bills[0]?.amountMinor).toBe(3_000);
+    expect(
+      calculateRentalCashBalance(
+        context.state().cashEntries,
+        { kind: "bill", billId: targetBillId },
+        3_000,
+        null,
+        source.context.today,
+      ).refundableMinor,
+    ).toBe(2_000);
+  });
+});
 
 describe("BillRevisionsService", () => {
   it("previews adjacent meter corrections using each bill's saved unit price and linked settlement cash", async () => {

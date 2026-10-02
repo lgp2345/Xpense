@@ -15,6 +15,144 @@ const actor = { userId: "user" };
 const dialect = new PgDialect();
 
 describe("BillRevisionsRepository", () => {
+  it("仅改固定费时保存前版且保留未变水电行及计量区间", async () => {
+    const water = {
+      id: "water-line",
+      ...scope,
+      billId: "bill",
+      kind: "water" as const,
+      label: "水费",
+      amountMinor: 100,
+      periodStart: null,
+      periodEnd: null,
+      referenceStart: null,
+      referenceEnd: null,
+      coveredDays: null,
+      referenceDays: null,
+      baseRentAmountMinor: null,
+      sortOrder: 0,
+      note: null,
+      feeSnapshot: {
+        kind: "water" as const,
+        startReadingId: "s",
+        endReadingId: "e",
+        startDate: "2026-08-31",
+        endDate: "2026-09-30",
+        startReading: "0",
+        endReading: "1",
+        unitPrice: "1",
+        overrideReason: null,
+      },
+    };
+    const fixed = {
+      ...water,
+      id: "fixed-line",
+      kind: "fixed_fee" as const,
+      label: "管理费",
+      amountMinor: 5_000,
+      sortOrder: 1,
+      feeSnapshot: {
+        kind: "fixed_fee" as const,
+        feeId: "management",
+        monthlyAmountMinor: 5_000,
+        overrideReason: null,
+      },
+    };
+    const bill = { id: "bill", ...scope, revision: 1, amountMinor: 5_100 };
+    const writes: Array<{ table: unknown; value: unknown }> = [];
+    const deletes: Array<{ table: unknown; query: ReturnType<PgDialect["sqlToQuery"]> }> = [];
+    const executor = {
+      select: () => ({
+        from: (table: unknown) => ({
+          where: () =>
+            Promise.resolve(
+              table === rentalBills
+                ? [bill]
+                : table === rentalBillLines
+                  ? [water, fixed]
+                  : [
+                      { id: "s", spaceId: "space", kind: "water", predecessorId: null },
+                      { id: "e", spaceId: "space", kind: "water", predecessorId: "s" },
+                    ],
+            ),
+        }),
+      }),
+      insert: (table: unknown) => ({
+        values: (value: unknown) => {
+          writes.push({ table, value });
+          return { returning: () => Promise.resolve([{ id: "revision" }]) };
+        },
+      }),
+      update: () => ({
+        set: () => ({
+          where: () => ({
+            returning: () => Promise.resolve([{ ...bill, revision: 2, amountMinor: 2_100 }]),
+          }),
+        }),
+      }),
+      delete: (table: unknown) => ({
+        where: (condition: unknown) => {
+          deletes.push({ table, query: dialect.sqlToQuery(condition as never) });
+          return Promise.resolve();
+        },
+      }),
+    };
+    const {
+      id: _id,
+      organizationId: _org,
+      contractId: _contract,
+      billId: _bill,
+      ...waterInput
+    } = water;
+    const {
+      id: _fixedId,
+      organizationId: _fixedOrg,
+      contractId: _fixedContract,
+      billId: _fixedBill,
+      ...fixedInput
+    } = fixed;
+    await new BillRevisionsRepository().append(
+      scope,
+      "bill",
+      [
+        { ...waterInput, note: undefined },
+        {
+          ...fixedInput,
+          note: undefined,
+          amountMinor: 2_000,
+          feeSnapshot: {
+            ...fixed.feeSnapshot,
+            calculationMode: "manual_amount",
+            overrideReason: "协商",
+          },
+        },
+      ],
+      2_100,
+      "协商",
+      actor,
+      executor as never,
+    );
+    expect(writes.find(({ table }) => table === rentalBillRevisions)?.value).toMatchObject({
+      amountMinor: 5_100,
+      linesSnapshot: [water, fixed],
+    });
+    expect(writes.find(({ table }) => table === rentalBillLines)?.value).toMatchObject([
+      {
+        kind: "fixed_fee",
+        amountMinor: 2_000,
+        feeSnapshot: { monthlyAmountMinor: 5_000, calculationMode: "manual_amount" },
+      },
+    ]);
+    expect(writes.some(({ table }) => table === rentalBillMeterIntervals)).toBe(false);
+    expect(deletes.find(({ table }) => table === rentalBillLines)?.query).toMatchObject({
+      sql: expect.stringContaining("not in"),
+      params: expect.arrayContaining(["water-line"]),
+    });
+    expect(deletes.find(({ table }) => table === rentalBillMeterIntervals)?.query).toMatchObject({
+      sql: expect.stringContaining("not in"),
+      params: expect.arrayContaining(["water-line"]),
+    });
+  });
   it("can revise an ended bill to zero lines without asking Drizzle to insert an empty batch", async () => {
     const bill = {
       id: "bill-ended",

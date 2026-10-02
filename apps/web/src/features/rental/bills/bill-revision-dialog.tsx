@@ -38,6 +38,7 @@ type Props = {
   billsApi: RentalBillsApi;
   permissions: readonly PermissionKey[];
   open: boolean;
+  intent?: "fees" | "readings";
   onOpenChange: (open: boolean) => void;
   onAdjusted: (preview: RentalBillRevisionPreview) => void;
 };
@@ -51,7 +52,10 @@ function validationMessage(error: unknown): string | undefined {
 
 export function BillRevisionDialog(props: Props) {
   return props.open ? (
-    <RevisionSession key={`${props.organizationId}:${props.bill.id}`} {...props} />
+    <RevisionSession
+      key={`${props.organizationId}:${props.bill.id}:${props.intent ?? "readings"}`}
+      {...props}
+    />
   ) : null;
 }
 
@@ -63,6 +67,7 @@ function RevisionSession({
   permissions,
   onOpenChange,
   onAdjusted,
+  intent = "readings",
 }: Props) {
   const queryClient = useQueryClient();
   const [preview, setPreview] = useState<{
@@ -76,6 +81,7 @@ function RevisionSession({
   const sequence = useRef(0);
   const mounted = useRef(true);
   const attempt = useRef<{ submit: () => Promise<RentalBillRevisionPreview> } | null>(null);
+  const attemptBusy = useRef(false);
   const canRead = permissions.includes("rental_bills:read");
   const canAdjust = permissions.includes("rental_monthly_bills:adjust");
   const history = useQuery({
@@ -97,16 +103,18 @@ function RevisionSession({
     defaultValues: initialBillRevisionValues(bill),
     validators: { onChange: revisionSchema, onSubmit: revisionSchema },
     onSubmit: async ({ value }) => {
-      const submittedInput = toBillRevisionInput(bill, value);
+      const submittedInput = toBillRevisionInput(bill, value, intent);
       const submittedFingerprint = submittedInput ? JSON.stringify(submittedInput) : "";
       const submittedPreview = preview?.fingerprint === submittedFingerprint ? preview.data : null;
-      if (!submittedInput || !submittedPreview || submitBusy || !canAdjust) return;
+      if (!submittedInput || !submittedPreview || submitBusy || attemptBusy.current || !canAdjust)
+        return;
       const payload: AdjustRentalBillRequest = {
         ...submittedInput,
         expectedVersion: submittedPreview.version,
         idempotencyKey: crypto.randomUUID(),
       };
       attempt.current ??= createRentalFinanceAttempt(api.adjustBill, payload);
+      attemptBusy.current = true;
       setSubmitBusy(true);
       setError(null);
       try {
@@ -129,6 +137,7 @@ function RevisionSession({
           setError("确认结果暂未确认，可重试原请求。");
         }
       } finally {
+        attemptBusy.current = false;
         if (mounted.current) setSubmitBusy(false);
       }
     },
@@ -145,7 +154,7 @@ function RevisionSession({
       },
     ]),
   );
-  const input = useMemo(() => toBillRevisionInput(bill, values), [bill, values]);
+  const input = useMemo(() => toBillRevisionInput(bill, values, intent), [bill, values, intent]);
   const fingerprint = input ? JSON.stringify(input) : "";
   const currentPreview = preview?.fingerprint === fingerprint ? preview.data : null;
 
@@ -205,8 +214,19 @@ function RevisionSession({
     <Dialog open onOpenChange={(open) => !submitBusy && onOpenChange(open)}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>账单更正与历史</DialogTitle>
-          <DialogDescription>金额更正由服务端重算；租金不可在此编辑。</DialogDescription>
+          <DialogTitle>
+            {intent === "fees"
+              ? bill.financial?.receivedMinor === 0
+                ? "编辑本期费用"
+                : "更正账单"
+              : "更正真实读数与历史"}
+          </DialogTitle>
+          <DialogDescription>
+            {intent === "fees"
+              ? "仅影响本张账单，合同标准及其他月份费用不变。"
+              : "真实读数更正可能同时影响相邻账单，请核对预览。"}
+            租金不可在此编辑。
+          </DialogDescription>
         </DialogHeader>
         {history.isPending ? <p role="status">正在读取修订历史…</p> : null}
         {history.isError ? (
@@ -269,6 +289,7 @@ function RevisionSession({
                 values={values}
                 errors={errors}
                 disabled={submitBusy}
+                intent={intent}
                 onChange={(next) => update({ ...values, ...next })}
               />
               <ExtraFeeFields
@@ -324,11 +345,29 @@ function RevisionSession({
                 <section className="space-y-1 rounded-md border p-3 text-sm">
                   <h3 className="font-medium">服务端更正预览</h3>
                   {currentPreview.affectedBills.map((affected) => (
-                    <p className="tabular-nums" key={affected.billId}>
-                      应收 {formatBillAmount(affected.beforeAmountMinor, bill.currencyCode)} →{" "}
-                      {formatBillAmount(affected.afterAmountMinor, bill.currencyCode)}
-                    </p>
+                    <div className="space-y-1 tabular-nums" key={affected.billId}>
+                      <p>
+                        应收 {formatBillAmount(affected.beforeAmountMinor, bill.currencyCode)} →{" "}
+                        {formatBillAmount(affected.afterAmountMinor, bill.currencyCode)}
+                      </p>
+                      {affected.billId === bill.id && bill.financial && !bill.settlementId ? (
+                        <p>
+                          {bill.financial.netReceivedMinor > affected.afterAmountMinor
+                            ? "可退 "
+                            : "应补 "}
+                          {formatBillAmount(
+                            Math.abs(affected.afterAmountMinor - bill.financial.netReceivedMinor),
+                            bill.currencyCode,
+                          )}
+                        </p>
+                      ) : null}
+                    </div>
                   ))}
+                  {bill.financial && bill.financial.receivedMinor > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      原收款记录保留，不会自动退款；按更新后的余额另行登记。
+                    </p>
+                  ) : null}
                   {currentPreview.settlementDifferenceMinor !== null ? (
                     <p className="tabular-nums">
                       结算差额{" "}

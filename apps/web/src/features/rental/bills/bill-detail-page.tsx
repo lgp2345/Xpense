@@ -30,6 +30,7 @@ export function BillDetailPage({
 }) {
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [revisionOpen, setRevisionOpen] = useState(false);
+  const [revisionIntent, setRevisionIntent] = useState<"fees" | "readings">("fees");
   const read = permissions.includes("rental_bills:read");
   const query = useQuery({
     ...rentalBillsQueryOptions.detail(api, organizationId, billId),
@@ -152,10 +153,35 @@ export function BillDetailPage({
                 登记收退款
               </Button>
             ) : null}
-            {financeApi && permissions.includes("rental_monthly_bills:adjust") ? (
-              <Button variant="outline" onClick={() => setRevisionOpen(true)}>
-                更正账单
-              </Button>
+            {financeApi &&
+            bill.type === "monthly" &&
+            bill.status === "active" &&
+            permissions.includes("rental_monthly_bills:adjust") ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRevisionIntent("fees");
+                    setRevisionOpen(true);
+                  }}
+                >
+                  {bill.financial.receivedMinor === 0 ? "编辑本期费用" : "更正账单"}
+                </Button>
+                {bill.lines.some(
+                  ({ feeSnapshot }) =>
+                    feeSnapshot?.kind === "water" || feeSnapshot?.kind === "electricity",
+                ) ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setRevisionIntent("readings");
+                      setRevisionOpen(true);
+                    }}
+                  >
+                    更正真实读数
+                  </Button>
+                ) : null}
+              </>
             ) : null}
           </div>
         ) : null}
@@ -182,12 +208,14 @@ export function BillDetailPage({
             onUpdated={() => void query.refetch()}
           />
           <BillRevisionDialog
+            key={`${organizationId}:${bill.id}`}
             organizationId={organizationId}
             bill={bill}
             api={financeApi}
             billsApi={api}
             permissions={permissions}
             open={revisionOpen}
+            intent={revisionIntent}
             onOpenChange={setRevisionOpen}
             onAdjusted={() => void query.refetch()}
           />

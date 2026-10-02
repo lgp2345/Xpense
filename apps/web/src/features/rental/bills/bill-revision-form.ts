@@ -2,6 +2,7 @@ import type {
   RentalBillDetail,
   RentalBillRevisionInput,
   RentalFeeSnapshot,
+  RentalFixedFeeAdjustment,
   RentalMeterKind,
   RentalMonthlyChargeOverrides,
 } from "@xpense/shared";
@@ -103,7 +104,7 @@ export function initialBillRevisionValues(bill: RentalBillDetail): BillRevisionV
             {
               id: line.feeSnapshot.feeId,
               name: line.label,
-              amount: moneyText(line.feeSnapshot.monthlyAmountMinor),
+              amount: moneyText(line.amountMinor),
             },
           ]
         : [],
@@ -228,6 +229,7 @@ export function billRevisionErrors(bill: RentalBillDetail, values: BillRevisionV
 export function toBillRevisionInput(
   bill: RentalBillDetail,
   values: BillRevisionValues,
+  intent: "fees" | "readings" = "readings",
 ): Omit<RentalBillRevisionInput, "idempotencyKey"> | null {
   if (!bill.financial || !billRevisionFormSchema(bill).safeParse(values).success) return null;
   const reason = values.reason.trim();
@@ -250,22 +252,25 @@ export function toBillRevisionInput(
       else overrides.electricityUnitPrice = meter.unitPrice.trim();
     }
   }
-  const fixedFees: NonNullable<RentalMonthlyChargeOverrides["fixedFees"]> = [];
-  for (const fee of values.fixedFees) {
-    const saved = bill.lines.find(
-      (line) => line.feeSnapshot?.kind === "fixed_fee" && line.feeSnapshot.feeId === fee.id,
-    )?.feeSnapshot;
-    const amount = parseSignedMoneyMinor(fee.amount);
-    if (saved?.kind === "fixed_fee" && amount !== null && amount !== saved.monthlyAmountMinor) {
-      fixedFees.push({ id: fee.id, monthlyAmountMinor: amount });
+  const fixedFeeAdjustments: RentalFixedFeeAdjustment[] = [];
+  for (const line of bill.lines) {
+    if (line.feeSnapshot?.kind !== "fixed_fee") continue;
+    const feeId = line.feeSnapshot.feeId;
+    const fee = values.fixedFees.find((current) => current.id === feeId);
+    if (!fee) fixedFeeAdjustments.push({ feeId, action: "remove" });
+    else {
+      const amountMinor = parseSignedMoneyMinor(fee.amount);
+      if (amountMinor !== null && amountMinor !== line.amountMinor)
+        fixedFeeAdjustments.push({ feeId, action: "set_amount", amountMinor });
     }
   }
-  if (fixedFees.length) overrides.fixedFees = fixedFees;
   return {
     billId: bill.id,
+    mode: intent === "fees" && bill.financial.receivedMinor === 0 ? "edit_unpaid" : "correction",
     expectedVersion: bill.financial.version,
     reason,
-    ...(readings.length ? { readings } : {}),
+    ...(intent === "readings" && readings.length ? { readings } : {}),
+    ...(fixedFeeAdjustments.length ? { fixedFeeAdjustments } : {}),
     ...(Object.keys(overrides).length > 1 ? { overrides } : {}),
     extraFees: values.extraFees.map((fee) => ({
       id: fee.id,

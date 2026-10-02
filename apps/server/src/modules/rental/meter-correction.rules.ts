@@ -1,4 +1,4 @@
-import type { RentalBillLine, RentalFeeSnapshot } from "@xpense/shared";
+import type { RentalBillLine, RentalFeeSnapshot, RentalFixedFeeAdjustment } from "@xpense/shared";
 import { parseCalendarDate } from "./contract-date.rules.js";
 import { calculateMeterCharge, parseDecimal4 } from "./rental-decimal.rules.js";
 import type {
@@ -123,6 +123,12 @@ function reviseFixedLine(
   if (!Number.isSafeInteger(monthlyAmountMinor) || monthlyAmountMinor < 0) {
     throw new RangeError("固定月费必须是非负安全整数");
   }
+  if (saved.calculationMode === "full_month")
+    return {
+      ...line,
+      amountMinor: monthlyAmountMinor,
+      feeSnapshot: { ...saved, monthlyAmountMinor, overrideReason: reason },
+    };
   const coveredDays = BigInt(line.coveredDays ?? 0);
   const referenceDays = BigInt(line.referenceDays ?? 0);
   if (coveredDays <= 0n || referenceDays <= 0n || coveredDays > referenceDays) {
@@ -170,6 +176,32 @@ function extraFeeLines(
   });
 }
 
+function fixedAdjustments(
+  lines: RentalBillLine[],
+  adjustments: RentalFixedFeeAdjustment[],
+  overrides: Map<string, number>,
+): Map<string, RentalFixedFeeAdjustment> {
+  const ids = new Set(
+    lines.flatMap((line) =>
+      line.feeSnapshot?.kind === "fixed_fee" ? [line.feeSnapshot.feeId] : [],
+    ),
+  );
+  const result = new Map<string, RentalFixedFeeAdjustment>();
+  for (const value of adjustments) {
+    if (!ids.has(value.feeId)) throw new RangeError("固定费用事项不属于本张账单");
+    if (result.has(value.feeId)) throw new RangeError("同一固定费用事项不能重复调整");
+    if (overrides.has(value.feeId))
+      throw new RangeError("同一固定费用事项不能同时覆盖月标准和本期金额");
+    if (
+      value.action === "set_amount" &&
+      (!Number.isSafeInteger(value.amountMinor) || value.amountMinor < 0)
+    )
+      throw new RangeError("本期固定费用必须是非负安全整数");
+    result.set(value.feeId, value);
+  }
+  return result;
+}
+
 /** 依赖账单保存的单价快照，更正共享读数时同步重算相邻计费区间。 */
 export function buildMeterCorrectionPlan(
   source: RentalFinanceSnapshot,
@@ -179,6 +211,8 @@ export function buildMeterCorrectionPlan(
   if (target?.type !== "monthly" || target.status !== "active") {
     throw new RangeError("待更正资源不是有效月度账单");
   }
+  if (input.mode === "edit_unpaid" && input.readings?.length)
+    throw new RangeError("编辑本期费用不能更正共享读数，请使用读数更正");
 
   const updatedReadings = new Map<string, RentalMeterReading>();
   for (const value of input.readings ?? []) {
@@ -225,6 +259,11 @@ export function buildMeterCorrectionPlan(
   const fixedOverrides = new Map(
     (input.overrides?.fixedFees ?? []).map((item) => [item.id, item.monthlyAmountMinor]),
   );
+  const adjustments = fixedAdjustments(
+    target.lines,
+    input.fixedFeeAdjustments ?? [],
+    fixedOverrides,
+  );
 
   const bills = affected.map((bill) => {
     const revised = bill.lines
@@ -232,6 +271,13 @@ export function buildMeterCorrectionPlan(
         if (bill.id === target.id && item.kind === "extra_fee" && input.extraFees !== undefined) {
           return [];
         }
+        const saved = feeSnapshot(item);
+        if (
+          bill.id === target.id &&
+          saved?.kind === "fixed_fee" &&
+          adjustments.get(saved.feeId)?.action === "remove"
+        )
+          return [];
         return [item];
       })
       .map((item) => {
@@ -241,16 +287,40 @@ export function buildMeterCorrectionPlan(
             ? priceOverrides.get(saved.kind)
             : undefined;
         if (saved?.kind === "water" || saved?.kind === "electricity") {
-          return reviseMeterLine(item, readingById, unitPrice, input.overrides?.reason);
+          return unitPrice !== undefined ||
+            updatedReadings.has(saved.startReadingId) ||
+            updatedReadings.has(saved.endReadingId)
+            ? reviseMeterLine(item, readingById, unitPrice, input.overrides?.reason)
+            : item;
         }
+        const adjustment =
+          bill.id === target.id && saved?.kind === "fixed_fee"
+            ? adjustments.get(saved.feeId)
+            : undefined;
+        if (saved?.kind === "fixed_fee" && adjustment?.action === "set_amount")
+          return {
+            ...item,
+            amountMinor: adjustment.amountMinor,
+            feeSnapshot: {
+              ...saved,
+              calculationMode: "manual_amount" as const,
+              overrideReason: input.reason,
+            },
+          };
         return bill.id === target.id && item.kind === "fixed_fee"
           ? reviseFixedLine(item, fixedOverrides, input.overrides?.reason ?? "")
           : item;
       });
     if (bill.id === target.id && input.extraFees !== undefined) {
-      revised.push(...extraFeeLines(input.extraFees, bill.lines));
+      const nextOrder = Math.max(-1, ...revised.map((line) => line.sortOrder)) + 1;
+      revised.push(
+        ...extraFeeLines(input.extraFees, bill.lines).map((line, index) => ({
+          ...line,
+          sortOrder: nextOrder + index,
+        })),
+      );
     }
-    const lines = revised.map((item, sortOrder) => ({ ...item, sortOrder }));
+    const lines = revised;
     return { billId: bill.id, lines, amountMinor: assertSafeTotal(lines) };
   });
 

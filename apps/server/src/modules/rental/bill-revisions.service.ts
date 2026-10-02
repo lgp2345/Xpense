@@ -59,6 +59,7 @@ export class BillRevisionsService {
       const { scope } = await this.lockTarget(auth, input.billId, tx);
       const source = await this.sources.read(scope, tx);
       this.assertSourceScope(scope, source);
+      this.assertUnpaidEdit(source, input);
       const plan = this.plan(source, input);
       const settlementBillIds = await this.settlementBillIds(scope, source, tx);
       this.assertSettlementPermission(auth, plan.affectedBillIds, settlementBillIds);
@@ -90,6 +91,7 @@ export class BillRevisionsService {
       this.assertSettlementPermission(auth, plan.affectedBillIds, settlementBillIds);
       if (this.sourceVersion(source, input, settlementBillIds) !== input.expectedVersion)
         throw this.conflict("账单或读数来源已变化，请重新预览");
+      this.assertUnpaidEdit(source, input);
       const preview = this.previewResult(source, input, plan.bills, settlementBillIds);
 
       for (const reading of plan.readings) {
@@ -206,6 +208,20 @@ export class BillRevisionsService {
       if (error instanceof RangeError) throw this.badRequest(error.message);
       throw error;
     }
+  }
+
+  private assertUnpaidEdit(source: RentalFinanceSnapshot, input: RentalBillRevisionInput): void {
+    if (
+      input.mode === "edit_unpaid" &&
+      source.cashEntries.some(
+        (entry) =>
+          entry.kind === "receipt" &&
+          entry.revokedAt === null &&
+          entry.target.kind === "bill" &&
+          entry.target.billId === input.billId,
+      )
+    )
+      throw this.conflict("账单已有有效收款，请使用账单更正");
   }
 
   private async settlementBillIds(

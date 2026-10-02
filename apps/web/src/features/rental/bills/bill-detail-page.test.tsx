@@ -7,6 +7,105 @@ import { ApiError } from "../../../services/api-client";
 import { BillDetailPage } from "./bill-detail-page";
 import { billFixture, billsApiFixture, financeApiFixture } from "./bill-test-fixtures";
 
+it.each([0, 5_000])("依据有效收款 %i 展示费用入口并保留单独读数更正", async (receivedMinor) => {
+  const api = billsApiFixture({
+    getBill: vi.fn().mockResolvedValue({
+      ...billFixture,
+      modelVersion: 2,
+      type: "monthly",
+      lines: [
+        {
+          kind: "water",
+          label: "水费",
+          amountMinor: 0,
+          periodStart: "2026-08-31",
+          periodEnd: "2026-09-30",
+          referenceStart: null,
+          referenceEnd: null,
+          coveredDays: null,
+          referenceDays: null,
+          baseRentAmountMinor: null,
+          sortOrder: 0,
+          feeSnapshot: {
+            kind: "water",
+            startReadingId: "start",
+            endReadingId: "end",
+            startDate: "2026-08-31",
+            endDate: "2026-09-30",
+            startReading: "0",
+            endReading: "0",
+            unitPrice: "1",
+            overrideReason: null,
+          },
+        },
+      ],
+      financial: {
+        receivedMinor,
+        refundedMinor: receivedMinor,
+        netReceivedMinor: 0,
+        outstandingMinor: 5_000,
+        refundableMinor: 0,
+        state: "unpaid",
+        overdue: false,
+        version: "v",
+      },
+    }),
+  });
+  const user = userEvent.setup();
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <BillDetailPage
+        organizationId="org"
+        billId="bill"
+        api={api}
+        financeApi={financeApiFixture()}
+        permissions={["rental_bills:read", "rental_monthly_bills:adjust"]}
+      />
+    </QueryClientProvider>,
+  );
+  const entry = await screen.findByRole("button", {
+    name: receivedMinor === 0 ? "编辑本期费用" : "更正账单",
+  });
+  expect(screen.getByRole("button", { name: "更正真实读数" })).toBeInTheDocument();
+  await user.click(entry);
+  expect(
+    screen.getByRole("heading", { name: receivedMinor === 0 ? "编辑本期费用" : "更正账单" }),
+  ).toBeInTheDocument();
+});
+
+it("无保存计量快照时不显示真实读数更正入口，费用入口仍可用", async () => {
+  const api = billsApiFixture({
+    getBill: vi.fn().mockResolvedValue({
+      ...billFixture,
+      modelVersion: 2,
+      type: "monthly",
+      financial: {
+        receivedMinor: 0,
+        refundedMinor: 0,
+        netReceivedMinor: 0,
+        outstandingMinor: 5_000,
+        refundableMinor: 0,
+        state: "unpaid",
+        overdue: false,
+        version: "v",
+      },
+    }),
+  });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <BillDetailPage
+        organizationId="org"
+        billId="bill"
+        api={api}
+        financeApi={financeApiFixture()}
+        permissions={["rental_bills:read", "rental_monthly_bills:adjust"]}
+      />
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByRole("button", { name: "编辑本期费用" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "更正真实读数" })).not.toBeInTheDocument();
+});
+
 it("展示生成快照、原计划和差额，不推断收款", async () => {
   const api = billsApiFixture({
     getBill: vi.fn().mockResolvedValue({

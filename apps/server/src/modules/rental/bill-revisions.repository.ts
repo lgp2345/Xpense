@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { Injectable } from "@nestjs/common";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import type { AppDbExecutor } from "../../db/db.module.js";
 import {
@@ -27,6 +28,25 @@ export type {
 } from "./bill-revisions.repository.types.js";
 
 type FinanceScope = { organizationId: string; contractId: string };
+
+function unchangedMeterLine(
+  saved: typeof rentalBillLines.$inferSelect,
+  line: BillRevisionLinesInput[number],
+): boolean {
+  if (line.kind !== "water" && line.kind !== "electricity") return false;
+  const {
+    id: _id,
+    organizationId: _org,
+    contractId: _contract,
+    billId: _bill,
+    ...snapshot
+  } = saved;
+  return isDeepStrictEqual(snapshot, {
+    ...line,
+    note: line.note ?? null,
+    feeSnapshot: line.feeSnapshot ?? null,
+  });
+}
 
 /** 当前账单修订、历史快照及计量区间在传入事务中一起替换。 */
 @Injectable()
@@ -94,6 +114,14 @@ export class BillRevisionsRepository {
       .returning();
     if (!updatedBill) throw new Error("Rental bill changed during revision");
 
+    const preserved = new Map(
+      lines.flatMap((line) => {
+        const saved = oldLines.find((old) => unchangedMeterLine(old, line));
+        return saved ? [[line, saved.id] as const] : [];
+      }),
+    );
+    const preservedIds = [...preserved.values()];
+
     await executor
       .delete(rentalBillMeterIntervals)
       .where(
@@ -101,6 +129,9 @@ export class BillRevisionsRepository {
           eq(rentalBillMeterIntervals.organizationId, scope.organizationId),
           eq(rentalBillMeterIntervals.contractId, scope.contractId),
           eq(rentalBillMeterIntervals.billId, billId),
+          preservedIds.length
+            ? notInArray(rentalBillMeterIntervals.billLineId, preservedIds)
+            : undefined,
         ),
       );
     await executor
@@ -110,17 +141,20 @@ export class BillRevisionsRepository {
           eq(rentalBillLines.organizationId, scope.organizationId),
           eq(rentalBillLines.contractId, scope.contractId),
           eq(rentalBillLines.billId, billId),
+          preservedIds.length ? notInArray(rentalBillLines.id, preservedIds) : undefined,
         ),
       );
 
-    const newLines = lines.map((line) => ({
-      id: randomUUID(),
-      ...line,
-      note: line.note ?? null,
-      feeSnapshot: line.feeSnapshot ?? null,
-      ...scope,
-      billId,
-    }));
+    const newLines = lines
+      .filter((line) => !preserved.has(line))
+      .map((line) => ({
+        id: randomUUID(),
+        ...line,
+        note: line.note ?? null,
+        feeSnapshot: line.feeSnapshot ?? null,
+        ...scope,
+        billId,
+      }));
     if (newLines.length > 0) await executor.insert(rentalBillLines).values(newLines);
     const intervals = await this.buildIntervals(scope, newLines, executor);
     if (intervals.length) await executor.insert(rentalBillMeterIntervals).values(intervals);
