@@ -64,6 +64,8 @@ export function rentalFinanceSnapshot(
     terms: {
       contractId: contract.id,
       version: "1",
+      waterCollectionEnabled: true,
+      electricityCollectionEnabled: true,
       waterUnitPrice: "3.0000",
       electricityUnitPrice: "4.0000",
       fixedFees: [

@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import type { AppDbExecutor } from "../../db/db.module.js";
 import {
@@ -36,6 +36,33 @@ export class MeterReadingsRepository {
         ),
       )
       .orderBy(rentalMeterReadings.kind, rentalMeterReadings.readingDate, rentalMeterReadings.id);
+  }
+
+  /** 只清除外层已核对未使用的草稿空间底数及其修订。 */
+  async clearDraftBaselines(
+    scope: FinanceScope,
+    ids: string[],
+    executor: AppDbExecutor,
+  ): Promise<void> {
+    await executor
+      .delete(rentalMeterReadingRevisions)
+      .where(
+        and(
+          eq(rentalMeterReadingRevisions.organizationId, scope.organizationId),
+          eq(rentalMeterReadingRevisions.contractId, scope.contractId),
+          inArray(rentalMeterReadingRevisions.readingId, ids),
+        ),
+      );
+    await executor
+      .delete(rentalMeterReadings)
+      .where(
+        and(
+          eq(rentalMeterReadings.organizationId, scope.organizationId),
+          eq(rentalMeterReadings.contractId, scope.contractId),
+          inArray(rentalMeterReadings.id, ids),
+          isNull(rentalMeterReadings.predecessorId),
+        ),
+      );
   }
 
   async saveBaseline(

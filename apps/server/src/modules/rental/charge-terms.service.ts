@@ -27,6 +27,8 @@ function defaultTerms(snapshot: RentalFinanceSnapshot): RentalChargeTerms {
     snapshot.terms ?? {
       contractId: snapshot.context.contractId,
       version: "0",
+      waterCollectionEnabled: true,
+      electricityCollectionEnabled: true,
       waterUnitPrice: "0.0000",
       electricityUnitPrice: "0.0000",
       fixedFees: [],
@@ -97,11 +99,27 @@ export class ChargeTermsService {
       if (financeSourceVersion(snapshot, {}) !== dto.expectedVersion)
         throw this.conflict("收费标准已变化，请重新读取后再保存");
 
+      const current = defaultTerms(snapshot);
+      const waterCollectionEnabled = dto.waterCollectionEnabled ?? current.waterCollectionEnabled;
+      const electricityCollectionEnabled =
+        dto.electricityCollectionEnabled ?? current.electricityCollectionEnabled;
+      for (const [kind, before, after] of [
+        ["water", current.waterCollectionEnabled, waterCollectionEnabled],
+        ["electricity", current.electricityCollectionEnabled, electricityCollectionEnabled],
+      ] as const) {
+        if (
+          before !== after &&
+          snapshot.bills.some((bill) => bill.lines.some((line) => line.feeSnapshot?.kind === kind))
+        )
+          throw this.conflict("该表计已有账单，暂停或恢复代收需交接读数及生效边界");
+      }
       const saved = await this.terms.save(
         scope,
         {
-          waterUnitPrice: dto.waterUnitPrice,
-          electricityUnitPrice: dto.electricityUnitPrice,
+          waterCollectionEnabled,
+          electricityCollectionEnabled,
+          waterUnitPrice: waterCollectionEnabled ? dto.waterUnitPrice : "0.0000",
+          electricityUnitPrice: electricityCollectionEnabled ? dto.electricityUnitPrice : "0.0000",
           fixedFees: dto.fixedFees,
         },
         dto.reason,
@@ -113,6 +131,8 @@ export class ChargeTermsService {
         terms: {
           contractId: dto.contractId,
           version: String(saved.version),
+          waterCollectionEnabled: saved.waterCollectionEnabled,
+          electricityCollectionEnabled: saved.electricityCollectionEnabled,
           waterUnitPrice: saved.waterUnitPrice,
           electricityUnitPrice: saved.electricityUnitPrice,
           fixedFees: saved.fixedFees,

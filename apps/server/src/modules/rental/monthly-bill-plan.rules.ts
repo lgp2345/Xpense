@@ -62,6 +62,8 @@ export function defaultRentalChargeTerms(snapshot: RentalFinanceSnapshot): Renta
     snapshot.terms ?? {
       contractId: snapshot.context.contractId,
       version: "0",
+      waterCollectionEnabled: true,
+      electricityCollectionEnabled: true,
       waterUnitPrice: "0.0000",
       electricityUnitPrice: "0.0000",
       fixedFees: [],

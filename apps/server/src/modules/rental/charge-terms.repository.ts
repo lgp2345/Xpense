@@ -52,6 +52,8 @@ export class ChargeTermsRepository {
       .onConflictDoUpdate({
         target: [rentalChargeTerms.organizationId, rentalChargeTerms.contractId],
         set: {
+          waterCollectionEnabled: terms.waterCollectionEnabled,
+          electricityCollectionEnabled: terms.electricityCollectionEnabled,
           waterUnitPrice: terms.waterUnitPrice,
           electricityUnitPrice: terms.electricityUnitPrice,
           fixedFees: terms.fixedFees,
@@ -67,6 +69,8 @@ export class ChargeTermsRepository {
       ...scope,
       version: record.version,
       termsSnapshot: {
+        waterCollectionEnabled: record.waterCollectionEnabled,
+        electricityCollectionEnabled: record.electricityCollectionEnabled,
         waterUnitPrice: record.waterUnitPrice,
         electricityUnitPrice: record.electricityUnitPrice,
         fixedFees: record.fixedFees,

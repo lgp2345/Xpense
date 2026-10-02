@@ -52,6 +52,37 @@ function harness() {
 }
 
 describe("ChargeTermsService", () => {
+  it("旧客户端省略代收开关时保留不代收状态", async () => {
+    const h = harness();
+    h.snapshot.terms = {
+      ...h.snapshot.terms!,
+      waterCollectionEnabled: false,
+      electricityCollectionEnabled: false,
+    };
+    const current = await h.service.detail(
+      { ...rentalFinanceAuth, permissions: [...rentalFinanceAuth.permissions] },
+      { contractId: financeContractId },
+    );
+    const result = await h.service.update(
+      { ...rentalFinanceAuth, permissions: [...rentalFinanceAuth.permissions] },
+      {
+        contractId: financeContractId,
+        expectedVersion: current.version,
+        idempotencyKey: "00000000-0000-4000-8000-000000000029",
+        reason: "旧客户端更新",
+        waterUnitPrice: "3",
+        electricityUnitPrice: "4",
+        fixedFees: [],
+      },
+    );
+    expect(result).toMatchObject({
+      waterCollectionEnabled: false,
+      electricityCollectionEnabled: false,
+      waterUnitPrice: "0.0000",
+      electricityUnitPrice: "0.0000",
+    });
+  });
+
   it.each([
     "2026-09-30",
     "2026-10-20",

@@ -13,12 +13,12 @@ describe.skipIf(!url)("收费代收字段兼容迁移", () => {
       const fixture = await insertRentalPostgresFixture(db);
       const fees = [{ id: randomUUID(), name: "管理费", monthlyAmountMinor: 5000 }];
       await client`INSERT INTO rental_charge_terms (organization_id, contract_id, water_unit_price, electricity_unit_price, fixed_fees, updated_by_user_id)
-        VALUES (${fixture.auth.organizationId}, ${fixture.contractId}, '3.0000', '0.5000', ${client.json(fees)}, ${fixture.auth.userId})`;
+        VALUES (${fixture.auth.organizationId}, ${fixture.scope.contractId}, '3.0000', '0.5000', ${client.json(fees)}, ${fixture.auth.userId})`;
       await client`INSERT INTO rental_charge_term_revisions (organization_id, contract_id, version, terms_snapshot, reason, created_by_user_id)
-        VALUES (${fixture.auth.organizationId}, ${fixture.contractId}, 1, ${client.json({ waterUnitPrice: "3.0000", electricityUnitPrice: "0.5000", fixedFees: fees })}, '旧标准', ${fixture.auth.userId})`;
+        VALUES (${fixture.auth.organizationId}, ${fixture.scope.contractId}, 1, ${client.json({ waterUnitPrice: "3.0000", electricityUnitPrice: "0.5000", fixedFees: fees })}, '旧标准', ${fixture.auth.userId})`;
       await applyMigrations();
       const [terms] =
-        await client`SELECT * FROM rental_charge_terms WHERE contract_id = ${fixture.contractId}`;
+        await client`SELECT * FROM rental_charge_terms WHERE contract_id = ${fixture.scope.contractId}`;
       expect(terms).toMatchObject({
         water_collection_enabled: true,
         electricity_collection_enabled: true,
@@ -27,15 +27,15 @@ describe.skipIf(!url)("收费代收字段兼容迁移", () => {
         fixed_fees: fees,
       });
       const [revision] =
-        await client`SELECT terms_snapshot FROM rental_charge_term_revisions WHERE contract_id = ${fixture.contractId}`;
+        await client`SELECT terms_snapshot FROM rental_charge_term_revisions WHERE contract_id = ${fixture.scope.contractId}`;
       expect(revision?.terms_snapshot).toEqual({
         waterUnitPrice: "3.0000",
         electricityUnitPrice: "0.5000",
         fixedFees: fees,
       });
-      await client`UPDATE rental_charge_terms SET water_collection_enabled = false WHERE contract_id = ${fixture.contractId}`;
+      await client`UPDATE rental_charge_terms SET water_collection_enabled = false WHERE contract_id = ${fixture.scope.contractId}`;
       const [changed] =
-        await client`SELECT water_collection_enabled, electricity_collection_enabled FROM rental_charge_terms WHERE contract_id = ${fixture.contractId}`;
+        await client`SELECT water_collection_enabled, electricity_collection_enabled FROM rental_charge_terms WHERE contract_id = ${fixture.scope.contractId}`;
       expect(changed).toEqual({
         water_collection_enabled: false,
         electricity_collection_enabled: true,

@@ -59,6 +59,8 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
     organizationId,
     contractId,
     version: 1,
+    waterCollectionEnabled: base.terms?.waterCollectionEnabled ?? true,
+    electricityCollectionEnabled: base.terms?.electricityCollectionEnabled ?? true,
     waterUnitPrice: base.terms?.waterUnitPrice ?? "3.0000",
     electricityUnitPrice: base.terms?.electricityUnitPrice ?? "4.0000",
     fixedFees: structuredClone(base.terms?.fixedFees ?? []),
@@ -414,6 +416,8 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
           ? {
               contractId,
               version: String(terms.version),
+              waterCollectionEnabled: terms.waterCollectionEnabled,
+              electricityCollectionEnabled: terms.electricityCollectionEnabled,
               waterUnitPrice: terms.waterUnitPrice,
               electricityUnitPrice: terms.electricityUnitPrice,
               fixedFees: structuredClone(terms.fixedFees),

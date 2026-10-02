@@ -196,6 +196,8 @@ function serviceHarness(overrides: Record<string, unknown> = {}) {
     onRevokeTermination: vi.fn(),
   };
   const billingSources = { read: vi.fn().mockResolvedValue({ activeBills: [] }) };
+  const chargeSetup = { save: vi.fn(async () => recordWrite("audits")), syncDraftSpace: vi.fn() };
+  Object.assign(chargeSetup, overrides.chargeSetup);
   const service = new ContractsService(
     repository as never,
     relations as never,
@@ -204,9 +206,11 @@ function serviceHarness(overrides: Record<string, unknown> = {}) {
     transactions as never,
     billingSources as never,
     billing as never,
+    chargeSetup as never,
   );
   return {
     service,
+    chargeSetup,
     billing,
     billingSources,
     repository,
@@ -232,6 +236,51 @@ function serviceHarness(overrides: Record<string, unknown> = {}) {
 }
 
 describe("ContractsService", () => {
+  it("创建时收费写失败回滚合同、关系及审计", async () => {
+    const h = serviceHarness({
+      chargeSetup: { save: vi.fn().mockRejectedValue(new Error("收费保存失败")) },
+    });
+    await expect(
+      h.service.create(h.auth, {
+        propertyId: "property-1",
+        chargeSetup: {
+          chargeTerms: {
+            waterCollectionEnabled: true,
+            electricityCollectionEnabled: false,
+            waterUnitPrice: "3",
+            electricityUnitPrice: "0",
+            fixedFees: [],
+          },
+          baselineReadings: [],
+        },
+      }),
+    ).rejects.toThrow("收费保存失败");
+    expect(h.persisted()).toEqual({ headers: 0, relations: 0, softDeletes: 0, audits: 0 });
+  });
+
+  it("正式合同不能通过资料更新覆盖收费设置", async () => {
+    const h = serviceHarness({
+      repository: {
+        findForUpdate: vi.fn().mockResolvedValue(contractRecord({ status: "confirmed" })),
+      },
+    });
+    await expect(
+      h.service.update(h.auth, {
+        id: "contract-1",
+        chargeSetup: {
+          chargeTerms: {
+            waterCollectionEnabled: false,
+            electricityCollectionEnabled: false,
+            waterUnitPrice: "0",
+            electricityUnitPrice: "0",
+            fixedFees: [],
+          },
+          baselineReadings: [],
+        },
+      }),
+    ).rejects.toThrow("收费");
+  });
+
   it("修正的条件权限在写入前验证，联动失败回滚合同及关系", async () => {
     const current = contractRecord({ status: "confirmed", startDate: "2026-09-01" });
     const setup = serviceHarness({

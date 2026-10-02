@@ -478,6 +478,8 @@ export class ContractLifecycleService {
         await this.chargeTerms.save(
           { organizationId: authContext.organizationId, contractId: draft.id },
           {
+            waterCollectionEnabled: copiedTerms.waterCollectionEnabled,
+            electricityCollectionEnabled: copiedTerms.electricityCollectionEnabled,
             waterUnitPrice: copiedTerms.waterUnitPrice,
             electricityUnitPrice: copiedTerms.electricityUnitPrice,
             fixedFees: copiedTerms.fixedFees,

@@ -65,6 +65,8 @@ export class RentalFinanceSourceService {
       ? {
           contractId: termsRecord.contractId,
           version: String(termsRecord.version),
+          waterCollectionEnabled: termsRecord.waterCollectionEnabled ?? true,
+          electricityCollectionEnabled: termsRecord.electricityCollectionEnabled ?? true,
           waterUnitPrice: termsRecord.waterUnitPrice,
           electricityUnitPrice: termsRecord.electricityUnitPrice,
           fixedFees: termsRecord.fixedFees,

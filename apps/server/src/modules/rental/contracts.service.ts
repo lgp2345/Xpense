@@ -11,6 +11,7 @@ import type { AppDbExecutor } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import { BillingLifecycleService } from "./billing-lifecycle.service.js";
 import { BillingSourceService } from "./billing-source.service.js";
+import { ContractChargeSetupService } from "./contract-charge-setup.service.js";
 import {
   contractAudit,
   createContractAggregate,
@@ -40,6 +41,7 @@ export class ContractsService {
     private readonly transactions: DatabaseTransactionService,
     private readonly billingSources: BillingSourceService,
     private readonly billing: BillingLifecycleService,
+    private readonly chargeSetup: ContractChargeSetupService,
   ) {}
 
   /** 返回组织时区下派生状态的合同分页。 */
@@ -155,6 +157,13 @@ export class ContractsService {
           transaction,
         );
       }
+      if (dto.chargeSetup)
+        await this.chargeSetup.save(
+          authContext,
+          { organizationId: authContext.organizationId, contractId: contract.id },
+          dto.chargeSetup,
+          transaction,
+        );
       return this.readDetail(authContext.organizationId, contract.id, today, transaction);
     });
   }
@@ -177,6 +186,8 @@ export class ContractsService {
       const current = this.policy.requireContract(
         await this.repository.findForUpdate(authContext.organizationId, dto.id, transaction),
       );
+      if (dto.chargeSetup && current.status !== "draft")
+        throw this.policy.conflict("正式合同收费须通过独立收费接口修改");
       const currentDetail = this.policy.requireContract(
         await this.repository.detail(authContext.organizationId, current.id, today, transaction),
       );
@@ -193,6 +204,13 @@ export class ContractsService {
           { organizationId: authContext.organizationId, property, status: "draft", ...aggregate },
           transaction,
         );
+        if (dto.spaces)
+          await this.chargeSetup.syncDraftSpace(
+            authContext,
+            { organizationId: authContext.organizationId, contractId: current.id },
+            aggregate.spaces.map(({ spaceId }) => spaceId),
+            transaction,
+          );
         await this.writeHeader(authContext, current, aggregate, transaction);
         await this.replaceRelations(
           authContext.organizationId,
@@ -201,6 +219,13 @@ export class ContractsService {
           dto,
           transaction,
         );
+        if (dto.chargeSetup)
+          await this.chargeSetup.save(
+            authContext,
+            { organizationId: authContext.organizationId, contractId: current.id },
+            dto.chargeSetup,
+            transaction,
+          );
         await this.auditService.appendRequired(
           contractAudit(authContext, current.id, "draft_updated", { changedFields }),
           transaction,

@@ -18,6 +18,7 @@ import { BillsReadService } from "./bills-read.service.js";
 import { ChargeTermsController } from "./charge-terms.controller.js";
 import { ChargeTermsRepository } from "./charge-terms.repository.js";
 import { ChargeTermsService } from "./charge-terms.service.js";
+import { ContractChargeSetupService } from "./contract-charge-setup.service.js";
 import { ContractLifecycleService } from "./contract-lifecycle.service.js";
 import { ContractPartiesService } from "./contract-parties.service.js";
 import { ContractReferenceService } from "./contract-reference.service.js";
@@ -106,6 +107,7 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
     ContractsPolicyService,
     ContractReferenceService,
     ContractsService,
+    ContractChargeSetupService,
     ContractLifecycleService,
     ContractPartiesService,
     PropertiesRepository,

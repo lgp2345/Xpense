@@ -4,6 +4,8 @@ import type { rentalChargeTermRevisions, rentalChargeTerms } from "../../db/sche
 export type ChargeTermsRecord = typeof rentalChargeTerms.$inferSelect;
 export type ChargeTermsRevisionRecord = typeof rentalChargeTermRevisions.$inferSelect;
 export type ChargeTermsWriteInput = {
+  waterCollectionEnabled: boolean;
+  electricityCollectionEnabled: boolean;
   waterUnitPrice: string;
   electricityUnitPrice: string;
   fixedFees: RentalFixedFee[];

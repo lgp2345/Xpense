@@ -56,7 +56,7 @@ export const generateRentalMonthlyBillSchema = z
   .strict();
 
 /** 更正已确认账单及其实际受影响的抄表边界。 */
-export const reviseRentalBillSchema = z
+const reviseRentalBillObject = z
   .object({
     mode: z.enum(["edit_unpaid", "correction"]).optional(),
     fixedFeeAdjustments: z
@@ -81,16 +81,26 @@ export const reviseRentalBillSchema = z
     extraFees: z.array(rentalExtraFeeInputSchema).optional(),
     reason: rentalReasonSchema,
   })
-  .strict()
-  .superRefine((value, context) => {
-    const ids = value.fixedFeeAdjustments?.map(({ feeId }) => feeId) ?? [];
-    if (
-      new Set(ids).size !== ids.length ||
-      value.overrides?.fixedFees?.some(({ id }) => ids.includes(id))
-    ) {
-      context.addIssue({ code: "custom", message: "同一费用不能重复调整或同时使用旧覆盖" });
-    }
-  });
+  .strict();
+
+/** 预览与确认复用费用去重，省略协议字段必须在添加跨字段规则之前进行。 */
+function refineRevision(
+  value: z.output<typeof reviseRentalBillObject>,
+  context: z.RefinementCtx,
+): void {
+  const ids = value.fixedFeeAdjustments?.map(({ feeId }) => feeId) ?? [];
+  if (
+    new Set(ids).size !== ids.length ||
+    value.overrides?.fixedFees?.some(({ id }) => ids.includes(id))
+  ) {
+    context.addIssue({ code: "custom", message: "同一费用不能重复调整或同时使用旧覆盖" });
+  }
+}
+export const reviseRentalBillSchema = reviseRentalBillObject.superRefine(refineRevision);
+/** 修订预览不接受幂等键，但保留同样的费用交叉校验。 */
+export const previewRentalBillRevisionSchema = reviseRentalBillObject
+  .omit({ idempotencyKey: true })
+  .superRefine((value, context) => refineRevision({ ...value, idempotencyKey: "" }, context));
 
 /** 月度账单预览的校验后输入。 */
 export type PreviewRentalMonthlyBillDto = z.output<typeof previewRentalMonthlyBillSchema>;

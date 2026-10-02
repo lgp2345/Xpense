@@ -15,6 +15,7 @@ import {
   type GenerateRentalMonthlyBillDto,
   generateRentalMonthlyBillSchema,
   type PreviewRentalMonthlyBillDto,
+  previewRentalBillRevisionSchema,
   previewRentalMonthlyBillSchema,
   type ReviseRentalBillDto,
   reviseRentalBillSchema,
@@ -63,7 +64,7 @@ export class MonthlyBillsController {
   @RequirePermission(["rental_bills:read", "rental_monthly_bills:adjust"])
   previewRevision(
     @CurrentAuthContext() auth: AuthContext,
-    @Body({ schema: reviseRentalBillSchema.omit({ idempotencyKey: true }) }) dto: Omit<
+    @Body({ schema: previewRentalBillRevisionSchema }) dto: Omit<
       ReviseRentalBillDto,
       "idempotencyKey"
     >,

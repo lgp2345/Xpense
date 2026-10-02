@@ -33,6 +33,8 @@ describe("ChargeTermsRepository", () => {
       id: "terms",
       ...scope,
       version: 2,
+      waterCollectionEnabled: true,
+      electricityCollectionEnabled: true,
       waterUnitPrice: "12.5000",
       electricityUnitPrice: "1.2500",
       fixedFees: [{ id: "fee", name: "物业费", monthlyAmountMinor: 500 }],
@@ -54,6 +56,8 @@ describe("ChargeTermsRepository", () => {
     await new ChargeTermsRepository().save(
       scope,
       {
+        waterCollectionEnabled: true,
+        electricityCollectionEnabled: true,
         waterUnitPrice: "12.5000",
         electricityUnitPrice: "1.2500",
         fixedFees: [{ id: "fee", name: "物业费", monthlyAmountMinor: 500 }],
