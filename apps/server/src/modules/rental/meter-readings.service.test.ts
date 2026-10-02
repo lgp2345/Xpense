@@ -42,6 +42,39 @@ function harness(snapshot = rentalFinanceSnapshot()) {
 }
 
 describe("MeterReadingsService", () => {
+  it("另一表计底数已使用仍可单独补录水底数", async () => {
+    const snapshot = rentalFinanceSnapshot();
+    const electricity = snapshot.readings.find(({ kind }) => kind === "electricity");
+    if (!electricity) throw new Error("缺少电底数");
+    snapshot.readings = [electricity];
+    snapshot.bills = [
+      {
+        id: "电费账单",
+        lines: [{ feeSnapshot: { kind: "electricity", startReadingId: electricity.id } }],
+      } as never,
+    ];
+    const h = harness(snapshot);
+    const current = await h.service.detail(rentalFinanceAuth as never, {
+      contractId: financeContractId,
+    });
+    await expect(
+      h.service.update(rentalFinanceAuth as never, {
+        contractId: financeContractId,
+        expectedVersion: current.version,
+        idempotencyKey: "00000000-0000-4000-8000-000000000039",
+        reason: "补水底数",
+        readings: [{ kind: "water", readingDate: "2026-01-01", reading: "0" }],
+      }),
+    ).resolves.toBeDefined();
+    expect(h.readings.saveBaseline).toHaveBeenCalledWith(
+      expect.anything(),
+      [expect.objectContaining({ kind: "water", reading: "0" })],
+      "补水底数",
+      expect.anything(),
+      h.tx,
+    );
+  });
+
   it.each([
     "2026-09-30",
     "2026-10-20",

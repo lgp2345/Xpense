@@ -203,7 +203,19 @@ export function buildMonthlyBillPlan(
   };
   const missingFields: string[] = [];
   if (!dto.dueDate) missingFields.push("dueDate");
+  const collection = defaultRentalChargeTerms(snapshot);
   for (const kind of monthlyMeterKinds) {
+    if (
+      !(kind === "water"
+        ? collection.waterCollectionEnabled
+        : collection.electricityCollectionEnabled)
+    )
+      continue;
+    const hasBaseline = snapshot.readings.some(
+      (reading) =>
+        reading.kind === kind && reading.spaceId === spaceId && reading.predecessorId === null,
+    );
+    if (!hasBaseline) missingFields.push(`${kind}Baseline`);
     const input = inputs.get(kind);
     if (!input) {
       missingFields.push(`${kind}Reading`);
@@ -224,7 +236,7 @@ export function buildMonthlyBillPlan(
       conflict("同一表计日期的读数变化需通过更正处理");
     const previous = latestBefore(snapshot, kind, input.readingDate, spaceId);
     if (!previous) {
-      missingFields.push(`${kind}Baseline`);
+      if (hasBaseline) missingFields.push(`${kind}Baseline`);
       continue;
     }
     const current = existing ?? {

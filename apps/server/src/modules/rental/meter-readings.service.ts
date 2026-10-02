@@ -39,9 +39,14 @@ function detail(snapshot: RentalFinanceSnapshot): RentalMeterBaselineDetail {
   };
 }
 
-function baselineWasUsed(snapshot: RentalFinanceSnapshot): boolean {
+function baselineWasUsed(
+  snapshot: RentalFinanceSnapshot,
+  kinds: RentalMeterReadingInput["kind"][],
+): boolean {
   const baselineIds = new Set(
-    snapshot.readings.filter(({ predecessorId }) => predecessorId === null).map(({ id }) => id),
+    snapshot.readings
+      .filter(({ predecessorId, kind }) => predecessorId === null && kinds.includes(kind))
+      .map(({ id }) => id),
   );
   return snapshot.bills.some((bill) =>
     bill.lines.some((line) => {
@@ -113,7 +118,13 @@ export class MeterReadingsService {
         throw this.conflict("月度结算合同必须且只能关联一个空间");
       if (financeSourceVersion(snapshot, {}) !== dto.expectedVersion)
         throw this.conflict("水电读数来源已变化，请重新读取后再保存");
-      if (baselineWasUsed(snapshot)) throw this.conflict("入住底数已用于账单，需通过读数更正处理");
+      if (
+        baselineWasUsed(
+          snapshot,
+          dto.readings.map(({ kind }) => kind),
+        )
+      )
+        throw this.conflict("入住底数已用于账单，需通过读数更正处理");
 
       const spaceId = snapshot.contract.spaces[0]?.spaceId;
       if (!spaceId) throw this.conflict("合同缺少唯一结算空间");

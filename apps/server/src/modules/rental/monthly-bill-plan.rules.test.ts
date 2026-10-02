@@ -10,6 +10,49 @@ const request = {
 };
 
 describe("月度账单计划规则", () => {
+  it.each([
+    [true, true, 2],
+    [true, false, 1],
+    [false, true, 1],
+    [false, false, 0],
+  ])("仅代收项目计量 %s/%s", (water, electricity, count) => {
+    const snapshot = rentalFinanceSnapshot();
+    if (!snapshot.terms) throw new Error("缺少标准");
+    snapshot.terms.waterCollectionEnabled = water;
+    snapshot.terms.electricityCollectionEnabled = electricity;
+    const readings = [
+      { kind: "water" as const, readingDate: "2026-08-31", reading: "120" },
+      { kind: "electricity" as const, readingDate: "2026-08-31", reading: "60" },
+    ].filter(({ kind }) => (kind === "water" ? water : electricity));
+    const plan = buildMonthlyBillPlan(snapshot, { ...request, dueDate: "2026-08-31", readings });
+    expect(plan.missingFields).toEqual([]);
+    expect(
+      plan.lines.filter(({ kind }) => kind === "water" || kind === "electricity"),
+    ).toHaveLength(count);
+    if (!water) expect(plan.intervals.water).toBeNull();
+    if (!electricity) expect(plan.intervals.electricity).toBeNull();
+  });
+
+  it("不代收的意外输入不产生读数写入，零底数有效", () => {
+    const snapshot = rentalFinanceSnapshot();
+    if (!snapshot.terms) throw new Error("缺少标准");
+    snapshot.terms.electricityCollectionEnabled = false;
+    snapshot.readings = snapshot.readings
+      .filter(({ kind }) => kind === "water")
+      .map((reading) => ({ ...reading, reading: "0" }));
+    const plan = buildMonthlyBillPlan(snapshot, {
+      ...request,
+      dueDate: "2026-08-31",
+      readings: [
+        { kind: "water", readingDate: "2026-08-31", reading: "10" },
+        { kind: "electricity", readingDate: "2026-08-31", reading: "99" },
+      ],
+    });
+    expect(plan.missingFields).toEqual([]);
+    expect(plan.intervals.electricity).toBeNull();
+    expect(plan.lines.find(({ kind }) => kind === "water")?.amountMinor).toBe(3000);
+  });
+
   it("缺少截止日和读数时保留可预览结果并列出缺项", () => {
     const plan = buildMonthlyBillPlan(rentalFinanceSnapshot(), request);
 
