@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { rentalBillsKeys } from "../../../services/rental-bills-query";
@@ -44,15 +44,22 @@ describe("合同应收覆盖", () => {
       </QueryClientProvider>,
     );
     expect(await screen.findByText(/已生成租金 1 期、押金 2 项/)).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText("合同账单费用"), "deposit");
-    await userEvent.selectOptions(screen.getByLabelText("合同账单状态"), "voided");
+    await userEvent.click(screen.getByRole("combobox", { name: "合同账单费用" }));
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("option", { name: "押金" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "合同账单状态" }));
+    await userEvent.click(screen.getByRole("option", { name: "作废历史" }));
     await waitFor(() =>
       expect(api.listBills).toHaveBeenLastCalledWith(
         expect.objectContaining({ contractId: "contract", type: "deposit", status: "voided" }),
       ),
     );
-    expect(await screen.findByText(/押金 · 2026\/01\/01.*作废/)).toBeInTheDocument();
-    expect(screen.getByText(/有效租金 9,000.00 · 押金 3,000.00/)).toBeInTheDocument();
+    expect(await screen.findByText(/押金 \/ 2026\/01\/01.*作废/)).toBeInTheDocument();
+    const overview = within(screen.getByRole("region", { name: "有效应收金额与账单覆盖" }));
+    expect(overview.getByText("有效租金")).toBeInTheDocument();
+    expect(overview.getByText("9,000.00")).toBeInTheDocument();
+    expect(overview.getByText("有效押金")).toBeInTheDocument();
+    expect(overview.getByText("3,000.00")).toBeInTheDocument();
   });
   it("只读用户查看缺失数量，不能发起生成预览", async () => {
     const api = billsApiFixture();
@@ -87,6 +94,113 @@ describe("合同应收覆盖", () => {
     );
     expect(api.listBills).not.toHaveBeenCalled();
     expect(vi.isMockFunction(api.listBills)).toBe(true);
+  });
+
+  it("费用筛选可用键盘选择，关闭状态筛选后焦点回到控件", async () => {
+    const user = userEvent.setup();
+    const api = billsApiFixture();
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ContractBillsSection
+          organizationId="org"
+          contractId="contract"
+          api={api}
+          permissions={["rental_bills:read"]}
+        />
+      </QueryClientProvider>,
+    );
+    await screen.findByText(billFixture.billNumber);
+    await user.tab();
+    expect(screen.getByRole("combobox", { name: "合同账单费用" })).toHaveFocus();
+    await user.keyboard("{Enter}{ArrowDown}{ArrowDown}{Enter}");
+    await waitFor(() =>
+      expect(api.listBills).toHaveBeenLastCalledWith(
+        expect.objectContaining({ type: "deposit", status: "active" }),
+      ),
+    );
+    expect(screen.getByRole("combobox", { name: "合同账单费用" })).toHaveTextContent("押金");
+    await user.tab();
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "合同账单状态" })).toHaveFocus();
+  });
+
+  it("空结果保留概览，合同禁止生成时不提示出账操作", async () => {
+    const api = billsApiFixture({
+      listBills: vi.fn().mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totals: { rentAmountMinor: 900000, depositAmountMinor: 300000 },
+        coverage: {
+          existingRentCount: 1,
+          existingDepositCount: 2,
+          missingRentCount: 3,
+          missingDepositCount: 0,
+        },
+      }),
+    });
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ContractBillsSection
+          organizationId="org"
+          contractId="contract"
+          api={api}
+          canGenerate={false}
+          permissions={["rental_bills:read", "rental_contracts:read", "rental_bills:generate"]}
+        />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("尚无符合条件的有效账单。")).toBeInTheDocument();
+    expect(screen.getByText("可调整费用或状态筛选，查看其他账单。")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "有效应收金额与账单覆盖" })).toHaveTextContent(
+      "9,000.00",
+    );
+    expect(screen.queryByRole("button", { name: "预览并生成" })).not.toBeInTheDocument();
+  });
+
+  it("账单读取失败后可重试，并打开恢复后的账单", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    let fail = true;
+    const api = billsApiFixture({
+      listBills: vi.fn().mockImplementation(async () => {
+        if (fail) throw new Error("unavailable");
+        return {
+          items: [billFixture],
+          total: 1,
+          page: 1,
+          pageSize: 20,
+          totals: { rentAmountMinor: 900000, depositAmountMinor: 0 },
+        };
+      }),
+    });
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ContractBillsSection
+          organizationId="org"
+          contractId="contract"
+          api={api}
+          permissions={["rental_bills:read"]}
+          onNavigate={onNavigate}
+        />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("账单读取失败");
+    fail = false;
+    await user.click(screen.getByRole("button", { name: "重试" }));
+    await user.click(await screen.findByRole("button", { name: billFixture.billNumber }));
+    expect(onNavigate).toHaveBeenCalledWith("bill");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("v2 合同显示月度账单实收余额和出账入口，不显示 legacy 未知收款提示", async () => {
@@ -140,6 +254,16 @@ describe("合同应收覆盖", () => {
     expect(await screen.findByText(/有效月度账单 1,000.00/)).toBeInTheDocument();
     expect(screen.getByText(/已收 300.00 · 待收 700.00/)).toBeInTheDocument();
     expect(screen.queryByText(/收款情况尚未登记/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "合同账单费用" }));
+    expect(screen.queryByRole("option", { name: "租金" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "月度账单" }));
+    await user.click(screen.getByRole("combobox", { name: "合同账单状态" }));
+    await user.click(screen.getByRole("option", { name: "作废历史" }));
+    await waitFor(() =>
+      expect(api.listBills).toHaveBeenLastCalledWith(
+        expect.objectContaining({ contractId: "contract", type: "monthly", status: "voided" }),
+      ),
+    );
     await user.click(screen.getByRole("button", { name: "生成本月账单" }));
     expect(await screen.findByRole("heading", { name: "生成本月账单" })).toBeInTheDocument();
   });
