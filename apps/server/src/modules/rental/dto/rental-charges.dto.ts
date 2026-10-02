@@ -62,6 +62,8 @@ export const rentalMonthlyOverridesSchema = z
 /** 修改合同的水电单价和固定月费默认值。 */
 export const updateRentalChargeTermsSchema = z
   .object({
+    waterCollectionEnabled: z.boolean().optional(),
+    electricityCollectionEnabled: z.boolean().optional(),
     contractId: z.string().uuid(),
     expectedVersion: rentalExpectedVersionSchema,
     idempotencyKey: rentalIdempotencyKeySchema,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-
+import { createContractSchema } from "./create-contract.dto.js";
 import {
   confirmRentalDepositReceiptSchema,
   confirmRentalRefundSchema,
@@ -64,6 +64,82 @@ const validRefundInput = {
 };
 
 describe("租赁收费与结算 DTO", () => {
+  it.each([
+    [[]],
+    [[validReadings[0]]],
+    [[validReadings[1]]],
+  ])("按项目提交读数结构合法 %j", (readings) => {
+    expect(
+      generateRentalMonthlyBillSchema.safeParse({ ...validMonthlyInput, readings }).success,
+    ).toBe(true);
+    expect(
+      updateRentalMeterBaselineSchema.safeParse({
+        contractId,
+        readings,
+        expectedVersion: "v1",
+        idempotencyKey,
+        reason: "交接",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("创建收费事项允许空底数和单独代收，禁止不完整底数", () => {
+    const chargeSetup = {
+      chargeTerms: {
+        waterCollectionEnabled: true,
+        electricityCollectionEnabled: false,
+        waterUnitPrice: "0",
+        electricityUnitPrice: "0.0000",
+        fixedFees: [],
+      },
+      baselineReadings: [],
+    };
+    expect(createContractSchema.safeParse({ propertyId: contractId, chargeSetup }).success).toBe(
+      true,
+    );
+    expect(
+      createContractSchema.safeParse({
+        propertyId: contractId,
+        chargeSetup: { ...chargeSetup, baselineReadings: [{ kind: "water", reading: "0" }] },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("本期最终金额允许零和删除，拒绝重复、负数、溢出及双重覆盖", () => {
+    const input = {
+      billId,
+      expectedVersion: "v1",
+      idempotencyKey,
+      reason: "修改本期",
+      mode: "edit_unpaid",
+    };
+    for (const item of [
+      { feeId: contractId, action: "set_amount", amountMinor: 0 },
+      { feeId: contractId, action: "remove" },
+    ]) {
+      expect(
+        reviseRentalBillSchema.safeParse({ ...input, fixedFeeAdjustments: [item] }).success,
+      ).toBe(true);
+    }
+    const item = { feeId: contractId, action: "set_amount", amountMinor: 2000 };
+    for (const fixedFeeAdjustments of [
+      [item, item],
+      [{ ...item, amountMinor: -1 }],
+      [{ ...item, amountMinor: Number.MAX_SAFE_INTEGER + 1 }],
+    ]) {
+      expect(reviseRentalBillSchema.safeParse({ ...input, fixedFeeAdjustments }).success).toBe(
+        false,
+      );
+    }
+    expect(
+      reviseRentalBillSchema.safeParse({
+        ...input,
+        fixedFeeAdjustments: [item],
+        overrides: { fixedFees: [{ id: contractId, monthlyAmountMinor: 100 }], reason: "旧覆盖" },
+      }).success,
+    ).toBe(false);
+  });
+
   it("为每个写入 schema 接受独立合法请求并保留预览缺项", () => {
     expect(
       updateRentalChargeTermsSchema.safeParse({
@@ -242,14 +318,14 @@ describe("租赁收费与结算 DTO", () => {
     ).toBe(false);
     expect(
       generateRentalMonthlyBillSchema.safeParse({ ...validMonthlyInput, readings: [] }).success,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       generateRentalMonthlyBillSchema.safeParse({ ...validMonthlyInput, dueDate: undefined })
         .success,
     ).toBe(false);
   });
 
-  it("允许结算预览部分或空末读数，但确认拒绝不完整及重复类型", () => {
+  it("结算读数按项目提交并拒绝重复类型", () => {
     expect(
       previewRentalSettlementSchema.safeParse({
         contractId,
@@ -276,7 +352,7 @@ describe("租赁收费与结算 DTO", () => {
         expectedVersion: "settlement-v1",
         idempotencyKey,
       }).success,
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("拒绝年份零的月度账期并接受合法的 0001 年一月", () => {
@@ -382,7 +458,7 @@ describe("租赁收费与结算 DTO", () => {
         expectedVersion: "settlement-v1",
         idempotencyKey,
       }).success,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       confirmRentalSettlementSchema.safeParse({
         contractId,

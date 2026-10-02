@@ -1,7 +1,7 @@
 import { rentalMeterKinds } from "@xpense/shared";
 import { z } from "zod";
 
-import { contractCalendarDateSchema } from "./create-contract.dto.js";
+import { contractCalendarDateSchema } from "./rental-calendar-date.schema.js";
 import {
   rentalDecimalFourSchema,
   rentalExpectedVersionSchema,
@@ -29,16 +29,8 @@ export const optionalRentalMeterReadingsSchema = z
     }
   });
 
-/** 入住底数必须同时提供一条水表和一条电表读数。 */
-export const rentalCompleteMeterReadingsSchema = z
-  .array(rentalMeterReadingInputSchema)
-  .length(2)
-  .superRefine((readings, context) => {
-    const kinds = new Set(readings.map(({ kind }) => kind));
-    if (!kinds.has("water") || !kinds.has("electricity")) {
-      context.addIssue({ code: "custom", message: "必须分别提供水表和电表读数" });
-    }
-  });
+/** 表计完整性由持有合同代收状态的服务端校验，结构允许按项目提交。 */
+export const rentalCompleteMeterReadingsSchema = optionalRentalMeterReadingsSchema;
 
 /** 修改入住交接水电底数。 */
 export const updateRentalMeterBaselineSchema = z

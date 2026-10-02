@@ -5,7 +5,10 @@ import {
 } from "@xpense/shared";
 import { z } from "zod";
 import { assertSpaceAllocations } from "../contract.rules.js";
-import { assertCalendarDate } from "../contract-date.rules.js";
+import { contractChargeSetupSchema } from "./contract-charge-setup.dto.js";
+import { contractCalendarDateSchema } from "./rental-calendar-date.schema.js";
+
+export { contractCalendarDateSchema } from "./rental-calendar-date.schema.js";
 
 const optionalNullableText = (maxLength: number) =>
   z.preprocess(
@@ -14,18 +17,6 @@ const optionalNullableText = (maxLength: number) =>
   );
 
 const money = z.number().int().positive();
-
-/** 合同 DTO 共用的严格公历日期校验规则。 */
-export const contractCalendarDateSchema = z.string().superRefine((value, context) => {
-  try {
-    assertCalendarDate(value);
-  } catch (error) {
-    context.addIssue({
-      code: "custom",
-      message: error instanceof Error ? error.message : "合同日期无效",
-    });
-  }
-});
 
 /** 合同承租方输入校验规则。 */
 export const contractPartyInputSchema = z
@@ -77,6 +68,7 @@ export const contractDepositTermInputSchema = z
   });
 
 const mutableShape = {
+  chargeSetup: contractChargeSetupSchema.optional(),
   propertyId: z.string().uuid().optional(),
   externalContractNumber: optionalNullableText(120),
   startDate: contractCalendarDateSchema.nullable().optional(),

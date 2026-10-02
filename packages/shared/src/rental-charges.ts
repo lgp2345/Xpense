@@ -17,6 +17,8 @@ export type RentalFixedFee = {
 export type RentalChargeTerms = {
   contractId: string;
   version: string;
+  waterCollectionEnabled: boolean;
+  electricityCollectionEnabled: boolean;
   waterUnitPrice: string;
   electricityUnitPrice: string;
   fixedFees: RentalFixedFee[];
@@ -24,6 +26,8 @@ export type RentalChargeTerms = {
 
 /** 修改合同默认非租金收费标准的请求。 */
 export type UpdateRentalChargeTermsRequest = {
+  waterCollectionEnabled?: boolean;
+  electricityCollectionEnabled?: boolean;
   contractId: string;
   expectedVersion: string;
   idempotencyKey: string;
@@ -47,4 +51,17 @@ export type UpdateRentalMeterBaselineRequest = {
   expectedVersion: string;
   idempotencyKey: string;
   reason: string;
+};
+
+/** 创建合同或更新草稿时原子保存的收费设置。 */
+export type RentalContractChargeSetup = {
+  chargeTerms: Pick<
+    RentalChargeTerms,
+    | "waterCollectionEnabled"
+    | "electricityCollectionEnabled"
+    | "waterUnitPrice"
+    | "electricityUnitPrice"
+    | "fixedFees"
+  >;
+  baselineReadings: RentalMeterReadingInput[];
 };

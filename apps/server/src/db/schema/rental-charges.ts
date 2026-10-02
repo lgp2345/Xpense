@@ -1,6 +1,7 @@
 import type { RentalFixedFee, RentalMeterKind } from "@xpense/shared";
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   foreignKey,
@@ -27,6 +28,8 @@ export const rentalChargeTerms = snakeCase.table(
     organizationId: uuid().notNull(),
     contractId: uuid().notNull(),
     version: integer().notNull().default(1),
+    waterCollectionEnabled: boolean().notNull().default(true),
+    electricityCollectionEnabled: boolean().notNull().default(true),
     waterUnitPrice: numeric({ precision: 20, scale: 4 }).notNull(),
     electricityUnitPrice: numeric({ precision: 20, scale: 4 }).notNull(),
     fixedFees: jsonb().$type<RentalFixedFee[]>().notNull().default([]),
@@ -60,6 +63,8 @@ export const rentalChargeTermRevisions = snakeCase.table(
     version: integer().notNull(),
     termsSnapshot: jsonb()
       .$type<{
+        waterCollectionEnabled?: boolean;
+        electricityCollectionEnabled?: boolean;
         waterUnitPrice: string;
         electricityUnitPrice: string;
         fixedFees: RentalFixedFee[];

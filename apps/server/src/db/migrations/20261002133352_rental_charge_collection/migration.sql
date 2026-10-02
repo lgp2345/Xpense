@@ -1,0 +1,2 @@
+ALTER TABLE "rental_charge_terms" ADD COLUMN "water_collection_enabled" boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE "rental_charge_terms" ADD COLUMN "electricity_collection_enabled" boolean DEFAULT true NOT NULL;

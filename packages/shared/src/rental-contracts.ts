@@ -1,5 +1,5 @@
 import type { PageResult } from "./bookkeeping.js";
-import type { RentalBillingMode } from "./rental-charges.js";
+import type { RentalBillingMode, RentalContractChargeSetup } from "./rental-charges.js";
 import type {
   RentalGender,
   RentalIdentityDocumentType,
@@ -218,6 +218,7 @@ export type RentalContractDepositTermInput = {
 };
 
 type RentalContractMutableFields = {
+  chargeSetup: RentalContractChargeSetup;
   propertyId: string;
   externalContractNumber: string | null;
   startDate: string | null;

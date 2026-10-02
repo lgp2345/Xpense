@@ -39,6 +39,7 @@ export type RentalFeeSnapshot =
   | {
       kind: "fixed_fee";
       feeId: string;
+      calculationMode?: "daily_proration" | "full_month" | "manual_amount";
       monthlyAmountMinor: number;
       overrideReason: string | null;
     }

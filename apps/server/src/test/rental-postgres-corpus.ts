@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 const firstMigration = "20260704154322_pink_sauron";
 const firstHash = "ddb4761829e97154667c6f07f4a0e2183b0194e33545a73d86949ae8234d41c0";
 const reviewedHashes: Record<string, string> = {
+  "20261002133352_rental_charge_collection":
+    "1a2a2cb8dcde660a60c2876f1eae7a1e075592c64627f1c8f433064f1e040fb2",
   "20260704154322_pink_sauron": "ddb4761829e97154667c6f07f4a0e2183b0194e33545a73d86949ae8234d41c0",
   "20260808230632_moaning_ken_ellis":
     "538a7c537df23fad60eb80df94e7930e4dd2de364d7143cb8cb45a802fc56b3a",
@@ -70,21 +72,25 @@ export function rentalTestDatabaseUrl(env: NodeJS.ProcessEnv): string | null {
 }
 
 /** 只在临时副本移入已核对的17处命名空间；原文件、排序、断点及 runner 不变。 */
-export async function copyRentalMigrationCorpus(schema: string, legacyOnly = false) {
+export async function copyRentalMigrationCorpus(
+  schema: string,
+  legacyOnly: boolean | string = false,
+) {
   assertRentalTestSchema(schema);
   const root = fileURLToPath(new URL("../db/migrations/", import.meta.url));
   const names = (await readdir(root)).filter((name) => /^\d{14}_/.test(name)).sort();
   if (
-    names.length !== 14 ||
+    names.length !== 15 ||
     names[0] !== firstMigration ||
-    names.at(-1) !== "20261001131738_rental_monthly_permissions"
+    names.at(-1) !== "20261002133352_rental_charge_collection"
   ) {
     throw new Error("迁移目录已变化，须重新核对演练范围");
   }
   const folder = await mkdtemp(join(tmpdir(), "xpense-rental-migrations-"));
   const entries = [];
   for (const name of names) {
-    if (legacyOnly && name > "20260928035119_rental_billing_scope") continue;
+    if (typeof legacyOnly === "string" && name > legacyOnly) continue;
+    if (legacyOnly === true && name > "20260928035119_rental_billing_scope") continue;
     const originalPath = join(root, name, "migration.sql");
     const original = await readFile(originalPath, "utf8");
     if (reviewedHashes[name] !== sha(original)) throw new Error("迁移内容偏离已评审演练语料");

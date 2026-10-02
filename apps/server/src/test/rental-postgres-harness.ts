@@ -61,7 +61,7 @@ export async function withRentalPostgres<T>(
       return { client, db: drizzle({ client }), pid: session.pid };
     };
     const primary = await connect();
-    const applyMigrations = async (legacyOnly = false) => {
+    const applyMigrations = async (legacyOnly: boolean | string = false) => {
       const corpus = await copyRentalMigrationCorpus(schema, legacyOnly);
       await migrate(primary.db, { migrationsFolder: corpus.folder, migrationsSchema: schema });
       return corpus;
@@ -119,6 +119,6 @@ export type RentalPostgresHarness = {
     pid: number;
   }>;
   applyMigrations: (
-    legacyOnly?: boolean,
+    legacyOnly?: boolean | string,
   ) => Promise<Awaited<ReturnType<typeof copyRentalMigrationCorpus>>>;
 };

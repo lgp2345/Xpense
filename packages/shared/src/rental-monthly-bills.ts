@@ -36,7 +36,14 @@ export type GenerateRentalMonthlyBillRequest = PreviewRentalMonthlyBillRequest &
 };
 
 /** 修订已确认账单的输入；不允许直接调整合同租金。 */
+/** 单张账单固定费用的最终金额调整。 */
+export type RentalFixedFeeAdjustment =
+  | { feeId: string; action: "set_amount"; amountMinor: number }
+  | { feeId: string; action: "remove" };
+
 export type RentalBillRevisionInput = {
+  mode?: "edit_unpaid" | "correction";
+  fixedFeeAdjustments?: RentalFixedFeeAdjustment[];
   billId: string;
   expectedVersion: string;
   readings?: RentalMeterReadingInput[];

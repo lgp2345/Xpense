@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { contractCalendarDateSchema } from "./create-contract.dto.js";
+import { contractCalendarDateSchema } from "./rental-calendar-date.schema.js";
 import {
   rentalExpectedVersionSchema,
   rentalIdempotencyKeySchema,
@@ -58,6 +58,21 @@ export const generateRentalMonthlyBillSchema = z
 /** 更正已确认账单及其实际受影响的抄表边界。 */
 export const reviseRentalBillSchema = z
   .object({
+    mode: z.enum(["edit_unpaid", "correction"]).optional(),
+    fixedFeeAdjustments: z
+      .array(
+        z.discriminatedUnion("action", [
+          z
+            .object({
+              feeId: z.string().uuid(),
+              action: z.literal("set_amount"),
+              amountMinor: rentalSafeMinorAmountSchema.min(0),
+            })
+            .strict(),
+          z.object({ feeId: z.string().uuid(), action: z.literal("remove") }).strict(),
+        ]),
+      )
+      .optional(),
     billId: z.string().uuid(),
     expectedVersion: rentalExpectedVersionSchema,
     idempotencyKey: rentalIdempotencyKeySchema,
@@ -66,7 +81,16 @@ export const reviseRentalBillSchema = z
     extraFees: z.array(rentalExtraFeeInputSchema).optional(),
     reason: rentalReasonSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    const ids = value.fixedFeeAdjustments?.map(({ feeId }) => feeId) ?? [];
+    if (
+      new Set(ids).size !== ids.length ||
+      value.overrides?.fixedFees?.some(({ id }) => ids.includes(id))
+    ) {
+      context.addIssue({ code: "custom", message: "同一费用不能重复调整或同时使用旧覆盖" });
+    }
+  });
 
 /** 月度账单预览的校验后输入。 */
 export type PreviewRentalMonthlyBillDto = z.output<typeof previewRentalMonthlyBillSchema>;
