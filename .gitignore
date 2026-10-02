@@ -16,7 +16,7 @@ out
 .worktrees
 
 # local planning docs
-docs/
+docs/*
 
 # pnpm local store
 .pnpm-store
@@ -42,3 +42,5 @@ Thumbs.db
 drizzle/meta
 # Added by code-review-graph
 .code-review-graph/
+
+apps/web/.tanstack/*
