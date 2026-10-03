@@ -145,7 +145,10 @@ it("只登记代收水表，未填写电表不阻止保存", async () => {
       organizationId="org"
       contractId="contract"
       api={api}
-      baseline={{ ...meterBaselineFixture, readings: [meterBaselineFixture.readings[0]!] }}
+      baseline={{
+        ...meterBaselineFixture,
+        readings: meterBaselineFixture.readings.filter((reading) => reading.kind === "water"),
+      }}
       terms={{ ...chargeTermsFixture, electricityCollectionEnabled: false }}
       onSaved={vi.fn()}
     />,

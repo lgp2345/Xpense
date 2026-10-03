@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ContractChargeFields } from '../../charges/contract-charge-fields'
 import {
   ContractFieldErrorsContext,
   ContractFieldMessage,
@@ -24,7 +25,6 @@ import {
   useContractFieldFeedback,
 } from '../contract-field-feedback'
 import { type ContractFormValues, isValidDate } from '../contract-form-schema'
-import { ContractChargeFields } from '../../charges/contract-charge-fields'
 import { BillingPeriodPreview } from './billing-period-preview'
 
 export function ContractTermsStep({

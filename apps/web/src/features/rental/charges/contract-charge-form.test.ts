@@ -57,8 +57,12 @@ describe("合同收费请求转换", () => {
       expect(
         contractChargeFormSchema.safeParse({
           ...value,
-          fixedFees: [{ id: "a", name: "网费", amount }],
+          fixedFees: [{ id: "123e4567-e89b-42d3-a456-426614174000", name: "网费", amount }],
         }).success,
       ).toBe(false);
+    const fee = { id: "123e4567-e89b-42d3-a456-426614174000", name: "管理费", amount: "50" };
+    expect(contractChargeFormSchema.safeParse({ ...value, fixedFees: [fee, fee] }).success).toBe(
+      false,
+    );
   });
 });

@@ -1669,3 +1669,48 @@ describe("new contract final submission", () => {
     expect(api.createConfirmedContract).not.toHaveBeenCalled();
   });
 });
+
+it("财务权限撤销后清除已回填的收费设置，不提交不可见收费", async () => {
+  const api = baseApi({ contractDetail: vi.fn().mockResolvedValue(completeDetail()) });
+  const financeApi = createRentalFinanceApi({} as never);
+  financeApi.getChargeTerms = vi.fn().mockResolvedValue({
+    contractId: draftId,
+    version: "c",
+    waterCollectionEnabled: false,
+    electricityCollectionEnabled: false,
+    waterUnitPrice: "0",
+    electricityUnitPrice: "0",
+    fixedFees: [
+      {
+        id: "123e4567-e89b-42d3-a456-426614174000",
+        name: "权限撤销测试费",
+        monthlyAmountMinor: 5000,
+      },
+    ],
+  });
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const perms: PermissionKey[] = [
+    "rental_contracts:create",
+    "rental_contracts:read",
+    "rental_contracts:update",
+    "rental_charges:read",
+    "rental_charges:update",
+  ];
+  const page = (permissions: PermissionKey[]) => (
+    <QueryClientProvider client={qc}>
+      <ContractFormPage
+        api={api}
+        financeApi={financeApi}
+        organizationId="org-a"
+        permissions={permissions}
+        canCreate
+        navigate={vi.fn()}
+        search={{ draftId }}
+      />
+    </QueryClientProvider>
+  );
+  const view = render(page(perms));
+  expect(await screen.findByText("权限撤销测试费：50.00 元/月")).toBeInTheDocument();
+  view.rerender(page(perms.filter((p) => !p.startsWith("rental_charges:"))));
+  await waitFor(() => expect(screen.queryByText(/权限撤销测试费/)).not.toBeInTheDocument());
+});

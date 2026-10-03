@@ -12,6 +12,7 @@ import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import {
   generateRentalMonthlyBillSchema,
+  previewRentalBillRevisionSchema,
   previewRentalMonthlyBillSchema,
   reviseRentalBillSchema,
 } from "./dto/rental-monthly-bills.dto.js";
@@ -83,7 +84,7 @@ describe("MonthlyBillsController", () => {
       expectedVersion: "source-version",
       reason: "读数更正",
     };
-    const preview = reviseRentalBillSchema.omit({ idempotencyKey: true }).parse(input);
+    const preview = previewRentalBillRevisionSchema.parse(input);
     const revise = reviseRentalBillSchema.parse({
       ...input,
       idempotencyKey: "00000000-0000-4000-8000-000000000002",

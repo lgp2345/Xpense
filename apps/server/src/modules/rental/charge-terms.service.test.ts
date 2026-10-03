@@ -54,8 +54,9 @@ function harness() {
 describe("ChargeTermsService", () => {
   it("旧客户端省略代收开关时保留不代收状态", async () => {
     const h = harness();
+    if (!h.snapshot.terms) throw new Error("缺少收费标准fixture");
     h.snapshot.terms = {
-      ...h.snapshot.terms!,
+      ...h.snapshot.terms,
       waterCollectionEnabled: false,
       electricityCollectionEnabled: false,
     };

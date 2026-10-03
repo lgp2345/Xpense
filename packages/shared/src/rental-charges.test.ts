@@ -23,6 +23,8 @@ describe("租赁收费和计量共享契约", () => {
     const terms: RentalChargeTerms = {
       contractId,
       version: "charge-v3",
+      waterCollectionEnabled: true,
+      electricityCollectionEnabled: true,
       waterUnitPrice: "12.5",
       electricityUnitPrice: "0",
       fixedFees: [{ id: contractId, name: "网费", monthlyAmountMinor: 5000 }],

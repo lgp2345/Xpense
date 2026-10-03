@@ -34,7 +34,8 @@ export class ContractChargeSetupService {
     const draft = snapshot.contract.lifecycleStatus === "draft";
     const reason = draft ? "修改合同草稿收费事项" : "创建合同初始化收费事项";
     const terms = setup.chargeTerms;
-    if (setup.baselineReadings.length && snapshot.contract.spaces.length !== 1)
+    const baselineSpace = setup.baselineReadings.length ? snapshot.contract.spaces[0] : null;
+    if (setup.baselineReadings.length && (!baselineSpace || snapshot.contract.spaces.length !== 1))
       throw this.conflict("登记入住底数需要唯一空间");
     for (const reading of setup.baselineReadings) {
       if (
@@ -57,8 +58,8 @@ export class ContractChargeSetupService {
       { userId: auth.userId },
       tx,
     );
-    if (setup.baselineReadings.length) {
-      const spaceId = snapshot.contract.spaces[0]!.spaceId;
+    if (baselineSpace) {
+      const spaceId = baselineSpace.spaceId;
       await this.readings.saveBaseline(
         scope,
         setup.baselineReadings.map((reading) => ({ ...reading, spaceId, predecessorId: null })),

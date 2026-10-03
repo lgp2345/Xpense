@@ -89,7 +89,10 @@ export function useContractDraft(options: Options) {
   const confirmedContractId = useRef<string | undefined>(undefined);
   const notifiedNonDraft = useRef<string | undefined>(undefined);
   const lastSave = useRef<{ step: ContractStep } | undefined>(undefined);
-  const baseline = useRef({ ...defaultContractFormValues(seed?.propertyId ?? ""), chargeSetup: canEditCharges ? defaultContractChargeValues() : null });
+  const baseline = useRef({
+    ...defaultContractFormValues(seed?.propertyId ?? ""),
+    chargeSetup: canEditCharges ? defaultContractChargeValues() : null,
+  });
   const baselinePropertyId = useRef<string | undefined>(undefined);
   const currentValues = useRef<ContractFormValues | null>(null);
   const editRevision = useRef(0);
@@ -203,7 +206,10 @@ export function useContractDraft(options: Options) {
     setAvailability(null);
     lastSave.current = undefined;
     notifiedNonDraft.current = undefined;
-    baseline.current = { ...defaultContractFormValues(seed?.propertyId ?? ""), chargeSetup: canEditCharges ? defaultContractChargeValues() : null };
+    baseline.current = {
+      ...defaultContractFormValues(seed?.propertyId ?? ""),
+      chargeSetup: canEditCharges ? defaultContractChargeValues() : null,
+    };
     baselinePropertyId.current = undefined;
     currentValues.current = null;
     editRevision.current = 0;
@@ -406,7 +412,23 @@ export function useContractDraft(options: Options) {
       const submit = id
         ? confirmContract && (() => confirmContract({ id }))
         : createConfirmedContract &&
-          (() => createConfirmedContract(toConfirmedContractRequest(canEditMeters || !canonical.chargeSetup ? canonical : { ...canonical, chargeSetup: { ...canonical.chargeSetup, waterReading: "", waterReadingDate: "", electricityReading: "", electricityReadingDate: "" } })));
+          (() =>
+            createConfirmedContract(
+              toConfirmedContractRequest(
+                canEditMeters || !canonical.chargeSetup
+                  ? canonical
+                  : {
+                      ...canonical,
+                      chargeSetup: {
+                        ...canonical.chargeSetup,
+                        waterReading: "",
+                        waterReadingDate: "",
+                        electricityReading: "",
+                        electricityReadingDate: "",
+                      },
+                    },
+              ),
+            ));
       if (!submit) {
         setError({ kind: "confirm", message: "合同服务暂不可用，请稍后重试。" });
         return false;

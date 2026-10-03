@@ -207,6 +207,8 @@ function baseSnapshot(
       dueDaysBefore: 0,
     } as unknown as RentalFinanceSnapshot["contract"],
     terms: {
+      waterCollectionEnabled: true,
+      electricityCollectionEnabled: true,
       contractId: "contract-1",
       version: "terms-v1",
       waterUnitPrice: "4",
@@ -262,6 +264,8 @@ function refundScenarioSnapshot(): RentalFinanceSnapshot {
   source.terms = {
     contractId: "contract-1",
     version: "terms-refund",
+    waterCollectionEnabled: true,
+    electricityCollectionEnabled: true,
     waterUnitPrice: "1",
     electricityUnitPrice: "1",
     fixedFees: [],
@@ -519,6 +523,8 @@ describe("buildRentalSettlementPlan", () => {
     source.terms = {
       contractId: "contract-1",
       version: "terms-current",
+      waterCollectionEnabled: true,
+      electricityCollectionEnabled: true,
       waterUnitPrice: "4",
       electricityUnitPrice: "1",
       fixedFees: [],
@@ -793,6 +799,8 @@ describe("buildRentalSettlementPlan", () => {
     source.terms = {
       contractId: "contract-1",
       version: "terms-v1",
+      waterCollectionEnabled: true,
+      electricityCollectionEnabled: true,
       waterUnitPrice: "4",
       electricityUnitPrice: "1",
       fixedFees: [],

@@ -470,6 +470,8 @@ function overflowSnapshot(): RentalFinanceSnapshot {
     terms: {
       contractId,
       version: "1",
+      waterCollectionEnabled: true,
+      electricityCollectionEnabled: true,
       waterUnitPrice: "0.0000",
       electricityUnitPrice: "0.0000",
       fixedFees: [],
@@ -497,6 +499,8 @@ function futureMeterSnapshot(): RentalFinanceSnapshot {
   source.terms = {
     contractId,
     version: "1",
+    waterCollectionEnabled: true,
+    electricityCollectionEnabled: true,
     waterUnitPrice: "4.0000",
     electricityUnitPrice: "5.0000",
     fixedFees: [],

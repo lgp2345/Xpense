@@ -2,114 +2,70 @@
   "version": "8",
   "dialect": "postgres",
   "id": "070dedc1-42d4-4fcd-a120-10de60e145f9",
-  "prevIds": [
-    "6cafad5b-b2a0-457c-9e1b-e487be7a470d"
-  ],
+  "prevIds": ["6cafad5b-b2a0-457c-9e1b-e487be7a470d"],
   "ddl": [
     {
-      "values": [
-        "cash",
-        "bank",
-        "e_wallet",
-        "credit_card",
-        "other"
-      ],
+      "values": ["cash", "bank", "e_wallet", "credit_card", "other"],
       "name": "account_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "income",
-        "expense"
-      ],
+      "values": ["income", "expense"],
       "name": "category_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "personal",
-        "rental"
-      ],
+      "values": ["personal", "rental"],
       "name": "ledger_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "income",
-        "expense",
-        "transfer",
-        "excluded_inflow",
-        "excluded_outflow"
-      ],
+      "values": ["income", "expense", "transfer", "excluded_inflow", "excluded_outflow"],
       "name": "transaction_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "succeeded",
-        "failed"
-      ],
+      "values": ["succeeded", "failed"],
       "name": "audit_result",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "web_pc",
-        "web_mobile",
-        "app_ios",
-        "app_android"
-      ],
+      "values": ["web_pc", "web_mobile", "app_ios", "app_android"],
       "name": "client_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "active",
-        "disabled"
-      ],
+      "values": ["active", "disabled"],
       "name": "membership_status",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "directory",
-        "menu",
-        "button"
-      ],
+      "values": ["directory", "menu", "button"],
       "name": "menu_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "active",
-        "disabled"
-      ],
+      "values": ["active", "disabled"],
       "name": "organization_status",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "active",
-        "revoked"
-      ],
+      "values": ["active", "revoked"],
       "name": "refresh_session_status",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "active",
-        "disabled"
-      ],
+      "values": ["active", "disabled"],
       "name": "user_status",
       "entityType": "enums",
       "schema": "public"
@@ -161,107 +117,67 @@
       "schema": "public"
     },
     {
-      "values": [
-        "active",
-        "voided"
-      ],
+      "values": ["active", "voided"],
       "name": "rental_bill_status",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "rent",
-        "deposit",
-        "monthly"
-      ],
+      "values": ["rent", "deposit", "monthly"],
       "name": "rental_bill_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "contract_start",
-        "calendar_month"
-      ],
+      "values": ["contract_start", "calendar_month"],
       "name": "rental_billing_anchor",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "termination_revoked"
-      ],
+      "values": ["termination_revoked"],
       "name": "rental_contract_action_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "parties_changed"
-      ],
+      "values": ["parties_changed"],
       "name": "rental_contract_change_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "draft",
-        "confirmed",
-        "cancelled",
-        "terminated"
-      ],
+      "values": ["draft", "confirmed", "cancelled", "terminated"],
       "name": "rental_contract_status",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "fixed_amount",
-        "rent_multiple"
-      ],
+      "values": ["fixed_amount", "rent_multiple"],
       "name": "rental_deposit_calculation_mode",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "rental",
-        "utility",
-        "access_card",
-        "other"
-      ],
+      "values": ["rental", "utility", "access_card", "other"],
       "name": "rental_deposit_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "male",
-        "female",
-        "unspecified"
-      ],
+      "values": ["male", "female", "unspecified"],
       "name": "rental_gender",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "national_id",
-        "passport",
-        "residence_permit",
-        "business_registration",
-        "other"
-      ],
+      "values": ["national_id", "passport", "residence_permit", "business_registration", "other"],
       "name": "rental_identity_document_type",
       "entityType": "enums",
       "schema": "public"
     },
     {
-      "values": [
-        "individual",
-        "company"
-      ],
+      "values": ["individual", "company"],
       "name": "rental_tenant_type",
       "entityType": "enums",
       "schema": "public"
@@ -8671,14 +8587,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "account_movements_organization_id_organizations_id_fkey",
@@ -8688,16 +8600,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "transaction_id"
-      ],
+      "columns": ["organization_id", "transaction_id"],
       "schemaTo": "public",
       "tableTo": "transactions",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "account_movements_organization_transaction_fk",
@@ -8707,16 +8613,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "account_id"
-      ],
+      "columns": ["organization_id", "account_id"],
       "schemaTo": "public",
       "tableTo": "accounts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "account_movements_organization_account_fk",
@@ -8726,14 +8626,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "accounts_organization_id_organizations_id_fkey",
@@ -8743,14 +8639,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "accounts_created_by_user_id_users_id_fkey",
@@ -8760,14 +8652,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "accounts_deleted_by_user_id_users_id_fkey",
@@ -8777,14 +8665,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_organization_id_organizations_id_fkey",
@@ -8794,14 +8678,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_created_by_user_id_users_id_fkey",
@@ -8811,14 +8691,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_deleted_by_user_id_users_id_fkey",
@@ -8828,16 +8704,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id"
-      ],
+      "columns": ["organization_id", "ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_organization_ledger_fk",
@@ -8847,20 +8717,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id",
-        "type",
-        "parent_id"
-      ],
+      "columns": ["organization_id", "ledger_id", "type", "parent_id"],
       "schemaTo": "public",
       "tableTo": "categories",
-      "columnsTo": [
-        "organization_id",
-        "ledger_id",
-        "type",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "ledger_id", "type", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "categories_parent_scope_fk",
@@ -8870,14 +8730,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "ledgers_organization_id_organizations_id_fkey",
@@ -8887,14 +8743,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "ledgers_created_by_user_id_users_id_fkey",
@@ -8904,14 +8756,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "ledgers_deleted_by_user_id_users_id_fkey",
@@ -8921,14 +8769,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_organization_id_organizations_id_fkey",
@@ -8938,14 +8782,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_created_by_user_id_users_id_fkey",
@@ -8955,14 +8795,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by_user_id"
-      ],
+      "columns": ["updated_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_updated_by_user_id_users_id_fkey",
@@ -8972,14 +8808,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_deleted_by_user_id_users_id_fkey",
@@ -8989,16 +8821,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id"
-      ],
+      "columns": ["organization_id", "ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_organization_ledger_fk",
@@ -9008,18 +8834,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id",
-        "category_id"
-      ],
+      "columns": ["organization_id", "ledger_id", "category_id"],
       "schemaTo": "public",
       "tableTo": "categories",
-      "columnsTo": [
-        "organization_id",
-        "ledger_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "ledger_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "transactions_category_scope_fk",
@@ -9029,14 +8847,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "audit_logs_organization_id_organizations_id_fk",
@@ -9046,14 +8860,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "actor_user_id"
-      ],
+      "columns": ["actor_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "audit_logs_actor_user_id_users_id_fk",
@@ -9063,14 +8873,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "menus_organization_id_organizations_id_fkey",
@@ -9080,14 +8886,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "permission_code"
-      ],
+      "columns": ["permission_code"],
       "schemaTo": "public",
       "tableTo": "permissions",
-      "columnsTo": [
-        "key"
-      ],
+      "columnsTo": ["key"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "menus_permission_code_permissions_key_fkey",
@@ -9097,16 +8899,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "parent_id"
-      ],
+      "columns": ["organization_id", "parent_id"],
       "schemaTo": "public",
       "tableTo": "menus",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "menus_organization_parent_fk",
@@ -9116,14 +8912,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "organization_memberships_organization_id_organizations_id_fk",
@@ -9133,14 +8925,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "organization_memberships_user_id_users_id_fk",
@@ -9150,14 +8938,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "role_id"
-      ],
+      "columns": ["role_id"],
       "schemaTo": "public",
       "tableTo": "roles",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "organization_memberships_role_id_roles_id_fk",
@@ -9167,14 +8951,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "organizations_created_by_user_id_users_id_fk",
@@ -9184,14 +8964,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "refresh_sessions_user_id_users_id_fk",
@@ -9201,14 +8977,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "current_organization_id"
-      ],
+      "columns": ["current_organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "refresh_sessions_current_organization_id_organizations_id_fk",
@@ -9218,14 +8990,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "role_id"
-      ],
+      "columns": ["role_id"],
       "schemaTo": "public",
       "tableTo": "roles",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "role_permissions_role_id_roles_id_fk",
@@ -9235,14 +9003,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "permission_id"
-      ],
+      "columns": ["permission_id"],
       "schemaTo": "public",
       "tableTo": "permissions",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "role_permissions_permission_id_permissions_id_fk",
@@ -9252,14 +9016,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "roles_organization_id_organizations_id_fk",
@@ -9269,14 +9029,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_properties_organization_id_organizations_id_fkey",
@@ -9286,14 +9042,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_properties_created_by_user_id_users_id_fkey",
@@ -9303,14 +9055,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by_user_id"
-      ],
+      "columns": ["updated_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_properties_updated_by_user_id_users_id_fkey",
@@ -9320,14 +9068,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_properties_deleted_by_user_id_users_id_fkey",
@@ -9337,16 +9081,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id"
-      ],
+      "columns": ["organization_id", "ledger_id"],
       "schemaTo": "public",
       "tableTo": "ledgers",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_properties_organization_ledger_fk",
@@ -9356,14 +9094,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_spaces_organization_id_organizations_id_fkey",
@@ -9373,14 +9107,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_spaces_created_by_user_id_users_id_fkey",
@@ -9390,14 +9120,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by_user_id"
-      ],
+      "columns": ["updated_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_spaces_updated_by_user_id_users_id_fkey",
@@ -9407,14 +9133,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_spaces_deleted_by_user_id_users_id_fkey",
@@ -9424,16 +9146,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "property_id"
-      ],
+      "columns": ["organization_id", "property_id"],
       "schemaTo": "public",
       "tableTo": "rental_properties",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_spaces_organization_property_fk",
@@ -9443,18 +9159,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "property_id",
-        "parent_id"
-      ],
+      "columns": ["organization_id", "property_id", "parent_id"],
       "schemaTo": "public",
       "tableTo": "rental_spaces",
-      "columnsTo": [
-        "organization_id",
-        "property_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "property_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_spaces_parent_scope_fk",
@@ -9464,14 +9172,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_adjustments_created_by_user_id_users_id_fkey",
@@ -9481,14 +9185,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "revoked_by_user_id"
-      ],
+      "columns": ["revoked_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_adjustments_revoked_by_user_id_users_id_fkey",
@@ -9498,16 +9198,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_adjustments_contract_scope_fk",
@@ -9517,14 +9211,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_generations_created_by_user_id_users_id_fkey",
@@ -9534,16 +9224,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_generations_contract_scope_fk",
@@ -9553,18 +9237,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "bill_id"
-      ],
+      "columns": ["organization_id", "contract_id", "bill_id"],
       "schemaTo": "public",
       "tableTo": "rental_bills",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_lines_bill_scope_fk",
@@ -9574,14 +9250,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_number_counters_ybD0pCRQy6Er_fkey",
@@ -9591,14 +9263,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_revisions_created_by_user_id_users_id_fkey",
@@ -9608,18 +9276,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "bill_id"
-      ],
+      "columns": ["organization_id", "contract_id", "bill_id"],
       "schemaTo": "public",
       "tableTo": "rental_bills",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_revisions_bill_scope_fk",
@@ -9629,14 +9289,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "voided_by"
-      ],
+      "columns": ["voided_by"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bills_voided_by_users_id_fkey",
@@ -9646,14 +9302,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bills_created_by_user_id_users_id_fkey",
@@ -9663,16 +9315,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bills_contract_scope_fk",
@@ -9682,16 +9328,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "property_id"
-      ],
+      "columns": ["organization_id", "property_id"],
       "schemaTo": "public",
       "tableTo": "rental_properties",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bills_property_scope_fk",
@@ -9701,18 +9341,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "generation_id"
-      ],
+      "columns": ["organization_id", "contract_id", "generation_id"],
       "schemaTo": "public",
       "tableTo": "rental_bill_generations",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bills_generation_scope_fk",
@@ -9722,18 +9354,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "adjustment_id"
-      ],
+      "columns": ["organization_id", "contract_id", "adjustment_id"],
       "schemaTo": "public",
       "tableTo": "rental_bill_adjustments",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bills_adjustment_scope_fk",
@@ -9743,14 +9367,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_cash_entries_created_by_user_id_users_id_fkey",
@@ -9760,14 +9380,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "revoked_by_user_id"
-      ],
+      "columns": ["revoked_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_cash_entries_revoked_by_user_id_users_id_fkey",
@@ -9777,16 +9393,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_cash_entries_contract_scope_fk",
@@ -9796,18 +9406,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "bill_id"
-      ],
+      "columns": ["organization_id", "contract_id", "bill_id"],
       "schemaTo": "public",
       "tableTo": "rental_bills",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_cash_entries_bill_scope_fk",
@@ -9817,18 +9419,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "settlement_id"
-      ],
+      "columns": ["organization_id", "contract_id", "settlement_id"],
       "schemaTo": "public",
       "tableTo": "rental_settlements",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_cash_entries_settlement_scope_fk",
@@ -9838,14 +9432,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_finance_requests_organization_id_organizations_id_fkey",
@@ -9855,14 +9445,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_finance_requests_created_by_user_id_users_id_fkey",
@@ -9872,16 +9458,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_finance_requests_contract_scope_fk",
@@ -9891,18 +9471,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "bill_id"
-      ],
+      "columns": ["organization_id", "contract_id", "bill_id"],
       "schemaTo": "public",
       "tableTo": "rental_bills",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_meter_intervals_bill_scope_fk",
@@ -9912,22 +9484,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "bill_id",
-        "bill_line_id",
-        "kind"
-      ],
+      "columns": ["organization_id", "contract_id", "bill_id", "bill_line_id", "kind"],
       "schemaTo": "public",
       "tableTo": "rental_bill_lines",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "bill_id",
-        "id",
-        "kind"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "bill_id", "id", "kind"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_meter_intervals_line_scope_kind_fk",
@@ -9937,22 +9497,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "space_id",
-        "kind",
-        "start_reading_id"
-      ],
+      "columns": ["organization_id", "contract_id", "space_id", "kind", "start_reading_id"],
       "schemaTo": "public",
       "tableTo": "rental_meter_readings",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "space_id",
-        "kind",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "space_id", "kind", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_meter_intervals_start_reading_scope_kind_fk",
@@ -9972,14 +9520,7 @@
       ],
       "schemaTo": "public",
       "tableTo": "rental_meter_readings",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "space_id",
-        "kind",
-        "id",
-        "predecessor_id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "space_id", "kind", "id", "predecessor_id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_bill_meter_intervals_end_predecessor_scope_fk",
@@ -9989,14 +9530,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_charge_term_revisions_created_by_user_id_users_id_fkey",
@@ -10006,16 +9543,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_charge_term_revisions_contract_scope_fk",
@@ -10025,14 +9556,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by_user_id"
-      ],
+      "columns": ["updated_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_charge_terms_updated_by_user_id_users_id_fkey",
@@ -10042,16 +9569,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_charge_terms_contract_scope_fk",
@@ -10061,14 +9582,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_meter_reading_revisions_created_by_user_id_users_id_fkey",
@@ -10078,18 +9595,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "reading_id"
-      ],
+      "columns": ["organization_id", "contract_id", "reading_id"],
       "schemaTo": "public",
       "tableTo": "rental_meter_readings",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_meter_reading_revisions_reading_scope_fk",
@@ -10099,14 +9608,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_meter_readings_created_by_user_id_users_id_fkey",
@@ -10116,14 +9621,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by_user_id"
-      ],
+      "columns": ["updated_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_meter_readings_updated_by_user_id_users_id_fkey",
@@ -10133,18 +9634,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "space_id"
-      ],
+      "columns": ["organization_id", "contract_id", "space_id"],
       "schemaTo": "public",
       "tableTo": "rental_contract_spaces",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "space_id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "space_id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_meter_readings_contract_space_scope_fk",
@@ -10154,22 +9647,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "space_id",
-        "kind",
-        "predecessor_id"
-      ],
+      "columns": ["organization_id", "contract_id", "space_id", "kind", "predecessor_id"],
       "schemaTo": "public",
       "tableTo": "rental_meter_readings",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "space_id",
-        "kind",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "space_id", "kind", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_meter_readings_predecessor_scope_kind_fk",
@@ -10179,18 +9660,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "settlement_id"
-      ],
+      "columns": ["organization_id", "contract_id", "settlement_id"],
       "schemaTo": "public",
       "tableTo": "rental_settlements",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_settlement_bills_settlement_scope_fk",
@@ -10200,18 +9673,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "bill_id"
-      ],
+      "columns": ["organization_id", "contract_id", "bill_id"],
       "schemaTo": "public",
       "tableTo": "rental_bills",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_settlement_bills_bill_scope_fk",
@@ -10221,14 +9686,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_settlement_revisions_created_by_user_id_users_id_fkey",
@@ -10238,18 +9699,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "settlement_id"
-      ],
+      "columns": ["organization_id", "contract_id", "settlement_id"],
       "schemaTo": "public",
       "tableTo": "rental_settlements",
-      "columnsTo": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "contract_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_settlement_revisions_settlement_scope_fk",
@@ -10259,14 +9712,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "confirmed_by_user_id"
-      ],
+      "columns": ["confirmed_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_settlements_confirmed_by_user_id_users_id_fkey",
@@ -10276,16 +9725,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_settlements_contract_scope_fk",
@@ -10295,14 +9738,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_actions_created_by_user_id_users_id_fkey",
@@ -10312,16 +9751,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_actions_contract_scope_fk",
@@ -10331,14 +9764,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_changes_organization_id_organizations_id_fkey",
@@ -10348,14 +9777,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_changes_created_by_user_id_users_id_fkey",
@@ -10365,16 +9790,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_changes_contract_scope_fk",
@@ -10384,14 +9803,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_deposit_terms_rByso3MKXk3T_fkey",
@@ -10401,16 +9816,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_deposit_terms_contract_scope_fk",
@@ -10420,14 +9829,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_number_counters_MvFYH921Wavc_fkey",
@@ -10437,14 +9842,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_party_periods_BOd1h5rZ1PwM_fkey",
@@ -10454,16 +9855,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_party_periods_contract_scope_fk",
@@ -10473,16 +9868,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "tenant_id"
-      ],
+      "columns": ["organization_id", "tenant_id"],
       "schemaTo": "public",
       "tableTo": "rental_tenants",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_party_periods_tenant_scope_fk",
@@ -10492,14 +9881,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_spaces_organization_id_organizations_id_fkey",
@@ -10509,18 +9894,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "property_id"
-      ],
+      "columns": ["organization_id", "contract_id", "property_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "id",
-        "property_id"
-      ],
+      "columnsTo": ["organization_id", "id", "property_id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_spaces_contract_scope_fk",
@@ -10530,18 +9907,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "property_id",
-        "space_id"
-      ],
+      "columns": ["organization_id", "property_id", "space_id"],
       "schemaTo": "public",
       "tableTo": "rental_spaces",
-      "columnsTo": [
-        "organization_id",
-        "property_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "property_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contract_spaces_space_scope_fk",
@@ -10551,14 +9920,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contracts_organization_id_organizations_id_fkey",
@@ -10568,14 +9933,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "cancelled_by_user_id"
-      ],
+      "columns": ["cancelled_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contracts_cancelled_by_user_id_users_id_fkey",
@@ -10585,14 +9946,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "terminated_by_user_id"
-      ],
+      "columns": ["terminated_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contracts_terminated_by_user_id_users_id_fkey",
@@ -10602,14 +9959,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contracts_created_by_user_id_users_id_fkey",
@@ -10619,14 +9972,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by_user_id"
-      ],
+      "columns": ["updated_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contracts_updated_by_user_id_users_id_fkey",
@@ -10636,14 +9985,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contracts_deleted_by_user_id_users_id_fkey",
@@ -10653,16 +9998,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "property_id"
-      ],
+      "columns": ["organization_id", "property_id"],
       "schemaTo": "public",
       "tableTo": "rental_properties",
-      "columnsTo": [
-        "organization_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contracts_property_scope_fk",
@@ -10672,18 +10011,10 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "property_id",
-        "renewed_from_contract_id"
-      ],
+      "columns": ["organization_id", "property_id", "renewed_from_contract_id"],
       "schemaTo": "public",
       "tableTo": "rental_contracts",
-      "columnsTo": [
-        "organization_id",
-        "property_id",
-        "id"
-      ],
+      "columnsTo": ["organization_id", "property_id", "id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_contracts_renewed_from_scope_fk",
@@ -10693,14 +10024,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "organization_id"
-      ],
+      "columns": ["organization_id"],
       "schemaTo": "public",
       "tableTo": "organizations",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_tenants_organization_id_organizations_id_fkey",
@@ -10710,14 +10037,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "created_by_user_id"
-      ],
+      "columns": ["created_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_tenants_created_by_user_id_users_id_fkey",
@@ -10727,14 +10050,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "updated_by_user_id"
-      ],
+      "columns": ["updated_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_tenants_updated_by_user_id_users_id_fkey",
@@ -10744,14 +10063,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "deleted_by_user_id"
-      ],
+      "columns": ["deleted_by_user_id"],
       "schemaTo": "public",
       "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
       "name": "rental_tenants_deleted_by_user_id_users_id_fkey",
@@ -10760,10 +10075,7 @@
       "table": "rental_tenants"
     },
     {
-      "columns": [
-        "role_id",
-        "permission_id"
-      ],
+      "columns": ["role_id", "permission_id"],
       "nameExplicit": false,
       "name": "role_permissions_role_id_permission_id_pk",
       "entityType": "pks",
@@ -10771,10 +10083,7 @@
       "table": "role_permissions"
     },
     {
-      "columns": [
-        "organization_id",
-        "year"
-      ],
+      "columns": ["organization_id", "year"],
       "nameExplicit": false,
       "name": "rental_bill_number_counters_pkey",
       "entityType": "pks",
@@ -10782,10 +10091,7 @@
       "table": "rental_bill_number_counters"
     },
     {
-      "columns": [
-        "organization_id",
-        "year"
-      ],
+      "columns": ["organization_id", "year"],
       "nameExplicit": true,
       "name": "rental_contract_number_counters_pkey",
       "entityType": "pks",
@@ -10793,9 +10099,7 @@
       "table": "rental_contract_number_counters"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "account_movements_pkey",
       "schema": "public",
@@ -10803,9 +10107,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "accounts_pkey",
       "schema": "public",
@@ -10813,9 +10115,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "categories_pkey",
       "schema": "public",
@@ -10823,9 +10123,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "ledgers_pkey",
       "schema": "public",
@@ -10833,9 +10131,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "transactions_pkey",
       "schema": "public",
@@ -10843,9 +10139,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "audit_logs_pkey",
       "schema": "public",
@@ -10853,9 +10147,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "menus_pkey",
       "schema": "public",
@@ -10863,9 +10155,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "organization_memberships_pkey",
       "schema": "public",
@@ -10873,9 +10163,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "organizations_pkey",
       "schema": "public",
@@ -10883,9 +10171,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "permissions_pkey",
       "schema": "public",
@@ -10893,9 +10179,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "refresh_sessions_pkey",
       "schema": "public",
@@ -10903,9 +10187,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "roles_pkey",
       "schema": "public",
@@ -10913,9 +10195,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "users_pkey",
       "schema": "public",
@@ -10923,9 +10203,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_properties_pkey",
       "schema": "public",
@@ -10933,9 +10211,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_spaces_pkey",
       "schema": "public",
@@ -10943,9 +10219,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_bill_adjustments_pkey",
       "schema": "public",
@@ -10953,9 +10227,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_bill_generations_pkey",
       "schema": "public",
@@ -10963,9 +10235,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_bill_lines_pkey",
       "schema": "public",
@@ -10973,9 +10243,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_bill_revisions_pkey",
       "schema": "public",
@@ -10983,9 +10251,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_bills_pkey",
       "schema": "public",
@@ -10993,9 +10259,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_cash_entries_pkey",
       "schema": "public",
@@ -11003,9 +10267,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_finance_requests_pkey",
       "schema": "public",
@@ -11013,9 +10275,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_bill_meter_intervals_pkey",
       "schema": "public",
@@ -11023,9 +10283,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_charge_term_revisions_pkey",
       "schema": "public",
@@ -11033,9 +10291,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_charge_terms_pkey",
       "schema": "public",
@@ -11043,9 +10299,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_meter_reading_revisions_pkey",
       "schema": "public",
@@ -11053,9 +10307,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_meter_readings_pkey",
       "schema": "public",
@@ -11063,9 +10315,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_settlement_revisions_pkey",
       "schema": "public",
@@ -11073,9 +10323,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_settlements_pkey",
       "schema": "public",
@@ -11083,9 +10331,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_contract_actions_pkey",
       "schema": "public",
@@ -11093,9 +10339,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_contract_changes_pkey",
       "schema": "public",
@@ -11103,9 +10347,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_contract_deposit_terms_pkey",
       "schema": "public",
@@ -11113,9 +10355,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_contract_party_periods_pkey",
       "schema": "public",
@@ -11123,9 +10363,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_contract_spaces_pkey",
       "schema": "public",
@@ -11133,9 +10371,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_contracts_pkey",
       "schema": "public",
@@ -11143,9 +10379,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "rental_tenants_pkey",
       "schema": "public",
@@ -11154,10 +10388,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "accounts_organization_id_unique",
       "entityType": "uniques",
@@ -11166,11 +10397,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id",
-        "id"
-      ],
+      "columns": ["organization_id", "ledger_id", "id"],
       "nullsNotDistinct": false,
       "name": "categories_organization_ledger_id_unique",
       "entityType": "uniques",
@@ -11179,12 +10406,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id",
-        "type",
-        "id"
-      ],
+      "columns": ["organization_id", "ledger_id", "type", "id"],
       "nullsNotDistinct": false,
       "name": "categories_parent_scope_unique",
       "entityType": "uniques",
@@ -11193,10 +10415,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "ledgers_organization_id_unique",
       "entityType": "uniques",
@@ -11205,10 +10424,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "transactions_organization_id_unique",
       "entityType": "uniques",
@@ -11217,10 +10433,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "menus_organization_id_unique",
       "entityType": "uniques",
@@ -11229,10 +10442,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_properties_organization_id_unique",
       "entityType": "uniques",
@@ -11241,10 +10451,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "ledger_id"
-      ],
+      "columns": ["organization_id", "ledger_id"],
       "nullsNotDistinct": false,
       "name": "rental_properties_organization_ledger_unique",
       "entityType": "uniques",
@@ -11253,11 +10460,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "property_id",
-        "id"
-      ],
+      "columns": ["organization_id", "property_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_spaces_organization_property_id_unique",
       "entityType": "uniques",
@@ -11266,11 +10469,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columns": ["organization_id", "contract_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_bill_adjustments_scope_unique",
       "entityType": "uniques",
@@ -11279,11 +10478,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columns": ["organization_id", "contract_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_bill_generations_scope_unique",
       "entityType": "uniques",
@@ -11292,10 +10487,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "idempotency_key"
-      ],
+      "columns": ["organization_id", "idempotency_key"],
       "nullsNotDistinct": false,
       "name": "rental_bill_generations_request_unique",
       "entityType": "uniques",
@@ -11304,11 +10496,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "bill_id",
-        "sort_order"
-      ],
+      "columns": ["organization_id", "bill_id", "sort_order"],
       "nullsNotDistinct": false,
       "name": "rental_bill_lines_order_unique",
       "entityType": "uniques",
@@ -11317,13 +10505,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "bill_id",
-        "id",
-        "kind"
-      ],
+      "columns": ["organization_id", "contract_id", "bill_id", "id", "kind"],
       "nullsNotDistinct": false,
       "name": "rental_bill_lines_scope_bill_id_kind_unique",
       "entityType": "uniques",
@@ -11332,12 +10514,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "bill_id",
-        "revision"
-      ],
+      "columns": ["organization_id", "contract_id", "bill_id", "revision"],
       "nullsNotDistinct": false,
       "name": "rental_bill_revisions_version_unique",
       "entityType": "uniques",
@@ -11346,11 +10523,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columns": ["organization_id", "contract_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_bills_scope_unique",
       "entityType": "uniques",
@@ -11359,10 +10532,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "bill_number"
-      ],
+      "columns": ["organization_id", "bill_number"],
       "nullsNotDistinct": false,
       "name": "rental_bills_number_unique",
       "entityType": "uniques",
@@ -11371,11 +10541,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columns": ["organization_id", "contract_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_cash_entries_scope_unique",
       "entityType": "uniques",
@@ -11384,10 +10550,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "idempotency_key"
-      ],
+      "columns": ["organization_id", "idempotency_key"],
       "nullsNotDistinct": false,
       "name": "rental_finance_requests_request_unique",
       "entityType": "uniques",
@@ -11396,11 +10559,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "bill_line_id"
-      ],
+      "columns": ["organization_id", "contract_id", "bill_line_id"],
       "nullsNotDistinct": false,
       "name": "rental_bill_meter_intervals_line_unique",
       "entityType": "uniques",
@@ -11425,11 +10584,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "version"
-      ],
+      "columns": ["organization_id", "contract_id", "version"],
       "nullsNotDistinct": false,
       "name": "rental_charge_term_revisions_version_unique",
       "entityType": "uniques",
@@ -11438,10 +10593,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "nullsNotDistinct": false,
       "name": "rental_charge_terms_scope_unique",
       "entityType": "uniques",
@@ -11450,12 +10602,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "reading_id",
-        "revision"
-      ],
+      "columns": ["organization_id", "contract_id", "reading_id", "revision"],
       "nullsNotDistinct": false,
       "name": "rental_meter_reading_revisions_version_unique",
       "entityType": "uniques",
@@ -11464,11 +10611,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columns": ["organization_id", "contract_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_meter_readings_scope_id_unique",
       "entityType": "uniques",
@@ -11477,13 +10620,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "space_id",
-        "kind",
-        "id"
-      ],
+      "columns": ["organization_id", "contract_id", "space_id", "kind", "id"],
       "nullsNotDistinct": false,
       "name": "rental_meter_readings_scope_kind_id_unique",
       "entityType": "uniques",
@@ -11492,14 +10629,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "space_id",
-        "kind",
-        "id",
-        "predecessor_id"
-      ],
+      "columns": ["organization_id", "contract_id", "space_id", "kind", "id", "predecessor_id"],
       "nullsNotDistinct": false,
       "name": "rental_meter_readings_predecessor_target_unique",
       "entityType": "uniques",
@@ -11508,13 +10638,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "space_id",
-        "kind",
-        "reading_date"
-      ],
+      "columns": ["organization_id", "contract_id", "space_id", "kind", "reading_date"],
       "nullsNotDistinct": false,
       "name": "rental_meter_readings_date_unique",
       "entityType": "uniques",
@@ -11523,11 +10647,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "bill_id"
-      ],
+      "columns": ["organization_id", "contract_id", "bill_id"],
       "nullsNotDistinct": false,
       "name": "rental_settlement_bills_contract_bill_unique",
       "entityType": "uniques",
@@ -11536,12 +10656,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "settlement_id",
-        "revision"
-      ],
+      "columns": ["organization_id", "contract_id", "settlement_id", "revision"],
       "nullsNotDistinct": false,
       "name": "rental_settlement_revisions_version_unique",
       "entityType": "uniques",
@@ -11550,11 +10665,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columns": ["organization_id", "contract_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_settlements_scope_unique",
       "entityType": "uniques",
@@ -11563,10 +10674,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id"
-      ],
+      "columns": ["organization_id", "contract_id"],
       "nullsNotDistinct": false,
       "name": "rental_settlements_contract_current_unique",
       "entityType": "uniques",
@@ -11575,11 +10683,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "event_id"
-      ],
+      "columns": ["organization_id", "contract_id", "event_id"],
       "nullsNotDistinct": false,
       "name": "rental_settlements_event_unique",
       "entityType": "uniques",
@@ -11588,11 +10692,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columns": ["organization_id", "contract_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_contract_party_periods_organization_contract_id_unique",
       "entityType": "uniques",
@@ -11601,11 +10701,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "id"
-      ],
+      "columns": ["organization_id", "contract_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_contract_spaces_organization_contract_id_unique",
       "entityType": "uniques",
@@ -11614,11 +10710,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_id",
-        "space_id"
-      ],
+      "columns": ["organization_id", "contract_id", "space_id"],
       "nullsNotDistinct": false,
       "name": "rental_contract_spaces_contract_space_unique",
       "entityType": "uniques",
@@ -11627,10 +10719,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_contracts_organization_id_unique",
       "entityType": "uniques",
@@ -11639,11 +10728,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "property_id",
-        "id"
-      ],
+      "columns": ["organization_id", "property_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_contracts_organization_property_id_unique",
       "entityType": "uniques",
@@ -11652,10 +10737,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "contract_number"
-      ],
+      "columns": ["organization_id", "contract_number"],
       "nullsNotDistinct": false,
       "name": "rental_contracts_organization_contract_number_unique",
       "entityType": "uniques",
@@ -11664,10 +10746,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "organization_id",
-        "id"
-      ],
+      "columns": ["organization_id", "id"],
       "nullsNotDistinct": false,
       "name": "rental_tenants_organization_id_unique",
       "entityType": "uniques",

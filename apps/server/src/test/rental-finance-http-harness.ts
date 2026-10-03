@@ -399,6 +399,7 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
           ...base.contract,
           ...setup.source.contract,
           id: contractId,
+          contractNumber: header.contractNumber,
           depositTerms: structuredClone(state.deposits.get(contractId) ?? []),
           billingMode: header.billingMode,
           lifecycleStatus: header.status,
