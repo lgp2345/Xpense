@@ -77,7 +77,7 @@ function ChargesFormSession({
         if (!mounted.current) return;
         if (cause instanceof ApiError && cause.status === 409) {
           attempt.current = null;
-          setError("收费标准已变化，请刷新合同后重试。");
+          setError(cause.message);
         } else if (cause instanceof ApiError && cause.status > 0 && cause.status < 500) {
           attempt.current = null;
           setError(cause.status === 403 ? "缺少调整收费标准的权限。" : cause.message);

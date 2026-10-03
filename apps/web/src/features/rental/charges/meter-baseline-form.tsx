@@ -20,7 +20,28 @@ type Values = {
   electricityReading: string;
   reason: string;
 };
-function meterBaselineSchema(terms?: RentalChargeTerms) {
+function normalizedReading(value: string): string {
+  const [whole = "", fraction = ""] = value.split(".");
+  return `${whole.replace(/^0+(?=\d)/, "")}.${fraction.replace(/0+$/, "")}`;
+}
+
+function changedReadingKinds(
+  value: Values,
+  baseline: RentalMeterBaseline,
+  terms?: RentalChargeTerms,
+) {
+  return (["water", "electricity"] as const).filter((kind) => {
+    if ((terms && !terms[`${kind}CollectionEnabled`]) || !value[`${kind}Reading`]) return false;
+    const previous = baseline.readings.find((reading) => reading.kind === kind);
+    return (
+      !previous ||
+      previous.readingDate !== value[`${kind}Date`] ||
+      normalizedReading(previous.reading) !== normalizedReading(value[`${kind}Reading`])
+    );
+  });
+}
+
+function meterBaselineSchema(baseline: RentalMeterBaseline, terms?: RentalChargeTerms) {
   return z
     .object({
       waterDate: z.string(),
@@ -30,13 +51,11 @@ function meterBaselineSchema(terms?: RentalChargeTerms) {
       reason: z.string().trim().min(1, "请填写底数变更原因。"),
     })
     .superRefine((value, context) => {
-      let count = 0;
       for (const kind of ["water", "electricity"] as const) {
         if (terms && !terms[`${kind}CollectionEnabled`]) continue;
         const date = value[`${kind}Date`],
           reading = value[`${kind}Reading`];
         if (!date && !reading) continue;
-        count++;
         if (!isCalendarDate(date))
           context.addIssue({
             code: "custom",
@@ -50,11 +69,11 @@ function meterBaselineSchema(terms?: RentalChargeTerms) {
             message: `请输入最多四位小数的${kind === "water" ? "水表" : "电表"}底数。`,
           });
       }
-      if (!count)
+      if (!changedReadingKinds(value, baseline, terms).length)
         context.addIssue({
           code: "custom",
           path: ["reason"],
-          message: "请至少登记一个代收项目的底数。",
+          message: "请新增或修改至少一个代收项目的底数。",
         });
     });
 }
@@ -96,7 +115,7 @@ function MeterBaselineSession({
       mounted.current = false;
     };
   }, []);
-  const schema = meterBaselineSchema(terms);
+  const schema = meterBaselineSchema(baseline, terms);
   const form = useForm({
     defaultValues: {
       waterDate: reading("water")?.readingDate ?? "",
@@ -114,16 +133,11 @@ function MeterBaselineSession({
         expectedVersion: baseline.version,
         idempotencyKey: crypto.randomUUID(),
         reason: value.reason.trim(),
-        readings: (["water", "electricity"] as const)
-          .filter(
-            (kind) =>
-              (!terms || terms[`${kind}CollectionEnabled`]) && Boolean(value[`${kind}Reading`]),
-          )
-          .map((kind) => ({
-            kind,
-            readingDate: value[`${kind}Date`],
-            reading: value[`${kind}Reading`].trim(),
-          })),
+        readings: changedReadingKinds(value, baseline, terms).map((kind) => ({
+          kind,
+          readingDate: value[`${kind}Date`],
+          reading: value[`${kind}Reading`].trim(),
+        })),
       };
       attempt.current ??= createRentalFinanceAttempt(api.updateMeterBaseline, input);
       try {
@@ -133,7 +147,7 @@ function MeterBaselineSession({
         if (!mounted.current) return;
         if (cause instanceof ApiError && cause.status === 409) {
           attempt.current = null;
-          setError("入住底数已变化，请刷新合同后重试。");
+          setError(cause.message);
         } else if (cause instanceof ApiError && cause.status > 0 && cause.status < 500) {
           attempt.current = null;
           setError(cause.status === 403 ? "缺少调整入住底数的权限。" : cause.message);

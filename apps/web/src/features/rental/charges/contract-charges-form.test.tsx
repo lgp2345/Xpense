@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { ApiError } from "../../../services/api-client";
 import { chargeTermsFixture, financeApiFixture } from "../bills/bill-test-fixtures";
 import { ContractChargesForm } from "./contract-charges-form";
 
@@ -176,4 +177,35 @@ describe("合同收费标准表单", () => {
       ),
     );
   });
+});
+
+it.each([
+  "该表计已有账单，暂停或恢复代收需交接读数及生效边界",
+  "收费标准已变化，请重新读取后再保存",
+])("收费冲突显示实际处理要求并清除旧尝试：%s", async (message) => {
+  const user = userEvent.setup();
+  const api = financeApiFixture({
+    updateChargeTerms: vi.fn().mockRejectedValueOnce(new ApiError(409, "CONFLICT", message)),
+  });
+  const onSaved = vi.fn();
+  render(
+    <ContractChargesForm
+      organizationId="org"
+      contractId="contract"
+      api={api}
+      terms={chargeTermsFixture}
+      onSaved={onSaved}
+    />,
+  );
+  await user.click(screen.getByRole("checkbox", { name: "房东代收水费" }));
+  await user.type(screen.getByLabelText("收费标准变更原因"), "改为租客缴费");
+  await user.click(screen.getByRole("button", { name: "保存收费标准" }));
+  expect(await screen.findByText(message, { selector: "[role=alert]" })).toBeInTheDocument();
+  expect(onSaved).not.toHaveBeenCalled();
+  const first = vi.mocked(api.updateChargeTerms).mock.calls[0]?.[0];
+  await user.click(screen.getByRole("button", { name: "保存收费标准" }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+  expect(vi.mocked(api.updateChargeTerms).mock.calls[1]?.[0].idempotencyKey).not.toBe(
+    first?.idempotencyKey,
+  );
 });
