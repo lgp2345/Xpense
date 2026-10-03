@@ -1,0 +1,100 @@
+/* Login-only composition. Card/input radii follow the shared shadcn scale. */
+.page {
+  --ring: var(--login-accent);
+  min-height: 100dvh;
+  background: var(--login-background);
+  color: var(--foreground);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(22rem, 0.8fr);
+  align-items: center;
+  gap: 3rem;
+  max-width: 80rem;
+  min-height: min(46rem, calc(100dvh - 5rem));
+  margin-inline: auto;
+  padding: 2.5rem 3rem 4rem;
+}
+
+.formPanel {
+  width: 100%;
+  max-width: 26rem;
+  justify-self: end;
+  padding: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--card);
+  box-shadow: 0 24px 70px -36px var(--login-shadow);
+  & [data-slot="input"] {
+    height: 2.75rem;
+    background: var(--login-background);
+    border-color: var(--login-input-border);
+    box-shadow: none;
+  }
+  & [data-slot="field-label"] {
+    font-size: 0.8125rem;
+  }
+  & [data-slot="field-group"] {
+    gap: 1.25rem;
+  }
+  & button[type="submit"] {
+    height: 2.875rem;
+    margin-top: 0.25rem;
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+  & button[aria-label="刷新验证码"] {
+    height: 2.75rem;
+    width: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .formPanel {
+    animation: panelIn 1100ms 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translate3d(28px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@media (min-width: 1024px) and (max-height: 800px) {
+  .hero {
+    padding-top: 1.5rem;
+    padding-bottom: 2.5rem;
+  }
+  .formPanel {
+    padding: 1.75rem 2rem;
+  }
+}
+@media (max-width: 1023px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) minmax(21rem, 1fr);
+    gap: 2rem;
+    padding-inline: 2.5rem;
+  }
+  .formPanel {
+    padding: 1.75rem;
+  }
+}
+@media (max-width: 767px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    min-height: auto;
+    padding: 2.5rem 1.25rem 3rem;
+  }
+  .formPanel {
+    max-width: 26rem;
+    justify-self: center;
+    padding: 1.75rem 1.5rem;
+  }
+}

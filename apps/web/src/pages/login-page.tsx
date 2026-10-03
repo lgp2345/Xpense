@@ -1,8 +1,9 @@
-import { SunMoon } from "lucide-react";
+import { SunMoon, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/context/theme-provider";
 import { LoginForm } from "../features/auth/login-form";
+import styles from "../features/auth/login-landing.module.css";
 import { LoginShowcase } from "../features/auth/login-showcase";
 import { type WebSessionDependency, webSession } from "../services/web-session";
 
@@ -20,40 +21,47 @@ export function LoginPage({
   const { setTheme, theme } = useTheme();
 
   return (
-    <main className="grid min-h-svh bg-background lg:grid-cols-[minmax(0,1.15fr)_minmax(26rem,0.85fr)]">
-      <LoginShowcase />
-
-      <section
-        aria-labelledby="login-title"
-        className="relative flex items-center justify-center p-6 sm:p-10"
-      >
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="切换主题"
-          className="absolute right-6 top-6 sm:right-10 sm:top-10"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        >
-          <SunMoon />
-        </Button>
-        <div className="w-full max-w-sm">
-          <header className="mb-8">
-            <p className="text-sm font-medium text-muted-foreground">后台工作区</p>
-            <h1 id="login-title" className="mt-2 text-2xl font-semibold tracking-tight">
-              登录到你的账本
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              验证身份后继续管理成员、角色和财务数据。
-            </p>
-          </header>
-
-          <LoginForm
-            onAuthenticated={onAuthenticated}
-            redirectPath={redirectPath}
-            session={session}
-          />
+    <div className={styles.page}>
+      <header className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between gap-6 px-5 sm:px-10 lg:px-12">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Wallet aria-hidden="true" className="size-5" />
+          </span>
+          <span className="font-manrope text-xl font-bold tracking-tight">Xpense</span>
         </div>
-      </section>
-    </main>
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="切换主题"
+            className="rounded-full border border-border"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            <SunMoon aria-hidden="true" />
+          </Button>
+        </div>
+      </header>
+
+      <main>
+        <div className={styles.hero}>
+          <LoginShowcase />
+          <section aria-labelledby="login-title" className={styles.formPanel}>
+            <header>
+              <h2 id="login-title" className="text-2xl font-semibold tracking-tight">
+                登录到你的账本
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                欢迎回来，继续打理你的收支与租务。
+              </p>
+            </header>
+            <LoginForm
+              onAuthenticated={onAuthenticated}
+              redirectPath={redirectPath}
+              session={session}
+            />
+          </section>
+        </div>
+      </main>
+    </div>
   );
 }

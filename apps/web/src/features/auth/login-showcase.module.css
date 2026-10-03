@@ -1,0 +1,102 @@
+.showcase {
+  min-width: 0;
+}
+.heroCopy {
+  position: relative;
+}
+.headline {
+  font-size: 3.5rem;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.045em;
+  & > span > span {
+    display: block;
+  }
+  & > span {
+    display: block;
+    overflow: hidden;
+  }
+}
+.accent {
+  color: var(--login-accent);
+}
+.heroVisual {
+  width: min(100%, 34rem);
+  margin: 1.25rem auto -1.5rem;
+  perspective: 1000px;
+}
+.heroImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .headline > span > span {
+    animation: titleIn 950ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .headline > span:nth-child(2) > span {
+    animation-delay: 140ms;
+  }
+  .heroImage {
+    animation: modelIn 1400ms 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @supports (animation-timeline: view()) {
+    .heroVisual {
+      animation: modelParallax linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 100%;
+    }
+  }
+}
+@keyframes titleIn {
+  from {
+    transform: translateY(110%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes modelIn {
+  from {
+    opacity: 0;
+    transform: translate3d(-18px, 36px, 0) rotate(-4deg) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0) scale(1);
+  }
+}
+@keyframes modelParallax {
+  to {
+    transform: translateY(65px) rotate(3deg);
+    opacity: 0.35;
+  }
+}
+@media (min-width: 1024px) and (max-height: 800px) {
+  .headline {
+    font-size: 3rem;
+  }
+  .heroVisual {
+    width: min(100%, 29rem);
+  }
+}
+@media (max-width: 1023px) {
+  .headline {
+    font-size: 2.5rem;
+  }
+}
+@media (max-width: 767px) {
+  .heroCopy {
+    max-width: 26rem;
+    margin-inline: auto;
+  }
+  .heroVisual {
+    width: min(100%, 25rem);
+    margin: 0 auto;
+  }
+  .headline {
+    font-size: 2.125rem;
+    line-height: 1.35;
+  }
+}
