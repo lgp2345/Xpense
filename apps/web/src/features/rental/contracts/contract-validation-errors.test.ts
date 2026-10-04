@@ -6,13 +6,13 @@ describe("contractFieldErrors", () => {
     expect(
       contractFieldErrors([
         { path: ["deposits", 0, "fixedAmountText"], message: "请输入金额" },
-        { path: ["deposits", 1, "rentMultipleText"], message: "请输入倍数" },
+        { path: ["deposits", 1, "customName"], message: "请输入押金名称" },
         { path: ["startDate"], message: "日期无效" },
         { path: ["startDate"], message: "请选择日期" },
       ]),
     ).toEqual({
       "deposits.0.fixedAmountText": "请输入金额",
-      "deposits.1.rentMultipleText": "请输入倍数",
+      "deposits.1.customName": "请输入押金名称",
       startDate: "日期无效",
     });
   });

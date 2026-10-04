@@ -47,7 +47,6 @@ describe("contract field feedback", () => {
         customName: "",
         calculationMode: "fixed_amount",
         fixedAmountText: "",
-        rentMultipleText: "",
       },
     ];
     render(
@@ -64,8 +63,8 @@ describe("contract field feedback", () => {
     const range = screen.getByRole("button", { name: "租期范围" });
     expect(range).toHaveAttribute("aria-describedby", "contract-startDate-error");
     expect(screen.getByText("日期范围无效")).toHaveFocus();
-    const name = screen.getByLabelText("押金名称");
-    const amount = screen.getByRole("textbox", { name: "固定金额" });
+    const name = screen.getByRole("textbox", { name: "押金名称 1" });
+    const amount = screen.getByRole("textbox", { name: "押金金额 1" });
     expect(name.parentElement).toHaveTextContent("请输入押金名称");
     expect(amount.parentElement).toHaveTextContent("金额无效");
     expect(screen.getByText("金额无效").closest('[data-slot="field-error"]')).toBeInTheDocument();

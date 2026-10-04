@@ -103,26 +103,14 @@ export function DepositSection({ contract }: { contract: RentalContractDetail })
           contract.depositTerms.map((term) => (
             <div
               key={term.id}
-              className="grid items-start gap-4 py-4 text-sm first:pt-0 last:pb-0 sm:grid-cols-2 xl:grid-cols-4"
+              className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-4 text-sm first:pt-0 last:pb-0"
             >
               <p className="min-w-0 break-words font-medium">
                 {term.customName ?? depositLabel(term.type)}
               </p>
-              <Info
-                label="计算方式"
-                value={term.calculationMode === "fixed_amount" ? "固定金额" : "租金倍数"}
-              />
-              <Info
-                label="约定值"
-                value={
-                  term.calculationMode === "fixed_amount"
-                    ? formatMoney(term.fixedAmountMinor)
-                    : `${term.rentMultiple ?? "未设置"} 倍租金`
-                }
-              />
-              <div className="min-w-0 xl:text-right">
-                <p className="text-xs text-muted-foreground">最终金额</p>
-                <p className="mt-2 break-words text-xl font-semibold tracking-tight tabular-nums">
+              <div className="min-w-0 sm:text-right">
+                <p className="text-xs text-muted-foreground">押金金额</p>
+                <p className="mt-1 break-words text-xl font-semibold tracking-tight tabular-nums">
                   {formatMoney(term.finalAmountMinor)}
                 </p>
               </div>
@@ -175,9 +163,9 @@ function depositLabel(type: string): string {
   return (
     (
       {
-        rental: "租金押金",
-        utility: "水电押金",
-        access_card: "门禁卡押金",
+        rental: "租金",
+        utility: "水电",
+        access_card: "门禁卡",
         other: "其他押金",
       } as Record<string, string>
     )[type] ?? "押金"

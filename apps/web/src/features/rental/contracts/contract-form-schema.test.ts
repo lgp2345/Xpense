@@ -61,9 +61,8 @@ describe("contract form schema", () => {
           {
             type: "rental",
             customName: "",
-            calculationMode: "rent_multiple",
-            fixedAmountText: "",
-            rentMultipleText: "2.5",
+            calculationMode: "fixed_amount",
+            fixedAmountText: "20.05",
           },
         ],
       }),
@@ -80,7 +79,7 @@ describe("contract form schema", () => {
       note: "备注",
       externalContractNumber: "EXT-1",
       depositTerms: [
-        { type: "rental", calculationMode: "rent_multiple", rentMultiple: "2.5", sortOrder: 0 },
+        { type: "rental", calculationMode: "fixed_amount", fixedAmountMinor: 2005, sortOrder: 0 },
       ],
     });
     expect(() => toConfirmedContractRequest({ ...base(), rentAmountText: "0" })).toThrow();
@@ -161,7 +160,6 @@ describe("contract form schema", () => {
             customName: "",
             calculationMode: "fixed_amount",
             fixedAmountText: "0",
-            rentMultipleText: "",
           },
         ],
       }).success,
@@ -179,7 +177,6 @@ describe("contract form schema", () => {
             customName: "",
             calculationMode: "fixed_amount",
             fixedAmountText: "",
-            rentMultipleText: "",
           },
         ],
       }).success,
@@ -276,6 +273,67 @@ describe("contract form schema", () => {
     expect(values.deposits[0]?.fixedAmountText).toBe("1600");
   });
 
+  it("drops rent-multiple terms from old drafts while keeping fixed deposit amounts", () => {
+    const values = toContractFormValues({
+      ...baseContract(),
+      depositTerms: [
+        {
+          id: "legacy",
+          type: "rental",
+          customName: null,
+          calculationMode: "rent_multiple" as const,
+          fixedAmountMinor: null,
+          rentMultiple: "2",
+          finalAmountMinor: 160000,
+          sortOrder: 0,
+        },
+        {
+          id: "fixed",
+          type: "access_card",
+          customName: null,
+          calculationMode: "fixed_amount" as const,
+          fixedAmountMinor: 5000,
+          rentMultiple: null,
+          finalAmountMinor: 5000,
+          sortOrder: 1,
+        },
+      ],
+    });
+
+    expect(values.deposits).toEqual([
+      {
+        type: "access_card",
+        customName: "",
+        calculationMode: "fixed_amount",
+        fixedAmountText: "50",
+      },
+    ]);
+    expect(
+      toStepUpdateRequest(baseContract().id, { ...base(), deposits: values.deposits }, 2),
+    ).toMatchObject({
+      depositTerms: [
+        { type: "access_card", calculationMode: "fixed_amount", fixedAmountMinor: 5000 },
+      ],
+    });
+  });
+
+  it("rejects rent-multiple deposits in the contract form", () => {
+    expect(
+      stepSchemas.terms.safeParse({
+        ...base(),
+        deposits: [
+          {
+            type: "rental",
+            customName: "",
+            calculationMode: "rent_multiple",
+            fixedAmountText: "",
+            rentMultipleText: "2",
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
   it("allows the create checkpoint to carry only an active property id", () => {
     expect(toCreateContractRequest({ propertyId })).toEqual({ propertyId });
   });
@@ -299,14 +357,12 @@ describe("contract form schema", () => {
             customName: " 清洁费 ",
             calculationMode: "fixed_amount",
             fixedAmountText: "100",
-            rentMultipleText: "9",
           },
           {
             type: "utility",
             customName: "应被清理",
-            calculationMode: "rent_multiple",
-            fixedAmountText: "100",
-            rentMultipleText: "1.5",
+            calculationMode: "fixed_amount",
+            fixedAmountText: "150",
           },
         ],
       },
@@ -326,13 +382,13 @@ describe("contract form schema", () => {
         },
         {
           type: "utility",
-          calculationMode: "rent_multiple",
-          rentMultiple: "1.5",
+          calculationMode: "fixed_amount",
+          fixedAmountMinor: 15000,
         },
       ],
     });
     expect(request.depositTerms?.[0]).not.toHaveProperty("rentMultiple");
-    expect(request.depositTerms?.[1]).not.toHaveProperty("fixedAmountMinor");
+    expect(request.depositTerms?.[1]).not.toHaveProperty("rentMultiple");
     expect(request.depositTerms?.[1]).not.toHaveProperty("customName");
   });
 });

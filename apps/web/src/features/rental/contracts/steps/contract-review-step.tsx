@@ -24,6 +24,9 @@ export function ContractReviewStep({
   const spaces = serverDraft?.spaces ?? [];
   const parties = serverDraft?.parties ?? [];
   const payer = parties.find((party) => party.isPrimaryPayer);
+  const deposits = serverDraft?.depositTerms.filter(
+    (deposit) => deposit.calculationMode === "fixed_amount",
+  );
   const missing = "尚未保存";
   return (
     <section aria-labelledby="contract-review-title" className="space-y-4">
@@ -67,11 +70,11 @@ export function ContractReviewStep({
         </p>
         <p>
           押金：
-          {serverDraft?.depositTerms.length
-            ? serverDraft.depositTerms
+          {deposits?.length
+            ? deposits
                 .map((deposit) =>
                   deposit.finalAmountMinor === null
-                    ? `${deposit.customName ?? deposit.type}（${deposit.calculationMode === "rent_multiple" ? `月租 × ${deposit.rentMultiple}` : "固定金额"}）`
+                    ? `${deposit.customName ?? deposit.type}（固定金额）`
                     : `${deposit.customName ?? deposit.type} ${deposit.finalAmountMinor} 分`,
                 )
                 .join("、")

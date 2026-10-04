@@ -311,6 +311,60 @@ describe("ContractDetailPage", () => {
     expect(api.contractDetail).toHaveBeenCalledTimes(1);
   });
 
+  it("押金详情只展示名称和押金金额，并保留历史倍数押金的实际金额", async () => {
+    const api = createApi({
+      contractDetail: vi.fn().mockResolvedValue({
+        ...detail,
+        depositTerms: [
+          {
+            id: "rental-deposit",
+            type: "rental",
+            customName: null,
+            calculationMode: "rent_multiple",
+            fixedAmountMinor: null,
+            rentMultiple: "1.5",
+            finalAmountMinor: 1200000,
+            sortOrder: 0,
+          },
+          {
+            id: "card-deposit",
+            type: "access_card",
+            customName: null,
+            calculationMode: "fixed_amount",
+            fixedAmountMinor: 50000,
+            rentMultiple: null,
+            finalAmountMinor: 50000,
+            sortOrder: 1,
+          },
+          {
+            id: "custom-deposit",
+            type: "other",
+            customName: "钥匙",
+            calculationMode: "fixed_amount",
+            fixedAmountMinor: 30000,
+            rentMultiple: null,
+            finalAmountMinor: 30000,
+            sortOrder: 2,
+          },
+        ],
+      }),
+    });
+    renderPage({ api });
+
+    const heading = await screen.findByRole("heading", { name: "押金" });
+    const section = within(heading.closest("section") as HTMLElement);
+    expect(section.getByText("租金")).toBeInTheDocument();
+    expect(section.getByText("门禁卡")).toBeInTheDocument();
+    expect(section.getByText("钥匙")).toBeInTheDocument();
+    expect(section.getAllByText("押金金额")).toHaveLength(3);
+    expect(section.getByText("¥12,000.00")).toBeInTheDocument();
+    expect(section.getByText("¥500.00")).toBeInTheDocument();
+    expect(section.getByText("¥300.00")).toBeInTheDocument();
+    expect(section.queryByText("计算方式")).not.toBeInTheDocument();
+    expect(section.queryByText("约定值")).not.toBeInTheDocument();
+    expect(section.queryByText("最终金额")).not.toBeInTheDocument();
+  });
+
   it("shows a recoverable detail error", async () => {
     const api = createApi({ contractDetail: vi.fn().mockRejectedValue(new Error("offline")) });
     renderPage({ api });

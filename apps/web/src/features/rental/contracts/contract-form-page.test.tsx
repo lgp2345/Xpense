@@ -26,7 +26,7 @@ import {
 } from "./contract-form-schema";
 import { ContractPartiesStep } from "./steps/contract-parties-step";
 import { ContractReviewStep } from "./steps/contract-review-step";
-import { ContractTermsStep, calendarPreview } from "./steps/contract-terms-step";
+import { calendarPreview } from "./steps/contract-terms-step";
 import { useContractDraft } from "./use-contract-draft";
 
 vi.mock("@tanstack/react-router", async () => {
@@ -873,6 +873,71 @@ describe("ContractFormPage draft session", () => {
     expect(api.listProperties).not.toHaveBeenCalled();
   });
 
+  it("removes a legacy rent-multiple deposit before confirming an unchanged draft", async () => {
+    const user = userEvent.setup();
+    const fixedTerm = {
+      id: "fixed",
+      type: "access_card" as const,
+      customName: null,
+      calculationMode: "fixed_amount" as const,
+      fixedAmountMinor: 5000,
+      rentMultiple: null,
+      finalAmountMinor: 5000,
+      sortOrder: 1,
+    };
+    const draft = completeDetail({
+      depositTerms: [
+        {
+          id: "legacy",
+          type: "rental",
+          customName: null,
+          calculationMode: "rent_multiple",
+          fixedAmountMinor: null,
+          rentMultiple: "2",
+          finalAmountMinor: 160000,
+          sortOrder: 0,
+        },
+        fixedTerm,
+      ],
+    });
+    const updateContract = vi.fn().mockResolvedValue(completeDetail({ depositTerms: [fixedTerm] }));
+    const confirmContract = vi.fn().mockResolvedValue(
+      completeDetail({
+        lifecycleStatus: "confirmed",
+        displayStatus: "active",
+        depositTerms: [fixedTerm],
+      }),
+    );
+    const api = baseApi({
+      contractDetail: vi.fn().mockResolvedValue(draft),
+      updateContract,
+      confirmContract,
+    });
+    renderPage(api, undefined, { draftId });
+    expect(await screen.findByRole("heading", { name: "复核并确认" })).toBeInTheDocument();
+    expect(screen.queryByText(/rental 160000 分/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "检查可用性并确认" }));
+    await waitFor(() => expect(confirmContract).toHaveBeenCalledTimes(1));
+    expect(updateContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        depositTerms: [
+          expect.objectContaining({
+            type: "access_card",
+            calculationMode: "fixed_amount",
+            fixedAmountMinor: 5000,
+          }),
+        ],
+      }),
+    );
+    const updateOrder = updateContract.mock.invocationCallOrder[0];
+    const confirmOrder = confirmContract.mock.invocationCallOrder[0];
+    if (updateOrder === undefined || confirmOrder === undefined) {
+      throw new Error("更新与确认均应执行");
+    }
+    expect(updateOrder).toBeLessThan(confirmOrder);
+  });
+
   it("does not hydrate a confirmed id and offers a safe details link", async () => {
     const api = baseApi({
       contractDetail: vi
@@ -1433,54 +1498,7 @@ describe("ContractFormPage step semantics", () => {
     expect(input).toHaveValue("新租户");
   });
 
-  it("clears hidden deposit fields on mode/type switch and previews partial calendar months", async () => {
-    const user = userEvent.setup();
-    const values = {
-      ...defaultContractFormValues(propertyId),
-      startDate: "2026-01-15",
-      endDate: "2026-03-10",
-      billingAnchor: "calendar_month" as const,
-      paymentIntervalMonths: "1" as const,
-    };
-    const view = render(<ContractTermsStep values={values} onChange={vi.fn()} />);
-    await user.click(screen.getByRole("button", { name: "添加押金" }));
-    const deposit: ContractFormValues["deposits"][number] = {
-      type: "rental",
-      customName: "",
-      calculationMode: "fixed_amount",
-      fixedAmountText: "100",
-      rentMultipleText: "",
-    };
-    const withDeposit: ContractFormValues = {
-      ...values,
-      deposits: [deposit],
-    };
-    view.rerender(<ContractTermsStep values={withDeposit} onChange={vi.fn()} />);
-    await user.click(screen.getByRole("combobox", { name: "押金类型 1" }));
-    await user.click(screen.getByRole("option", { name: "其他" }));
-    const withOther: ContractFormValues = {
-      ...withDeposit,
-      deposits: [{ ...deposit, type: "other" }],
-    };
-    view.rerender(<ContractTermsStep values={withOther} onChange={vi.fn()} />);
-    await user.click(screen.getByLabelText("租金倍数"));
-    view.rerender(
-      <ContractTermsStep
-        values={{
-          ...withOther,
-          deposits: [
-            {
-              ...deposit,
-              type: "other",
-              calculationMode: "rent_multiple",
-              fixedAmountText: "",
-            },
-          ],
-        }}
-        onChange={vi.fn()}
-      />,
-    );
-    expect(screen.queryByDisplayValue("100")).not.toBeInTheDocument();
+  it("previews partial calendar months", () => {
     expect(calendarPreview("2026-01-15", "2026-01-15", "calendar_month", 1)).toEqual([
       "2026-01-15 至 2026-01-15",
     ]);

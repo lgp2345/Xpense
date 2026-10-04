@@ -1,11 +1,10 @@
-import { useContext, useRef } from 'react'
+import { useContext } from 'react'
 import { DateRangePicker } from '@/components/date-picker'
 import { Button } from '@/components/ui/button'
 import {
   Field,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
   FieldSet,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -18,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ContractChargeFields } from '../../charges/contract-charge-fields'
+import { ContractDepositFields } from './contract-deposit-fields'
 import {
   ContractFieldErrorsContext,
   ContractFieldMessage,
@@ -42,27 +42,10 @@ export function ContractTermsStep({
   const dueFeedback = useContractFieldFeedback('dueDaysBeforeText')
   const anchorFeedback = useContractFieldFeedback('billingAnchor')
   const intervalFeedback = useContractFieldFeedback('paymentIntervalMonths')
-  const depositKeys = useRef<string[]>([])
-  const depositSequence = useRef(0)
-  const depositKey = (index: number) => {
-    depositKeys.current[index] ??= `deposit-${depositSequence.current++}`
-    return depositKeys.current[index] as string
-  }
   const set = <K extends keyof ContractFormValues>(
     key: K,
     value: ContractFormValues[K],
   ) => onChange({ ...values, [key]: value })
-  function updateDeposit(
-    index: number,
-    patch: Partial<ContractFormValues['deposits'][number]>,
-  ) {
-    set(
-      'deposits',
-      values.deposits.map((item, current) =>
-        current === index ? { ...item, ...patch } : item,
-      ),
-    )
-  }
   return (
     <section aria-labelledby="contract-terms-title" className="space-y-4">
       <h2 id="contract-terms-title" className="font-medium text-lg">
@@ -257,236 +240,23 @@ export function ContractTermsStep({
 
         <ContractFieldMessage name="note" />
       </Field>
-      <FieldSet className="border rounded-md p-3">
-        <FieldLegend className="font-medium text-sm">押金</FieldLegend>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() =>
-            (() => {
-              depositKeys.current.push(`deposit-${depositSequence.current++}`)
-              set('deposits', [
-                ...values.deposits,
-                {
-                  type: 'rental',
-                  customName: '',
-                  calculationMode: 'fixed_amount',
-                  fixedAmountText: '',
-                  rentMultipleText: '',
-                },
-              ])
-            })()
-          }
-        >
-          添加押金
-        </Button>
-        {values.deposits.map((deposit, index) => (
-          <FieldGroup
-            key={depositKey(index)}
-            className="border rounded-md bg-card/40 mt-3 grid p-3 gap-3 sm:grid-cols-2"
-          >
-            <div className="flex gap-3 items-center justify-between sm:col-span-2">
-              <span className="font-medium text-sm text-muted-foreground">
-                押金项 {index + 1}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-destructive/40 text-destructive hover:border-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/30"
-                onClick={() =>
-                  (() => {
-                    depositKeys.current.splice(index, 1)
-                    set(
-                      'deposits',
-                      values.deposits.filter((_, current) => current !== index),
-                    )
-                  })()
-                }
-              >
-                移除
-              </Button>
-            </div>
-            <Field
-              data-invalid={
-                contractFeedbackProps(errors, `deposits.${index}.type`)[
-                  'aria-invalid'
-                ]
-              }
-            >
-              <FieldLabel htmlFor={`deposit-type-${index}`}>类型</FieldLabel>
-              <Select
-                value={deposit.type}
-                onValueChange={(type) =>
-                  updateDeposit(index, {
-                    type: type as typeof deposit.type,
-                    customName: type === 'other' ? deposit.customName : '',
-                  })
-                }
-              >
-                <SelectTrigger
-                  id={`deposit-type-${index}`}
-                  {...contractFeedbackProps(errors, `deposits.${index}.type`)}
-                  aria-label={`押金类型 ${index + 1}`}
-                  className="w-full"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="rental">租金</SelectItem>
-                  <SelectItem value="utility">水电</SelectItem>
-                  <SelectItem value="access_card">门禁卡</SelectItem>
-                  <SelectItem value="other">其他</SelectItem>
-                </SelectContent>
-              </Select>
-              <ContractFieldMessage name={`deposits.${index}.type`} />
-            </Field>
-            {deposit.type === 'other' ? (
-              <Field
-                data-invalid={
-                  contractFeedbackProps(errors, `deposits.${index}.customName`)[
-                    'aria-invalid'
-                  ]
-                }
-              >
-                <FieldLabel htmlFor={`deposit-name-${index}`}>
-                  押金名称
-                </FieldLabel>
-                <Input
-                  id={`deposit-name-${index}`}
-                  {...contractFeedbackProps(
-                    errors,
-                    `deposits.${index}.customName`,
-                  )}
-                  value={deposit.customName}
-                  onChange={(event) =>
-                    updateDeposit(index, { customName: event.target.value })
-                  }
-                />
-
-                <ContractFieldMessage name={`deposits.${index}.customName`} />
-              </Field>
-            ) : null}
-            <FieldSet className="grid gap-1">
-              <FieldLegend
-                id={`deposit-mode-label-${index}`}
-                className="text-sm mb-2"
-              >
-                计算方式
-              </FieldLegend>
-              <RadioGroup
-                {...contractFeedbackProps(
-                  errors,
-                  `deposits.${index}.calculationMode`,
-                )}
-                aria-labelledby={`deposit-mode-label-${index}`}
-                name={`deposit-mode-${index}`}
-                value={deposit.calculationMode}
-                onValueChange={(calculationMode) =>
-                  updateDeposit(
-                    index,
-                    calculationMode === 'fixed_amount'
-                      ? { calculationMode, rentMultipleText: '' }
-                      : {
-                          calculationMode: 'rent_multiple',
-                          fixedAmountText: '',
-                        },
-                  )
-                }
-              >
-                <FieldGroup className="flex flex-row gap-2 items-center">
-                  <Field orientation="horizontal">
-                    <RadioGroupItem
-                      id={`deposit-fixed-${index}`}
-                      value="fixed_amount"
-                    />
-                    <FieldLabel htmlFor={`deposit-fixed-${index}`}>
-                      固定金额
-                    </FieldLabel>
-                  </Field>
-                  <Field orientation="horizontal">
-                    <RadioGroupItem
-                      id={`deposit-multiple-${index}`}
-                      value="rent_multiple"
-                    />
-                    <FieldLabel htmlFor={`deposit-multiple-${index}`}>
-                      租金倍数
-                    </FieldLabel>
-                  </Field>
-                </FieldGroup>
-              </RadioGroup>
-              <ContractFieldMessage
-                name={`deposits.${index}.calculationMode`}
-              />
-            </FieldSet>
-            {deposit.calculationMode === 'fixed_amount' ? (
-              <Field
-                data-invalid={
-                  contractFeedbackProps(
-                    errors,
-                    `deposits.${index}.fixedAmountText`,
-                  )['aria-invalid']
-                }
-              >
-                <FieldLabel htmlFor={`deposit-fixed-value-${index}`}>
-                  固定金额
-                </FieldLabel>
-                <Input
-                  id={`deposit-fixed-value-${index}`}
-                  {...contractFeedbackProps(
-                    errors,
-                    `deposits.${index}.fixedAmountText`,
-                  )}
-                  inputMode="decimal"
-                  value={deposit.fixedAmountText}
-                  onChange={(event) =>
-                    updateDeposit(index, {
-                      fixedAmountText: event.target.value,
-                    })
-                  }
-                />
-
-                <ContractFieldMessage
-                  name={`deposits.${index}.fixedAmountText`}
-                />
-              </Field>
-            ) : (
-              <Field
-                data-invalid={
-                  contractFeedbackProps(
-                    errors,
-                    `deposits.${index}.rentMultipleText`,
-                  )['aria-invalid']
-                }
-              >
-                <FieldLabel htmlFor={`deposit-multiple-value-${index}`}>
-                  租金倍数
-                </FieldLabel>
-                <Input
-                  id={`deposit-multiple-value-${index}`}
-                  {...contractFeedbackProps(
-                    errors,
-                    `deposits.${index}.rentMultipleText`,
-                  )}
-                  inputMode="decimal"
-                  value={deposit.rentMultipleText}
-                  onChange={(event) =>
-                    updateDeposit(index, {
-                      rentMultipleText: event.target.value,
-                    })
-                  }
-                />
-
-                <ContractFieldMessage
-                  name={`deposits.${index}.rentMultipleText`}
-                />
-              </Field>
-            )}
-          </FieldGroup>
-        ))}
-      </FieldSet>
-      {values.chargeSetup ? <ContractChargeFields value={values.chargeSetup} onChange={(next) => set('chargeSetup', next)} errors={errors} showBaselines={canEditMeters} /> : null}
-      {values.chargeSetup ? <p className="text-xs text-muted-foreground">入住底数与所选空间绑定，更换空间后须重新登记。</p> : null}
+      <ContractDepositFields
+        deposits={values.deposits}
+        onChange={(deposits) => set('deposits', deposits)}
+      />
+      {values.chargeSetup ? (
+        <ContractChargeFields
+          value={values.chargeSetup}
+          onChange={(next) => set('chargeSetup', next)}
+          errors={errors}
+          showBaselines={canEditMeters}
+        />
+      ) : null}
+      {values.chargeSetup ? (
+        <p className="text-xs text-muted-foreground">
+          入住底数与所选空间绑定，更换空间后须重新登记。
+        </p>
+      ) : null}
       {values.startDate && values.endDate && values.billingAnchor ? (
         <BillingPeriodPreview
           anchor={values.billingAnchor}

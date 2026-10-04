@@ -61,7 +61,7 @@ export function ContractLocalReviewStep({
             ? values.deposits
                 .map(
                   (deposit) =>
-                    `${deposit.type === "other" ? deposit.customName : depositLabels[deposit.type]}（${deposit.calculationMode === "fixed_amount" ? `${deposit.fixedAmountText} 元` : `月租 × ${deposit.rentMultipleText}`}）`,
+                    `${deposit.type === "other" ? deposit.customName : depositLabels[deposit.type]}（${deposit.fixedAmountText} 元）`,
                 )
                 .join("、")
             : "无"}

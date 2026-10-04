@@ -214,7 +214,7 @@ describe("contract form step domains", () => {
     });
   });
 
-  it("opens contract term selects as accessible popups and updates their values", async () => {
+  it("opens the payment interval select and updates its value", async () => {
     const user = userEvent.setup();
     const values = {
       ...defaultContractFormValues(propertyId),
@@ -224,7 +224,6 @@ describe("contract form step domains", () => {
           customName: "",
           calculationMode: "fixed_amount" as const,
           fixedAmountText: "",
-          rentMultipleText: "",
         },
       ],
     };
@@ -238,51 +237,30 @@ describe("contract form step domains", () => {
       expect.objectContaining({ paymentIntervalMonths: "3" }),
     );
 
-    await user.click(screen.getByRole("combobox", { name: "押金类型 1" }));
-    expect(await screen.findByRole("listbox")).toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "其他" }));
-    expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        deposits: [expect.objectContaining({ type: "other", customName: "" })],
-      }),
-    );
+    expect(screen.getByText("租金", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "押金金额 1" })).toBeInTheDocument();
   });
 
-  it("exposes contract and deposit choices as radio groups and updates their values", async () => {
+  it("offers preset deposit items with fixed amounts and an editable custom name", async () => {
     const user = userEvent.setup();
-    const values = {
-      ...defaultContractFormValues(propertyId),
-      deposits: [
-        {
-          type: "rental" as const,
-          customName: "",
-          calculationMode: "fixed_amount" as const,
-          fixedAmountText: "100",
-          rentMultipleText: "",
-        },
-      ],
-    };
-    const onChange = vi.fn();
-    render(<ContractTermsStep values={values} onChange={onChange} />);
+    function Harness() {
+      const [values, setValues] = useState(defaultContractFormValues(propertyId));
+      return <ContractTermsStep values={values} onChange={setValues} />;
+    }
+    render(<Harness />);
 
-    const billingGroup = screen.getByRole("radiogroup", { name: "计费方式" });
-    await user.click(within(billingGroup).getByRole("radio", { name: "自然月" }));
-    expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ billingAnchor: "calendar_month" }),
-    );
+    await user.click(screen.getByRole("button", { name: "租金" }));
+    await user.click(screen.getByRole("button", { name: "门禁卡" }));
+    await user.click(screen.getByRole("button", { name: "添加自定义押金项" }));
 
-    const depositGroup = screen.getByRole("radiogroup", { name: "计算方式" });
-    await user.click(within(depositGroup).getByRole("radio", { name: "租金倍数" }));
-    expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        deposits: [
-          expect.objectContaining({
-            calculationMode: "rent_multiple",
-            fixedAmountText: "",
-          }),
-        ],
-      }),
-    );
+    expect(screen.getByText("租金", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByText("门禁卡", { selector: "span" })).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "计算方式" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("textbox", { name: /押金金额/ })).toHaveLength(3);
+    await user.type(screen.getByRole("textbox", { name: "押金名称 3" }), "钥匙押金");
+    expect(screen.getByRole("textbox", { name: "押金名称 3" })).toHaveValue("钥匙押金");
+    await user.type(screen.getByRole("textbox", { name: "押金金额 1" }), "100");
+    expect(screen.getByRole("textbox", { name: "押金金额 1" })).toHaveValue("100");
   });
 
   it("keeps the deposit input mounted while editable values change", async () => {
@@ -299,14 +277,13 @@ describe("contract form step domains", () => {
               customName: "",
               calculationMode: "fixed_amount",
               fixedAmountText: "",
-              rentMultipleText: "",
             },
           ],
         }}
         onChange={onChange}
       />,
     );
-    const input = screen.getByRole("textbox", { name: "固定金额" });
+    const input = screen.getByRole("textbox", { name: "押金金额 1" });
     input.focus();
     view.rerender(
       <ContractTermsStep
@@ -318,7 +295,6 @@ describe("contract form step domains", () => {
               customName: "",
               calculationMode: "fixed_amount",
               fixedAmountText: "1",
-              rentMultipleText: "",
             },
           ],
         }}

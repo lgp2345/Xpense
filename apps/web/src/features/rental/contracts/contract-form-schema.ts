@@ -29,9 +29,8 @@ export type ContractFormValues = {
   deposits: {
     type: "rental" | "utility" | "access_card" | "other";
     customName: string;
-    calculationMode: "fixed_amount" | "rent_multiple";
+    calculationMode: "fixed_amount";
     fixedAmountText: string;
-    rentMultipleText: string;
   }[];
   note: string;
 };
@@ -43,9 +42,8 @@ const party = z.object({ tenantId: uuid, isPrimaryPayer: z.boolean() });
 const deposit = z.object({
   type: z.enum(["rental", "utility", "access_card", "other"]),
   customName: z.string(),
-  calculationMode: z.enum(["fixed_amount", "rent_multiple"]),
+  calculationMode: z.literal("fixed_amount"),
   fixedAmountText: z.string(),
-  rentMultipleText: z.string(),
 });
 
 /** 首次创建草稿只需要验证启用房产候选的 ID；空间和条款属于后续检查点。 */
@@ -226,13 +224,14 @@ export function toContractFormValues(
       ? (String(detail.paymentIntervalMonths) as ContractFormValues["paymentIntervalMonths"])
       : "",
     dueDaysBeforeText: detail.dueDaysBefore === null ? "" : String(detail.dueDaysBefore),
-    deposits: detail.depositTerms.map((item) => ({
-      type: item.type,
-      customName: item.customName ?? "",
-      calculationMode: item.calculationMode,
-      fixedAmountText: item.fixedAmountMinor === null ? "" : formatMinor(item.fixedAmountMinor),
-      rentMultipleText: item.rentMultiple ?? "",
-    })),
+    deposits: detail.depositTerms
+      .filter((item) => item.calculationMode === "fixed_amount")
+      .map((item) => ({
+        type: item.type,
+        customName: item.customName ?? "",
+        calculationMode: "fixed_amount",
+        fixedAmountText: item.fixedAmountMinor === null ? "" : formatMinor(item.fixedAmountMinor),
+      })),
     note: detail.note ?? "",
   };
 }
@@ -250,12 +249,6 @@ export function parseMinor(value: string): number | null {
   } catch {
     return null;
   }
-}
-
-export function isPositiveDecimal(value: string): boolean {
-  return (
-    /^(?:\d+\.\d+|\d+)$/.test(value.trim()) && Number(value) > 0 && Number.isFinite(Number(value))
-  );
 }
 
 export function isValidDate(start: string, end: string): boolean {
@@ -306,17 +299,11 @@ function validateDeposits(deposits: ContractFormValues["deposits"], ctx: z.Refin
         path: ["deposits", index, "customName"],
         message: "请输入押金名称",
       });
-    if (item.calculationMode === "fixed_amount" && parseMinor(item.fixedAmountText) === null)
+    if (parseMinor(item.fixedAmountText) === null)
       ctx.addIssue({
         code: "custom",
         path: ["deposits", index, "fixedAmountText"],
         message: "请输入正整数金额",
-      });
-    if (item.calculationMode === "rent_multiple" && !isPositiveDecimal(item.rentMultipleText))
-      ctx.addIssue({
-        code: "custom",
-        path: ["deposits", index, "rentMultipleText"],
-        message: "请输入正数倍数",
       });
   }
 }
@@ -378,13 +365,11 @@ function toDepositInput(
 ): RentalContractDepositTermInput {
   const result: RentalContractDepositTermInput = {
     type: item.type,
-    calculationMode: item.calculationMode,
+    calculationMode: "fixed_amount",
     sortOrder,
   };
   if (item.type === "other") result.customName = item.customName.trim();
-  if (item.calculationMode === "fixed_amount")
-    result.fixedAmountMinor = parseMinor(item.fixedAmountText) ?? undefined;
-  else result.rentMultiple = item.rentMultipleText.trim();
+  result.fixedAmountMinor = parseMinor(item.fixedAmountText) ?? undefined;
   return result;
 }
 function nullable(value: string): string | null {

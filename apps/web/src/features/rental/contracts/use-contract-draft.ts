@@ -385,12 +385,24 @@ export function useContractDraft(options: Options) {
         return false;
       }
       let canonical = id && serverDraft ? toContractFormValues(serverDraft, serverCharges) : values;
-      if (id && JSON.stringify(values) !== JSON.stringify(baseline.current)) {
-        const dirtyStep = inferDirtyStep(values, baseline.current);
-        const saved = await save(values, dirtyStep);
+      const isDirty = Boolean(id && JSON.stringify(values) !== JSON.stringify(baseline.current));
+      const hasLegacyDeposit = Boolean(
+        id &&
+          serverDraft?.depositTerms.some((deposit) => deposit.calculationMode !== "fixed_amount"),
+      );
+      if (id && (isDirty || hasLegacyDeposit)) {
+        const dirtyStep = isDirty ? inferDirtyStep(values, baseline.current) : 2;
+        let saved = await save(values, dirtyStep);
         if (!saved) {
           setStep(dirtyStep);
           return false;
+        }
+        if (hasLegacyDeposit && dirtyStep !== 2) {
+          saved = await save(values, 2);
+          if (!saved) {
+            setStep(2);
+            return false;
+          }
         }
         canonical = toContractFormValues(saved, baseline.current.chargeSetup);
       }
