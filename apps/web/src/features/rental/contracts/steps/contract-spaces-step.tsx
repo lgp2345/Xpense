@@ -80,6 +80,7 @@ function ContractSpacesStepContent({
   seedSpaceIds,
   onNames,
 }: ContractSpacesStepProps) {
+  const legacy = values.billingMode === 'legacy_receivable'
   const errors = useContext(ContractFieldErrorsContext)
   const propertyFeedback = useContractFieldFeedback('propertyId')
   const [keyword, setKeyword] = useState('')
@@ -183,6 +184,13 @@ function ContractSpacesStepContent({
 
   useEffect(() => {
     if (!seedSpaceIds?.length || !children.data || childrenPage !== 1) return
+    if (!legacy && seedSpaceIds.length > 1) {
+      if (seedSpaceIds.every((id) => ignoredSeedRef.current.has(id))) return
+      for (const id of seedSpaceIds) ignoredSeedRef.current.add(id)
+      setSeedMessage('合同只能选择一个空间，请重新选择出租空间。')
+      return
+    }
+    if (!legacy && values.spaces.length) return
     const unresolved: string[] = []
     const verified: SpaceWithPath[] = []
     for (const id of seedSpaceIds) {
@@ -228,7 +236,7 @@ function ContractSpacesStepContent({
       setSeedMessage(
         '无法验证，已忽略部分空间；深层空间不会自动恢复，请展开或搜索后选择。',
       )
-  }, [children.data, childrenPage, onChange, seedSpaceIds, values])
+  }, [children.data, childrenPage, legacy, onChange, seedSpaceIds, values])
 
   const selected = useMemo(
     () => new Set(values.spaces.map((item) => item.spaceId)),
@@ -310,18 +318,23 @@ function ContractSpacesStepContent({
       })
       return
     }
-    if (hasUnresolvedSelectedSpace) return
+    if (legacy && hasUnresolvedSelectedSpace) return
     const reason = restrictionReason(space)
     if (
       reason ||
-      values.spaces.some((item) =>
-        isSpaceConflict(space, registry.current.get(item.spaceId)),
-      )
+      (legacy &&
+        values.spaces.some((item) =>
+          isSpaceConflict(space, registry.current.get(item.spaceId)),
+        ))
     )
       return
+    setSeedMessage(null)
     onChange({
       ...values,
-      spaces: [...values.spaces, { spaceId: space.id, rentAllocationText: '' }],
+      spaces: [
+        ...(legacy ? values.spaces : []),
+        { spaceId: space.id, rentAllocationText: '' },
+      ],
     })
   }
 
@@ -397,6 +410,7 @@ function ContractSpacesStepContent({
             <Field>
               <Input
                 id="space-search"
+                aria-label="搜索空间"
                 value={keyword}
                 onChange={(event) => {
                   setKeyword(event.target.value)
@@ -410,8 +424,13 @@ function ContractSpacesStepContent({
               />
             </Field>
             <FieldDescription className="text-xs text-muted-foreground">
-              展开空间名称查看内部空间；父空间与子空间不能同时选择。
+              {legacy
+                ? '展开空间名称查看内部空间；父空间与子空间不能同时选择。'
+                : '每份合同只能选择一个出租空间，选择其他空间将替换当前选择；可展开查看内部空间。'}
             </FieldDescription>
+            {!legacy && values.spaces.length > 1 ? (
+              <FieldError>合同只能选择一个空间，请移除多余空间或重新选择。</FieldError>
+            ) : null}
             {seedMessage ? (
               <p role="status" aria-live="polite">
                 {seedMessage}
@@ -463,15 +482,13 @@ function ContractSpacesStepContent({
                   selected={selected}
                   onToggle={toggle}
                   reasonFor={(space) =>
-                    hasUnresolvedSelectedSpace
+                    legacy && hasUnresolvedSelectedSpace
                       ? unresolvedSelectedSpaceMessage
                       : restrictionReason(space) ||
-                        (values.spaces.some((item) =>
-                          isSpaceConflict(
-                            space,
-                            registry.current.get(item.spaceId),
-                          ),
-                        )
+                        (legacy &&
+                          values.spaces.some((item) =>
+                            isSpaceConflict(space, registry.current.get(item.spaceId)),
+                          )
                           ? '已选父级或子级空间，不能同时选择'
                           : '')
                   }
@@ -528,7 +545,8 @@ function ContractSpacesStepContent({
                 })}
               </FieldSet>
             ) : null}
-            {values.spaces.length ? (
+            {values.spaces.length &&
+            (legacy || values.spaces.some((item) => item.rentAllocationText.trim())) ? (
               <FieldSet className="gap-2">
                 <FieldLegend className="font-medium text-sm">
                   已选空间租金分摊（可选）

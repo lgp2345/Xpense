@@ -12,7 +12,11 @@ export function validateContractValues(values: ContractFormValues, scope: Contra
         error: { issues: [{ path: ["propertyId"], message: "请选择房产" }] },
       };
     }
-    return stepSchemas.spaces.safeParse({ propertyId: values.propertyId, spaces: values.spaces });
+    return stepSchemas.spaces.safeParse({
+      billingMode: values.billingMode,
+      propertyId: values.propertyId,
+      spaces: values.spaces,
+    });
   }
   if (scope === 1) return stepSchemas.parties.safeParse({ parties: values.parties });
   return stepSchemas.terms.safeParse(values);

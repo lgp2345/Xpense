@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../../../services/api-client";
 import type { RentalApi } from "../../../../services/rental-api";
-import { defaultContractFormValues } from "../contract-form-schema";
+import { type ContractFormValues, defaultContractFormValues } from "../contract-form-schema";
 import { ContractPartiesStep } from "./contract-parties-step";
 import { ContractSpacesStep } from "./contract-spaces-step";
 import { ContractTermsStep, calendarPreview } from "./contract-terms-step";
@@ -83,7 +83,10 @@ describe("contract form step domains", () => {
       searchSpaces: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
     } as unknown as RentalApi;
     function Harness() {
-      const [values, setValues] = useState(defaultContractFormValues(propertyId));
+      const [values, setValues] = useState<ContractFormValues>({
+        ...defaultContractFormValues(propertyId),
+        billingMode: "legacy_receivable" as const,
+      });
       return <ContractSpacesStep api={api} organizationId="org-a" permissions={permissions}
         showPropertySelector={false} values={values} onChange={setValues} />;
     }
@@ -324,6 +327,7 @@ describe("contract form step domains", () => {
     } as unknown as RentalApi;
     const values = {
       ...defaultContractFormValues(propertyId),
+      billingMode: "legacy_receivable" as const,
       spaces: [{ spaceId: childId, rentAllocationText: "" }],
     };
     renderWithQuery(
@@ -412,6 +416,7 @@ describe("contract form step domains", () => {
         permissions={permissions}
         values={{
           ...defaultContractFormValues(propertyId),
+          billingMode: "legacy_receivable",
           spaces: [{ spaceId: unresolvedId, rentAllocationText: "" }],
         }}
         onChange={onChange}
@@ -459,6 +464,7 @@ describe("contract form step domains", () => {
         permissions={permissions}
         values={{
           ...defaultContractFormValues(propertyId),
+          billingMode: "legacy_receivable",
           spaces: [{ spaceId: childId, rentAllocationText: "" }],
         }}
         onChange={onChange}

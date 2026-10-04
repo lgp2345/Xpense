@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
-import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   PermissionKey,
@@ -647,7 +647,9 @@ describe("ContractFormPage", () => {
     await user.click(screen.getByRole("button", { name: "下一步" }));
     await screen.findByRole("heading", { name: "选择承租方" });
     await user.click(screen.getByRole("button", { name: "上一步" }));
-    expect(await screen.findByLabelText(`空间 ${spaceId}`)).toBeInTheDocument();
+    const selected = within(await screen.findByRole("group", { name: "已选空间" }));
+    expect(selected.getByText("101")).toBeInTheDocument();
+    expect(screen.queryByText("已选空间租金分摊（可选）")).not.toBeInTheDocument();
     expect(api.createContract).not.toHaveBeenCalled();
     expect(api.createConfirmedContract).not.toHaveBeenCalled();
     expect(api.updateContract).not.toHaveBeenCalled();

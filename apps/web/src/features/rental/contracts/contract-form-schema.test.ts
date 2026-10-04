@@ -28,6 +28,50 @@ const base = () => ({
 });
 
 describe("contract form schema", () => {
+  it("表单恢复服务端模式，缺失模式的历史合同按旧模式处理", () => {
+    expect(defaultContractFormValues().billingMode).toBe("monthly_settlement");
+    expect(toContractFormValues(baseContract()).billingMode).toBe("legacy_receivable");
+    expect(
+      toContractFormValues({ ...baseContract(), billingMode: "monthly_settlement" }).billingMode,
+    ).toBe("monthly_settlement");
+  });
+  it("月度结算的空间步骤、条款和正式提交均拒绝多空间", () => {
+    const values = {
+      ...base(),
+      spaces: [
+        { spaceId, rentAllocationText: "" },
+        { spaceId: propertyId, rentAllocationText: "" },
+      ],
+    };
+    for (const schema of [contractFormSchema, stepSchemas.spaces, stepSchemas.terms]) {
+      const result = schema.safeParse(values);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues).toContainEqual(
+          expect.objectContaining({ path: ["spaces"], message: "合同只能选择一个空间" }),
+        );
+      }
+    }
+    expect(() => toStepUpdateRequest("contract", values, 0)).toThrow();
+    expect(() => toStepUpdateRequest("contract", values, 2)).toThrow();
+    expect(() => toConfirmedContractRequest(values)).toThrow();
+  });
+
+  it("旧模式仍允许多空间，创建新合同始终按单空间校验", () => {
+    const values = {
+      ...base(),
+      billingMode: "legacy_receivable" as const,
+      spaces: [
+        { spaceId, rentAllocationText: "3000" },
+        { spaceId: propertyId, rentAllocationText: "5000" },
+      ],
+    };
+    expect(contractFormSchema.safeParse(values).success).toBe(true);
+    expect(toStepUpdateRequest("contract", values, 0).spaces).toHaveLength(2);
+    expect(toStepUpdateRequest("contract", values, 2).spaces).toHaveLength(2);
+    expect(() => toConfirmedContractRequest(values)).toThrow();
+  });
+
   it("合同创建和条款更新一次提交收费设置，启用单价缺失阻止提交", () => {
     const chargeSetup = {
       ...defaultContractChargeValues(),

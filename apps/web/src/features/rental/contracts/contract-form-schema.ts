@@ -1,6 +1,7 @@
 import type {
   CreateConfirmedRentalContractRequest,
   CreateRentalContractRequest,
+  RentalBillingMode,
   RentalContractDepositTermInput,
   RentalContractDetail,
   RentalContractSpaceInput,
@@ -15,6 +16,8 @@ import {
 } from "../charges/contract-charge-form";
 
 export type ContractFormValues = {
+  /** 由服务端合同模式恢复；新合同默认月度结算，不提供用户切换入口。 */
+  billingMode?: RentalBillingMode;
   chargeSetup: ContractChargeFormValues | null;
   propertyId: string;
   spaces: { spaceId: string; rentAllocationText: string }[];
@@ -38,6 +41,9 @@ export type ContractFormValues = {
 const uuid = z.string().uuid("请输入有效的 ID");
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "请输入有效日期");
 const space = z.object({ spaceId: uuid, rentAllocationText: z.string() });
+const billingMode = z
+  .enum(["legacy_receivable", "monthly_settlement"])
+  .default("monthly_settlement");
 const party = z.object({ tenantId: uuid, isPrimaryPayer: z.boolean() });
 const deposit = z.object({
   type: z.enum(["rental", "utility", "access_card", "other"]),
@@ -51,6 +57,7 @@ export const createContractFormSchema = z.object({ propertyId: uuid });
 
 export const contractFormSchema = z
   .object({
+    billingMode,
     propertyId: uuid,
     spaces: z.array(space).min(1, "至少选择一个空间"),
     parties: z.array(party).min(1, "至少选择一个承租方"),
@@ -66,6 +73,7 @@ export const contractFormSchema = z
     note: z.string(),
   })
   .superRefine((value, ctx) => {
+    validateSpaceCount(value, ctx);
     const uniqueSpaces = new Set(value.spaces.map((item) => item.spaceId));
     if (uniqueSpaces.size !== value.spaces.length)
       ctx.addIssue({ code: "custom", path: ["spaces"], message: "不能重复选择空间" });
@@ -111,8 +119,9 @@ export const contractFormSchema = z
 
 export const stepSchemas = {
   spaces: z
-    .object({ propertyId: uuid, spaces: z.array(space).min(1, "至少选择一个空间") })
+    .object({ billingMode, propertyId: uuid, spaces: z.array(space).min(1, "至少选择一个空间") })
     .superRefine((value, ctx) => {
+      validateSpaceCount(value, ctx);
       if (new Set(value.spaces.map((item) => item.spaceId)).size !== value.spaces.length)
         ctx.addIssue({ code: "custom", path: ["spaces"], message: "不能重复选择空间" });
     }),
@@ -126,6 +135,7 @@ export const stepSchemas = {
     }),
   terms: z
     .object({
+      billingMode,
       externalContractNumber: z.string(),
       startDate: date,
       endDate: date,
@@ -139,6 +149,7 @@ export const stepSchemas = {
       note: z.string(),
     })
     .superRefine((value, ctx) => {
+      validateSpaceCount(value, ctx);
       if (!isValidDate(value.startDate, value.endDate))
         ctx.addIssue({
           code: "custom",
@@ -181,8 +192,18 @@ export const stepSchemas = {
     }),
 };
 
+/** 保留旧合同多空间兼容，月度结算在每个含空间的检查点限制为单选。 */
+function validateSpaceCount(
+  value: Pick<ContractFormValues, "billingMode" | "spaces">,
+  ctx: z.RefinementCtx,
+): void {
+  if (value.billingMode !== "legacy_receivable" && value.spaces.length > 1)
+    ctx.addIssue({ code: "custom", path: ["spaces"], message: "合同只能选择一个空间" });
+}
+
 export function defaultContractFormValues(propertyId = ""): ContractFormValues {
   return {
+    billingMode: "monthly_settlement",
     propertyId,
     chargeSetup: null,
     spaces: [],
@@ -204,6 +225,7 @@ export function toContractFormValues(
   chargeSetup: ContractChargeFormValues | null = null,
 ): ContractFormValues {
   return {
+    billingMode: detail.billingMode ?? "legacy_receivable",
     chargeSetup,
     propertyId: detail.propertyId,
     spaces: detail.spaces.map((item) => ({
@@ -322,6 +344,7 @@ export function toStepUpdateRequest(
 ): UpdateRentalContractRequest {
   if (step === 0) {
     const parsed = stepSchemas.spaces.parse({
+      billingMode: values.billingMode,
       propertyId: values.propertyId,
       spaces: values.spaces,
     });
@@ -388,7 +411,7 @@ export function allocationSummary(values: ContractFormValues): { total: number; 
 export function toConfirmedContractRequest(
   values: ContractFormValues,
 ): CreateConfirmedRentalContractRequest {
-  const parsed = contractFormSchema.parse(values);
+  const parsed = contractFormSchema.parse({ ...values, billingMode: "monthly_settlement" });
   return {
     propertyId: parsed.propertyId,
     externalContractNumber: nullable(parsed.externalContractNumber),
