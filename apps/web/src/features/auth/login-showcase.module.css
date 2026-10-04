@@ -87,6 +87,9 @@
   }
 }
 @media (max-width: 767px) {
+  .showcase {
+    display: none;
+  }
   .heroCopy {
     max-width: 26rem;
     margin-inline: auto;
