@@ -1,3 +1,4 @@
+import { duplicateRentalItemNameIndexes } from "@xpense/shared";
 import { z } from "zod";
 
 /** 收费条目名称在合同内可识别，且去除首尾空白。 */
@@ -32,6 +33,16 @@ export const rentalFixedFeeSchema = z
     monthlyAmountMinor: rentalSafeMinorAmountSchema.min(0),
   })
   .strict();
+
+/** 固定月费在合同内必须使用不同名称，逐项定位重复名称。 */
+export const rentalFixedFeesSchema = z.array(rentalFixedFeeSchema).superRefine((fees, context) => {
+  for (const index of duplicateRentalItemNameIndexes(fees.map(({ name }) => name)))
+    context.addIssue({
+      code: "custom",
+      path: [index, "name"],
+      message: "固定收费事项名称不能重复",
+    });
+});
 
 /** 本期固定费用按合同条目 ID 覆盖月金额。 */
 export const rentalFixedFeeOverrideSchema = z
@@ -70,7 +81,7 @@ export const updateRentalChargeTermsSchema = z
     reason: rentalReasonSchema,
     waterUnitPrice: rentalDecimalFourSchema,
     electricityUnitPrice: rentalDecimalFourSchema,
-    fixedFees: z.array(rentalFixedFeeSchema),
+    fixedFees: rentalFixedFeesSchema,
   })
   .strict()
   .superRefine((value, context) => {

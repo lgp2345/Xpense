@@ -1,12 +1,14 @@
-import type {
-  CreateConfirmedRentalContractRequest,
-  CreateRentalContractRequest,
-  RentalBillingMode,
-  RentalContractDepositTermInput,
-  RentalContractDetail,
-  RentalContractSpaceInput,
-  RentalPaymentIntervalMonths,
-  UpdateRentalContractRequest,
+import {
+  type CreateConfirmedRentalContractRequest,
+  type CreateRentalContractRequest,
+  duplicateRentalItemNameIndexes,
+  type RentalBillingMode,
+  type RentalContractDepositTermInput,
+  type RentalContractDetail,
+  type RentalContractSpaceInput,
+  type RentalPaymentIntervalMonths,
+  rentalDepositItemName,
+  type UpdateRentalContractRequest,
 } from "@xpense/shared";
 import { z } from "zod";
 import {
@@ -287,6 +289,12 @@ function formatMinor(value: number): string {
 }
 
 function validateDeposits(deposits: ContractFormValues["deposits"], ctx: z.RefinementCtx): void {
+  for (const index of duplicateRentalItemNameIndexes(deposits.map(rentalDepositItemName)))
+    ctx.addIssue({
+      code: "custom",
+      path: ["deposits", index, "customName"],
+      message: "押金事项名称不能重复",
+    });
   for (const [index, item] of deposits.entries()) {
     if (item.type === "other" && !item.customName.trim())
       ctx.addIssue({

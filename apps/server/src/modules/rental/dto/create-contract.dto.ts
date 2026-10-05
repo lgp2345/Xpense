@@ -1,6 +1,8 @@
 import {
+  duplicateRentalItemNameIndexes,
   rentalBillingAnchors,
   rentalDepositCalculationModes,
+  rentalDepositItemName,
   rentalDepositTypes,
 } from "@xpense/shared";
 import { z } from "zod";
@@ -96,7 +98,18 @@ const mutableShape = {
   dueDaysBefore: z.number().int().min(0).max(90).nullable().optional(),
   parties: z.array(contractPartyInputSchema).min(1).max(100).optional(),
   spaces: z.array(contractSpaceInputSchema).min(1).max(100).optional(),
-  depositTerms: z.array(contractDepositTermInputSchema).max(100).optional(),
+  depositTerms: z
+    .array(contractDepositTermInputSchema)
+    .max(100)
+    .superRefine((terms, context) => {
+      for (const index of duplicateRentalItemNameIndexes(terms.map(rentalDepositItemName)))
+        context.addIssue({
+          code: "custom",
+          path: [index, "customName"],
+          message: "押金事项名称不能重复",
+        });
+    })
+    .optional(),
   note: optionalNullableText(2000),
 };
 

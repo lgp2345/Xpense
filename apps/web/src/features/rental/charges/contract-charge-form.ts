@@ -1,7 +1,8 @@
-import type {
-  RentalChargeTerms,
-  RentalContractChargeSetup,
-  RentalMeterReadingInput,
+import {
+  duplicateRentalItemNameIndexes,
+  type RentalChargeTerms,
+  type RentalContractChargeSetup,
+  type RentalMeterReadingInput,
 } from "@xpense/shared";
 import { z } from "zod";
 
@@ -14,7 +15,7 @@ export type ContractChargeFormValues = {
   waterReadingDate: string;
   electricityReading: string;
   electricityReadingDate: string;
-  fixedFees: { id: string; name: string; amount: string }[];
+  fixedFees: { id: string; name: string; amount: string; nameLocked?: boolean }[];
 };
 
 export function parseFixedFeeAmount(value: string): number | null {
@@ -92,6 +93,12 @@ export const contractChargeFormSchema = z
     }
     if (new Set(value.fixedFees.map(({ id }) => id)).size !== value.fixedFees.length)
       context.addIssue({ code: "custom", path: ["fixedFees"], message: "事项不能重复" });
+    for (const index of duplicateRentalItemNameIndexes(value.fixedFees.map(({ name }) => name)))
+      context.addIssue({
+        code: "custom",
+        path: ["fixedFees", index, "name"],
+        message: "固定收费事项名称不能重复",
+      });
   });
 
 export function defaultContractChargeValues(): ContractChargeFormValues {

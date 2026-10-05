@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { rentalDecimalFourSchema, rentalFixedFeeSchema } from "./rental-charges.dto.js";
+import { rentalDecimalFourSchema, rentalFixedFeesSchema } from "./rental-charges.dto.js";
 import { optionalRentalMeterReadingsSchema } from "./rental-meters.dto.js";
 
 /** 合同初始收费设置；底数允许交接时后补，不将空读数当作零。 */
@@ -11,7 +11,7 @@ export const contractChargeSetupSchema = z
         electricityCollectionEnabled: z.boolean(),
         waterUnitPrice: rentalDecimalFourSchema,
         electricityUnitPrice: rentalDecimalFourSchema,
-        fixedFees: z.array(rentalFixedFeeSchema),
+        fixedFees: rentalFixedFeesSchema,
       })
       .strict()
       .refine(

@@ -6,6 +6,34 @@ import {
 } from "./contract-charge-form";
 
 describe("合同收费请求转换", () => {
+  it("不同 ID 的固定收费也不能在去除首尾空格后重名", () => {
+    const values = {
+      ...defaultContractChargeValues(),
+      waterCollectionEnabled: false,
+      electricityCollectionEnabled: false,
+      fixedFees: [
+        { id: "123e4567-e89b-42d3-a456-426614174000", name: "管理费", amount: "50" },
+        { id: "223e4567-e89b-42d3-a456-426614174000", name: " 管理费 ", amount: "20" },
+      ],
+    };
+    const parsed = contractChargeFormSchema.safeParse(values);
+    expect(parsed.success).toBe(false);
+    if (!parsed.success)
+      expect(parsed.error.issues).toContainEqual(
+        expect.objectContaining({
+          path: ["fixedFees", 1, "name"],
+          message: "固定收费事项名称不能重复",
+        }),
+      );
+    expect(() => toContractChargeSetup(values)).toThrow();
+    expect(
+      contractChargeFormSchema.safeParse({
+        ...values,
+        fixedFees: [values.fixedFees[0], { ...values.fixedFees[1], name: "网费" }],
+      }).success,
+    ).toBe(true);
+  });
+
   it("空底数不变成零，不代收时不验证隐藏字段", () => {
     const value = {
       ...defaultContractChargeValues(),
@@ -32,13 +60,21 @@ describe("合同收费请求转换", () => {
       waterReading: "0",
       waterReadingDate: "2026-10-02",
       fixedFees: [
-        { id: "123e4567-e89b-42d3-a456-426614174000", name: " 管理费 ", amount: "50.01" },
+        {
+          id: "123e4567-e89b-42d3-a456-426614174000",
+          name: " 管理费 ",
+          amount: "50.01",
+          nameLocked: true,
+        },
       ],
     };
     expect(toContractChargeSetup(value)).toMatchObject({
       chargeTerms: { fixedFees: [{ name: "管理费", monthlyAmountMinor: 5001 }] },
       baselineReadings: [{ kind: "water", reading: "0", readingDate: "2026-10-02" }],
     });
+    expect(toContractChargeSetup(value).chargeTerms.fixedFees).toEqual([
+      { id: "123e4567-e89b-42d3-a456-426614174000", name: "管理费", monthlyAmountMinor: 5001 },
+    ]);
     expect(contractChargeFormSchema.safeParse({ ...value, waterReadingDate: "" }).success).toBe(
       false,
     );

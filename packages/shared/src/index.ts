@@ -44,6 +44,7 @@ export * from "./rental-bills.js";
 export * from "./rental-cash.js";
 export * from "./rental-charges.js";
 export * from "./rental-contracts.js";
+export * from "./rental-item-names.js";
 export * from "./rental-monthly-bills.js";
 export * from "./rental-settlements.js";
 export * from "./rental-tenants.js";

@@ -25,9 +25,11 @@ export function contractFeedbackProps(
 export function ContractFieldMessage({
   name,
   alternateName,
+  focusOnError = true,
 }: {
   name: string;
   alternateName?: string;
+  focusOnError?: boolean;
 }) {
   const errors = useContext(ContractFieldErrorsContext);
   const message = errors[name] ?? (alternateName ? errors[alternateName] : undefined);
@@ -35,7 +37,7 @@ export function ContractFieldMessage({
   const firstName = Object.keys(errors)[0];
   const focusEnabled = useContext(ContractFieldFocusContext);
   const focus = Boolean(
-    focusEnabled && message && (firstName === name || firstName === alternateName),
+    focusEnabled && focusOnError && message && (firstName === name || firstName === alternateName),
   );
   useEffect(() => {
     if (!focus || !message) return;

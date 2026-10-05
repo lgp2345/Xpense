@@ -28,6 +28,66 @@ const base = () => ({
 });
 
 describe("contract form schema", () => {
+  it.each([
+    ["rental", "", "rental", ""],
+    ["access_card", "", "other", " 门禁卡 "],
+    ["utility", "", "other", "水电"],
+    ["other", "钥匙", "other", " 钥匙 "],
+  ] as const)("条款检查和正式提交拒绝同名押金 %s %s %s %s", (type, customName, secondType, secondName) => {
+    const values = {
+      ...base(),
+      deposits: [
+        { type, customName, calculationMode: "fixed_amount" as const, fixedAmountText: "100" },
+        {
+          type: secondType,
+          customName: secondName,
+          calculationMode: "fixed_amount" as const,
+          fixedAmountText: "200",
+        },
+      ],
+    };
+    for (const schema of [stepSchemas.terms, contractFormSchema]) {
+      const result = schema.safeParse(values);
+      expect(result.success).toBe(false);
+      if (!result.success)
+        expect(result.error.issues).toContainEqual(
+          expect.objectContaining({
+            path: ["deposits", 1, "customName"],
+            message: "押金事项名称不能重复",
+          }),
+        );
+    }
+    expect(() => toConfirmedContractRequest(values)).toThrow();
+    expect(() => toStepUpdateRequest("contract", values, 2)).toThrow();
+  });
+
+  it("押金与固定月费分别检查名称，允许跨组同名", () => {
+    const values = {
+      ...base(),
+      deposits: [
+        {
+          type: "other" as const,
+          customName: "停车费",
+          calculationMode: "fixed_amount" as const,
+          fixedAmountText: "100",
+        },
+        {
+          type: "rental" as const,
+          customName: "",
+          calculationMode: "fixed_amount" as const,
+          fixedAmountText: "200",
+        },
+      ],
+      chargeSetup: {
+        ...defaultContractChargeValues(),
+        waterCollectionEnabled: false,
+        electricityCollectionEnabled: false,
+        fixedFees: [{ id: propertyId, name: "停车费", amount: "50" }],
+      },
+    };
+    expect(contractFormSchema.safeParse(values).success).toBe(true);
+  });
+
   it("提交和更新保留租期的时分秒", () => {
     const values = {
       ...base(),
@@ -46,9 +106,12 @@ describe("contract form schema", () => {
   });
 
   it.each([
-    "2026-02-29T12:00:00", "2026-10-05T24:00:00",
-    "2026-10-05T12:60:00", "2026-10-05T12:00:60",
-    "2026-10-05T12:00:00Z", "2026-10-05T12:00:00+08:00",
+    "2026-02-29T12:00:00",
+    "2026-10-05T24:00:00",
+    "2026-10-05T12:60:00",
+    "2026-10-05T12:00:60",
+    "2026-10-05T12:00:00Z",
+    "2026-10-05T12:00:00+08:00",
   ])("拒绝无效本地日期时间 %s", (startDate) => {
     expect(contractFormSchema.safeParse({ ...base(), startDate }).success).toBe(false);
   });
