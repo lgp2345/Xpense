@@ -217,6 +217,32 @@ describe("contract form step domains", () => {
     });
   });
 
+  it("updates both lease dates from a duration preset without submitting the form", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 5));
+    try {
+      const user = userEvent.setup();
+      const values = defaultContractFormValues(propertyId);
+      const onChange = vi.fn();
+      const onSubmit = vi.fn((event) => event.preventDefault());
+      render(
+        <form onSubmit={onSubmit}>
+          <ContractTermsStep values={values} onChange={onChange} />
+        </form>,
+      );
+      await user.click(screen.getByRole("button", { name: "租期范围" }));
+      await user.click(screen.getByRole("button", { name: "三个月" }));
+      expect(onChange).toHaveBeenLastCalledWith({
+        ...values,
+        startDate: "2026-10-05",
+        endDate: "2027-01-05",
+      });
+      expect(onSubmit).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("opens the payment interval select and updates its value", async () => {
     const user = userEvent.setup();
     const values = {

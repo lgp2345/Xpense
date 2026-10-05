@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DatePickerInput, DateRangePicker, type DateRangeValue } from "./date-picker";
 
 function Harness({ initial = "2024-02-29", withTime = false }) {
@@ -11,7 +11,7 @@ function Harness({ initial = "2024-02-29", withTime = false }) {
   );
 }
 
-function RangeHarness() {
+function RangeHarness({ showDurationPresets = false } = {}) {
   const [value, setValue] = useState<DateRangeValue>({ from: "2024-02-01" });
   return (
     <DateRangePicker
@@ -19,6 +19,7 @@ function RangeHarness() {
       value={value}
       onChange={setValue}
       placeholder="选择账期"
+      showDurationPresets={showDurationPresets}
     />
   );
 }
@@ -99,6 +100,77 @@ describe("DatePickerInput", () => {
 });
 
 describe("DateRangePicker", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ["一个月", "2026-11-05"],
+    ["三个月", "2027-01-05"],
+    ["半年", "2027-04-05"],
+    ["一年", "2027-10-05"],
+    ["两年", "2028-10-05"],
+    ["三年", "2029-10-05"],
+  ] as const)("selects %s from today's local date and resets the visible month", async (label, end) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 5, 23, 30));
+    const user = userEvent.setup();
+    render(<RangeHarness showDurationPresets />);
+    const trigger = screen.getByRole("button", { name: "账期范围" });
+    await user.click(trigger);
+    await screen.findByRole("grid");
+    await user.click(screen.getByRole("button", { name: label }));
+
+    expect(trigger).toHaveTextContent(`2026/10/05 - ${end.replaceAll("-", "/")}`);
+    const selects = screen.getAllByRole("combobox");
+    expect(selects.map((select) => (select as HTMLSelectElement).value)).toEqual(
+      expect.arrayContaining(["9", "2026"]),
+    );
+    const start = screen
+      .getAllByRole("button")
+      .find((button) => button.dataset.day === new Date(2026, 9, 5).toLocaleDateString());
+    expect(start).toHaveAttribute("data-range-start", "true");
+  });
+
+  it.each([
+    [new Date(2025, 0, 31), "一个月", "2025-01-31", "2025-02-28"],
+    [new Date(2024, 0, 31), "一个月", "2024-01-31", "2024-02-29"],
+    [new Date(2024, 1, 29), "一年", "2024-02-29", "2025-02-28"],
+  ] as const)("clamps a preset starting on %s to the last valid target day", async (today, label, from, to) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(today);
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<DateRangePicker aria-label="租期范围" showDurationPresets onChange={onChange} />);
+    await user.click(screen.getByRole("button", { name: "租期范围" }));
+    await user.click(screen.getByRole("button", { name: label }));
+    expect(onChange).toHaveBeenLastCalledWith({ from, to });
+  });
+
+  it("uses the date at click time and allows manual adjustment after a preset", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 4, 23, 59));
+    const user = userEvent.setup();
+    render(<RangeHarness showDurationPresets />);
+    const trigger = screen.getByRole("button", { name: "账期范围" });
+    await user.click(trigger);
+    await screen.findByRole("grid");
+    vi.setSystemTime(new Date(2026, 9, 5, 0, 1));
+    await user.click(screen.getByRole("button", { name: "一个月" }));
+    expect(trigger).toHaveTextContent("2026/10/05 - 2026/11/05");
+    const endDay = screen
+      .getAllByRole("button")
+      .find((button) => button.dataset.day === new Date(2026, 9, 15).toLocaleDateString());
+    await user.click(endDay as HTMLButtonElement);
+    expect(trigger).toHaveTextContent("2026/10/05 - 2026/10/15");
+  });
+
+  it("leaves presets hidden unless enabled", async () => {
+    const user = userEvent.setup();
+    render(<RangeHarness />);
+    await user.click(screen.getByRole("button", { name: "账期范围" }));
+    await screen.findByRole("grid");
+    expect(screen.queryByRole("button", { name: "一个月" })).not.toBeInTheDocument();
+  });
+
   it("selects a date range and emits canonical ISO dates", async () => {
     const user = userEvent.setup();
     render(<RangeHarness />);

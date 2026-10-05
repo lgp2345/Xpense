@@ -1,4 +1,4 @@
-import { format, isValid, parse } from "date-fns";
+import { addMonths, format, isValid, parse } from "date-fns";
 import { zhCN } from "date-fns/locale/zh-CN";
 import { Calendar as CalendarIcon } from "lucide-react";
 import * as React from "react";
@@ -12,6 +12,15 @@ import { cn } from "@/lib/utils";
 const Calendar = React.lazy(() =>
   import("@/components/ui/calendar").then((module) => ({ default: module.Calendar })),
 );
+
+const durationPresets = [
+  { label: "一个月", months: 1 },
+  { label: "三个月", months: 3 },
+  { label: "半年", months: 6 },
+  { label: "一年", months: 12 },
+  { label: "两年", months: 24 },
+  { label: "三年", months: 36 },
+];
 
 type DatePickerInputProps = Omit<
   React.ComponentProps<typeof Input>,
@@ -39,6 +48,7 @@ type DateRangePickerProps = Pick<
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  showDurationPresets?: boolean;
 };
 
 // Adapted from Shadcn Studio date-picker-04 (input) and date-picker-10 (time).
@@ -192,13 +202,19 @@ export function DateRangePicker({
   placeholder = "选择日期范围",
   disabled,
   className,
+  showDurationPresets = false,
 }: DateRangePickerProps) {
   const from = parseStrictDate(value?.from ?? "", "yyyy-MM-dd");
   const to = parseStrictDate(value?.to ?? "", "yyyy-MM-dd");
   const selected: DateRange | undefined = from || to ? { from, to } : undefined;
+  const [month, setMonth] = React.useState<Date | undefined>(from ?? to);
 
   return (
-    <Popover>
+    <Popover
+      onOpenChange={(open) => {
+        if (open) setMonth(from ?? to ?? new Date());
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           id={id}
@@ -229,7 +245,8 @@ export function DateRangePicker({
             captionLayout="dropdown"
             startMonth={new Date(1900, 0)}
             endMonth={new Date(2100, 11)}
-            defaultMonth={from ?? to}
+            month={month}
+            onMonthChange={setMonth}
             selected={selected}
             onSelect={(range) =>
               onChange?.({
@@ -242,6 +259,28 @@ export function DateRangePicker({
             autoFocus
           />
         </React.Suspense>
+        {showDurationPresets ? (
+          <fieldset aria-label="快捷选择日期范围" className="grid grid-cols-3 gap-2 border-t p-3">
+            {durationPresets.map(({ label, months }) => (
+              <Button
+                key={months}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  onChange?.({
+                    from: format(today, "yyyy-MM-dd"),
+                    to: format(addMonths(today, months), "yyyy-MM-dd"),
+                  });
+                  setMonth(today);
+                }}
+              >
+                {label}
+              </Button>
+            ))}
+          </fieldset>
+        ) : null}
       </PopoverContent>
     </Popover>
   );

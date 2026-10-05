@@ -101,6 +101,7 @@ export function ContractTermsStep({
           <div className="flex gap-2">
             <DateRangePicker
               id="contract-date-range"
+              showDurationPresets
               {...dateFeedback}
               aria-label="租期范围"
               value={{ from: values.startDate, to: values.endDate }}
