@@ -15,6 +15,7 @@ import {
 } from "../../test/rental-test-harness.js";
 import { FIXED_RENTAL_NOW } from "../../test/rental-test-state.js";
 import { buildSpaceConflictStatement } from "./contract-conflicts.queries.js";
+import { contractCalendarDay, normalizeContractTime } from "./contract-time.rules.js";
 import { TenantIdentityCryptoService } from "./tenant-identity-crypto.service.js";
 
 type InjectResponse = { payload: string; statusCode: number };
@@ -34,6 +35,7 @@ const propertyPayload = {
 const generatedPropertyId = "88888888-8888-4888-8888-000000000001";
 const generatedTenantId = "aaaaaaaa-aaaa-4aaa-8aaa-000000000001";
 const generatedContractId = "bbbbbbbb-bbbb-4bbb-8bbb-000000000001";
+const fixedOrganizationNow = "2026-08-31T12:00:00";
 
 function registerPropertyDetail(
   setup: TestAppHarness,
@@ -123,22 +125,26 @@ function registerContractDetail(
   startDate = "2027-05-01",
   endDate = "2027-06-01",
 ): void {
+  const startTime = normalizeContractTime(startDate, "start");
+  const endTime = normalizeContractTime(endDate, "end");
+  const startDay = contractCalendarDay(startDate);
+  const endDay = contractCalendarDay(endDate);
   setup.state.rentalQuery.registerRead(
     "contracts.detail",
-    [testIds.organization, id, "2026-08-31"],
+    [testIds.organization, id, fixedOrganizationNow],
     {
       id,
       propertyId: rentalTestIds.property,
       contractNumber: "RC-2026-000001",
       externalContractNumber: null,
-      startDate,
-      endDate,
+      startDate: startTime,
+      endDate: endTime,
       rentAmountMinor: 10000,
       updatedAt: new Date(FIXED_RENTAL_NOW),
       propertyName: "测试房产",
       lifecycleStatus: "draft",
       displayStatus: "upcoming",
-      actualEndDate: endDate,
+      actualEndDate: endTime,
       tenantNames: ["历史快照租户"],
       spaceNames: ["测试房间"],
       billingAnchor: "contract_start",
@@ -176,8 +182,8 @@ function registerContractDetail(
           documentTypeOtherName: null,
           maskedDocumentNumber:
             setup.state.rental.tenants.get(tenantId)?.maskedDocumentNumber ?? null,
-          validFrom: startDate,
-          validTo: endDate,
+          validFrom: startDay,
+          validTo: endDay,
           isPrimaryPayer: true,
         },
       ],
@@ -235,8 +241,8 @@ function registerContractDetail(
             documentTypeOtherName: null,
             maskedDocumentNumber:
               setup.state.rental.tenants.get(tenantId)?.maskedDocumentNumber ?? null,
-            validFrom: startDate,
-            validTo: endDate,
+            validFrom: startDay,
+            validTo: endDay,
             isPrimaryPayer: true,
             identitySnapshotCiphertext: null,
             identitySnapshotKeyVersion: null,
@@ -278,7 +284,7 @@ function registerSpaceAncestors(
 function registerLeaseStates(setup: TestAppHarness, propertyId: string, spaceIds: string[]): void {
   setup.state.rentalQuery.registerRead(
     "spaces.leaseStates",
-    [testIds.organization, propertyId, spaceIds, "2026-08-31"],
+    [testIds.organization, propertyId, spaceIds, fixedOrganizationNow],
     new Map(
       spaceIds.map((spaceId) => [
         spaceId,
@@ -650,8 +656,8 @@ describe("Rental HTTP e2e", () => {
         organizationId: testIds.organization,
         propertyId: rentalTestIds.property,
         spaceIds: [rentalTestIds.childSpace],
-        startDate: "2027-05-01",
-        endDate: "2027-06-01",
+        startDate: normalizeContractTime("2027-05-01", "start"),
+        endDate: normalizeContractTime("2027-06-01", "end"),
         excludeContractId: draft.id,
       },
       [],
@@ -791,8 +797,8 @@ describe("Rental HTTP e2e", () => {
           organizationId: testIds.organization,
           propertyId: rentalTestIds.property,
           spaceIds: [rentalTestIds.childSpace],
-          startDate: "2027-07-01",
-          endDate: "2027-08-01",
+          startDate: normalizeContractTime("2027-07-01", "start"),
+          endDate: normalizeContractTime("2027-08-01", "end"),
           excludeContractId: draft.id,
         },
         [],
@@ -1101,7 +1107,7 @@ describe("Rental HTTP e2e", () => {
         {
           organizationId: testIds.organization,
           propertyId: property.id,
-          today: "2026-08-31",
+          today: fixedOrganizationNow,
           ownSpaceIds: [root.id],
           descendantSpaceIds: [level2.id, level3.id, room.id],
           oldAncestorSpaceIds: [],
@@ -1347,7 +1353,7 @@ describe("Rental HTTP e2e", () => {
         {
           organizationId: testIds.organization,
           propertyId: property.id,
-          today: "2026-08-31",
+          today: fixedOrganizationNow,
           ownSpaceIds: [child.id],
           descendantSpaceIds: [],
           oldAncestorSpaceIds: [left.id],

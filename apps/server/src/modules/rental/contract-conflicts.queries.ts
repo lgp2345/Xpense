@@ -2,6 +2,7 @@ import { type SQL, sql } from "drizzle-orm";
 
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { rentalContractSpaces, rentalContracts, rentalSpaces } from "../../db/schema.js";
+import { normalizeContractTime } from "./contract-time.rules.js";
 import type {
   ContractSpaceConflictInput,
   RentalContractSpaceConflictRecord,
@@ -83,8 +84,8 @@ export function buildSpaceConflictStatement(input: ContractSpaceConflictInput): 
       AND "contract"."id" = "contract_space"."contract_id"
     WHERE "contract"."deleted_at" IS NULL
       AND "contract"."status" IN ('confirmed', 'terminated')
-      AND "contract"."start_date" <= ${input.endDate}::date
-      AND COALESCE("contract"."termination_date", "contract"."end_date") >= ${input.startDate}::date
+      AND "contract"."start_date" <= ${normalizeContractTime(input.endDate, "end")}::timestamp
+      AND COALESCE("contract"."termination_date" + TIME '23:59:59', "contract"."end_date") >= ${normalizeContractTime(input.startDate, "start")}::timestamp
       ${excludeCondition}
     ORDER BY "contract"."contract_number", "contract"."id", "contract_space"."space_id"
   `;

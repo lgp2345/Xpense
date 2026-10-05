@@ -1,15 +1,16 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { eq } from "drizzle-orm";
-
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { organizations } from "../../db/schema.js";
 import { BillAdjustmentsRepository } from "./bill-adjustments.repository.js";
 import type { BillingSource } from "./billing.types.js";
+import { toBillingContractDates } from "./billing-contract-dates.rules.js";
 import { toBillAdjustment } from "./bills.queries.js";
 import { BillsRepository } from "./bills.repository.js";
 import { organizationDate } from "./contract-date.rules.js";
 import { toContractDetail } from "./contract-read-model.js";
+import { organizationDateTime } from "./contract-time.rules.js";
 import { ContractsRepository } from "./contracts.repository.js";
 
 /** 在现有事务和组织锁内组装来源，不独立开启或提交事务。 */
@@ -32,8 +33,10 @@ export class BillingSourceService {
       .where(eq(organizations.id, organizationId))
       .limit(1);
     if (!organization) throw this.notFound();
-    const today = organizationDate(new Date(), organization.timezone);
-    const contract = await this.contracts.detail(organizationId, contractId, today, executor);
+    const now = new Date();
+    const today = organizationDate(now, organization.timezone);
+    const localNow = organizationDateTime(now, organization.timezone);
+    const contract = await this.contracts.detail(organizationId, contractId, localNow, executor);
     if (!contract) throw this.notFound();
     const head = await this.contracts.find(organizationId, contractId, executor);
     if (!head) throw this.notFound();
@@ -44,7 +47,7 @@ export class BillingSourceService {
       currencyCode: organization.baseCurrency,
       timezone: organization.timezone,
       today,
-      contract: toContractDetail(contract),
+      contract: toBillingContractDates(toContractDetail(contract)),
       terminationRecordedAt: head.terminationRecordedAt?.toISOString() ?? null,
       activeBills,
       adjustment: adjustment ? toBillAdjustment(adjustment) : null,

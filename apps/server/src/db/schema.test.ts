@@ -1081,7 +1081,7 @@ describe("rental tenant and contract database schema", () => {
       '("rental_contracts"."termination_date" IS NULL AND "rental_contracts"."termination_recorded_at" IS NULL AND "rental_contracts"."terminated_by_user_id" IS NULL AND "rental_contracts"."termination_reason" IS NULL) OR ("rental_contracts"."termination_date" IS NOT NULL AND "rental_contracts"."termination_recorded_at" IS NOT NULL AND "rental_contracts"."terminated_by_user_id" IS NOT NULL AND "rental_contracts"."termination_reason" IS NOT NULL)',
     );
     expect(contractChecks.rental_contracts_termination_date_check).toBe(
-      '"rental_contracts"."termination_date" IS NULL OR ("rental_contracts"."start_date" IS NOT NULL AND "rental_contracts"."end_date" IS NOT NULL AND "rental_contracts"."termination_date" BETWEEN "rental_contracts"."start_date" AND "rental_contracts"."end_date" AND "rental_contracts"."termination_date" < "rental_contracts"."end_date")',
+      '"rental_contracts"."termination_date" IS NULL OR ("rental_contracts"."start_date" IS NOT NULL AND "rental_contracts"."end_date" IS NOT NULL AND "rental_contracts"."termination_date" >= "rental_contracts"."start_date"::date AND "rental_contracts"."termination_date" < "rental_contracts"."end_date"::date)',
     );
     expect(contractChecks.rental_contracts_only_drafts_soft_delete_check).toBe(
       '"rental_contracts"."deleted_at" IS NULL OR "rental_contracts"."status" = \'draft\'',

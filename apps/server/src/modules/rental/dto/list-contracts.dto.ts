@@ -1,7 +1,7 @@
 import { rentalContractDisplayStatuses } from "@xpense/shared";
 import { z } from "zod";
 
-import { contractCalendarDateSchema } from "./create-contract.dto.js";
+import { contractTimeInputSchema } from "./create-contract.dto.js";
 
 const optionalQueryText = (maxLength: number) =>
   z.preprocess(
@@ -16,10 +16,10 @@ export const listContractsSchema = z
     propertyId: z.string().uuid().optional(),
     tenantId: z.string().uuid().optional(),
     status: z.enum(rentalContractDisplayStatuses).optional(),
-    startDateFrom: contractCalendarDateSchema.optional(),
-    startDateTo: contractCalendarDateSchema.optional(),
-    endDateFrom: contractCalendarDateSchema.optional(),
-    endDateTo: contractCalendarDateSchema.optional(),
+    startDateFrom: contractTimeInputSchema("start").optional(),
+    startDateTo: contractTimeInputSchema("end").optional(),
+    endDateFrom: contractTimeInputSchema("start").optional(),
+    endDateTo: contractTimeInputSchema("end").optional(),
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
   })

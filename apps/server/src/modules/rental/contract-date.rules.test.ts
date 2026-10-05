@@ -72,7 +72,7 @@ describe("contract calendar date rules", () => {
     expect(
       deriveContractDisplayStatus(
         { status: "confirmed", startDate: "2026-01-01", endDate: "2026-10-15" },
-        "2026-09-15",
+        "2026-09-15T23:59:59",
       ),
     ).toEqual({ displayStatus: "expiring_soon", hasScheduledTermination: false });
     expect(
@@ -107,6 +107,48 @@ describe("contract calendar date rules", () => {
         "2026-08-20",
       ),
     ).toEqual({ displayStatus: "expiring_soon", hasScheduledTermination: true });
+  });
+
+  it("uses exact local timestamps for lifecycle boundaries and keeps the end-day threshold time", () => {
+    const contract = {
+      status: "confirmed" as const,
+      startDate: "2026-10-05T08:30:00",
+      endDate: "2026-11-04T23:59:59",
+    };
+
+    expect(deriveContractDisplayStatus(contract, "2026-10-05T08:29:59").displayStatus).toBe(
+      "upcoming",
+    );
+    expect(deriveContractDisplayStatus(contract, "2026-10-05T08:30:00").displayStatus).toBe(
+      "active",
+    );
+    expect(deriveContractDisplayStatus(contract, "2026-10-05T23:59:58").displayStatus).toBe(
+      "active",
+    );
+    expect(deriveContractDisplayStatus(contract, "2026-10-05T23:59:59").displayStatus).toBe(
+      "expiring_soon",
+    );
+    expect(deriveContractDisplayStatus(contract, "2026-11-05T00:00:00").displayStatus).toBe(
+      "expired",
+    );
+  });
+
+  it("treats the termination day as occupied through its final second", () => {
+    const contract = {
+      status: "terminated" as const,
+      startDate: "2026-10-01T09:00:00",
+      endDate: "2027-08-31T17:00:00",
+      terminationDate: "2026-10-05",
+    };
+
+    expect(deriveContractDisplayStatus(contract, "2026-10-05T23:59:59")).toMatchObject({
+      displayStatus: "expiring_soon",
+      hasScheduledTermination: true,
+    });
+    expect(deriveContractDisplayStatus(contract, "2026-10-06T00:00:00")).toMatchObject({
+      displayStatus: "terminated",
+      hasScheduledTermination: false,
+    });
   });
 
   it("validates every supplied lifecycle date and termination boundaries", () => {

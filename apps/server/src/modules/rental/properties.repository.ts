@@ -52,11 +52,32 @@ export class PropertiesRepository {
   async findActiveOwned(
     organizationId: string,
     id: string,
+    today: string,
     executor: AppDbExecutor = this.db,
-    today = "CURRENT_DATE",
   ): Promise<RentalPropertyDetailRecord | null> {
     const [property] = await executor
       .select(propertyDetailFields(today))
+      .from(rentalProperties)
+      .where(
+        and(
+          eq(rentalProperties.organizationId, organizationId),
+          eq(rentalProperties.id, id),
+          isNull(rentalProperties.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    return property ?? null;
+  }
+
+  /** 查询只需确认房产存在性的组织作用域持久化记录。 */
+  async findActiveOwnedRecord(
+    organizationId: string,
+    id: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<RentalPropertyRecord | null> {
+    const [property] = await executor
+      .select(propertyRecordFields)
       .from(rentalProperties)
       .where(
         and(

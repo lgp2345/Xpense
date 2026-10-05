@@ -123,7 +123,7 @@ function createHarness() {
     softDelete: vi.fn().mockResolvedValue(undefined),
   };
   const propertiesRepository = {
-    findActiveOwned: vi.fn().mockResolvedValue(property),
+    findActiveOwnedRecord: vi.fn().mockResolvedValue(property),
     findActiveOwnedForUpdate: vi.fn().mockResolvedValue(property),
   };
   const writeLockRepository = { lockOrganization: vi.fn().mockResolvedValue(true) };
@@ -135,6 +135,7 @@ function createHarness() {
   const auditService = { appendRequired: vi.fn().mockResolvedValue(undefined) };
   const contractReference = {
     organizationToday: vi.fn().mockResolvedValue("2026-08-31"),
+    organizationNow: vi.fn().mockResolvedValue("2026-08-31T14:05:06"),
     listSpaceLeaseStates: vi.fn(
       (_: string, __: string, spaceIds: string[]) =>
         new Map(
@@ -247,7 +248,7 @@ describe("SpacesService", () => {
       "organization-1",
       "property-1",
       ["space-1"],
-      "2026-08-31",
+      "2026-08-31T14:05:06",
     );
   });
 
@@ -284,7 +285,7 @@ describe("SpacesService", () => {
 
   it("returns not found for a missing property or a parent outside that property", async () => {
     const missingProperty = createHarness();
-    missingProperty.propertiesRepository.findActiveOwned.mockResolvedValue(null);
+    missingProperty.propertiesRepository.findActiveOwnedRecord.mockResolvedValue(null);
     await expect(
       missingProperty.service.search(authContext, {
         propertyId: "foreign-property",

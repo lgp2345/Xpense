@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { rentalProperties, rentalSpaces } from "../../db/schema.js";
 import { buildPropertyCountQuery, buildPropertyListQuery } from "./properties.queries.js";
 import { PropertiesRepository } from "./properties.repository.js";
+import { propertyDetailFields } from "./properties.repository.select-fields.js";
 
 function containsReference(
   value: unknown,
@@ -60,6 +61,29 @@ describe("PropertiesRepository", () => {
     expect(query.params).toContain("%阳光%");
     expect(countQuery.params).toContain("organization-1");
     expect(normalizeSql(countQuery.sql)).toContain('"rental_properties"."deleted_at" is null');
+  });
+
+  it("uses organization-local second-precision time and actual end in property contract buckets", () => {
+    const now = "2026-08-31T12:34:56";
+    const fields = propertyDetailFields(now);
+
+    for (const field of [
+      fields.activeContractCount,
+      fields.upcomingContractCount,
+      fields.expiringSoonContractCount,
+    ]) {
+      const query = new PgDialect().sqlToQuery(field);
+      const rendered = normalizeSql(query.sql);
+      expect(rendered).toContain("::timestamp");
+      expect(rendered).not.toContain("::date");
+      expect(rendered).not.toContain("current_date");
+      expect(query.params).toContain(now);
+    }
+    for (const field of [fields.activeContractCount, fields.expiringSoonContractCount]) {
+      const rendered = normalizeSql(new PgDialect().sqlToQuery(field).sql);
+      expect(rendered).toContain("interval '30 days'");
+      expect(rendered).toContain("time '23:59:59'");
+    }
   });
 
   it("returns numeric space aggregates with an accurate paged total", async () => {
@@ -141,7 +165,9 @@ describe("PropertiesRepository", () => {
     const repository = new PropertiesRepository({ select: vi.fn() } as never);
 
     await expect(
-      repository.findActiveOwned("organization-1", "property-1", { select } as never),
+      repository.findActiveOwned("organization-1", "property-1", "2026-08-31T12:34:56", {
+        select,
+      } as never),
     ).resolves.toEqual({ id: "property-1" });
     await expect(
       repository.findActiveNameConflict(
@@ -159,6 +185,23 @@ describe("PropertiesRepository", () => {
     expect(conflictSql).not.toContain('"rental_properties"."is_active"');
     expect(containsReference(conflictWhere.mock.calls[0]?.[0], "阳光公寓")).toBe(true);
     expect(containsReference(conflictWhere.mock.calls[0]?.[0], "property-1")).toBe(true);
+  });
+
+  it("reads property existence without calculating date-dependent lease buckets", async () => {
+    const record = { id: "property-1", organizationId: "organization-1" };
+    const limit = vi.fn().mockResolvedValue([record]);
+    const where = vi.fn().mockReturnValue({ limit });
+    const from = vi.fn().mockReturnValue({ where });
+    const select = vi.fn().mockReturnValue({ from });
+    const repository = new PropertiesRepository({} as never);
+
+    await expect(
+      repository.findActiveOwnedRecord("organization-1", "property-1", { select } as never),
+    ).resolves.toEqual(record);
+    expect(select.mock.calls[0]?.[0]).toHaveProperty("createdAt", rentalProperties.createdAt);
+    const condition = new PgDialect().sqlToQuery(where.mock.calls[0]?.[0]).sql;
+    expect(condition).toContain('"rental_properties"."organization_id" = $');
+    expect(condition).toContain('"rental_properties"."deleted_at" is null');
   });
 
   it("creates, updates, and sets status with returning property records in the supplied executor", async () => {

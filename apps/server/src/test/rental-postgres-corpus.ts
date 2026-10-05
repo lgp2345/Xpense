@@ -9,6 +9,8 @@ const firstHash = "ddb4761829e97154667c6f07f4a0e2183b0194e33545a73d86949ae8234d4
 const reviewedHashes: Record<string, string> = {
   "20261002133352_rental_charge_collection":
     "1a2a2cb8dcde660a60c2876f1eae7a1e075592c64627f1c8f433064f1e040fb2",
+  "20261005104010_contract_local_datetime":
+    "77b0fac1caabbc0dbfbf31622db9d4e63cf949a641dcd1225ff2a5ca911a66de",
   "20260704154322_pink_sauron": "ddb4761829e97154667c6f07f4a0e2183b0194e33545a73d86949ae8234d41c0",
   "20260808230632_moaning_ken_ellis":
     "538a7c537df23fad60eb80df94e7930e4dd2de364d7143cb8cb45a802fc56b3a",
@@ -80,9 +82,9 @@ export async function copyRentalMigrationCorpus(
   const root = fileURLToPath(new URL("../db/migrations/", import.meta.url));
   const names = (await readdir(root)).filter((name) => /^\d{14}_/.test(name)).sort();
   if (
-    names.length !== 15 ||
+    names.length !== 16 ||
     names[0] !== firstMigration ||
-    names.at(-1) !== "20261002133352_rental_charge_collection"
+    names.at(-1) !== "20261005104010_contract_local_datetime"
   ) {
     throw new Error("迁移目录已变化，须重新核对演练范围");
   }

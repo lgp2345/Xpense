@@ -13,7 +13,7 @@ const auth = {
 const transaction = { kind: "transaction" };
 
 describe("ContractPartiesService", () => {
-  function changeHarness(auditFailure?: Error) {
+  function changeHarness(auditFailure?: Error, contractOverrides: Record<string, unknown> = {}) {
     type PartyRef = { tenantId: string; isPrimaryPayer: boolean };
     const contract = {
       id: "contract-1",
@@ -69,6 +69,7 @@ describe("ContractPartiesService", () => {
       ],
       depositTerms: [],
       hasScheduledTermination: false,
+      ...contractOverrides,
     };
     let committedPeriods: PartyRef[] = [{ tenantId: "tenant-1", isPrimaryPayer: true }];
     let pendingPeriods = committedPeriods;
@@ -95,7 +96,7 @@ describe("ContractPartiesService", () => {
     const policy = {
       lockOrganizationContext: vi
         .fn()
-        .mockResolvedValue({ today: "2026-08-31", timezone: "Asia/Shanghai" }),
+        .mockResolvedValue({ today: "2026-08-31", now: "2026-08-31T12:00:00", timezone: "Asia/Shanghai" }),
       requireContract: vi.fn((value: unknown) => value),
       requireOwnedPropertyForUpdate: vi
         .fn()
@@ -164,6 +165,28 @@ describe("ContractPartiesService", () => {
       periods: [{ tenantId: "tenant-2", isPrimaryPayer: true }],
       changes: 1,
     });
+  });
+
+  it("compares party changes with a same-day contract start by exact time", async () => {
+    const setup = changeHarness(undefined, {
+      startDate: "2026-08-31T10:00:00",
+      endDate: "2026-12-31T23:59:59",
+      actualEndDate: "2026-12-31T23:59:59",
+    });
+
+    await expect(
+      setup.service.changeParties(auth, {
+        id: "contract-1",
+        effectiveDate: "2026-08-31",
+        reason: "当日变更",
+        parties: [{ tenantId: "tenant-2", isPrimaryPayer: true }],
+      } as never),
+    ).resolves.toBeDefined();
+
+    expect(setup.relations.replacePartyPeriods).toHaveBeenCalledWith(
+      expect.objectContaining({ effectiveDate: "2026-08-31" }),
+      transaction,
+    );
   });
 
   it("rolls back party replacement when required audit fails", async () => {

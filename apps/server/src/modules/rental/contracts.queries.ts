@@ -9,6 +9,7 @@ import {
   rentalSpaces,
   rentalTenants,
 } from "../../db/schema.js";
+import { normalizeContractTime } from "./contract-time.rules.js";
 import {
   contractDetailFields,
   contractDisplayStatusExpression,
@@ -198,12 +199,12 @@ export function buildContractReferenceQuery(input: ContractReferenceQueryInput) 
       WHERE "contract_space"."organization_id" = ${input.organizationId}
         AND "candidate"."deleted_at" IS NULL
         AND "candidate"."status" IN ('confirmed', 'terminated')
-        AND COALESCE("candidate"."termination_date", "candidate"."end_date") >= ${input.today}::date
+        AND COALESCE("candidate"."termination_date" + TIME '23:59:59', "candidate"."end_date") >= ${normalizeContractTime(input.today, "start")}::timestamp
         ${relation}
     ),
     "locked_contracts" AS (
       SELECT "candidate"."id", "candidate"."start_date",
-        COALESCE("candidate"."termination_date", "candidate"."end_date") AS "actual_end"
+        COALESCE("candidate"."termination_date" + TIME '23:59:59', "candidate"."end_date") AS "actual_end"
       FROM ${rentalContracts} AS "candidate"
       INNER JOIN "candidate_ids" ON "candidate_ids"."contract_id" = "candidate"."id"
       ORDER BY "candidate"."id"
@@ -229,19 +230,20 @@ export function buildPropertyContractCountsQuery(
   propertyId: string,
   today: string,
 ) {
+  const now = normalizeContractTime(today, "start");
   return sql`
     SELECT
       COUNT(*) FILTER (
-        WHERE "contract"."start_date" <= ${today}::date
-          AND ${today}::date < COALESCE("contract"."termination_date", "contract"."end_date") - INTERVAL '30 days'
+        WHERE "contract"."start_date" <= ${now}::timestamp
+          AND ${now}::timestamp < COALESCE("contract"."termination_date" + TIME '23:59:59', "contract"."end_date") - INTERVAL '30 days'
       )::integer AS "activeContractCount",
       COUNT(*) FILTER (
-        WHERE "contract"."start_date" > ${today}::date
+        WHERE "contract"."start_date" > ${now}::timestamp
       )::integer AS "upcomingContractCount",
       COUNT(*) FILTER (
-        WHERE "contract"."start_date" <= ${today}::date
-          AND ${today}::date >= COALESCE("contract"."termination_date", "contract"."end_date") - INTERVAL '30 days'
-          AND ${today}::date <= COALESCE("contract"."termination_date", "contract"."end_date")
+        WHERE "contract"."start_date" <= ${now}::timestamp
+          AND ${now}::timestamp >= COALESCE("contract"."termination_date" + TIME '23:59:59', "contract"."end_date") - INTERVAL '30 days'
+          AND ${now}::timestamp <= COALESCE("contract"."termination_date" + TIME '23:59:59', "contract"."end_date")
       )::integer AS "expiringSoonContractCount"
     FROM ${rentalContracts} AS "contract"
     WHERE "contract"."organization_id" = ${organizationId}

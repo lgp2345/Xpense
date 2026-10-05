@@ -1,4 +1,5 @@
 import type { RentalContractSummary } from "@xpense/shared";
+import { formatContractDateTime } from "./contract-date-time";
 
 import { ContractStatusBadge } from "./contract-status";
 
@@ -32,7 +33,8 @@ export function ContractTable({
                 {item.propertyName} · {item.spaceNames.join("、") || "未指定空间"}
               </td>
               <td className="p-3">
-                {item.startDate ?? "未开始"} 至 {item.endDate ?? "未结束"}
+                {formatContractDateTime(item.startDate) ?? "未开始"} 至{" "}
+                {formatContractDateTime(item.endDate) ?? "未结束"}
               </td>
               <td className="p-3">{formatMoney(item.rentAmountMinor)}</td>
               <td className="p-3">{item.tenantNames.join("、") || "未指定承租方"}</td>

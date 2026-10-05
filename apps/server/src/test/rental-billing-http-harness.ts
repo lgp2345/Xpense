@@ -2,6 +2,7 @@ import type { RentalContractDetail } from "@xpense/shared";
 import type { BillingSource } from "../modules/rental/billing.types.js";
 import { finalDepositAmount } from "../modules/rental/contract.rules.js";
 import { ContractRelationsRepository } from "../modules/rental/contract-relations.repository.js";
+import { contractCalendarDay } from "../modules/rental/contract-time.rules.js";
 import { ContractsRepository } from "../modules/rental/contracts.repository.js";
 import type { RentalContractDetailRecord } from "../modules/rental/contracts.repository.types.js";
 import { ContractsPolicyService } from "../modules/rental/contracts-policy.service.js";
@@ -87,7 +88,9 @@ export async function createRentalBillingHttpHarness(
         depositTerms: state.deposits.get(id) ?? [],
         parties: source.contract.parties.map((party) => ({
           ...party,
-          validTo: header.terminationDate ?? header.endDate,
+          validTo:
+            header.terminationDate ??
+            (header.endDate === null ? null : contractCalendarDay(header.endDate)),
           tenantType: party.type,
           tenantName: party.name,
         })),

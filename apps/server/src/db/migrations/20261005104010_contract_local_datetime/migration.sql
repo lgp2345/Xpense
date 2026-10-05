@@ -1,0 +1,4 @@
+ALTER TABLE "rental_contracts" DROP CONSTRAINT "rental_contracts_termination_date_check";--> statement-breakpoint
+ALTER TABLE "rental_contracts" ALTER COLUMN "start_date" SET DATA TYPE timestamp(0) without time zone USING "start_date"::timestamp(0) without time zone;--> statement-breakpoint
+ALTER TABLE "rental_contracts" ALTER COLUMN "end_date" SET DATA TYPE timestamp(0) without time zone USING CASE WHEN "end_date" IS NULL THEN NULL ELSE "end_date"::timestamp(0) without time zone + INTERVAL '23:59:59' END;--> statement-breakpoint
+ALTER TABLE "rental_contracts" ADD CONSTRAINT "rental_contracts_termination_date_check" CHECK ("termination_date" IS NULL OR ("start_date" IS NOT NULL AND "end_date" IS NOT NULL AND "termination_date" >= "start_date"::date AND "termination_date" < "end_date"::date));

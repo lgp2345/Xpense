@@ -47,13 +47,22 @@ export type BillingRentDraft = Omit<BillingDraft, "periodStart" | "periodEnd" | 
   periodEnd: string;
   lines: BillingRentLine[];
 };
+/** 财务内部合同：租期在来源边界投影为 YYYY-MM-DD，API 合同仍保留秒。 */
+export type RentalBillingContract = Omit<
+  RentalContractDetail,
+  "startDate" | "endDate" | "actualEndDate"
+> & {
+  startDate: string | null;
+  endDate: string | null;
+  actualEndDate: string | null;
+};
 /** 同事务内取得的一致计费来源。 */
 export type BillingSource = {
   organizationId: string;
   currencyCode: string;
   timezone: string;
   today: string;
-  contract: RentalContractDetail;
+  contract: RentalBillingContract;
   terminationRecordedAt: string | null;
   activeBills: RentalBillDetail[];
   adjustment: RentalBillAdjustment | null;

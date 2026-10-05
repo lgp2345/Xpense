@@ -185,8 +185,8 @@ export const rentalContracts = snakeCase.table(
     externalContractNumber: text(),
     status: rentalContractStatus().notNull().default("draft"),
     billingMode: text().$type<RentalBillingMode>().notNull().default("legacy_receivable"),
-    startDate: date({ mode: "string" }),
-    endDate: date({ mode: "string" }),
+    startDate: timestamp({ precision: 0, withTimezone: false, mode: "string" }),
+    endDate: timestamp({ precision: 0, withTimezone: false, mode: "string" }),
     rentAmountMinor: bigint({ mode: "number" }),
     billingAnchor: rentalBillingAnchor(),
     paymentIntervalMonths: integer(),
@@ -273,7 +273,7 @@ export const rentalContracts = snakeCase.table(
     ),
     check(
       "rental_contracts_termination_date_check",
-      sql`${table.terminationDate} IS NULL OR (${table.startDate} IS NOT NULL AND ${table.endDate} IS NOT NULL AND ${table.terminationDate} BETWEEN ${table.startDate} AND ${table.endDate} AND ${table.terminationDate} < ${table.endDate})`,
+      sql`${table.terminationDate} IS NULL OR (${table.startDate} IS NOT NULL AND ${table.endDate} IS NOT NULL AND ${table.terminationDate} >= ${table.startDate}::date AND ${table.terminationDate} < ${table.endDate}::date)`,
     ),
     check(
       "rental_contracts_deleted_by_user_check",

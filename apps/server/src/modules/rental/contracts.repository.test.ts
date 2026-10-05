@@ -18,6 +18,11 @@ import {
   buildPropertyContractCountsQuery,
 } from "./contracts.queries.js";
 import { buildNextContractNumberStatement, ContractsRepository } from "./contracts.repository.js";
+import {
+  contractDetailFields,
+  contractRecordFields,
+  contractSummaryFields,
+} from "./contracts.repository.select-fields.js";
 
 function normalizeSql(value: string): string {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
@@ -32,23 +37,23 @@ describe("ContractsRepository queries", () => {
       propertyId: "property-1",
       tenantId: "tenant-1",
       status: "active" as const,
-      startDateFrom: "2026-01-01",
-      startDateTo: "2026-12-31",
-      endDateFrom: "2026-01-01",
-      endDateTo: "2027-12-31",
+      startDateFrom: "2026-01-01T00:00:00",
+      startDateTo: "2026-12-31T23:59:59",
+      endDateFrom: "2026-01-01T00:00:00",
+      endDateTo: "2027-12-31T23:59:59",
       page: 2,
       pageSize: 20,
     };
     const list = buildContractListQuery(
       new QueryBuilder() as never,
       "organization-1",
-      "2026-08-30",
+      "2026-08-30T00:00:00",
       input,
     ).toSQL();
     const count = buildContractCountQuery(
       new QueryBuilder() as never,
       "organization-1",
-      "2026-08-30",
+      "2026-08-30T00:00:00",
       input,
     ).toSQL();
     const listSql = normalizeSql(list.sql);
@@ -72,12 +77,18 @@ describe("ContractsRepository queries", () => {
         "organization-1",
         "property-1",
         "tenant-1",
-        "2026-08-30",
+        "2026-08-30T00:00:00",
         "active",
+        "2026-01-01T00:00:00",
+        "2026-12-31T23:59:59",
+        "2026-01-01T00:00:00",
+        "2027-12-31T23:59:59",
         20,
       ]),
     );
-    expect(count.params).toEqual(expect.arrayContaining(["organization-1", "active"]));
+    expect(count.params).toEqual(
+      expect.arrayContaining(["organization-1", "active", "2026-08-30T00:00:00"]),
+    );
   });
 
   it("uses actualEnd in the display status SQL for scheduled terminations", () => {
@@ -89,6 +100,49 @@ describe("ContractsRepository queries", () => {
     ).toSQL();
     expect(normalizeSql(query.sql)).toContain("coalesce");
     expect(normalizeSql(query.sql)).toContain('"termination_date"');
+    expect(normalizeSql(query.sql)).toContain("time '23:59:59'");
+  });
+
+  it("compares status and property buckets against organization time at second precision", () => {
+    const now = "2026-08-31T12:34:56";
+    const status = buildContractListQuery(new QueryBuilder() as never, "organization-1", now, {
+      page: 1,
+      pageSize: 20,
+    }).toSQL();
+    const counts = compileSql(
+      buildPropertyContractCountsQuery("organization-1", "property-1", now),
+    );
+
+    for (const query of [status, counts]) {
+      const rendered = normalizeSql(query.sql);
+      expect(rendered).toContain("::timestamp");
+      expect(rendered).toContain("interval '30 days'");
+      expect(rendered).not.toContain("::date");
+      expect(query.params).toContain(now);
+    }
+    expect(normalizeSql(status.sql)).toContain("time '23:59:59'");
+    expect(normalizeSql(counts.sql)).toContain("time '23:59:59'");
+  });
+
+  it("maps stored contract timestamps and derived actual end to canonical API timestamps", () => {
+    const decode = (field: unknown, value: unknown) => {
+      const decoder = (field as { decoder?: { mapFromDriverValue(input: unknown): unknown } })
+        .decoder;
+      return decoder?.mapFromDriverValue(value);
+    };
+
+    expect(decode(contractRecordFields.startDate, "2026-09-01 08:05:09")).toBe(
+      "2026-09-01T08:05:09",
+    );
+    expect(decode(contractRecordFields.endDate, "2026-09-30")).toBe("2026-09-30T23:59:59");
+    expect(decode(contractSummaryFields("2026-09-01").actualEndDate, "2026-09-30 18:00:00")).toBe(
+      "2026-09-30T18:00:00",
+    );
+    expect(decode(contractDetailFields("2026-09-01").actualEndDate, "2026-09-30")).toBe(
+      "2026-09-30T23:59:59",
+    );
+    expect(decode(contractRecordFields.startDate, null)).toBeNull();
+    expect(decode(contractSummaryFields("2026-09-01").actualEndDate, null)).toBeNull();
   });
 
   it("qualifies correlated contract columns in list summary subqueries", () => {
@@ -154,7 +208,7 @@ describe("ContractsRepository queries", () => {
     expect(sql).toContain('"rental_contracts"."organization_id" = $');
     expect(sql).toContain('"rental_contracts"."deleted_at" is null');
     expect(detail.params).toEqual(
-      expect.arrayContaining(["organization-1", "contract-1", "2026-08-30"]),
+      expect.arrayContaining(["organization-1", "contract-1", "2026-08-30T00:00:00"]),
     );
   });
 });
@@ -185,7 +239,7 @@ describe("ContractsRepository", () => {
     expect(normalizeSql(query.sql)).toContain("count(*) filter");
     expect(normalizeSql(query.sql)).toContain("termination_date");
     expect(query.params).toEqual(
-      expect.arrayContaining(["organization-1", "property-1", "2026-08-31"]),
+      expect.arrayContaining(["organization-1", "property-1", "2026-08-31T00:00:00"]),
     );
   });
 
@@ -343,8 +397,8 @@ describe("contract space conflicts", () => {
     organizationId: "organization-1",
     propertyId: "property-1",
     spaceIds: ["11111111-1111-4111-8111-111111111111"],
-    startDate: "2026-09-01",
-    endDate: "2026-09-30",
+    startDate: "2026-09-01T09:00:00",
+    endDate: "2026-09-30T11:30:00",
     excludeContractId: "22222222-2222-4222-8222-222222222222",
   };
 
@@ -360,8 +414,10 @@ describe("contract space conflicts", () => {
     expect(sql).toContain('"deleted_at" is null');
     expect(sql).toContain('"depth" < $');
     expect(sql).toContain("in ('confirmed', 'terminated')");
-    expect(sql).toContain('"contract"."start_date" <= $');
-    expect(sql).toContain('coalesce("contract"."termination_date", "contract"."end_date") >= $');
+    expect(sql).toMatch(/"contract"\."start_date" <= \$\d+::timestamp/);
+    expect(sql).toMatch(
+      /coalesce\("contract"\."termination_date" \+ time '23:59:59', "contract"\."end_date"\) >= \$\d+::timestamp/,
+    );
     expect(sql).toContain('"contract"."id" <> $');
     expect(query.params).toEqual(
       expect.arrayContaining([
@@ -369,8 +425,8 @@ describe("contract space conflicts", () => {
         "property-1",
         input.spaceIds,
         3,
-        input.startDate,
         input.endDate,
+        input.startDate,
         input.excludeContractId,
       ]),
     );

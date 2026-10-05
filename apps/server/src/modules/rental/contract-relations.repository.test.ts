@@ -212,8 +212,8 @@ describe("ContractRelationsRepository snapshots and changes", () => {
     expect(sql[1]).toContain('"tenant_name_snapshot"');
     expect(sql[1]).toContain('"masked_document_number_snapshot"');
     expect(sql[1]).toContain('"identity_snapshot_ciphertext"');
-    expect(sql[1]).toContain('"valid_from" = "contract"."start_date"');
-    expect(sql[1]).toContain('"valid_to" = "contract"."end_date"');
+    expect(sql[1]).toContain('"valid_from" = "contract"."start_date"::date');
+    expect(sql[1]).toContain('"valid_to" = "contract"."end_date"::date');
     expect(sql[1]).toContain('"period"."tenant_name_snapshot" is null');
     expect(sql[1]).not.toContain('"contract"."renewed_from_contract_id" is null');
     expect(sql[2]).toContain('"final_amount_minor"');

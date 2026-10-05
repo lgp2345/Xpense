@@ -59,6 +59,25 @@ describe("ContractReferenceService", () => {
     );
   });
 
+  it("returns organization-local now with second precision for lease state", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-31T14:05:06.900Z"));
+    try {
+      const policies = policyFakes();
+      const service = new ContractReferenceService(
+        {} as never,
+        {} as never,
+        {} as never,
+        policies.properties as never,
+        policies.spaces as never,
+      );
+
+      await expect(service.organizationNow("org-1", executor)).resolves.toBe("2026-08-31T14:05:06");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("blocks a property with current or upcoming confirmed references", async () => {
     const repository = {
       findContractReferenceSummary: vi.fn().mockResolvedValue({
@@ -144,7 +163,7 @@ describe("ContractReferenceService", () => {
     const contractQuery = buildContractReferenceQuery({
       organizationId: "org-1",
       propertyId: "property-1",
-      today: "2026-08-31",
+      today: "2026-08-31T14:05:06",
       ownSpaceIds: ["space-1"],
       descendantSpaceIds: ["space-2"],
       oldAncestorSpaceIds: ["space-3"],
@@ -154,20 +173,26 @@ describe("ContractReferenceService", () => {
     expect(contractSql.sql.toLowerCase()).toContain("coalesce");
     expect(contractSql.sql.toLowerCase()).toContain("for update");
     expect(contractSql.sql.toLowerCase()).toContain("status\" in ('confirmed', 'terminated')");
+    expect(contractSql.sql.toLowerCase()).toContain("time '23:59:59'");
+    expect(contractSql.sql.toLowerCase()).toContain("::timestamp");
     expect(contractSql.params).toEqual(
-      expect.arrayContaining(["org-1", "property-1", "2026-08-31"]),
+      expect.arrayContaining(["org-1", "property-1", "2026-08-31T14:05:06"]),
     );
 
     const stateQuery = buildSpaceLeaseStatusQuery({
       organizationId: "org-1",
       propertyId: "property-1",
       spaceIds: ["space-1", "space-2", "space-3"],
-      today: "2026-08-31",
+      today: "2026-08-31T14:05:06",
     });
     const stateSql = new PgDialect().sqlToQuery(stateQuery as never);
     expect(stateSql.sql.toLowerCase()).toContain("any($");
     expect(stateSql.sql.toLowerCase()).toContain("with recursive");
-    expect(stateSql.params).toEqual(expect.arrayContaining(["org-1", "property-1", "2026-08-31"]));
+    expect(stateSql.sql.toLowerCase()).toContain("time '23:59:59'");
+    expect(stateSql.sql.toLowerCase()).toContain("::timestamp");
+    expect(stateSql.params).toEqual(
+      expect.arrayContaining(["org-1", "property-1", "2026-08-31T14:05:06"]),
+    );
   });
 
   it.each([

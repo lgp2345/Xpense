@@ -15,6 +15,9 @@ describe("RentalFinanceSourceService", () => {
     const source = rentalBillingSource();
     const detail = {
       ...source.contract,
+      startDate: `${source.contract.startDate}T12:34:56`,
+      endDate: `${source.contract.endDate}T18:30:59`,
+      actualEndDate: `${source.contract.actualEndDate}T18:30:59`,
       billingMode: "monthly_settlement",
       createdAt: new Date(source.contract.createdAt),
       updatedAt: new Date(source.contract.updatedAt),
@@ -94,6 +97,11 @@ describe("RentalFinanceSourceService", () => {
         timezone: "Asia/Shanghai",
       });
       expect(snapshot.contract.billingMode).toBe("monthly_settlement");
+      expect(snapshot.contract).toMatchObject({
+        startDate: source.contract.startDate,
+        endDate: source.contract.endDate,
+        actualEndDate: source.contract.actualEndDate,
+      });
       expect(snapshot.terms).toMatchObject({ version: "2", waterUnitPrice: "3.0000" });
       expect(snapshot.readings[0]).toMatchObject({ contractId: source.contract.id, revision: 1 });
       expect(snapshot.bills).toEqual([historicalBill]);
@@ -101,7 +109,7 @@ describe("RentalFinanceSourceService", () => {
       expect(contracts.detail).toHaveBeenCalledWith(
         source.organizationId,
         source.contract.id,
-        "2026-08-31",
+        "2026-08-31T12:00:00",
         tx,
       );
       expect(contracts.find).toHaveBeenCalledWith(source.organizationId, source.contract.id, tx);

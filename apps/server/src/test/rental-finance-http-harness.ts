@@ -6,9 +6,11 @@ import type {
   BillRevisionRecord,
 } from "../modules/rental/bill-revisions.repository.js";
 import { BillRevisionsRepository } from "../modules/rental/bill-revisions.repository.js";
+import { toBillingContractDates } from "../modules/rental/billing-contract-dates.rules.js";
 import { BillsRepository } from "../modules/rental/bills.repository.js";
 import type { BillRecord } from "../modules/rental/bills.repository.types.js";
 import { organizationDate } from "../modules/rental/contract-date.rules.js";
+import { actualContractEndTime } from "../modules/rental/contract-time.rules.js";
 import type { MeterReadingWriteInput } from "../modules/rental/meter-readings.repository.js";
 import { MeterReadingsRepository } from "../modules/rental/meter-readings.repository.js";
 import { calculateRentalBalance } from "../modules/rental/rental-balance.rules.js";
@@ -328,6 +330,10 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
       if (!header || header.organizationId !== organizationId)
         throw new NotFoundException("租赁合同不存在");
       const terms = state.chargeTerms.get(`${organizationId}/${contractId}`);
+      const actualEndDate =
+        header.endDate === null
+          ? null
+          : actualContractEndTime(header.endDate, header.terminationDate);
       const bills = state.bills
         .filter((bill) => bill.organizationId === organizationId && bill.contractId === contractId)
         .map(({ organizationId: _organizationId, ...bill }) => structuredClone(bill));
@@ -403,8 +409,6 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
           depositTerms: structuredClone(state.deposits.get(contractId) ?? []),
           billingMode: header.billingMode,
           lifecycleStatus: header.status,
-          startDate: header.startDate,
-          endDate: header.endDate,
           rentAmountMinor: header.rentAmountMinor,
           billingAnchor: header.billingAnchor,
           paymentIntervalMonths:
@@ -412,6 +416,11 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
           dueDaysBefore: header.dueDaysBefore,
           terminationDate: header.terminationDate,
           spaces: structuredClone(setup.source.contract.spaces),
+          ...toBillingContractDates({
+            startDate: header.startDate,
+            endDate: header.endDate,
+            actualEndDate,
+          }),
         },
         terms: terms
           ? {

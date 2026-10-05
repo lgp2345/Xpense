@@ -1,6 +1,7 @@
 import type { RentalContractDetail } from "@xpense/shared";
 import { Building2, History, type LucideIcon, WalletCards } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatContractDateTime } from "./contract-date-time";
 import { formatMoney } from "./contract-table";
 
 export function Overview({ contract }: { contract: RentalContractDetail }) {
@@ -17,9 +18,12 @@ export function Overview({ contract }: { contract: RentalContractDetail }) {
           <div className="grid gap-5 p-5 sm:grid-cols-2">
             <Info
               label="合同期"
-              value={`${contract.startDate ?? "未开始"} 至 ${contract.endDate ?? "未结束"}`}
+              value={`${formatContractDateTime(contract.startDate) ?? "未开始"} 至 ${formatContractDateTime(contract.endDate) ?? "未结束"}`}
             />
-            <Info label="实际结束日" value={contract.actualEndDate ?? "未结束"} />
+            <Info
+              label="实际结束日"
+              value={formatContractDateTime(contract.actualEndDate) ?? "未结束"}
+            />
           </div>
         </div>
         <div className="grid gap-x-6 gap-y-5 border-t p-5 text-sm sm:grid-cols-2 lg:grid-cols-4">

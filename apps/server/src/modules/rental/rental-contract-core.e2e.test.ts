@@ -7,6 +7,7 @@ import {
   cloneBookkeepingTestState,
 } from "../../test/bookkeeping-test-state.js";
 import { createTestApp, type TestAppHarness } from "../../test/create-test-app.js";
+import { _spaceConflict } from "../../test/rental-fake-query.js";
 import { cloneRentalTestState, rentalTestIds } from "../../test/rental-test-harness.js";
 import { FIXED_RENTAL_NOW } from "../../test/rental-test-state.js";
 import type {
@@ -62,7 +63,7 @@ function registerContractDetail(
   );
   setup.state.rentalQuery.registerRead(
     "contracts.detail",
-    [testIds.organization, id, "2026-08-31"],
+    [testIds.organization, id, "2026-08-31T12:00:00"],
     {
       id,
       propertyId,
@@ -113,8 +114,8 @@ function registerContractDetail(
               documentType: "national_id",
               documentTypeOtherName: null,
               maskedDocumentNumber: null,
-              validFrom: dates.startDate ?? null,
-              validTo: dates.endDate ?? null,
+              validFrom: dates.startDate?.slice(0, 10) ?? null,
+              validTo: dates.endDate?.slice(0, 10) ?? null,
               isPrimaryPayer: true,
             },
           ]
@@ -172,8 +173,8 @@ function registerContractDetail(
               documentType: "national_id",
               documentTypeOtherName: null,
               maskedDocumentNumber: null,
-              validFrom: dates.startDate ?? null,
-              validTo: dates.endDate ?? null,
+              validFrom: dates.startDate?.slice(0, 10) ?? null,
+              validTo: dates.endDate?.slice(0, 10) ?? null,
               isPrimaryPayer: true,
               identitySnapshotCiphertext: null,
               identitySnapshotKeyVersion: null,
@@ -271,8 +272,8 @@ function registerConfirmSnapshotsMutation(
     documentType: "national_id" as const,
     documentTypeOtherName: null,
     maskedDocumentNumber: null,
-    validFrom: startDate,
-    validTo: endDate,
+    validFrom: startDate.slice(0, 10),
+    validTo: endDate.slice(0, 10),
     isPrimaryPayer: true,
     identitySnapshotCiphertext: null,
     identitySnapshotKeyVersion: null,
@@ -315,8 +316,8 @@ function registerPreStartCorrectionFixture(
     contractNumber: "RC-2026-000900",
     externalContractNumber: null,
     status: "confirmed",
-    startDate: "2026-09-15",
-    endDate: "2026-12-31",
+    startDate: "2026-09-15T00:00:00",
+    endDate: "2026-12-31T23:59:59",
     rentAmountMinor: 10000,
     billingMode: "legacy_receivable",
     billingAnchor: "contract_start",
@@ -345,8 +346,8 @@ function registerPreStartCorrectionFixture(
     contractNumber: "RC-2026-000900",
     externalContractNumber: null,
     status: "confirmed",
-    startDate: "2026-09-15",
-    endDate: "2026-12-31",
+    startDate: "2026-09-15T00:00:00",
+    endDate: "2026-12-31T23:59:59",
     rentAmountMinor: 10000,
     billingMode: "legacy_receivable",
     billingAnchor: "contract_start",
@@ -439,8 +440,8 @@ function registerPreStartCorrectionFixture(
     propertyId: rentalTestIds.property,
     contractNumber: "RC-2026-000900",
     externalContractNumber: null,
-    startDate: "2026-09-15",
-    endDate: "2026-12-31",
+    startDate: "2026-09-15T00:00:00",
+    endDate: "2026-12-31T23:59:59",
     rentAmountMinor: 10000,
     updatedAt: new Date(FIXED_RENTAL_NOW),
     billingMode: "legacy_receivable",
@@ -487,7 +488,7 @@ function registerPreStartCorrectionFixture(
   );
   setup.state.rentalQuery.registerRead(
     "contracts.detail",
-    [testIds.organization, rentalTestIds.contract, "2026-08-31"],
+    [testIds.organization, rentalTestIds.contract, "2026-08-31T12:00:00"],
     detailFixture,
   );
   setup.state.rentalQuery.registerSpaceConflict(
@@ -495,8 +496,8 @@ function registerPreStartCorrectionFixture(
       organizationId: testIds.organization,
       propertyId: rentalTestIds.property,
       spaceIds: [rentalTestIds.childSpace],
-      startDate: "2026-09-15",
-      endDate: "2026-12-31",
+      startDate: "2026-09-15T00:00:00",
+      endDate: "2026-12-31T23:59:59",
       excludeContractId: rentalTestIds.contract,
     },
     [],
@@ -514,8 +515,8 @@ function registerPreStartCorrectionFixture(
     id: rentalTestIds.contract,
     propertyId: rentalTestIds.property,
     externalContractNumber: null,
-    startDate: "2026-09-15",
-    endDate: "2026-12-31",
+    startDate: "2026-09-15T00:00:00",
+    endDate: "2026-12-31T23:59:59",
     rentAmountMinor: 10000,
     billingAnchor: "contract_start" as const,
     paymentIntervalMonths: 1,
@@ -606,7 +607,7 @@ function registerCorrectionConflictFixture(
     externalContractNumber: null,
     status,
     startDate,
-    endDate: "2026-12-31",
+    endDate: "2026-12-31T23:59:59",
     rentAmountMinor: 10000,
     billingMode: "legacy_receivable",
     billingAnchor: "contract_start",
@@ -641,14 +642,14 @@ function registerCorrectionConflictFixture(
   );
   setup.state.rentalQuery.registerRead(
     "contracts.detail",
-    [testIds.organization, rentalTestIds.contract, "2026-08-31"],
+    [testIds.organization, rentalTestIds.contract, "2026-08-31T12:00:00"],
     {
       id: rentalTestIds.contract,
       propertyId: rentalTestIds.property,
       contractNumber: "RC-2026-000900",
       externalContractNumber: null,
       startDate,
-      endDate: "2026-12-31",
+      endDate: "2026-12-31T23:59:59",
       rentAmountMinor: 10000,
       updatedAt: new Date("2026-08-01T00:00:00.000Z"),
       propertyName: "测试房产",
@@ -712,8 +713,8 @@ const CORRECTION_RESPONSE: RentalContractDetail = {
   externalContractNumber: null,
   lifecycleStatus: "confirmed",
   displayStatus: "upcoming",
-  startDate: "2026-09-15",
-  endDate: "2026-12-31",
+  startDate: "2026-09-15T00:00:00",
+  endDate: "2026-12-31T23:59:59",
   actualEndDate: "2026-12-31",
   rentAmountMinor: 10000,
   tenantNames: ["测试租户"],
@@ -778,7 +779,7 @@ function setupDeletedContractFixture(setup: TestAppHarness, id: string): void {
   setup.state.rentalQuery.registerRead("contracts.findForUpdate", [testIds.organization, id], null);
   setup.state.rentalQuery.registerRead(
     "contracts.detail",
-    [testIds.organization, id, "2026-08-31"],
+    [testIds.organization, id, "2026-08-31T12:00:00"],
     null,
   );
 }
@@ -805,8 +806,8 @@ function registerExistingContractReads(setup: TestAppHarness, id: string): void 
 function registerCoreFixtures(setup: TestAppHarness): void {
   registerContractDetail(setup, generatedContractId);
   registerContractDetail(setup, rentalTestIds.contract, rentalTestIds.property, "RC-2026-000900", {
-    startDate: "2026-08-01",
-    endDate: "2026-12-31",
+    startDate: "2026-08-01T00:00:00",
+    endDate: "2026-12-31T23:59:59",
   });
   registerPropertyDetail(setup, generatedPropertyId);
   setup.state.rentalQuery.registerRead(
@@ -823,7 +824,7 @@ function registerCoreFixtures(setup: TestAppHarness): void {
   for (const id of [rentalTestIds.foreignContract, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb99"]) {
     setup.state.rentalQuery.registerRead(
       "contracts.detail",
-      [testIds.organization, id, "2026-08-31"],
+      [testIds.organization, id, "2026-08-31T12:00:00"],
       null,
     );
     setup.state.rentalQuery.registerRead("contracts.find", [testIds.organization, id], null);
@@ -903,8 +904,8 @@ function expectCorrectionRetryOracle(setup: TestAppHarness, auditLogsBefore: unk
     contractNumber: "RC-2026-000900",
     externalContractNumber: null,
     status: "confirmed",
-    startDate: "2026-09-15",
-    endDate: "2026-12-31",
+    startDate: "2026-09-15T00:00:00",
+    endDate: "2026-12-31T23:59:59",
     rentAmountMinor: 10000,
     billingMode: "legacy_receivable",
     billingAnchor: "contract_start",
@@ -1071,11 +1072,17 @@ describe("Rental HTTP e2e", () => {
     return property;
   }
 
-  function directCreationFixture(setup: TestAppHarness) {
+  function directCreationFixture(
+    setup: TestAppHarness,
+    dates = {
+      startDate: "2027-01-01T00:00:00",
+      endDate: "2027-12-31T23:59:59",
+    },
+  ) {
     const payload = {
       propertyId: rentalTestIds.property,
-      startDate: "2027-01-01",
-      endDate: "2027-12-31",
+      startDate: dates.startDate,
+      endDate: dates.endDate,
       rentAmountMinor: 10000,
       billingAnchor: "contract_start",
       paymentIntervalMonths: 1,
@@ -1144,6 +1151,64 @@ describe("Rental HTTP e2e", () => {
     expect(setup.state.rental.contracts.get(result.id)?.status).toBe("confirmed");
     expect(setup.state.rental.snapshots.has(result.id)).toBe(true);
     expect(setup.state.rental.contractCounters.get(`${testIds.organization}/2026`)).toBe(1);
+  });
+
+  it("preserves wall-clock seconds through HTTP creation and reads, and checks adjacent second occupancy", async () => {
+    const setup = await createHarness();
+    const dates = { startDate: "2027-10-05T08:09:10", endDate: "2027-11-04T18:30:59" };
+    const payload = directCreationFixture(setup, dates);
+    const headers = await authorization(setup.app, TEST_PHONES.owner);
+    const created = expectOk<RentalContractDetail>(
+      await setup.app.inject({
+        method: "POST",
+        url: "/api/rental-contracts/create-confirmed",
+        headers,
+        payload,
+      }),
+    );
+    expect(created).toMatchObject(dates);
+    expect(setup.state.rental.contracts.get(created.id)).toMatchObject(dates);
+    expect(setup.state.rental.partyPeriods.get(created.id)?.[0]).toMatchObject({
+      validFrom: "2027-10-05",
+      validTo: "2027-11-04",
+    });
+    expect(
+      expectOk<RentalContractDetail>(
+        await setup.app.inject({
+          method: "GET",
+          url: `/api/rental-contracts/detail?id=${created.id}`,
+          headers,
+        }),
+      ),
+    ).toMatchObject({ ...dates, actualEndDate: dates.endDate });
+
+    for (const [startDate, available] of [
+      ["2027-11-04T18:30:59", false],
+      ["2027-11-04T18:31:00", true],
+    ] as const) {
+      const request = {
+        propertyId: rentalTestIds.property,
+        spaceIds: [rentalTestIds.childSpace],
+        startDate,
+        endDate: "2027-12-04T23:59:59",
+      };
+      const input = { organizationId: testIds.organization, ...request };
+      setup.state.rentalQuery.registerSpaceConflict(
+        input,
+        _spaceConflict(setup.state.rental, input),
+      );
+      expect(
+        expectOk(
+          await setup.app.inject({
+            method: "POST",
+            url: "/api/rental-contracts/check-availability",
+            headers,
+            payload: request,
+          }),
+        ),
+      ).toMatchObject({ available });
+      expect(setup.state.rentalQuery.spaceConflictCalls.at(-1)).toEqual(input);
+    }
   });
 
   it.each([
@@ -1226,8 +1291,8 @@ describe("Rental HTTP e2e", () => {
     { spaces: [] },
     { rentAmountMinor: 0 },
     { rentAmountMinor: 1.5 },
-    { startDate: "2027-02-30" },
-    { endDate: "2026-01-01" },
+    { startDate: "2027-02-30T00:00:00" },
+    { endDate: "2026-01-01T23:59:59" },
     { billingAnchor: null },
     { dueDaysBefore: 91 },
     { paymentIntervalMonths: null },
@@ -1457,8 +1522,8 @@ describe("Rental HTTP e2e", () => {
       id: draft.id,
       propertyId: property.id,
       externalContractNumber: null,
-      startDate: "2026-09-01",
-      endDate: "2026-12-31",
+      startDate: "2026-09-01T00:00:00",
+      endDate: "2026-12-31T23:59:59",
       rentAmountMinor: 10000,
       billingAnchor: "contract_start" as const,
       paymentIntervalMonths: 1,
@@ -1478,8 +1543,8 @@ describe("Rental HTTP e2e", () => {
       property.id,
       "RC-2026-000001",
       {
-        startDate: "2026-09-01",
-        endDate: "2026-12-31",
+        startDate: "2026-09-01T00:00:00",
+        endDate: "2026-12-31T23:59:59",
       },
       { tenantId: rentalTestIds.tenant, spaceId: room.id },
     );
@@ -1495,8 +1560,8 @@ describe("Rental HTTP e2e", () => {
         headers,
         payload: {
           id: draft.id,
-          startDate: "2026-09-01",
-          endDate: "2026-12-31",
+          startDate: "2026-09-01T00:00:00",
+          endDate: "2026-12-31T23:59:59",
           rentAmountMinor: 10000,
           billingAnchor: "contract_start",
           paymentIntervalMonths: 1,
@@ -1548,8 +1613,8 @@ describe("Rental HTTP e2e", () => {
       id: draft.id,
       propertyId: property.id,
       externalContractNumber: null,
-      startDate: "2026-09-01",
-      endDate: "2026-12-31",
+      startDate: "2026-09-01T00:00:00",
+      endDate: "2026-12-31T23:59:59",
       rentAmountMinor: 10000,
       billingAnchor: "contract_start" as const,
       paymentIntervalMonths: 1,
@@ -1707,8 +1772,8 @@ describe("Rental HTTP e2e", () => {
       contractNumber: "RC-2026-000900",
       externalContractNumber: null,
       status: "confirmed",
-      startDate: "2026-09-15",
-      endDate: "2026-12-31",
+      startDate: "2026-09-15T00:00:00",
+      endDate: "2026-12-31T23:59:59",
       rentAmountMinor: 10000,
       billingMode: "legacy_receivable",
       billingAnchor: "contract_start",
@@ -1908,8 +1973,8 @@ describe("Rental HTTP e2e", () => {
       contractNumber: "RC-2026-000900",
       externalContractNumber: null,
       status: "confirmed",
-      startDate: "2026-09-15",
-      endDate: "2026-12-31",
+      startDate: "2026-09-15T00:00:00",
+      endDate: "2026-12-31T23:59:59",
       rentAmountMinor: 10000,
       billingMode: "legacy_receivable",
       billingAnchor: "contract_start",
@@ -1993,8 +2058,8 @@ describe("Rental HTTP e2e", () => {
     setup.state.rental.contracts.set(rentalTestIds.contract, {
       ...current,
       status: "confirmed",
-      startDate: "2026-08-01",
-      endDate: "2026-12-31",
+      startDate: "2026-08-01T00:00:00",
+      endDate: "2026-12-31T23:59:59",
     });
     const headers = await authorization(setup.app, TEST_PHONES.owner);
     const before = cloneRentalTestState(setup.state.rental);
@@ -2003,7 +2068,7 @@ describe("Rental HTTP e2e", () => {
         method: "POST",
         url: "/api/rental-contracts/update",
         headers,
-        payload: { id: rentalTestIds.contract, startDate: "2026-09-15" },
+        payload: { id: rentalTestIds.contract, startDate: "2026-09-15T00:00:00" },
       }),
     );
     expect(cloneRentalTestState(setup.state.rental)).toEqual(before);
@@ -2013,8 +2078,8 @@ describe("Rental HTTP e2e", () => {
 
   it("rejects correction for an illegal lifecycle and on the start-day boundary without writes", async () => {
     for (const scenario of [
-      { status: "cancelled" as const, startDate: "2026-09-15", note: "已取消合同" },
-      { status: "confirmed" as const, startDate: "2026-08-31", note: "开始日核心修正" },
+      { status: "cancelled" as const, startDate: "2026-09-15T00:00:00", note: "已取消合同" },
+      { status: "confirmed" as const, startDate: "2026-08-31T00:00:00", note: "开始日核心修正" },
     ]) {
       const setup = await createHarness();
       registerCorrectionConflictFixture(setup, scenario.status, scenario.startDate);
@@ -2029,7 +2094,7 @@ describe("Rental HTTP e2e", () => {
           headers,
           payload:
             scenario.status === "confirmed"
-              ? { id: rentalTestIds.contract, startDate: "2026-09-01" }
+              ? { id: rentalTestIds.contract, startDate: "2026-09-01T00:00:00" }
               : { id: rentalTestIds.contract, note: scenario.note },
         }),
         409,
@@ -2055,7 +2120,7 @@ describe("Rental HTTP e2e", () => {
     );
     setup.state.rentalQuery.registerRead(
       "contracts.detail",
-      [testIds.organization, missingId, "2026-08-31"],
+      [testIds.organization, missingId, "2026-08-31T12:00:00"],
       null,
     );
     const headers = await authorization(setup.app, TEST_PHONES.owner);
@@ -2089,8 +2154,8 @@ describe("Rental HTTP e2e", () => {
       rentalTestIds.property,
       "RC-2026-000001",
       {
-        startDate: "2026-10-01",
-        endDate: "2026-11-01",
+        startDate: "2026-10-01T00:00:00",
+        endDate: "2026-11-01T23:59:59",
       },
       { tenantId: rentalTestIds.tenant, spaceId: rentalTestIds.childSpace },
     );
@@ -2101,8 +2166,8 @@ describe("Rental HTTP e2e", () => {
         headers,
         payload: {
           propertyId: rentalTestIds.property,
-          startDate: "2026-10-01",
-          endDate: "2026-11-01",
+          startDate: "2026-10-01T00:00:00",
+          endDate: "2026-11-01T23:59:59",
           rentAmountMinor: 10000,
           billingAnchor: "contract_start",
           paymentIntervalMonths: 1,
@@ -2119,8 +2184,8 @@ describe("Rental HTTP e2e", () => {
         organizationId: testIds.organization,
         propertyId: rentalTestIds.property,
         spaceIds: [rentalTestIds.childSpace],
-        startDate: "2026-10-01",
-        endDate: "2026-11-01",
+        startDate: "2026-10-01T00:00:00",
+        endDate: "2026-11-01T23:59:59",
         excludeContractId: draft.id,
       },
       [
@@ -2144,8 +2209,8 @@ describe("Rental HTTP e2e", () => {
         organizationId: testIds.organization,
         propertyId: rentalTestIds.property,
         spaceIds: [rentalTestIds.childSpace],
-        startDate: "2026-10-01",
-        endDate: "2026-11-01",
+        startDate: "2026-10-01T00:00:00",
+        endDate: "2026-11-01T23:59:59",
         excludeContractId: draft.id,
       },
     ]);

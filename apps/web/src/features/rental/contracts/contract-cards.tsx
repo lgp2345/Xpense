@@ -1,6 +1,6 @@
 import type { RentalContractSummary } from "@xpense/shared";
-
 import { Card, CardContent } from "@/components/ui/card";
+import { formatContractDateTime } from "./contract-date-time";
 import { ContractStatusBadge } from "./contract-status";
 import { ContractLink, formatMoney } from "./contract-table";
 
@@ -24,7 +24,8 @@ export function ContractCards({
               {item.propertyName} · {item.spaceNames.join("、") || "未指定空间"}
             </p>
             <p className="text-muted-foreground">
-              {item.startDate ?? "未开始"} 至 {item.endDate ?? "未结束"}
+              {formatContractDateTime(item.startDate) ?? "未开始"} 至{" "}
+              {formatContractDateTime(item.endDate) ?? "未结束"}
             </p>
             <p>租金：{formatMoney(item.rentAmountMinor)}</p>
             <p>承租方：{item.tenantNames.join("、") || "未指定承租方"}</p>

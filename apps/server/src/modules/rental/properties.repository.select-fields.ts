@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { rentalProperties } from "../../db/schema.js";
+import { normalizeContractTime } from "./contract-time.rules.js";
 
 /** 房产完整持久化记录字段。 */
 export const propertyRecordFields = {
@@ -62,9 +63,9 @@ export const propertySummaryFields = {
 };
 
 /** 房产详情字段；与列表摘要一致统计空间，并补充详情专用字段。 */
-/** 房产详情中按 actual end/date 桶一次聚合当前/未来合同计数。 */
-export function propertyDetailFields(today = "CURRENT_DATE") {
-  const currentDate = today === "CURRENT_DATE" ? sql`CURRENT_DATE` : sql`${today}::date`;
+/** 房产详情中按组织当前时刻和实际结束时刻聚合合同计数。 */
+export function propertyDetailFields(today: string) {
+  const now = sql`${normalizeContractTime(today, "start")}::timestamp`;
   const contractScope = sql`
     FROM "rental_contracts" AS "contract"
     WHERE "contract"."organization_id" = "rental_properties"."organization_id"
@@ -76,18 +77,18 @@ export function propertyDetailFields(today = "CURRENT_DATE") {
     ...propertySummaryFields,
     activeContractCount: sql<number>`(
       SELECT COUNT(*) ${contractScope}
-      AND "contract"."start_date" <= ${currentDate}
-      AND ${currentDate} < COALESCE("contract"."termination_date", "contract"."end_date") - INTERVAL '30 days'
+      AND "contract"."start_date" <= ${now}
+      AND ${now} < COALESCE("contract"."termination_date" + TIME '23:59:59', "contract"."end_date") - INTERVAL '30 days'
     )`.mapWith(Number),
     upcomingContractCount: sql<number>`(
       SELECT COUNT(*) ${contractScope}
-      AND "contract"."start_date" > ${currentDate}
+      AND "contract"."start_date" > ${now}
     )`.mapWith(Number),
     expiringSoonContractCount: sql<number>`(
       SELECT COUNT(*) ${contractScope}
-      AND "contract"."start_date" <= ${currentDate}
-      AND ${currentDate} >= COALESCE("contract"."termination_date", "contract"."end_date") - INTERVAL '30 days'
-      AND ${currentDate} <= COALESCE("contract"."termination_date", "contract"."end_date")
+      AND "contract"."start_date" <= ${now}
+      AND ${now} >= COALESCE("contract"."termination_date" + TIME '23:59:59', "contract"."end_date") - INTERVAL '30 days'
+      AND ${now} <= COALESCE("contract"."termination_date" + TIME '23:59:59', "contract"."end_date")
     )`.mapWith(Number),
     note: rentalProperties.note,
     createdAt: rentalProperties.createdAt,

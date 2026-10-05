@@ -65,6 +65,24 @@ async function harness() {
   return { service: module.get(BillingLifecycleService), bills, module };
 }
 describe("合同账单联动", () => {
+  it("仅修正时分秒仍保持日计费，不要求账单调整权限", async () => {
+    const h = await harness();
+    const before = withBills(rentalBillingSource());
+    const contract = before.contract;
+    expect(() =>
+      h.service.assertCorrectionAllowed({ ...auth, permissions: [] }, before, {
+        ...contract,
+        startDate: `${contract.startDate}T12:34:56`,
+        endDate: `${contract.endDate}T18:30:59`,
+        spaces: contract.spaces.map(({ spaceId, rentAllocationMinor }) => ({
+          spaceId,
+          rentAllocationMinor: rentAllocationMinor ?? undefined,
+        })),
+      }),
+    ).not.toThrow();
+    expect(h.bills.voidBills).not.toHaveBeenCalled();
+    await h.module.close();
+  });
   it("月租变化作废租金和倍数押金，固定押金保留", async () => {
     const h = await harness();
     const before = withBills(rentalBillingSource());

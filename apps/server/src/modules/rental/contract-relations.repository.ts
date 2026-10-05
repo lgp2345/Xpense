@@ -90,8 +90,8 @@ function buildPartySnapshotStatement(input: ConfirmContractSnapshotsInput): SQL 
   return sql`
     UPDATE ${rentalContractPartyPeriods} AS "period"
     SET
-      "valid_from" = "contract"."start_date",
-      "valid_to" = "contract"."end_date",
+      "valid_from" = "contract"."start_date"::date,
+      "valid_to" = "contract"."end_date"::date,
       "tenant_type_snapshot" = "tenant"."type",
       "tenant_name_snapshot" = "tenant"."name",
       "phone_snapshot" = "tenant"."phone",
@@ -271,7 +271,7 @@ export class ContractRelationsRepository {
       )
       SELECT
         ${input.organizationId}, ${input.contractId}, "tenant"."id", ${input.effectiveDate}::date,
-        COALESCE("contract"."termination_date", "contract"."end_date"),
+        COALESCE("contract"."termination_date", "contract"."end_date")::date,
         "requested"."is_primary_payer", "tenant"."type", "tenant"."name",
         "tenant"."phone", "tenant"."email", "tenant"."primary_contact_name",
         "tenant"."primary_contact_phone",

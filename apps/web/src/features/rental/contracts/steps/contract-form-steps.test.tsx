@@ -71,6 +71,14 @@ function tenant(id: string, isActive = true): RentalTenantSummary {
 }
 
 describe("contract form step domains", () => {
+  it("秒级租期的计费预览继续按日历日期分期", () => {
+    expect(calendarPreview("2026-10-05T12:34:56", "2026-11-04T23:59:59", "calendar_month", 1)).toEqual([
+      "2026-10-05 至 2026-10-31", "2026-11-01 至 2026-11-04",
+    ]);
+    expect(calendarPreview("2026-10-05T12:34:56", "2026-11-04T23:59:59", "contract_start", 1)).toEqual([
+      "2026-10-05 起，按 1 个月一期",
+    ]);
+  });
   it("browses descendants without search and preserves selection across collapse and search", async () => {
     const user = userEvent.setup();
     const grandchild = { ...space(siblingId, childId), name: "深层房间" };
@@ -183,7 +191,7 @@ describe("contract form step domains", () => {
     render(<ContractTermsStep values={values} onChange={onChange} />);
 
     const trigger = screen.getByRole("button", { name: "租期范围" });
-    expect(trigger).toHaveTextContent("2026/09/01 -");
+    expect(trigger).toHaveTextContent("2026/09/01 00:00:00 -");
     await user.click(trigger);
     await screen.findByRole("grid");
     const endDay = screen
@@ -193,8 +201,8 @@ describe("contract form step domains", () => {
 
     expect(onChange).toHaveBeenLastCalledWith({
       ...values,
-      startDate: "2026-09-01",
-      endDate: "2026-09-15",
+      startDate: "2026-09-01T00:00:00",
+      endDate: "2026-09-15T23:59:59",
     });
   });
 
@@ -234,8 +242,8 @@ describe("contract form step domains", () => {
       await user.click(screen.getByRole("button", { name: "三个月" }));
       expect(onChange).toHaveBeenLastCalledWith({
         ...values,
-        startDate: "2026-10-05",
-        endDate: "2027-01-05",
+        startDate: "2026-10-05T00:00:00",
+        endDate: "2027-01-04T23:59:59",
       });
       expect(onSubmit).not.toHaveBeenCalled();
     } finally {

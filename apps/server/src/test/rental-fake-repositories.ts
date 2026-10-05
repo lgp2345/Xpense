@@ -44,6 +44,7 @@ export function createRentalRepositoryFakes(
   assertRepositoryCapabilities("properties", fakes.propertiesRepository, [
     "list",
     "findActiveOwned",
+    "findActiveOwnedRecord",
     "findActiveOwnedForUpdate",
     "findActiveNameConflict",
     "create",
@@ -425,6 +426,8 @@ function createPropertiesRepository(
       readFixtures.resolveRead("properties.list", [organizationId, input]),
     findActiveOwned: async (organizationId, id) =>
       readFixtures.resolveRead("properties.detail", [organizationId, id]),
+    findActiveOwnedRecord: async (organizationId, id) =>
+      findActiveProperty(state, organizationId, id),
     findActiveOwnedForUpdate: async (organizationId, id) =>
       readFixtures.resolveRead("properties.findForUpdate", [organizationId, id]),
     findActiveNameConflict: async (input) =>

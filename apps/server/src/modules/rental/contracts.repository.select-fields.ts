@@ -10,25 +10,40 @@ import {
   rentalSpaces,
   rentalTenants,
 } from "../../db/schema.js";
+import { normalizeContractTime, normalizeStoredContractTime } from "./contract-time.rules.js";
 import type {
   RentalContractDepositRecord,
   RentalContractPartyPeriodRecord,
   RentalContractSpaceRecord,
 } from "./contracts.repository.types.js";
 
-/** 按组织本地日期生成与领域规则一致的合同展示状态表达式。 */
+/** 按组织本地当前时刻生成合同展示状态表达式。 */
 export function contractDisplayStatusExpression(today: string): SQL<RentalContractDisplayStatus> {
+  const now = normalizeContractTime(today, "start");
   return sql<RentalContractDisplayStatus>`CASE
     WHEN ${rentalContracts.status} = 'draft' THEN 'draft'
     WHEN ${rentalContracts.status} = 'cancelled' THEN 'cancelled'
     WHEN ${rentalContracts.status} = 'terminated'
-      AND ${today}::date > COALESCE(${rentalContracts.terminationDate}, ${rentalContracts.endDate}) THEN 'terminated'
-    WHEN ${today}::date < ${rentalContracts.startDate} THEN 'upcoming'
-    WHEN ${today}::date > COALESCE(${rentalContracts.terminationDate}, ${rentalContracts.endDate}) THEN 'expired'
-    WHEN ${today}::date >= (COALESCE(${rentalContracts.terminationDate}, ${rentalContracts.endDate}) - INTERVAL '30 days') THEN 'expiring_soon'
+      AND ${now}::timestamp > COALESCE(${rentalContracts.terminationDate} + TIME '23:59:59', ${rentalContracts.endDate}) THEN 'terminated'
+    WHEN ${now}::timestamp < ${rentalContracts.startDate} THEN 'upcoming'
+    WHEN ${now}::timestamp > COALESCE(${rentalContracts.terminationDate} + TIME '23:59:59', ${rentalContracts.endDate}) THEN 'expired'
+    WHEN ${now}::timestamp >= (COALESCE(${rentalContracts.terminationDate} + TIME '23:59:59', ${rentalContracts.endDate}) - INTERVAL '30 days') THEN 'expiring_soon'
     ELSE 'active'
   END`;
 }
+
+/** 将 SQL 返回的本地合同时间规范为 API 所用秒级格式。 */
+function contractTimestamp(
+  column: typeof rentalContracts.startDate | typeof rentalContracts.endDate,
+  boundary: "start" | "end",
+) {
+  return sql<string | null>`${column}`.mapWith((value) =>
+    normalizeStoredContractTime(value, boundary),
+  );
+}
+
+const contractStartDate = contractTimestamp(rentalContracts.startDate, "start");
+const contractEndDate = contractTimestamp(rentalContracts.endDate, "end");
 
 /** 合同头完整持久化字段。 */
 export const contractRecordFields = {
@@ -39,8 +54,8 @@ export const contractRecordFields = {
   billingMode: rentalContracts.billingMode,
   externalContractNumber: rentalContracts.externalContractNumber,
   status: rentalContracts.status,
-  startDate: rentalContracts.startDate,
-  endDate: rentalContracts.endDate,
+  startDate: contractStartDate,
+  endDate: contractEndDate,
   rentAmountMinor: rentalContracts.rentAmountMinor,
   billingAnchor: rentalContracts.billingAnchor,
   paymentIntervalMonths: rentalContracts.paymentIntervalMonths,
@@ -113,11 +128,12 @@ export function contractSummaryFields(today: string) {
     externalContractNumber: rentalContracts.externalContractNumber,
     lifecycleStatus: rentalContracts.status,
     displayStatus: contractDisplayStatusExpression(today),
-    startDate: rentalContracts.startDate,
-    endDate: rentalContracts.endDate,
-    actualEndDate: sql<
-      string | null
-    >`COALESCE(${rentalContracts.terminationDate}, ${rentalContracts.endDate})`,
+    startDate: contractStartDate,
+    endDate: contractEndDate,
+    actualEndDate: sql<string | null>`COALESCE(
+      ${rentalContracts.terminationDate} + TIME '23:59:59',
+      ${rentalContracts.endDate}
+    )`.mapWith((value) => normalizeStoredContractTime(value, "end")),
     rentAmountMinor: rentalContracts.rentAmountMinor,
     tenantNames,
     spaceNames,
@@ -187,6 +203,7 @@ const depositTerms = sql<RentalContractDepositRecord[]>`COALESCE((
 
 /** 合同聚合详情字段；草稿回退到当前主档，确认后优先读取固化快照。 */
 export function contractDetailFields(today: string) {
+  const now = normalizeContractTime(today, "start");
   return {
     ...contractSummaryFields(today),
     billingMode: rentalContracts.billingMode,
@@ -195,7 +212,7 @@ export function contractDetailFields(today: string) {
     dueDaysBefore: rentalContracts.dueDaysBefore,
     hasScheduledTermination: sql<boolean>`(
       ${rentalContracts.status} = 'terminated'
-      AND ${today}::date <= ${rentalContracts.terminationDate}
+      AND ${now}::timestamp <= ${rentalContracts.terminationDate} + TIME '23:59:59'
     )`,
     renewedFromContractId: rentalContracts.renewedFromContractId,
     cancellationReason: rentalContracts.cancellationReason,

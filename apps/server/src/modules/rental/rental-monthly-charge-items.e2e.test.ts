@@ -60,7 +60,8 @@ describe("月度收费事项完整 HTTP 流程", () => {
     expect(contract).toMatchObject({
       lifecycleStatus: "confirmed",
       billingMode: "monthly_settlement",
-      startDate: "2026-10-16",
+      startDate: "2026-10-16T00:00:00",
+      endDate: "2026-12-31T23:59:59",
       rentAmountMinor: 10_000,
       contractNumber: "RC-2026-000002",
     });

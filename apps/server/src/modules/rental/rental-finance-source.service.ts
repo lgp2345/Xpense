@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { eq } from "drizzle-orm";
-
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { organizations } from "../../db/schema.js";
+import { toBillingContractDates } from "./billing-contract-dates.rules.js";
 import { BillsRepository } from "./bills.repository.js";
 import { ChargeTermsRepository } from "./charge-terms.repository.js";
 import { organizationDate } from "./contract-date.rules.js";
 import { toContractDetail } from "./contract-read-model.js";
+import { organizationDateTime } from "./contract-time.rules.js";
 import { ContractsRepository } from "./contracts.repository.js";
 import { MeterReadingsRepository } from "./meter-readings.repository.js";
 import { calculateRentalBalance } from "./rental-balance.rules.js";
@@ -39,19 +40,22 @@ export class RentalFinanceSourceService {
     if (!organization) throw this.notFound();
 
     let today: string;
+    let localNow: string;
     try {
-      today = organizationDate(new Date(), organization.timezone);
+      const now = new Date();
+      today = organizationDate(now, organization.timezone);
+      localNow = organizationDateTime(now, organization.timezone);
     } catch (error) {
       throw new RangeError(error instanceof Error ? error.message : "组织时区无效");
     }
     const [detail, header] = await Promise.all([
-      this.contracts.detail(scope.organizationId, scope.contractId, today, executor),
+      this.contracts.detail(scope.organizationId, scope.contractId, localNow, executor),
       this.contracts.find(scope.organizationId, scope.contractId, executor),
     ]);
     if (!detail || !header) throw this.notFound();
 
     const contract = {
-      ...toContractDetail(detail),
+      ...toBillingContractDates(toContractDetail(detail)),
       billingMode: detail.billingMode ?? "legacy_receivable",
     };
     const [termsRecord, readingRecords, bills, cashRecords, settlementRecord] = await Promise.all([

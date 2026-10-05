@@ -14,6 +14,7 @@ import {
   contractChargeFormSchema,
   toContractChargeSetup,
 } from "../charges/contract-charge-form";
+import { isContractDateTime, validContractRange } from "./contract-date-time";
 
 export type ContractFormValues = {
   /** 由服务端合同模式恢复；新合同默认月度结算，不提供用户切换入口。 */
@@ -39,7 +40,7 @@ export type ContractFormValues = {
 };
 
 const uuid = z.string().uuid("请输入有效的 ID");
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "请输入有效日期");
+const date = z.string().refine(isContractDateTime, "请输入有效日期时间");
 const space = z.object({ spaceId: uuid, rentAllocationText: z.string() });
 const billingMode = z
   .enum(["legacy_receivable", "monthly_settlement"])
@@ -82,13 +83,13 @@ export const contractFormSchema = z
       ctx.addIssue({ code: "custom", path: ["parties"], message: "必须且只能有一名主付款人" });
     if (new Set(value.parties.map((item) => item.tenantId)).size !== value.parties.length)
       ctx.addIssue({ code: "custom", path: ["parties"], message: "不能重复选择承租方" });
-    if (!isCalendarDate(value.startDate))
+    if (!isContractDateTime(value.startDate))
       ctx.addIssue({
         code: "custom",
         path: ["startDate"],
         message: "请输入有效日期",
       });
-    if (!isCalendarDate(value.endDate))
+    if (!isContractDateTime(value.endDate))
       ctx.addIssue({ code: "custom", path: ["endDate"], message: "请输入有效日期" });
     if (value.startDate && value.endDate && !isValidDate(value.startDate, value.endDate))
       ctx.addIssue({ code: "custom", path: ["endDate"], message: "结束日期不能早于开始日期" });
@@ -274,35 +275,7 @@ export function parseMinor(value: string): number | null {
 }
 
 export function isValidDate(start: string, end: string): boolean {
-  const valid = (value: string) => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-    const parts = value.split("-").map(Number);
-    const year = parts[0] ?? 0;
-    const month = parts[1] ?? 0;
-    const day = parts[2] ?? 0;
-    const dateValue = new Date(Date.UTC(year, month - 1, day));
-    return (
-      dateValue.getUTCFullYear() === year &&
-      dateValue.getUTCMonth() === month - 1 &&
-      dateValue.getUTCDate() === day
-    );
-  };
-  return valid(start) && valid(end) && start <= end;
-}
-
-function isCalendarDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parts = value.split("-").map(Number);
-  const year = parts[0] ?? 0;
-  const month = parts[1] ?? 0;
-  const day = parts[2] ?? 0;
-  const candidate = new Date(Date.UTC(year, month - 1, day));
-  return (
-    year > 0 &&
-    candidate.getUTCFullYear() === year &&
-    candidate.getUTCMonth() === month - 1 &&
-    candidate.getUTCDate() === day
-  );
+  return validContractRange(start, end);
 }
 
 function formatMinor(value: number): string {

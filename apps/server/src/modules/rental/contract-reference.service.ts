@@ -7,6 +7,7 @@ import type { AppDb, AppDbExecutor } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import { organizations } from "../../db/schema.js";
 import { organizationDate } from "./contract-date.rules.js";
+import { organizationDateTime } from "./contract-time.rules.js";
 import { ContractsRepository } from "./contracts.repository.js";
 import type {
   ContractReferenceQueryInput,
@@ -30,10 +31,26 @@ export class ContractReferenceService {
     private readonly spacesPolicy: SpacesPolicyService,
   ) {}
 
-  /** 在指定事务执行器上读取组织本地今天。 */
+  /** 在指定事务执行器上读取组织本地当前时刻，保留到秒。 */
+  async organizationNow(
+    organizationId: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<string> {
+    const timezone = await this.organizationTimezone(organizationId, executor);
+    return organizationDateTime(new Date(), timezone);
+  }
+
+  /** 在指定事务执行器上读取组织本地今天，供按日财务规则使用。 */
   async organizationToday(
     organizationId: string,
     executor: AppDbExecutor = this.db,
+  ): Promise<string> {
+    return organizationDate(new Date(), await this.organizationTimezone(organizationId, executor));
+  }
+
+  private async organizationTimezone(
+    organizationId: string,
+    executor: AppDbExecutor,
   ): Promise<string> {
     if (typeof executor.select !== "function")
       throw new Error("Contract reference requires a database select executor");
@@ -44,7 +61,7 @@ export class ContractReferenceService {
       .limit(1);
     if (!organization)
       throw new NotFoundException({ code: apiErrorCodes.notFound, message: "组织不存在" });
-    return organizationDate(new Date(), organization.timezone);
+    return organization.timezone;
   }
 
   /** 断言房产没有当前或未来已确认合同引用。 */
@@ -53,7 +70,7 @@ export class ContractReferenceService {
     propertyId: string,
     executor: AppDbExecutor,
   ): Promise<void> {
-    const today = await this.organizationToday(organizationId, executor);
+    const today = await this.organizationNow(organizationId, executor);
     const summary = await this.contractsRepository.findContractReferenceSummary(
       { organizationId, propertyId, today },
       executor,
@@ -70,7 +87,7 @@ export class ContractReferenceService {
     spaceId: string,
     executor: AppDbExecutor,
   ): Promise<void> {
-    const today = await this.organizationToday(organizationId, executor);
+    const today = await this.organizationNow(organizationId, executor);
     const ancestors = await this.spacesRepository.listAncestors(
       organizationId,
       propertyId,
@@ -109,7 +126,7 @@ export class ContractReferenceService {
     executor: AppDbExecutor,
   ): Promise<void> {
     if (oldParentId === newParentId) return;
-    const today = await this.organizationToday(organizationId, executor);
+    const today = await this.organizationNow(organizationId, executor);
     const oldPath = await this.spacesRepository.listAncestors(
       organizationId,
       propertyId,

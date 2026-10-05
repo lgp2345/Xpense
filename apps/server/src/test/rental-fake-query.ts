@@ -1,7 +1,10 @@
 import { organizations } from "../db/schema/identity.js";
 import { rentalContractSpaces, rentalContracts, rentalSpaces } from "../db/schema.js";
 import { SPACE_CONFLICT_QUERY_ADAPTER } from "../modules/rental/contract-conflicts.queries.js";
-import { actualContractEnd } from "../modules/rental/contract-date.rules.js";
+import {
+  actualContractEndTime,
+  normalizeContractTime,
+} from "../modules/rental/contract-time.rules.js";
 import type {
   AppendContractChangeInput,
   ContractSpaceConflictInput,
@@ -401,8 +404,8 @@ function spaceConflictFixtureKey(input: ContractSpaceConflictInput): string {
     input.organizationId,
     input.propertyId,
     [...input.spaceIds].sort(),
-    input.startDate,
-    input.endDate,
+    normalizeContractTime(input.startDate, "start"),
+    normalizeContractTime(input.endDate, "end"),
     input.excludeContractId ?? null,
   ];
   return JSON.stringify(values);
@@ -522,7 +525,7 @@ export function createRentalDatabaseFake(
         '"deleted_at"',
         '"start_date"',
         '"end_date"',
-        'COALESCE("contract"."termination_date", "contract"."end_date")',
+        `COALESCE("contract"."termination_date" + TIME '23:59:59', "contract"."end_date")`,
       ].every((marker) => queryText.includes(marker));
       const hasSpaceConflictTables = [rentalSpaces, rentalContractSpaces, rentalContracts].every(
         (table) => containsQueryObject(query, table),
@@ -544,7 +547,9 @@ export function createRentalDatabaseFake(
         /"contract"\."start_date" <= $/.test(context),
       );
       const endDateParameters = parameters.filter(({ context }) =>
-        /COALESCE\("contract"\."termination_date", "contract"\."end_date"\) >= $/.test(context),
+        /COALESCE\("contract"\."termination_date" \+ TIME '23:59:59', "contract"\."end_date"\) >= $/.test(
+          context,
+        ),
       );
       const excludeParameters = parameters.filter(({ context }) =>
         /"contract"\."id" <> $/.test(context),
@@ -566,7 +571,8 @@ export function createRentalDatabaseFake(
       const hasUnknownScopedValue = parameters.some(
         (parameter) =>
           typeof parameter.value === "string" &&
-          (isUuid(parameter.value) || /^\d{4}-\d{2}-\d{2}$/.test(parameter.value)) &&
+          (isUuid(parameter.value) ||
+            /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2})?$/.test(parameter.value)) &&
           !recognizedParameters.has(parameter),
       );
       const organizationId = organizationValues[0];
@@ -735,8 +741,11 @@ export function _spaceConflict(
       !contract.endDate
     )
       continue;
-    const actualEnd = actualContractEnd(contract.endDate, contract.terminationDate);
-    if (contract.startDate > input.endDate || actualEnd < input.startDate) continue;
+    const contractStart = normalizeContractTime(contract.startDate, "start");
+    const actualEnd = actualContractEndTime(contract.endDate, contract.terminationDate);
+    const requestedStart = normalizeContractTime(input.startDate, "start");
+    const requestedEnd = normalizeContractTime(input.endDate, "end");
+    if (contractStart > requestedEnd || actualEnd < requestedStart) continue;
     for (const existing of state.contractSpaces.get(contract.id) ?? []) {
       if (selected.some((candidate) => sameSpaceBranch(state, candidate.id, existing.spaceId)))
         result.push({

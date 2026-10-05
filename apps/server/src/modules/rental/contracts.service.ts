@@ -46,16 +46,16 @@ export class ContractsService {
 
   /** 返回组织时区下派生状态的合同分页。 */
   async list(authContext: AuthContext, dto: ListContractsDto): Promise<RentalContractPage> {
-    const today = await this.policy.organizationToday(authContext.organizationId);
-    const page = await this.repository.list(authContext.organizationId, today, dto);
+    const now = await this.policy.organizationNow(authContext.organizationId);
+    const page = await this.repository.list(authContext.organizationId, now, dto);
     return { ...page, items: page.items.map(toContractSummary) };
   }
 
   /** 返回组织内未删除合同的脱敏聚合详情。 */
   async detail(authContext: AuthContext, dto: ContractDetailDto): Promise<RentalContractDetail> {
-    const today = await this.policy.organizationToday(authContext.organizationId);
+    const now = await this.policy.organizationNow(authContext.organizationId);
     const detail = this.policy.requireContract(
-      await this.repository.detail(authContext.organizationId, dto.id, today),
+      await this.repository.detail(authContext.organizationId, dto.id, now),
     );
     return toContractDetail(detail);
   }
@@ -79,7 +79,7 @@ export class ContractsService {
     confirm: boolean,
   ): Promise<RentalContractDetail> {
     return this.transactions.run(async (transaction) => {
-      const { today } = await this.policy.lockOrganizationContext(
+      const { today, now } = await this.policy.lockOrganizationContext(
         authContext.organizationId,
         transaction,
       );
@@ -164,14 +164,14 @@ export class ContractsService {
           dto.chargeSetup,
           transaction,
         );
-      return this.readDetail(authContext.organizationId, contract.id, today, transaction);
+      return this.readDetail(authContext.organizationId, contract.id, now, transaction);
     });
   }
 
   /** 更新草稿，或在组织本地开始日前执行确认级核心修正。 */
   update(authContext: AuthContext, dto: UpdateContractDto): Promise<RentalContractDetail> {
     return this.transactions.run(async (transaction) => {
-      const { today } = await this.policy.lockOrganizationContext(
+      const { now } = await this.policy.lockOrganizationContext(
         authContext.organizationId,
         transaction,
       );
@@ -189,7 +189,7 @@ export class ContractsService {
       if (dto.chargeSetup && current.status !== "draft")
         throw this.policy.conflict("正式合同收费须通过独立收费接口修改");
       const currentDetail = this.policy.requireContract(
-        await this.repository.detail(authContext.organizationId, current.id, today, transaction),
+        await this.repository.detail(authContext.organizationId, current.id, now, transaction),
       );
       const before =
         current.status === "confirmed"
@@ -231,7 +231,7 @@ export class ContractsService {
           transaction,
         );
       } else {
-        const correctionMode = this.policy.assertPreStartCorrection(current, today, dto);
+        const correctionMode = this.policy.assertPreStartCorrection(current, now, dto);
         if (correctionMode !== "metadata_only") {
           this.policy.assertPropertyActive(property);
           await this.policy.validateConfirmationScope(
@@ -278,7 +278,7 @@ export class ContractsService {
           transaction,
         );
       }
-      return this.readDetail(authContext.organizationId, current.id, today, transaction);
+      return this.readDetail(authContext.organizationId, current.id, now, transaction);
     });
   }
 
@@ -383,12 +383,12 @@ export class ContractsService {
   private async readDetail(
     organizationId: string,
     id: string,
-    today: string,
+    now: string,
     executor: AppDbExecutor,
   ) {
     return toContractDetail(
       this.policy.requireContract(
-        await this.repository.detail(organizationId, id, today, executor),
+        await this.repository.detail(organizationId, id, now, executor),
       ),
     );
   }

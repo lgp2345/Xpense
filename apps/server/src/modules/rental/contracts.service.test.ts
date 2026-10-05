@@ -140,9 +140,14 @@ function serviceHarness(overrides: Record<string, unknown> = {}) {
   };
   const policy = {
     organizationToday: vi.fn().mockResolvedValue("2026-08-30"),
+    organizationNow: vi.fn().mockResolvedValue("2026-08-30T00:00:00"),
     lockOrganizationContext: vi
       .fn()
-      .mockResolvedValue({ timezone: "Asia/Shanghai", today: "2026-08-30" }),
+      .mockResolvedValue({
+        timezone: "Asia/Shanghai",
+        today: "2026-08-30",
+        now: "2026-08-30T00:00:00",
+      }),
     requireOwnedPropertyForUpdate: vi.fn().mockResolvedValue({ id: "property-1", isActive: true }),
     requireActivePropertyForUpdate: vi.fn().mockResolvedValue({ id: "property-1", isActive: true }),
     assertPropertyActive: vi.fn((property: { isActive: boolean }) => {
@@ -795,6 +800,43 @@ describe("ContractsPolicyService confirmation scope", () => {
     depositTerms: [],
   };
 
+  it("locks one organization-local instant alongside its calendar day", async () => {
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn().mockResolvedValue([{ timezone: "Asia/Shanghai" }]),
+          })),
+        })),
+      })),
+    };
+    const policy = new ContractsPolicyService(
+      db as never,
+      { lockOrganization: vi.fn().mockResolvedValue(true) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-31T23:45:12.000Z"));
+    try {
+      await expect(policy.lockOrganizationContext(auth.organizationId, db as never)).resolves.toEqual(
+        {
+          timezone: "Asia/Shanghai",
+          today: "2026-09-01",
+          now: "2026-09-01T07:45:12",
+        },
+      );
+      await expect(policy.organizationToday(auth.organizationId)).resolves.toBe("2026-09-01");
+      await expect(policy.organizationNow(auth.organizationId)).resolves.toBe(
+        "2026-09-01T07:45:12",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("classifies confirmed corrections before start as pre-start", () => {
     const { policy } = policyHarness();
     expect(
@@ -804,6 +846,25 @@ describe("ContractsPolicyService confirmation scope", () => {
         { rentAmountMinor: 900_000 },
       ),
     ).toBe("pre_start");
+  });
+
+  it("allows same-day core correction only before the exact contract start time", () => {
+    const { policy } = policyHarness();
+    const confirmed = contractRecord({
+      status: "confirmed",
+      startDate: "2026-09-01T08:00:00",
+    }) as never;
+
+    expect(
+      policy.assertPreStartCorrection(confirmed, "2026-09-01T07:59:59", {
+        rentAmountMinor: 900_000,
+      }),
+    ).toBe("pre_start");
+    expect(() =>
+      policy.assertPreStartCorrection(confirmed, "2026-09-01T08:00:00", {
+        rentAmountMinor: 900_000,
+      }),
+    ).toThrow(ConflictException);
   });
 
   it("classifies start-day and post-start metadata changes as metadata-only", () => {
@@ -921,6 +982,21 @@ describe("ContractsPolicyService confirmation scope", () => {
     );
     expect(() =>
       policy.assertCancellationAllowed(contractRecord({ status: "draft" }) as never, "2026-08-31"),
+    ).toThrow(ConflictException);
+  });
+
+  it("allows cancellation until the exact same-day contract start time", () => {
+    const { policy } = policyHarness();
+    const confirmed = contractRecord({
+      status: "confirmed",
+      startDate: "2026-09-01T08:00:00",
+    }) as never;
+
+    expect(() =>
+      policy.assertCancellationAllowed(confirmed, "2026-09-01T07:59:59"),
+    ).not.toThrow();
+    expect(() =>
+      policy.assertCancellationAllowed(confirmed, "2026-09-01T08:00:00"),
     ).toThrow(ConflictException);
   });
 });

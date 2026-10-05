@@ -17,7 +17,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ContractChargeFields } from '../../charges/contract-charge-fields'
-import { ContractDepositFields } from './contract-deposit-fields'
 import {
   ContractFieldErrorsContext,
   ContractFieldMessage,
@@ -26,6 +25,7 @@ import {
 } from '../contract-field-feedback'
 import { type ContractFormValues, isValidDate } from '../contract-form-schema'
 import { BillingPeriodPreview } from './billing-period-preview'
+import { ContractDepositFields } from './contract-deposit-fields'
 
 export function ContractTermsStep({
   values,
@@ -102,6 +102,7 @@ export function ContractTermsStep({
             <DateRangePicker
               id="contract-date-range"
               showDurationPresets
+              withTime
               {...dateFeedback}
               aria-label="租期范围"
               value={{ from: values.startDate, to: values.endDate }}
@@ -286,6 +287,8 @@ export function calendarPreview(
     interval <= 0
   )
     return []
+  start = start.slice(0, 10)
+  end = end.slice(0, 10)
   if (anchor === 'contract_start')
     return [`${start} 起，按 ${interval} 个月一期`]
   const result: string[] = []

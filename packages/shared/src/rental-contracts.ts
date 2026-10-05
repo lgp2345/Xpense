@@ -118,8 +118,11 @@ export type RentalContractSummary = {
   externalContractNumber: string | null;
   lifecycleStatus: RentalContractLifecycleStatus;
   displayStatus: RentalContractDisplayStatus;
+  /** 合同起始本地日期时间，格式为 YYYY-MM-DDTHH:mm:ss。 */
   startDate: string | null;
+  /** 合同结束本地日期时间，格式为 YYYY-MM-DDTHH:mm:ss。 */
   endDate: string | null;
+  /** 合同最后实际占用本地日期时间，格式为 YYYY-MM-DDTHH:mm:ss。 */
   actualEndDate: string | null;
   rentAmountMinor: number | null;
   tenantNames: string[];
@@ -182,9 +185,13 @@ export type ListRentalContractsQuery = Partial<{
   propertyId: string;
   tenantId: string;
   status: RentalContractDisplayStatus;
+  /** 合同开始区间下界，可传 YYYY-MM-DD 或 YYYY-MM-DDTHH:mm:ss。 */
   startDateFrom: string;
+  /** 合同开始区间上界；仅传日期时扩展至当日 23:59:59。 */
   startDateTo: string;
+  /** 合同结束区间下界，可传 YYYY-MM-DD 或 YYYY-MM-DDTHH:mm:ss。 */
   endDateFrom: string;
+  /** 合同结束区间上界；仅传日期时扩展至当日 23:59:59。 */
   endDateTo: string;
   page: number;
   pageSize: number;
@@ -221,7 +228,9 @@ type RentalContractMutableFields = {
   chargeSetup: RentalContractChargeSetup;
   propertyId: string;
   externalContractNumber: string | null;
+  /** 合同开始本地日期时间，可用旧日期格式 YYYY-MM-DD。 */
   startDate: string | null;
+  /** 合同结束本地日期时间，可用旧日期格式 YYYY-MM-DD。 */
   endDate: string | null;
   rentAmountMinor: number | null;
   billingAnchor: RentalBillingAnchor | null;
@@ -244,7 +253,9 @@ export type CreateRentalContractRequest = {
 
 /** 一次性创建并确认完整租赁合同的请求。 */
 export type CreateConfirmedRentalContractRequest = CreateRentalContractRequest & {
+  /** 合同开始本地日期时间，可用旧日期格式 YYYY-MM-DD。 */
   startDate: string;
+  /** 合同结束本地日期时间，可用旧日期格式 YYYY-MM-DD。 */
   endDate: string;
   rentAmountMinor: number;
   billingAnchor: RentalBillingAnchor;
@@ -261,7 +272,9 @@ export type UpdateRentalContractRequest = { id: string } & AtLeastOne<RentalCont
 export type CheckRentalContractAvailabilityRequest = {
   propertyId: string;
   spaceIds: string[];
+  /** 待检查合同开始本地日期时间，可用旧日期格式 YYYY-MM-DD。 */
   startDate: string;
+  /** 待检查合同结束本地日期时间，可用旧日期格式 YYYY-MM-DD。 */
   endDate: string;
   excludeContractId?: string;
 };

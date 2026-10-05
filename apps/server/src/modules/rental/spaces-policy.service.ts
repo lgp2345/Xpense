@@ -11,10 +11,7 @@ import type { AppDbExecutor } from "../../db/db.module.js";
 import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import type { ContractReferenceSummary } from "./contracts.repository.types.js";
 import { PropertiesRepository } from "./properties.repository.js";
-import type {
-  RentalPropertyDetailRecord,
-  RentalPropertyRecord,
-} from "./properties.repository.types.js";
+import type { RentalPropertyRecord } from "./properties.repository.types.js";
 import { assertCustomTypeName, findBatchConflicts, mergeSpaceUpdate } from "./rental.rules.js";
 import type { RentalBatchSpaceItem, RentalSpaceUpdateValues } from "./rental.types.js";
 import { SpacesRepository } from "./spaces.repository.js";
@@ -48,8 +45,11 @@ export class SpacesPolicyService {
   async requireReadableProperty(
     organizationId: string,
     propertyId: string,
-  ): Promise<RentalPropertyDetailRecord> {
-    const property = await this.propertiesRepository.findActiveOwned(organizationId, propertyId);
+  ): Promise<RentalPropertyRecord> {
+    const property = await this.propertiesRepository.findActiveOwnedRecord(
+      organizationId,
+      propertyId,
+    );
     if (!property) throw this.notFound("租赁房产不存在");
     return property;
   }

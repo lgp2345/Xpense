@@ -13,6 +13,9 @@ describe("一致的计费来源", () => {
     const source = rentalBillingSource();
     const raw = {
       ...source.contract,
+      startDate: `${source.contract.startDate}T12:34:56`,
+      endDate: `${source.contract.endDate}T18:30:59`,
+      actualEndDate: `${source.contract.actualEndDate}T18:30:59`,
       updatedAt: new Date(source.contract.updatedAt),
       createdAt: new Date(source.contract.createdAt),
       parties: source.contract.parties.map((party) => ({
@@ -50,7 +53,13 @@ describe("一致的计费来源", () => {
       organizationId: "org",
       currencyCode: "CNY",
       timezone: "Asia/Shanghai",
-      contract: { id: source.contract.id, parties: [{ name: "租户" }] },
+      contract: {
+        id: source.contract.id,
+        parties: [{ name: "租户" }],
+        startDate: source.contract.startDate,
+        endDate: source.contract.endDate,
+        actualEndDate: source.contract.actualEndDate,
+      },
       activeBills: [],
     });
     expect(new PgDialect().sqlToQuery(where.mock.calls[0]?.[0]).params).toEqual(["org"]);

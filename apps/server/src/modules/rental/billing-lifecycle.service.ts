@@ -4,6 +4,7 @@ import type { AppDbTransaction } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import { AccessService } from "../iam/access.service.js";
 import type { BillingSource } from "./billing.types.js";
+import { toBillingContractDates } from "./billing-contract-dates.rules.js";
 import { billingDraftMatches, normalBillingDrafts } from "./billing-plan.rules.js";
 import { billingDigest } from "./billing-source.rules.js";
 import { BillingTerminationService } from "./billing-termination.service.js";
@@ -52,7 +53,10 @@ export class BillingLifecycleService {
         finalAmountMinor: finalDepositAmount(term, aggregate.rentAmountMinor as number),
       })),
     };
-    this.assertAffected(auth, this.affected(before, { ...before, contract }));
+    this.assertAffected(
+      auth,
+      this.affected(before, { ...before, contract: toBillingContractDates(contract) }),
+    );
   }
   async onCorrection(
     auth: AuthContext,

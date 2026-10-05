@@ -11,7 +11,7 @@ import {
   revokeContractTerminationSchema,
 } from "./contract-action.dto.js";
 import { contractDetailSchema } from "./contract-detail.dto.js";
-import { createContractSchema } from "./create-contract.dto.js";
+import { createConfirmedContractSchema, createContractSchema } from "./create-contract.dto.js";
 import { createRentalPropertySchema } from "./create-property.dto.js";
 import { createRentalSpaceSchema } from "./create-space.dto.js";
 import { createTenantSchema } from "./create-tenant.dto.js";
@@ -393,8 +393,8 @@ describe("rental DTO schemas", () => {
     ).toEqual({
       propertyId,
       spaceIds: [spaceId, spaceId2],
-      startDate: "2026-01-01",
-      endDate: "2026-12-31",
+      startDate: "2026-01-01T00:00:00",
+      endDate: "2026-12-31T23:59:59",
     });
     expect(() =>
       checkContractAvailabilitySchema.parse({
@@ -410,6 +410,75 @@ describe("rental DTO schemas", () => {
         spaceIds: [spaceId],
         startDate: "2026-12-31",
         endDate: "2026-01-01",
+      }),
+    ).toThrow();
+  });
+
+  it("normalizes contract date-only inputs and preserves explicit seconds", () => {
+    expect(
+      createContractSchema.parse({
+        propertyId,
+        startDate: "2026-10-05",
+        endDate: "2026-11-04",
+      }),
+    ).toMatchObject({
+      startDate: "2026-10-05T00:00:00",
+      endDate: "2026-11-04T23:59:59",
+    });
+
+    expect(
+      createConfirmedContractSchema.parse({
+        propertyId,
+        startDate: "2026-10-05T08:09:10",
+        endDate: "2026-11-04T17:18:19",
+        rentAmountMinor: 100,
+        billingAnchor: "calendar_month",
+        paymentIntervalMonths: 1,
+        dueDaysBefore: 0,
+        spaces: [{ spaceId }],
+        parties: [{ tenantId, isPrimaryPayer: true }],
+      }),
+    ).toMatchObject({
+      startDate: "2026-10-05T08:09:10",
+      endDate: "2026-11-04T17:18:19",
+    });
+
+    expect(
+      updateContractSchema.parse({
+        id: contractId,
+        startDate: "2026-10-05",
+        endDate: "2026-11-04T17:18:19",
+      }),
+    ).toMatchObject({
+      startDate: "2026-10-05T00:00:00",
+      endDate: "2026-11-04T17:18:19",
+    });
+  });
+
+  it("normalizes contract list filter bounds while leaving action dates calendar-only", () => {
+    expect(
+      listContractsSchema.parse({
+        startDateFrom: "2026-10-05",
+        startDateTo: "2026-10-06",
+        endDateFrom: "2026-11-04T09:08:07",
+        endDateTo: "2026-11-04",
+      }),
+    ).toMatchObject({
+      startDateFrom: "2026-10-05T00:00:00",
+      startDateTo: "2026-10-06T23:59:59",
+      endDateFrom: "2026-11-04T09:08:07",
+      endDateTo: "2026-11-04T23:59:59",
+    });
+
+    expect(() =>
+      updateContractSchema.parse({ id: contractId, startDate: "2026-10-05T08:09:10Z" }),
+    ).toThrow();
+    expect(() =>
+      changeContractPartiesSchema.parse({
+        id: contractId,
+        effectiveDate: "2026-10-05T00:00:00",
+        reason: "变更付款人",
+        parties: [{ tenantId, isPrimaryPayer: true }],
       }),
     ).toThrow();
   });

@@ -12,6 +12,7 @@ import {
   compareCalendarDates,
   dateRangesOverlap,
 } from "./contract-date.rules.js";
+import { contractCalendarDay, normalizeContractTime } from "./contract-time.rules.js";
 
 type ContractPartyValue = { tenantId: string; isPrimaryPayer: boolean };
 type ContractSpaceValue = { spaceId: string; rentAllocationMinor?: number };
@@ -170,14 +171,16 @@ export function assertPartyPeriods(
   contractStartDate: string,
   contractEndDate: string,
 ): void {
-  if (compareCalendarDates(contractStartDate, contractEndDate) > 0) {
+  const contractStartDay = contractCalendarDay(contractStartDate);
+  const contractEndDay = contractCalendarDay(contractEndDate);
+  if (compareCalendarDates(contractStartDay, contractEndDay) > 0) {
     throw new RangeError("合同租期顺序无效");
   }
   for (const period of periods) {
     if (
       compareCalendarDates(period.validFrom, period.validTo) > 0 ||
-      compareCalendarDates(period.validFrom, contractStartDate) < 0 ||
-      compareCalendarDates(period.validTo, contractEndDate) > 0
+      compareCalendarDates(period.validFrom, contractStartDay) < 0 ||
+      compareCalendarDates(period.validTo, contractEndDay) > 0
     ) {
       throw new RangeError("承租方有效期必须位于合同租期内");
     }
@@ -192,7 +195,7 @@ export function assertPartyPeriods(
       }
     }
   }
-  assertPrimaryPayerCoverage(periods, contractStartDate, contractEndDate);
+  assertPrimaryPayerCoverage(periods, contractStartDay, contractEndDay);
 }
 
 /** 按固定金额或租金倍数计算最终押金，倍数最多四位小数并四舍五入。 */
@@ -247,13 +250,10 @@ export function assertContractAggregate(contract: ContractAggregateValue): void 
     }
     if (contract.spaces.length === 0) throw new RangeError("非草稿合同至少需要一个空间");
   }
-  if (contract.startDate !== null) assertCalendarDate(contract.startDate);
-  if (contract.endDate !== null) assertCalendarDate(contract.endDate);
-  if (
-    contract.startDate &&
-    contract.endDate &&
-    compareCalendarDates(contract.startDate, contract.endDate) > 0
-  ) {
+  const startDate =
+    contract.startDate === null ? null : normalizeContractTime(contract.startDate, "start");
+  const endDate = contract.endDate === null ? null : normalizeContractTime(contract.endDate, "end");
+  if (startDate && endDate && startDate > endDate) {
     throw new RangeError("合同租期顺序无效");
   }
   const hasTerminationDate =
@@ -263,11 +263,12 @@ export function assertContractAggregate(contract: ContractAggregateValue): void 
   }
   if (contract.terminationDate !== null && contract.terminationDate !== undefined) {
     assertCalendarDate(contract.terminationDate);
+    const terminationDay = contract.terminationDate;
     if (
-      !contract.startDate ||
-      !contract.endDate ||
-      compareCalendarDates(contract.terminationDate, contract.startDate) < 0 ||
-      compareCalendarDates(contract.terminationDate, contract.endDate) >= 0
+      !startDate ||
+      !endDate ||
+      compareCalendarDates(terminationDay, contractCalendarDay(startDate)) < 0 ||
+      compareCalendarDates(terminationDay, contractCalendarDay(endDate)) >= 0
     ) {
       throw new RangeError("终止日期必须位于合同租期内且早于原结束日期");
     }

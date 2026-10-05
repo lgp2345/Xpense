@@ -1,14 +1,14 @@
 import { z } from "zod";
 
-import { contractCalendarDateSchema } from "./create-contract.dto.js";
+import { contractTimeInputSchema } from "./create-contract.dto.js";
 
 /** 检查合同空间可用性的请求校验规则。 */
 export const checkContractAvailabilitySchema = z
   .object({
     propertyId: z.string().uuid(),
     spaceIds: z.array(z.string().uuid()).min(1).max(100),
-    startDate: contractCalendarDateSchema,
-    endDate: contractCalendarDateSchema,
+    startDate: contractTimeInputSchema("start"),
+    endDate: contractTimeInputSchema("end"),
     excludeContractId: z.string().uuid().optional(),
   })
   .strict()

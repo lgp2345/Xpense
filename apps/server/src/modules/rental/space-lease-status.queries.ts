@@ -4,9 +4,10 @@ import { type SQL, sql } from "drizzle-orm";
 
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { rentalContractSpaces, rentalContracts, rentalSpaces } from "../../db/schema.js";
+import { normalizeContractTime } from "./contract-time.rules.js";
 import type { SpaceLeaseStateFacts } from "./spaces.repository.types.js";
 
-/** 空间合同事实查询输入；requested IDs 一次批量传入。 */
+/** 空间合同事实查询输入；requested IDs 与组织本地当前时刻一次传入。 */
 export type SpaceLeaseStatusQueryInput = {
   organizationId: string;
   propertyId: string;
@@ -18,6 +19,7 @@ export type SpaceLeaseStatusQueryInput = {
 export function buildSpaceLeaseStatusQuery(input: SpaceLeaseStatusQueryInput): SQL {
   if (input.spaceIds.length === 0) throw new RangeError("空间状态查询不能为空");
   const ids = sql.param(input.spaceIds);
+  const now = normalizeContractTime(input.today, "start");
   return sql`
     WITH RECURSIVE
     "requested" AS (
@@ -63,7 +65,7 @@ export function buildSpaceLeaseStatusQuery(input: SpaceLeaseStatusQueryInput): S
     ),
     "candidate_contracts" AS (
       SELECT DISTINCT "contract"."id", "contract"."start_date",
-        COALESCE("contract"."termination_date", "contract"."end_date") AS "actual_end"
+        COALESCE("contract"."termination_date" + TIME '23:59:59', "contract"."end_date") AS "actual_end"
       FROM ${rentalContracts} AS "contract"
       INNER JOIN ${rentalContractSpaces} AS "contract_space"
         ON "contract_space"."organization_id" = ${input.organizationId}
@@ -74,12 +76,12 @@ export function buildSpaceLeaseStatusQuery(input: SpaceLeaseStatusQueryInput): S
         AND "contract"."deleted_at" IS NULL
         AND "contract"."status" IN ('confirmed', 'terminated')
         AND "contract"."start_date" IS NOT NULL
-        AND COALESCE("contract"."termination_date", "contract"."end_date") >= ${input.today}::date
+        AND COALESCE("contract"."termination_date" + TIME '23:59:59', "contract"."end_date") >= ${now}::timestamp
     )
     SELECT "requested"."space_id" AS "spaceId",
-      COALESCE(bool_or("relations"."relation" = 'own' AND "candidate_contracts"."start_date" <= ${input.today}::date AND ${input.today}::date < "candidate_contracts"."actual_end" - INTERVAL '30 days'), FALSE) AS "hasOwnActive",
-      COALESCE(bool_or("relations"."relation" = 'own' AND "candidate_contracts"."start_date" <= ${input.today}::date AND ${input.today}::date >= "candidate_contracts"."actual_end" - INTERVAL '30 days' AND ${input.today}::date <= "candidate_contracts"."actual_end"), FALSE) AS "hasOwnExpiringSoon",
-      COALESCE(bool_or("relations"."relation" = 'own' AND "candidate_contracts"."start_date" > ${input.today}::date), FALSE) AS "hasOwnUpcoming",
+      COALESCE(bool_or("relations"."relation" = 'own' AND "candidate_contracts"."start_date" <= ${now}::timestamp AND ${now}::timestamp < "candidate_contracts"."actual_end" - INTERVAL '30 days'), FALSE) AS "hasOwnActive",
+      COALESCE(bool_or("relations"."relation" = 'own' AND "candidate_contracts"."start_date" <= ${now}::timestamp AND ${now}::timestamp >= "candidate_contracts"."actual_end" - INTERVAL '30 days' AND ${now}::timestamp <= "candidate_contracts"."actual_end"), FALSE) AS "hasOwnExpiringSoon",
+      COALESCE(bool_or("relations"."relation" = 'own' AND "candidate_contracts"."start_date" > ${now}::timestamp), FALSE) AS "hasOwnUpcoming",
       COALESCE(bool_or("relations"."relation" = 'ancestor' AND "candidate_contracts"."id" IS NOT NULL), FALSE) AS "hasAncestorCurrentOrUpcoming",
       COALESCE(bool_or("relations"."relation" = 'descendant' AND "candidate_contracts"."id" IS NOT NULL), FALSE) AS "hasDescendantCurrentOrUpcoming"
     FROM "requested"

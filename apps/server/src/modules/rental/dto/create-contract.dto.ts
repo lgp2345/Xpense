@@ -5,8 +5,8 @@ import {
 } from "@xpense/shared";
 import { z } from "zod";
 import { assertSpaceAllocations } from "../contract.rules.js";
+import { normalizeContractTime } from "../contract-time.rules.js";
 import { contractChargeSetupSchema } from "./contract-charge-setup.dto.js";
-import { contractCalendarDateSchema } from "./rental-calendar-date.schema.js";
 
 export { contractCalendarDateSchema } from "./rental-calendar-date.schema.js";
 
@@ -17,6 +17,20 @@ const optionalNullableText = (maxLength: number) =>
   );
 
 const money = z.number().int().positive();
+
+/** 校验合同本地日期时间输入，并将旧日历日期转换为合同时间边界。 */
+export const contractTimeInputSchema = (boundary: "start" | "end") =>
+  z.string().transform((value, context) => {
+    try {
+      return normalizeContractTime(value, boundary);
+    } catch (error) {
+      context.addIssue({
+        code: "custom",
+        message: error instanceof Error ? error.message : "合同日期时间无效",
+      });
+      return z.NEVER;
+    }
+  });
 
 /** 合同承租方输入校验规则。 */
 export const contractPartyInputSchema = z
@@ -71,8 +85,8 @@ const mutableShape = {
   chargeSetup: contractChargeSetupSchema.optional(),
   propertyId: z.string().uuid().optional(),
   externalContractNumber: optionalNullableText(120),
-  startDate: contractCalendarDateSchema.nullable().optional(),
-  endDate: contractCalendarDateSchema.nullable().optional(),
+  startDate: contractTimeInputSchema("start").nullable().optional(),
+  endDate: contractTimeInputSchema("end").nullable().optional(),
   rentAmountMinor: money.nullable().optional(),
   billingAnchor: z.enum(rentalBillingAnchors).nullable().optional(),
   paymentIntervalMonths: z
@@ -138,8 +152,8 @@ export const createConfirmedContractSchema = z
   .object({
     ...mutableShape,
     propertyId: z.string().uuid(),
-    startDate: contractCalendarDateSchema,
-    endDate: contractCalendarDateSchema,
+    startDate: contractTimeInputSchema("start"),
+    endDate: contractTimeInputSchema("end"),
     rentAmountMinor: money,
     billingAnchor: z.enum(rentalBillingAnchors),
     paymentIntervalMonths: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(12)]),

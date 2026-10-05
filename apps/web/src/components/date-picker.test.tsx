@@ -103,12 +103,12 @@ describe("DateRangePicker", () => {
   afterEach(() => vi.useRealTimers());
 
   it.each([
-    ["一个月", "2026-11-05"],
-    ["三个月", "2027-01-05"],
-    ["半年", "2027-04-05"],
-    ["一年", "2027-10-05"],
-    ["两年", "2028-10-05"],
-    ["三年", "2029-10-05"],
+    ["一个月", "2026-11-04"],
+    ["三个月", "2027-01-04"],
+    ["半年", "2027-04-04"],
+    ["一年", "2027-10-04"],
+    ["两年", "2028-10-04"],
+    ["三年", "2029-10-04"],
   ] as const)("selects %s from today's local date and resets the visible month", async (label, end) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 9, 5, 23, 30));
@@ -131,10 +131,10 @@ describe("DateRangePicker", () => {
   });
 
   it.each([
-    [new Date(2025, 0, 31), "一个月", "2025-01-31", "2025-02-28"],
-    [new Date(2024, 0, 31), "一个月", "2024-01-31", "2024-02-29"],
-    [new Date(2024, 1, 29), "一年", "2024-02-29", "2025-02-28"],
-  ] as const)("clamps a preset starting on %s to the last valid target day", async (today, label, from, to) => {
+    [new Date(2025, 0, 31), "一个月", "2025-01-31", "2025-02-27"],
+    [new Date(2024, 0, 31), "一个月", "2024-01-31", "2024-02-28"],
+    [new Date(2024, 1, 29), "一年", "2024-02-29", "2025-02-27"],
+  ] as const)("ends a preset starting on %s the day before the clamped month boundary", async (today, label, from, to) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(today);
     const user = userEvent.setup();
@@ -155,7 +155,7 @@ describe("DateRangePicker", () => {
     await screen.findByRole("grid");
     vi.setSystemTime(new Date(2026, 9, 5, 0, 1));
     await user.click(screen.getByRole("button", { name: "一个月" }));
-    expect(trigger).toHaveTextContent("2026/10/05 - 2026/11/05");
+    expect(trigger).toHaveTextContent("2026/10/05 - 2026/11/04");
     const endDay = screen
       .getAllByRole("button")
       .find((button) => button.dataset.day === new Date(2026, 9, 15).toLocaleDateString());

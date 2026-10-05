@@ -28,6 +28,36 @@ const base = () => ({
 });
 
 describe("contract form schema", () => {
+  it("提交和更新保留租期的时分秒", () => {
+    const values = {
+      ...base(),
+      startDate: "2026-10-05T00:00:00",
+      endDate: "2026-11-04T23:59:59",
+    };
+    expect(contractFormSchema.safeParse(values).success).toBe(true);
+    expect(toConfirmedContractRequest(values)).toMatchObject({
+      startDate: values.startDate,
+      endDate: values.endDate,
+    });
+    expect(toStepUpdateRequest("contract", values, 2)).toMatchObject({
+      startDate: values.startDate,
+      endDate: values.endDate,
+    });
+  });
+
+  it.each([
+    "2026-02-29T12:00:00", "2026-10-05T24:00:00",
+    "2026-10-05T12:60:00", "2026-10-05T12:00:60",
+    "2026-10-05T12:00:00Z", "2026-10-05T12:00:00+08:00",
+  ])("拒绝无效本地日期时间 %s", (startDate) => {
+    expect(contractFormSchema.safeParse({ ...base(), startDate }).success).toBe(false);
+  });
+
+  it("同日租期按秒校验结束顺序", () => {
+    const values = { ...base(), startDate: "2026-10-05T12:00:01", endDate: "2026-10-05T12:00:00" };
+    expect(contractFormSchema.safeParse(values).success).toBe(false);
+    expect(stepSchemas.terms.safeParse(values).success).toBe(false);
+  });
   it("表单恢复服务端模式，缺失模式的历史合同按旧模式处理", () => {
     expect(defaultContractFormValues().billingMode).toBe("monthly_settlement");
     expect(toContractFormValues(baseContract()).billingMode).toBe("legacy_receivable");

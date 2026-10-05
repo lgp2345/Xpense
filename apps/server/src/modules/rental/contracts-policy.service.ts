@@ -14,7 +14,8 @@ import { organizations } from "../../db/schema.js";
 import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import { assertContractAggregate, type ContractAggregateValue } from "./contract.rules.js";
 import { findSpaceConflicts } from "./contract-conflicts.queries.js";
-import { compareCalendarDates, organizationDate } from "./contract-date.rules.js";
+import { organizationDate } from "./contract-date.rules.js";
+import { normalizeContractTime, organizationDateTime } from "./contract-time.rules.js";
 import type {
   ContractPartyReference,
   ContractSpaceReference,
@@ -52,7 +53,7 @@ export class ContractsPolicyService {
   async lockOrganizationContext(
     organizationId: string,
     executor: AppDbExecutor,
-  ): Promise<{ timezone: string; today: string }> {
+  ): Promise<{ timezone: string; today: string; now: string }> {
     if (!(await this.writeLockRepository.lockOrganization(organizationId, executor))) {
       throw this.notFound("组织不存在");
     }
@@ -62,6 +63,11 @@ export class ContractsPolicyService {
   /** 返回组织本地今天，供合同列表和详情派生展示状态。 */
   async organizationToday(organizationId: string): Promise<string> {
     return (await this.readOrganizationContext(organizationId, this.db)).today;
+  }
+
+  /** 返回组织本地当前时刻，供合同列表和详情派生秒级生命周期状态。 */
+  async organizationNow(organizationId: string): Promise<string> {
+    return (await this.readOrganizationContext(organizationId, this.db)).now;
   }
 
   /** 在组织锁之后锁定组织自有房产，供历史合同与生命周期操作使用。 */
@@ -213,12 +219,14 @@ export class ContractsPolicyService {
   /** 判断确认合同更新属于开始前核心修正还是开始后的元数据修正。 */
   assertPreStartCorrection(
     contract: RentalContractRecord,
-    today: string,
+    now: string,
     changes: object,
   ): "pre_start" | "metadata_only" {
     this.assertLifecycle(contract, "confirmed");
     if (!contract.startDate) throw this.conflict("已确认合同缺少开始日期");
-    if (compareCalendarDates(today, contract.startDate) < 0) return "pre_start";
+    if (normalizeContractTime(now, "start") < normalizeContractTime(contract.startDate, "start")) {
+      return "pre_start";
+    }
     const metadataFields = new Set(["id", "externalContractNumber", "note"]);
     if (Object.keys(changes).some((field) => !metadataFields.has(field))) {
       throw this.conflict("合同开始后不能修正核心合同资料");
@@ -228,7 +236,7 @@ export class ContractsPolicyService {
 
   /** 只允许组织本地开始日前取消已确认合同。 */
   // biome-ignore format: 紧凑表达单一状态与日期守卫。
-  assertCancellationAllowed(contract: RentalContractRecord, today: string): void { this.assertLifecycle(contract, "confirmed"); if (!contract.startDate || compareCalendarDates(today, contract.startDate) >= 0) throw this.conflict("租赁合同开始后不能取消"); }
+  assertCancellationAllowed(contract: RentalContractRecord, now: string): void { this.assertLifecycle(contract, "confirmed"); if (!contract.startDate || normalizeContractTime(now, "start") >= normalizeContractTime(contract.startDate, "start")) throw this.conflict("租赁合同开始后不能取消"); }
 
   /** 创建供服务层复用的状态冲突异常。 */
   // biome-ignore format: 简短异常工厂无需拆成多行。
@@ -242,7 +250,12 @@ export class ContractsPolicyService {
       .limit(1);
     if (!context) throw this.notFound("组织不存在");
     try {
-      return { timezone: context.timezone, today: organizationDate(new Date(), context.timezone) };
+      const now = new Date();
+      return {
+        timezone: context.timezone,
+        today: organizationDate(now, context.timezone),
+        now: organizationDateTime(now, context.timezone),
+      };
     } catch (error) {
       throw this.badRequest(error instanceof Error ? error.message : "组织时区无效");
     }

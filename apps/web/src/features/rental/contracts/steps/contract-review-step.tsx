@@ -1,6 +1,7 @@
 import type { RentalContractAvailability, RentalContractDetail } from "@xpense/shared";
 import { Button } from "@/components/ui/button";
 import { ContractChargeSummary } from "../../charges/contract-charge-fields";
+import { formatContractDateTime } from "../contract-date-time";
 import type { ContractFormValues } from "../contract-form-schema";
 import { calendarPreview } from "./contract-terms-step";
 
@@ -55,7 +56,8 @@ export function ContractReviewStep({
           {payer?.name ?? missing}
         </p>
         <p>
-          租期：{serverDraft?.startDate || missing} 至 {serverDraft?.endDate || missing}
+          租期：{formatContractDateTime(serverDraft?.startDate) || missing} 至{" "}
+          {formatContractDateTime(serverDraft?.endDate) || missing}
         </p>
         <p>
           月租：

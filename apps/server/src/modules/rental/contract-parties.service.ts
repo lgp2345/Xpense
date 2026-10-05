@@ -4,9 +4,10 @@ import type { RentalContractDetail, RentalContractPartySensitiveDetail } from "@
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import { AuditService } from "../audit/audit.service.js";
-import { actualContractEnd } from "./contract-date.rules.js";
+import { compareCalendarDates } from "./contract-date.rules.js";
 import { contractAudit, toContractDetail } from "./contract-lifecycle.service.js";
 import { ContractRelationsRepository } from "./contract-relations.repository.js";
+import { actualContractEndTime, contractCalendarDay } from "./contract-time.rules.js";
 import { ContractsRepository } from "./contracts.repository.js";
 import { ContractsPolicyService } from "./contracts-policy.service.js";
 import type { ChangeContractPartiesDto } from "./dto/change-contract-parties.dto.js";
@@ -31,7 +32,7 @@ export class ContractPartiesService {
     dto: ChangeContractPartiesDto,
   ): Promise<RentalContractDetail> {
     return this.transactions.run(async (transaction) => {
-      const { today } = await this.policy.lockOrganizationContext(
+      const { now } = await this.policy.lockOrganizationContext(
         authContext.organizationId,
         transaction,
       );
@@ -49,13 +50,13 @@ export class ContractPartiesService {
       if (contract.status !== "confirmed" && contract.status !== "terminated")
         throw this.policy.conflict("仅可变更已确认合同承租方");
       const actualEnd = contract.endDate
-        ? actualContractEnd(contract.endDate, contract.terminationDate)
+        ? contractCalendarDay(actualContractEndTime(contract.endDate, contract.terminationDate))
         : null;
       if (
         !contract.startDate ||
         !actualEnd ||
-        dto.effectiveDate < contract.startDate ||
-        dto.effectiveDate > actualEnd
+        compareCalendarDates(dto.effectiveDate, contractCalendarDay(contract.startDate)) < 0 ||
+        compareCalendarDates(dto.effectiveDate, actualEnd) > 0
       ) {
         throw this.policy.conflict("承租方生效日期必须位于合同实际租期内");
       }
@@ -71,7 +72,7 @@ export class ContractPartiesService {
         throw this.policy.conflict("合同必须且只能有一名主付款人，且承租方不能重复");
       }
       const current = this.policy.requireContract(
-        await this.repository.detail(authContext.organizationId, contract.id, today, transaction),
+        await this.repository.detail(authContext.organizationId, contract.id, now, transaction),
       );
       await this.policy.validateDraftRelations(
         {
@@ -134,7 +135,7 @@ export class ContractPartiesService {
       );
       return toContractDetail(
         await this.repository
-          .detail(authContext.organizationId, contract.id, today, transaction)
+          .detail(authContext.organizationId, contract.id, now, transaction)
           .then(this.policy.requireContract.bind(this.policy)),
       );
     });

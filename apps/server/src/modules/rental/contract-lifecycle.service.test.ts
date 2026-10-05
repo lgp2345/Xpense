@@ -100,7 +100,11 @@ function harness(
   const policy = {
     lockOrganizationContext: vi
       .fn()
-      .mockResolvedValue({ timezone: "Asia/Shanghai", today: "2026-08-30" }),
+      .mockResolvedValue({
+        timezone: "Asia/Shanghai",
+        today: "2026-08-30",
+        now: "2026-08-30T12:00:00",
+      }),
     requireContract: vi.fn((value: unknown) => {
       if (!value) throw new NotFoundException();
       return value;
@@ -305,7 +309,7 @@ describe("ContractLifecycleService", () => {
       transaction,
     );
     expect(policy.requireActivePropertyForUpdate).not.toHaveBeenCalled();
-    expect(policy.assertCancellationAllowed).toHaveBeenCalledWith(confirmed, "2026-08-30");
+    expect(policy.assertCancellationAllowed).toHaveBeenCalledWith(confirmed, "2026-08-30T12:00:00");
     expect(repository.setLifecycle).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "cancelled",
@@ -332,7 +336,10 @@ describe("ContractLifecycleService", () => {
     await expect(
       setup.service.cancel(auth, { id: "contract-1", reason: "房产停用后归档" } as never),
     ).resolves.toMatchObject({ id: "contract-1" });
-    expect(setup.policy.assertCancellationAllowed).toHaveBeenCalledWith(confirmed, "2026-08-30");
+    expect(setup.policy.assertCancellationAllowed).toHaveBeenCalledWith(
+      confirmed,
+      "2026-08-30T12:00:00",
+    );
     expect(setup.repository.setLifecycle).toHaveBeenCalled();
   });
 
@@ -403,6 +410,47 @@ describe("ContractLifecycleService", () => {
     expect(setup.relations.clipPartyPeriodsToActualEnd).not.toHaveBeenCalled();
   });
 
+  it("requires the exact contract start time before accepting same-day termination", async () => {
+    const setup = harness(
+      contract({
+        status: "confirmed",
+        startDate: "2026-08-30T13:00:00",
+        endDate: "2027-08-31T23:59:59",
+      }),
+    );
+    setup.policy.lockOrganizationContext.mockResolvedValue({
+      timezone: "Asia/Shanghai",
+      today: "2026-08-30",
+      now: "2026-08-30T12:59:59",
+    });
+
+    await expect(
+      setup.service.terminate(auth, {
+        id: "contract-1",
+        terminationDate: "2026-09-01",
+        reason: "尚未开始",
+      } as never),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(setup.repository.setLifecycle).not.toHaveBeenCalled();
+
+    setup.policy.lockOrganizationContext.mockResolvedValue({
+      timezone: "Asia/Shanghai",
+      today: "2026-08-30",
+      now: "2026-08-30T13:00:00",
+    });
+    await expect(
+      setup.service.terminate(auth, {
+        id: "contract-1",
+        terminationDate: "2026-09-01",
+        reason: "开始后终止",
+      } as never),
+    ).resolves.toBeDefined();
+    expect(setup.repository.setLifecycle).toHaveBeenCalledWith(
+      expect.objectContaining({ terminationDate: "2026-09-01" }),
+      transaction,
+    );
+  });
+
   it.each([
     "2026-01-15",
     "2026-08-30",
@@ -450,8 +498,8 @@ describe("ContractLifecycleService", () => {
 
     expect(setup.repository.createDraft).toHaveBeenCalledWith(
       expect.objectContaining({
-        startDate: "2027-01-02",
-        endDate: "2028-01-01",
+        startDate: "2027-01-02T00:00:00",
+        endDate: "2028-01-01T23:59:59",
       }),
       transaction,
     );

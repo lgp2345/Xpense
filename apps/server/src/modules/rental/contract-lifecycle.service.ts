@@ -13,12 +13,16 @@ import { BillingLifecycleService } from "./billing-lifecycle.service.js";
 import { BillingSourceService } from "./billing-source.service.js";
 import { ChargeTermsRepository } from "./charge-terms.repository.js";
 import {
-  actualContractEnd,
   addCalendarDays,
   compareCalendarDates,
   organizationDate,
 } from "./contract-date.rules.js";
 import { ContractRelationsRepository } from "./contract-relations.repository.js";
+import {
+  actualContractEndTime,
+  contractCalendarDay,
+  normalizeContractTime,
+} from "./contract-time.rules.js";
 import { ContractsRepository } from "./contracts.repository.js";
 import type {
   ContractDepositReference,
@@ -69,7 +73,7 @@ export class ContractLifecycleService {
   /** 在固定锁顺序及单一事务中校验、固化快照并确认草稿。 */
   confirm(authContext: AuthContext, dto: ConfirmContractDto): Promise<RentalContractDetail> {
     return this.transactions.run(async (transaction) => {
-      const { today } = await this.policy.lockOrganizationContext(
+      const { now } = await this.policy.lockOrganizationContext(
         authContext.organizationId,
         transaction,
       );
@@ -88,7 +92,7 @@ export class ContractLifecycleService {
       const detail = await this.readRecord(
         authContext.organizationId,
         contract.id,
-        today,
+        now,
         transaction,
       );
       if (detail.billingMode === "monthly_settlement" && detail.spaces.length !== 1)
@@ -136,7 +140,7 @@ export class ContractLifecycleService {
         transaction,
       );
       return toContractDetail(
-        await this.readRecord(authContext.organizationId, contract.id, today, transaction),
+        await this.readRecord(authContext.organizationId, contract.id, now, transaction),
       );
     });
   }
@@ -144,7 +148,7 @@ export class ContractLifecycleService {
   /** 仅在组织本地开始日前取消已确认合同并保留原因。 */
   cancel(authContext: AuthContext, dto: CancelContractDto): Promise<RentalContractDetail> {
     return this.transactions.run(async (transaction) => {
-      const { today } = await this.policy.lockOrganizationContext(
+      const { now } = await this.policy.lockOrganizationContext(
         authContext.organizationId,
         transaction,
       );
@@ -159,7 +163,7 @@ export class ContractLifecycleService {
       const contract = this.policy.requireContract(
         await this.repository.findForUpdate(authContext.organizationId, dto.id, transaction),
       );
-      this.policy.assertCancellationAllowed(contract, today);
+      this.policy.assertCancellationAllowed(contract, now);
       const before = await this.billingSources.read(
         authContext.organizationId,
         contract.id,
@@ -189,7 +193,7 @@ export class ContractLifecycleService {
         transaction,
       );
       return toContractDetail(
-        await this.readRecord(authContext.organizationId, contract.id, today, transaction),
+        await this.readRecord(authContext.organizationId, contract.id, now, transaction),
       );
     });
   }
@@ -197,7 +201,7 @@ export class ContractLifecycleService {
   /** 在合同实际租期内登记提前终止，并裁剪承租方有效期。 */
   terminate(authContext: AuthContext, dto: TerminateContractDto): Promise<RentalContractDetail> {
     return this.transactions.run(async (transaction) => {
-      const { today } = await this.policy.lockOrganizationContext(
+      const { now } = await this.policy.lockOrganizationContext(
         authContext.organizationId,
         transaction,
       );
@@ -217,16 +221,16 @@ export class ContractLifecycleService {
       if (
         !contract.startDate ||
         !contract.endDate ||
-        compareCalendarDates(today, contract.startDate) < 0 ||
-        compareCalendarDates(dto.terminationDate, contract.startDate) < 0 ||
-        compareCalendarDates(dto.terminationDate, contract.endDate) >= 0
+        normalizeContractTime(now, "start") < normalizeContractTime(contract.startDate, "start") ||
+        compareCalendarDates(dto.terminationDate, contractCalendarDay(contract.startDate)) < 0 ||
+        compareCalendarDates(dto.terminationDate, contractCalendarDay(contract.endDate)) >= 0
       ) {
         throw this.policy.conflict("终止日期必须位于合同租期内且早于原结束日期");
       }
       const current = await this.readRecord(
         authContext.organizationId,
         contract.id,
-        today,
+        now,
         transaction,
       );
       await this.lockContractRelations(
@@ -272,7 +276,7 @@ export class ContractLifecycleService {
         transaction,
       );
       return toContractDetail(
-        await this.readRecord(authContext.organizationId, contract.id, today, transaction),
+        await this.readRecord(authContext.organizationId, contract.id, now, transaction),
       );
     });
   }
@@ -283,7 +287,7 @@ export class ContractLifecycleService {
     dto: RevokeContractTerminationDto,
   ): Promise<RentalContractDetail> {
     return this.transactions.run(async (transaction) => {
-      const { today } = await this.policy.lockOrganizationContext(
+      const { today, now } = await this.policy.lockOrganizationContext(
         authContext.organizationId,
         transaction,
       );
@@ -312,7 +316,7 @@ export class ContractLifecycleService {
       const current = await this.readRecord(
         authContext.organizationId,
         contract.id,
-        today,
+        now,
         transaction,
       );
       await this.lockContractRelations(
@@ -327,8 +331,8 @@ export class ContractLifecycleService {
           organizationId: authContext.organizationId,
           property,
           spaceIds: current.spaces.map(({ spaceId }) => spaceId),
-          startDate: addCalendarDays(contract.terminationDate, 1),
-          endDate: contract.endDate,
+          startDate: `${addCalendarDays(contract.terminationDate, 1)}T00:00:00`,
+          endDate: normalizeContractTime(contract.endDate, "end"),
           excludeContractId: contract.id,
         },
         transaction,
@@ -344,7 +348,7 @@ export class ContractLifecycleService {
           organizationId: authContext.organizationId,
           contractId: contract.id,
           terminatedAt: contract.terminationDate,
-          originalEnd: contract.endDate,
+          originalEnd: contractCalendarDay(contract.endDate),
         },
         transaction,
       );
@@ -379,7 +383,7 @@ export class ContractLifecycleService {
         transaction,
       );
       return toContractDetail(
-        await this.readRecord(authContext.organizationId, contract.id, today, transaction),
+        await this.readRecord(authContext.organizationId, contract.id, now, transaction),
       );
     });
   }
@@ -387,7 +391,7 @@ export class ContractLifecycleService {
   /** 以原合同实际结束日次日创建不携带财务状态的续租草稿。 */
   renew(authContext: AuthContext, dto: RenewContractDto): Promise<RentalContractDetail> {
     return this.transactions.run(async (transaction) => {
-      const { today } = await this.policy.lockOrganizationContext(
+      const { today, now } = await this.policy.lockOrganizationContext(
         authContext.organizationId,
         transaction,
       );
@@ -405,26 +409,35 @@ export class ContractLifecycleService {
       if (contract.status !== "confirmed" && contract.status !== "terminated")
         throw this.policy.conflict("仅可续租已确认或已终止合同");
       if (!contract.startDate || !contract.endDate) throw this.policy.conflict("合同缺少租期");
-      const sourceEnd = actualContractEnd(contract.endDate, contract.terminationDate);
+      const sourceEnd = actualContractEndTime(contract.endDate, contract.terminationDate);
+      const sourceEndDay = contractCalendarDay(sourceEnd);
       const renewalInput = dto as RenewContractDto & {
         startDate?: string;
         endDate?: string;
         newStartDate?: string;
         newEndDate?: string;
       };
-      const newStartDate =
-        renewalInput.newStartDate ?? renewalInput.startDate ?? addCalendarDays(sourceEnd, 1);
-      const newEndDate =
-        renewalInput.newEndDate ?? renewalInput.endDate ?? addCalendarDays(sourceEnd, 365);
+      const newStartDate = normalizeContractTime(
+        renewalInput.newStartDate ??
+          renewalInput.startDate ??
+          `${addCalendarDays(sourceEndDay, 1)}T00:00:00`,
+        "start",
+      );
+      const newEndDate = normalizeContractTime(
+        renewalInput.newEndDate ??
+          renewalInput.endDate ??
+          `${addCalendarDays(sourceEndDay, 365)}T23:59:59`,
+        "end",
+      );
       if (
-        compareCalendarDates(newStartDate, sourceEnd) <= 0 ||
-        compareCalendarDates(newStartDate, newEndDate) > 0
+        compareCalendarDates(contractCalendarDay(newStartDate), sourceEndDay) <= 0 ||
+        newStartDate > newEndDate
       )
         throw this.policy.conflict("续租日期必须从原合同实际结束日次日开始");
       const current = await this.readRecord(
         authContext.organizationId,
         contract.id,
-        today,
+        now,
         transaction,
       );
       await this.lockRenewalContractRelations(
@@ -432,7 +445,7 @@ export class ContractLifecycleService {
         property,
         current,
         transaction,
-        terminalPartyRefs(current, sourceEnd),
+        terminalPartyRefs(current, sourceEndDay),
       );
       const conflicts = await this.policy.checkSpaceAvailability(
         {
@@ -516,8 +529,8 @@ export class ContractLifecycleService {
           organizationId: authContext.organizationId,
           contractId: contract.id,
           targetContractId: draft.id,
-          validFrom: newStartDate,
-          validTo: newEndDate,
+          validFrom: contractCalendarDay(newStartDate),
+          validTo: contractCalendarDay(newEndDate),
         },
         transaction,
       );
@@ -526,7 +539,7 @@ export class ContractLifecycleService {
         transaction,
       );
       return toContractDetail(
-        await this.readRecord(authContext.organizationId, draft.id, today, transaction),
+        await this.readRecord(authContext.organizationId, draft.id, now, transaction),
       );
     });
   }
@@ -599,11 +612,11 @@ export class ContractLifecycleService {
   private async readRecord(
     organizationId: string,
     id: string,
-    today: string,
+    now: string,
     executor: AppDbExecutor,
   ): Promise<RentalContractDetailRecord> {
     return this.policy.requireContract(
-      await this.repository.detail(organizationId, id, today, executor),
+      await this.repository.detail(organizationId, id, now, executor),
     );
   }
 }

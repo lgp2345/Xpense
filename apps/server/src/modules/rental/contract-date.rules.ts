@@ -1,5 +1,11 @@
 import type { RentalContractDisplayStatus, RentalContractLifecycleStatus } from "@xpense/shared";
 
+import {
+  actualContractEndTime,
+  contractCalendarDay,
+  normalizeContractTime,
+} from "./contract-time.rules.js";
+
 type CalendarDateParts = { year: number; month: number; day: number };
 
 export type ContractDisplayStatusSource = {
@@ -159,49 +165,46 @@ export function deriveContractDisplayStatus(
   contract: ContractDisplayStatusSource,
   today: string,
 ): DerivedContractDisplayStatus {
-  assertCalendarDate(today);
-  if (contract.startDate !== null) assertCalendarDate(contract.startDate);
-  if (contract.endDate !== null) assertCalendarDate(contract.endDate);
+  const now = normalizeContractTime(today, "start");
+  const start = contract.startDate === null ? null : normalizeContractTime(contract.startDate, "start");
+  const end = contract.endDate === null ? null : normalizeContractTime(contract.endDate, "end");
   if (contract.terminationDate !== null && contract.terminationDate !== undefined) {
     assertCalendarDate(contract.terminationDate);
+    const terminationDay = contract.terminationDate;
     if (
-      !contract.startDate ||
-      !contract.endDate ||
-      compareCalendarDates(contract.terminationDate, contract.startDate) < 0 ||
-      compareCalendarDates(contract.terminationDate, contract.endDate) >= 0
+      !start ||
+      !end ||
+      compareCalendarDates(terminationDay, contractCalendarDay(start)) < 0 ||
+      compareCalendarDates(terminationDay, contractCalendarDay(end)) >= 0
     ) {
       throw new RangeError("终止日期必须位于合同租期内且早于原结束日期");
     }
   }
-  if (
-    contract.startDate &&
-    contract.endDate &&
-    compareCalendarDates(contract.startDate, contract.endDate) > 0
-  ) {
+  if (start && end && start > end) {
     throw new RangeError("合同租期顺序无效");
   }
   if (contract.status === "draft" || contract.status === "cancelled") {
     return { displayStatus: contract.status, hasScheduledTermination: false };
   }
-  if (!contract.startDate || !contract.endDate) throw new RangeError("非草稿合同缺少租期");
+  if (!start || !end) throw new RangeError("非草稿合同缺少租期");
   const scheduledTermination = contract.status === "terminated" ? contract.terminationDate : null;
   if (contract.status === "terminated" && !scheduledTermination) {
     throw new RangeError("已终止合同缺少终止日期");
   }
-  const actualEnd = actualContractEnd(contract.endDate, scheduledTermination);
-  if (scheduledTermination && compareCalendarDates(today, scheduledTermination) > 0) {
+  const actualEnd = actualContractEndTime(end, scheduledTermination);
+  if (scheduledTermination && now > actualEnd) {
     return { displayStatus: "terminated", hasScheduledTermination: false };
   }
   const hasScheduledTermination = Boolean(scheduledTermination);
-  if (compareCalendarDates(today, contract.startDate) < 0) {
+  if (now < start) {
     return { displayStatus: "upcoming", hasScheduledTermination };
   }
-  if (compareCalendarDates(today, actualEnd) > 0) {
+  if (now > actualEnd) {
     return { displayStatus: "expired", hasScheduledTermination };
   }
-  const expiringThreshold = addCalendarDays(actualEnd, -30);
+  const expiringThreshold = `${addCalendarDays(contractCalendarDay(actualEnd), -30)}${actualEnd.slice(10)}`;
   return {
-    displayStatus: compareCalendarDates(today, expiringThreshold) >= 0 ? "expiring_soon" : "active",
+    displayStatus: now >= expiringThreshold ? "expiring_soon" : "active",
     hasScheduledTermination,
   };
 }

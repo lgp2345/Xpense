@@ -524,7 +524,7 @@ export class SpacesService {
     mapPage: (page: T) => RentalSpaceChildrenPage | RentalSpaceSearchPage,
   ): Promise<RentalSpaceChildrenPage | RentalSpaceSearchPage> {
     if (page.items.length === 0) return mapPage(page);
-    const today = await this.contractReference.organizationToday(authContext.organizationId);
+    const today = await this.contractReference.organizationNow(authContext.organizationId);
     const facts = await this.contractReference.listSpaceLeaseStates(
       authContext.organizationId,
       propertyId,

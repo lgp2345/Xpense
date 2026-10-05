@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
 import { and, asc, eq, inArray } from "drizzle-orm";
-
 import type { AppDbExecutor } from "../../db/db.module.js";
 import {
   rentalBills,
@@ -10,6 +9,7 @@ import {
   rentalSettlementBills,
   rentalSettlements,
 } from "../../db/schema.js";
+import { toBillingContractDates } from "./billing-contract-dates.rules.js";
 import type { RentalCashProjectionFacts } from "./rental-cash-projection.repository.types.js";
 
 /** 以固定批量查询加载多个合同的完整资金版本事实，始终限于一个组织和明确合同集。 */
@@ -170,7 +170,7 @@ export class RentalCashProjectionRepository {
         {
           organizationId,
           contractId,
-          contract: {
+          contract: toBillingContractDates({
             billingMode: contract.billingMode,
             lifecycleStatus: contract.lifecycleStatus,
             startDate: contract.startDate,
@@ -181,7 +181,7 @@ export class RentalCashProjectionRepository {
             dueDaysBefore: contract.dueDaysBefore,
             terminationDate: contract.terminationDate,
             cancelledAt: contract.cancelledAt,
-          },
+          }),
           bills: billsByContract.get(contractId) ?? [],
           cashEntries: cashByContract.get(contractId) ?? [],
           settlement: settlement

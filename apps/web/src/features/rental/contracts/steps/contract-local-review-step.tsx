@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ContractChargeSummary } from "../../charges/contract-charge-fields";
+import { formatContractDateTime } from "../contract-date-time";
 import type { ContractFormValues } from "../contract-form-schema";
 import { BillingPeriodPreview } from "./billing-period-preview";
 import { calendarPreview } from "./contract-terms-step";
@@ -48,7 +49,8 @@ export function ContractLocalReviewStep({
         <p>主付款人：{payer ? (names[payer.tenantId] ?? payer.tenantId) : "未选择"}</p>
         <p>合同编号：{values.externalContractNumber || "未填写"}</p>
         <p>
-          租期：{values.startDate} 至 {values.endDate}
+          租期：{formatContractDateTime(values.startDate)} 至{" "}
+          {formatContractDateTime(values.endDate)}
         </p>
         <p>月租：{values.rentAmountText} 元</p>
         <p>

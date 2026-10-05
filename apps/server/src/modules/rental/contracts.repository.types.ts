@@ -55,7 +55,7 @@ export type RentalContractRecord = {
   updatedAt: Date;
 };
 
-/** 合同列表持久化摘要；展示状态基于组织本地日期在查询时派生。 */
+/** 合同列表持久化摘要；展示状态基于组织本地当前时刻在查询时派生。 */
 export type RentalContractSummaryRecord = Pick<
   RentalContractRecord,
   | "id"

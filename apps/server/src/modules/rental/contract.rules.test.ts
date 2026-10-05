@@ -256,6 +256,40 @@ describe("contract rent and aggregate rules", () => {
     ).toThrow();
   });
 
+  it("accepts ordered same-day contract times while validating party bounds by calendar day", () => {
+    const aggregate = {
+      status: "confirmed" as const,
+      startDate: "2026-10-05T08:30:00",
+      endDate: "2026-10-05T23:59:59",
+      rentAmountMinor: 300_000,
+      billingAnchor: "calendar_month" as const,
+      paymentIntervalMonths: 1 as const,
+      dueDaysBefore: 5,
+      parties: [{ tenantId: tenantA, isPrimaryPayer: true }],
+      spaces: [{ spaceId: spaceA }],
+      depositTerms: [],
+    };
+
+    expect(() => assertContractAggregate(aggregate)).not.toThrow();
+    expect(() =>
+      assertContractAggregate({ ...aggregate, endDate: "2026-10-05T08:29:59" }),
+    ).toThrow();
+    expect(() =>
+      assertPartyPeriods(
+        [
+          {
+            tenantId: tenantA,
+            validFrom: "2026-10-05",
+            validTo: "2026-10-05",
+            isPrimaryPayer: true,
+          },
+        ],
+        "2026-10-05T08:30:00",
+        "2026-10-05T23:59:59",
+      ),
+    ).not.toThrow();
+  });
+
   it("validates standalone draft dates and deposit structures without rent", () => {
     const draft = {
       status: "draft" as const,

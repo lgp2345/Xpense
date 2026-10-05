@@ -17,6 +17,7 @@ import type { RentalTenantRecord } from "./tenants.repository.types.js";
 
 type InjectResponse = { payload: string; statusCode: number };
 
+const FIXED_ORGANIZATION_NOW = "2026-08-31T12:00:00";
 const generatedContractId = "bbbbbbbb-bbbb-4bbb-8bbb-000000000001";
 const adminUserId = "11111111-1111-4111-8111-111111111106";
 
@@ -37,7 +38,7 @@ function registerContractDetail(
 ): void {
   setup.state.rentalQuery.registerRead(
     "contracts.detail",
-    [testIds.organization, id, "2026-08-31"],
+    [testIds.organization, id, FIXED_ORGANIZATION_NOW],
     {
       id,
       propertyId: rentalTestIds.property,
@@ -744,7 +745,7 @@ function registerTerminationFixtures(
   );
   setup.state.rentalQuery.registerReadSequence(
     "contracts.detail",
-    [testIds.organization, rentalTestIds.contract, "2026-08-31"],
+    [testIds.organization, rentalTestIds.contract, FIXED_ORGANIZATION_NOW],
     [beforeDetail, afterDetail],
   );
   setup.state.rentalQuery.registerRead(
@@ -1121,7 +1122,7 @@ function registerRevokeFixtures(
   );
   setup.state.rentalQuery.registerReadSequence(
     "contracts.detail",
-    [testIds.organization, rentalTestIds.contract, "2026-08-31"],
+    [testIds.organization, rentalTestIds.contract, FIXED_ORGANIZATION_NOW],
     [
       terminationDetail(
         "terminated",
@@ -1269,7 +1270,10 @@ const RENEWAL_DEPOSIT = {
 const RENEWAL_SOURCE_DEPOSIT = { ...RENEWAL_DEPOSIT, finalAmountMinor: 50000 };
 
 function renewalPartyPeriod(source: RenewalSourceKind) {
-  return { ...RENEWAL_PARTY_PERIOD, validTo: renewalSourceDates(source).endDate };
+  return {
+    ...RENEWAL_PARTY_PERIOD,
+    validTo: renewalSourceDates(source).endDate.slice(0, 10),
+  };
 }
 
 function renewalSourcePartyPeriod(source: RenewalSourceKind) {
@@ -1282,8 +1286,16 @@ function renewalSourceDates(source: RenewalSourceKind): {
   endDate: string;
 } {
   return source === "terminated"
-    ? { actualEnd: "2026-09-15", startDate: "2026-09-16", endDate: "2027-09-15" }
-    : { actualEnd: "2026-12-31", startDate: "2027-01-01", endDate: "2027-12-31" };
+    ? {
+        actualEnd: "2026-09-15",
+        startDate: "2026-09-16T00:00:00",
+        endDate: "2027-09-15T23:59:59",
+      }
+    : {
+        actualEnd: "2026-12-31",
+        startDate: "2027-01-01T00:00:00",
+        endDate: "2027-12-31T23:59:59",
+      };
 }
 
 function renewalSourceContract(source: RenewalSourceKind): RentalContractRecord {
@@ -1473,8 +1485,8 @@ function renewalDraftDetail(source: RenewalSourceKind): RentalContractDetailReco
         documentType: "national_id",
         documentTypeOtherName: null,
         maskedDocumentNumber: null,
-        validFrom: dates.startDate,
-        validTo: dates.endDate,
+        validFrom: dates.startDate.slice(0, 10),
+        validTo: dates.endDate.slice(0, 10),
         isPrimaryPayer: true,
       },
     ],
@@ -1521,12 +1533,12 @@ function registerRenewFixtures(
   );
   setup.state.rentalQuery.registerRead(
     "contracts.detail",
-    [testIds.organization, rentalTestIds.contract, "2026-08-31"],
+    [testIds.organization, rentalTestIds.contract, FIXED_ORGANIZATION_NOW],
     renewalSourceDetail(source),
   );
   setup.state.rentalQuery.registerRead(
     "contracts.detail",
-    [testIds.organization, RENEWAL_CONTRACT_ID, "2026-08-31"],
+    [testIds.organization, RENEWAL_CONTRACT_ID, FIXED_ORGANIZATION_NOW],
     renewalDraftDetail(source),
   );
   setup.state.rentalQuery.registerRead(
@@ -1591,8 +1603,8 @@ function registerRenewFixtures(
       organizationId: testIds.organization,
       contractId: rentalTestIds.contract,
       targetContractId: RENEWAL_CONTRACT_ID,
-      validFrom: sourceDates.startDate,
-      validTo: sourceDates.endDate,
+      validFrom: sourceDates.startDate.slice(0, 10),
+      validTo: sourceDates.endDate.slice(0, 10),
     },
     {
       partyPeriods: {
@@ -1645,8 +1657,8 @@ function renewalResponse(source: RenewalSourceKind) {
         documentType: "national_id",
         documentTypeOtherName: null,
         maskedDocumentNumber: null,
-        validFrom: dates.startDate,
-        validTo: dates.endDate,
+        validFrom: dates.startDate.slice(0, 10),
+        validTo: dates.endDate.slice(0, 10),
         isPrimaryPayer: true,
       },
     ],
@@ -1818,7 +1830,7 @@ function registerRenewConfirmFixtures(
   );
   setup.state.rentalQuery.registerRead(
     "contracts.detail",
-    [testIds.organization, RENEWAL_CONTRACT_ID, "2026-08-31"],
+    [testIds.organization, RENEWAL_CONTRACT_ID, FIXED_ORGANIZATION_NOW],
     confirmed,
   );
   setup.state.rentalQuery.registerRead(
@@ -1883,9 +1895,9 @@ function renewedConfirmedResponse() {
     externalContractNumber: "EXT-RENEW-001",
     lifecycleStatus: "confirmed",
     displayStatus: "active",
-    startDate: "2027-01-01",
-    endDate: "2027-12-31",
-    actualEndDate: "2027-12-31",
+    startDate: "2027-01-01T00:00:00",
+    endDate: "2027-12-31T23:59:59",
+    actualEndDate: "2027-12-31T23:59:59",
     rentAmountMinor: 10000,
     tenantNames: ["测试租户"],
     spaceNames: ["测试房间"],
@@ -2155,7 +2167,7 @@ function registerChangePartiesFixture(
   );
   setup.state.rentalQuery.registerReadSequence(
     "contracts.detail",
-    [testIds.organization, CHANGE_PARTIES_CONTRACT_ID, "2026-08-31"],
+    [testIds.organization, CHANGE_PARTIES_CONTRACT_ID, FIXED_ORGANIZATION_NOW],
     [beforeDetail, detail],
   );
   setup.state.rentalQuery.registerRead(
@@ -2573,7 +2585,7 @@ describe("Rental HTTP e2e", () => {
       state.rentalQuery.resolveRead("contracts.detail", [
         testIds.organization,
         draft.id,
-        "2026-08-31",
+        FIXED_ORGANIZATION_NOW,
       ]),
     ).toMatchObject({ id: draft.id });
     expect(state.rental.contracts.get(draft.id)?.status).toBe("confirmed");
@@ -3098,7 +3110,7 @@ describe("Rental HTTP e2e", () => {
     );
     setup.state.rentalQuery.registerRead(
       "contracts.detail",
-      [testIds.organization, missingId, "2026-08-31"],
+      [testIds.organization, missingId, FIXED_ORGANIZATION_NOW],
       null,
     );
     const headers = await authorization(setup.app, TEST_PHONES.owner);
@@ -3347,7 +3359,7 @@ describe("Rental HTTP e2e", () => {
     );
     setup.state.rentalQuery.registerRead(
       "contracts.detail",
-      [testIds.organization, id, "2026-08-31"],
+      [testIds.organization, id, FIXED_ORGANIZATION_NOW],
       null,
     );
     const headers = await authorization(setup.app, TEST_PHONES.owner);
@@ -3459,7 +3471,7 @@ describe("Rental HTTP e2e", () => {
     setup.state.rentalQuery.resetReadSequence("contracts.detail", [
       testIds.organization,
       CHANGE_PARTIES_CONTRACT_ID,
-      "2026-08-31",
+      FIXED_ORGANIZATION_NOW,
     ]);
     const response = expectOk<RentalContractDetail>(await setup.app.inject(request));
     expect(response).toEqual(CHANGE_PARTIES_RESPONSE);
@@ -3493,7 +3505,7 @@ describe("Rental HTTP e2e", () => {
     setup.state.rentalQuery.resetReadSequence("contracts.detail", [
       testIds.organization,
       CHANGE_PARTIES_CONTRACT_ID,
-      "2026-08-31",
+      FIXED_ORGANIZATION_NOW,
     ]);
     const response = expectOk<RentalContractDetail>(await setup.app.inject(request));
     expect(response).toEqual(CHANGE_PARTIES_RESPONSE);
@@ -3675,7 +3687,7 @@ describe("Rental HTTP e2e", () => {
     setup.state.rentalQuery.resetReadSequence("contracts.detail", [
       testIds.organization,
       rentalTestIds.contract,
-      "2026-08-31",
+      FIXED_ORGANIZATION_NOW,
     ]);
     const response = expectOk<RentalContractDetail>(await setup.app.inject(request));
     expect(response).toEqual(terminationResponse("2026-09-15", "expiring_soon"));
@@ -3706,7 +3718,7 @@ describe("Rental HTTP e2e", () => {
     setup.state.rentalQuery.resetReadSequence("contracts.detail", [
       testIds.organization,
       rentalTestIds.contract,
-      "2026-08-31",
+      FIXED_ORGANIZATION_NOW,
     ]);
     const response = expectOk<RentalContractDetail>(await setup.app.inject(request));
     expect(response).toEqual(terminationResponse("2026-09-15", "expiring_soon"));
@@ -3870,7 +3882,7 @@ describe("Rental HTTP e2e", () => {
     setup.state.rentalQuery.resetReadSequence("contracts.detail", [
       testIds.organization,
       rentalTestIds.contract,
-      "2026-08-31",
+      FIXED_ORGANIZATION_NOW,
     ]);
     const response = expectOk<RentalContractDetail>(await setup.app.inject(request));
     expect(response).toEqual(restoredContractResponse());
@@ -3925,7 +3937,7 @@ describe("Rental HTTP e2e", () => {
     setup.state.rentalQuery.resetReadSequence("contracts.detail", [
       testIds.organization,
       rentalTestIds.contract,
-      "2026-08-31",
+      FIXED_ORGANIZATION_NOW,
     ]);
     const response = expectOk<RentalContractDetail>(await setup.app.inject(request));
     expect(response).toEqual(restoredContractResponse());
@@ -4040,7 +4052,7 @@ describe("Rental HTTP e2e", () => {
     const sourceWithoutHistory = { ...renewalSourceDetail("confirmed"), parties: [] };
     setup.state.rentalQuery.registerRead(
       "contracts.detail",
-      [testIds.organization, rentalTestIds.contract, "2026-08-31"],
+      [testIds.organization, rentalTestIds.contract, FIXED_ORGANIZATION_NOW],
       sourceWithoutHistory,
     );
     const headers = await authorization(setup.app, TEST_PHONES.owner);

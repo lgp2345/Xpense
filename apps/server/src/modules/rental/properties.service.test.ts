@@ -79,6 +79,7 @@ function createHarness() {
   const auditService = { appendRequired: vi.fn().mockResolvedValue(undefined) };
   const contractReference = {
     organizationToday: vi.fn().mockResolvedValue("2026-08-31"),
+    organizationNow: vi.fn().mockResolvedValue("2026-08-31T14:05:06"),
     countPropertyContracts: vi.fn().mockResolvedValue({
       activeContractCount: 0,
       upcomingContractCount: 0,
@@ -142,8 +143,7 @@ describe("PropertiesService", () => {
     expect(repository.findActiveOwned).toHaveBeenCalledWith(
       "organization-1",
       "property-1",
-      undefined,
-      "2026-08-31",
+      "2026-08-31T14:05:06",
     );
   });
 

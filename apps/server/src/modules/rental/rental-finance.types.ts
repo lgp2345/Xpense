@@ -5,13 +5,12 @@ import type {
   RentalBillRevisionInput,
   RentalCashEntry,
   RentalChargeTerms,
-  RentalContractDetail,
   RentalExtraFeeInput,
   RentalFeeSnapshot,
   RentalMeterReadingInput,
   RentalSettlementDetail,
 } from "@xpense/shared";
-import type { BillingTerms } from "./billing.types.js";
+import type { BillingTerms, RentalBillingContract } from "./billing.types.js";
 
 export type FinanceScope = { organizationId: string; contractId: string };
 
@@ -32,7 +31,7 @@ export type RentalMeterReading = RentalMeterReadingInput & {
 
 export type RentalFinanceSnapshot = {
   context: FinanceContext;
-  contract: RentalContractDetail;
+  contract: RentalBillingContract;
   terms: RentalChargeTerms | null;
   readings: RentalMeterReading[];
   bills: RentalBillDetail[];

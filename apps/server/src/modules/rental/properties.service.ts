@@ -52,11 +52,10 @@ export class PropertiesService {
 
   /** 返回当前组织内未软删除的房产详情。 */
   async detail(authContext: AuthContext, dto: PropertyDetailDto): Promise<RentalPropertyDetail> {
-    const today = await this.contractReference.organizationToday(authContext.organizationId);
+    const today = await this.contractReference.organizationNow(authContext.organizationId);
     const property = await this.repository.findActiveOwned(
       authContext.organizationId,
       dto.id,
-      undefined,
       today,
     );
     if (!property) throw this.notFound("租赁房产不存在");
@@ -285,8 +284,8 @@ export class PropertiesService {
     id: string,
     executor: AppDbExecutor,
   ): Promise<RentalPropertyDetail> {
-    const today = await this.contractReference.organizationToday(organizationId, executor);
-    const property = await this.repository.findActiveOwned(organizationId, id, executor, today);
+    const today = await this.contractReference.organizationNow(organizationId, executor);
+    const property = await this.repository.findActiveOwned(organizationId, id, today, executor);
     if (!property) throw this.notFound("租赁房产不存在");
     return toPropertyDetail(property);
   }
