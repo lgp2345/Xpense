@@ -8,6 +8,7 @@ import type {
 import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -161,75 +162,81 @@ export function BillCashHistory({
 
   return (
     <>
-      <section className="border rounded-lg space-y-3 p-4">
-        <h2 className="font-semibold">收退款记录</h2>
-        {query.isPending ? <p role="status">正在读取收退款记录…</p> : null}
-        {query.isError ? (
-          <div>
-            <p role="alert">收退款记录读取失败。</p>
-            <Button variant="outline" onClick={() => void query.refetch()}>
-              重试
-            </Button>
-          </div>
-        ) : null}
-        {query.data?.items.length ? (
-          <ul className="divide-y">
-            {query.data.items.map((entry) => {
-              const revokePermission: PermissionKey =
-                entry.kind === 'receipt'
-                  ? 'rental_receipts:revoke'
-                  : 'rental_refunds:revoke'
-              return (
-                <li
-                  className="flex flex-wrap text-sm py-3 gap-2 items-center justify-between"
-                  key={entry.id}
-                >
-                  <div className="space-y-1 min-w-0">
-                    <p className="tabular-nums">
-                      {entry.kind === 'receipt' ? '收款' : '退款'} ·{' '}
-                      {formatBillAmount(entry.amountMinor, bill.currencyCode)} ·{' '}
-                      {entry.occurredOn}
-                    </p>
-                    {entry.note ? (
-                      <p className="text-muted-foreground break-words">
-                        备注：{entry.note}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base leading-6">
+            <h2>收退款记录</h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          {query.isPending ? <p role="status">正在读取收退款记录…</p> : null}
+          {query.isError ? (
+            <div>
+              <p role="alert">收退款记录读取失败。</p>
+              <Button variant="outline" onClick={() => void query.refetch()}>
+                重试
+              </Button>
+            </div>
+          ) : null}
+          {query.data?.items.length ? (
+            <ul className="divide-y">
+              {query.data.items.map((entry) => {
+                const revokePermission: PermissionKey =
+                  entry.kind === 'receipt'
+                    ? 'rental_receipts:revoke'
+                    : 'rental_refunds:revoke'
+                return (
+                  <li
+                    className="flex flex-wrap text-sm py-3 gap-2 items-center justify-between"
+                    key={entry.id}
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <p className="tabular-nums">
+                        {entry.kind === 'receipt' ? '收款' : '退款'} ·{' '}
+                        {formatBillAmount(entry.amountMinor, bill.currencyCode)} ·{' '}
+                        {entry.occurredOn}
                       </p>
+                      {entry.note ? (
+                        <p className="text-xs text-muted-foreground break-words">
+                          备注：{entry.note}
+                        </p>
+                      ) : null}
+                      {entry.revokedAt ? (
+                        <p className="text-xs text-muted-foreground break-words">
+                          已撤销 · {entry.revokeReason ?? '未提供原因'}
+                        </p>
+                      ) : null}
+                    </div>
+                    {!entry.revokedAt &&
+                    bill.financial &&
+                    permissions.includes(revokePermission) ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEntryToRevoke(entry)
+                          form.reset()
+                          setError(null)
+                          attempt.current = null
+                        }}
+                      >
+                        撤销{entry.kind === 'receipt' ? '收款' : '退款'}
+                      </Button>
                     ) : null}
-                    {entry.revokedAt ? (
-                      <p className="text-muted-foreground break-words">
-                        已撤销 · {entry.revokeReason ?? '未提供原因'}
-                      </p>
-                    ) : null}
-                  </div>
-                  {!entry.revokedAt &&
-                  bill.financial &&
-                  permissions.includes(revokePermission) ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEntryToRevoke(entry)
-                        form.reset()
-                        setError(null)
-                        attempt.current = null
-                      }}
-                    >
-                      撤销{entry.kind === 'receipt' ? '收款' : '退款'}
-                    </Button>
-                  ) : null}
-                </li>
-              )
-            })}
-          </ul>
-        ) : query.isSuccess ? (
-          <p className="text-sm text-muted-foreground">暂无收退款记录。</p>
-        ) : null}
-        {query.data && query.data.total > query.data.pageSize ? (
-          <p className="text-xs text-muted-foreground">
-            显示最近 {query.data.pageSize} 笔记录。
-          </p>
-        ) : null}
-      </section>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : query.isSuccess ? (
+            <p className="text-sm text-muted-foreground">暂无收退款记录。</p>
+          ) : null}
+          {query.data && query.data.total > query.data.pageSize ? (
+            <p className="text-xs text-muted-foreground">
+              显示最近 {query.data.pageSize} 笔记录。
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
       <Dialog
         open={Boolean(entryToRevoke)}
         onOpenChange={(open) => !open && closeRevoke()}

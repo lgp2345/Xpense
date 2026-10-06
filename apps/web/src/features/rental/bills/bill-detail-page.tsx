@@ -8,11 +8,11 @@ import type { RentalBillsApi } from "../../../services/rental-bills-api";
 import { rentalBillsQueryOptions } from "../../../services/rental-bills-query";
 import type { RentalFinanceApi } from "../../../services/rental-finance-api";
 import { BillCashHistory } from "./bill-cash-history";
+import { BillDetailOverview } from "./bill-detail-overview";
 import { BillDetailSections } from "./bill-detail-sections";
-import { formatBillAmount } from "./bill-format";
 import { BillReceiptDialog } from "./bill-receipt-dialog";
 import { BillRevisionDialog } from "./bill-revision-dialog";
-import { billDueLabel } from "./bill-table";
+import { BillSourceHistory } from "./bill-source-history";
 export function BillDetailPage({
   organizationId,
   billId,
@@ -64,75 +64,26 @@ export function BillDetailPage({
       </main>
     );
   const bill = query.data;
+  const canViewSettlement = bill.settlementId && permissions.includes("rental_settlements:read");
+  const canRegisterCash =
+    financeApi &&
+    !bill.settlementId &&
+    bill.financial &&
+    ((permissions.includes("rental_receipts:create") && bill.financial.outstandingMinor > 0) ||
+      (permissions.includes("rental_refunds:create") && bill.financial.refundableMinor > 0));
+  const canAdjust =
+    financeApi &&
+    bill.type === "monthly" &&
+    bill.status === "active" &&
+    permissions.includes("rental_monthly_bills:adjust");
   return (
     <main className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8">
-      <header className="space-y-2">
-        <a className="text-sm underline" href="/rentals/bills">
-          返回账单查询
-        </a>
-        <h1 className="break-words text-2xl font-bold">{bill.billNumber}</h1>
-        {bill.modelVersion === 2 ? null : (
-          <p className="text-sm text-muted-foreground">本阶段仅记录应收，收款情况尚未登记</p>
-        )}
-        <div className="space-y-1 break-words text-sm text-muted-foreground">
-          <p>生成批次：{bill.generationId}</p>
-          {bill.type === "monthly" && bill.periodStart && bill.periodEnd ? (
-            <p>
-              账单费用覆盖期间：{bill.periodStart} 至 {bill.periodEnd}
-            </p>
-          ) : null}
-          {bill.type === "rent" && bill.periodStart ? (
-            <>
-              <p>
-                原付款账期：{bill.periodStart} 至 {bill.periodEnd}
-              </p>
-              <p>
-                实际计租范围：{bill.periodStart} 至 {bill.effectiveEnd}
-              </p>
-            </>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap gap-4 text-sm">
-          <span>
-            {bill.type === "rent" ? "租金" : bill.type === "deposit" ? "押金" : "月度综合账单"} ·{" "}
-            {bill.status === "active" ? "有效" : "作废"}
-          </span>
-          <span>
-            到期日 {bill.dueDate} · {billDueLabel(bill.dueState)}
-          </span>
-          <span className="font-semibold tabular-nums">
-            应收 {formatBillAmount(bill.amountMinor, bill.currencyCode)}
-          </span>
-        </div>
-        {bill.modelVersion === 2 && bill.financial ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <span className="tabular-nums">
-              {bill.settlementId ? "本账单已收 " : "已收 "}
-              {formatBillAmount(bill.financial.receivedMinor, bill.currencyCode)}
-            </span>
-            <span className="tabular-nums">
-              {bill.settlementId ? "本账单已退 " : "已退 "}
-              {formatBillAmount(bill.financial.refundedMinor, bill.currencyCode)}
-            </span>
-            {!bill.settlementId ? (
-              <>
-                <span className="tabular-nums">
-                  待收 {formatBillAmount(bill.financial.outstandingMinor, bill.currencyCode)}
-                </span>
-                <span className="tabular-nums">
-                  可退 {formatBillAmount(bill.financial.refundableMinor, bill.currencyCode)}
-                </span>
-              </>
-            ) : null}
-            {bill.settlementId ? (
-              <>
-                <span className="rounded-md border bg-muted/40 px-2 py-1">
-                  已纳入退租结算（{bill.settlementId}）
-                </span>
-                <span className="text-muted-foreground">当前补收、退款以合同结算为准。</span>
-              </>
-            ) : null}
-            {bill.settlementId && permissions.includes("rental_settlements:read") ? (
+      <BillDetailOverview bill={bill} navigate={navigate}>
+        {bill.modelVersion === 2 &&
+        bill.financial &&
+        (canViewSettlement || canRegisterCash || canAdjust) ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {canViewSettlement ? (
               <Button
                 variant="outline"
                 onClick={() =>
@@ -145,20 +96,12 @@ export function BillDetailPage({
                 查看退租结算
               </Button>
             ) : null}
-            {financeApi &&
-            !bill.settlementId &&
-            ((permissions.includes("rental_receipts:create") &&
-              bill.financial.outstandingMinor > 0) ||
-              (permissions.includes("rental_refunds:create") &&
-                bill.financial.refundableMinor > 0)) ? (
+            {canRegisterCash ? (
               <Button variant="outline" onClick={() => setReceiptOpen(true)}>
                 登记收退款
               </Button>
             ) : null}
-            {financeApi &&
-            bill.type === "monthly" &&
-            bill.status === "active" &&
-            permissions.includes("rental_monthly_bills:adjust") ? (
+            {canAdjust ? (
               <>
                 <Button
                   variant="outline"
@@ -187,7 +130,7 @@ export function BillDetailPage({
             ) : null}
           </div>
         ) : null}
-      </header>
+      </BillDetailOverview>
       <BillDetailSections bill={bill} />
       {financeApi && bill.modelVersion === 2 ? (
         <BillCashHistory
@@ -198,6 +141,7 @@ export function BillDetailPage({
           permissions={permissions}
         />
       ) : null}
+      <BillSourceHistory bill={bill} navigate={navigate} />
       {financeApi && bill.modelVersion === 2 ? (
         <>
           <BillReceiptDialog

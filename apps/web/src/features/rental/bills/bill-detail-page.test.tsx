@@ -7,6 +7,34 @@ import { ApiError } from "../../../services/api-client";
 import { BillDetailPage } from "./bill-detail-page";
 import { billFixture, billsApiFixture, financeApiFixture } from "./bill-test-fixtures";
 
+it("可通过合同编号导航，并用键盘查看历史账单说明", async () => {
+  const navigate = vi.fn();
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <BillDetailPage
+        organizationId="org"
+        billId="bill"
+        api={billsApiFixture()}
+        permissions={["rental_bills:read"]}
+        navigate={navigate as never}
+      />
+    </QueryClientProvider>,
+  );
+  await userEvent.click(await screen.findByRole("link", { name: "RC-2026-000001" }));
+  expect(navigate).toHaveBeenCalledWith({
+    to: "/rentals/contracts/$contractId",
+    params: { contractId: "contract" },
+  });
+  const help = screen.getByRole("button", { name: "历史账单说明" });
+  help.focus();
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(
+    "同一合同、同一计费项产生的其他账单",
+  );
+  expect(screen.getByRole("tooltip")).toHaveTextContent("最近 20 张");
+  await userEvent.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
+});
+
 it.each([
   { outstandingMinor: 0, refundableMinor: 0, permission: "rental_receipts:create", visible: false },
   { outstandingMinor: 0, refundableMinor: 0, permission: "rental_refunds:create", visible: false },
@@ -131,7 +159,9 @@ it("押金全额登记成功后刷新余额并立即隐藏登记入口", async (
   fireEvent.change(date, { target: { value: "2026/10/06" } });
   fireEvent.blur(date);
   await userEvent.click(screen.getByRole("button", { name: "确认押金全额收款" }));
-  await screen.findByText("已收 CNY 1,000.00");
+  await waitFor(() =>
+    expect(screen.getByText("已收").parentElement).toHaveTextContent("CNY 1,000.00"),
+  );
   await waitFor(() =>
     expect(screen.queryByRole("button", { name: "登记收退款" })).not.toBeInTheDocument(),
   );
@@ -237,7 +267,7 @@ it("无保存计量快照时不显示真实读数更正入口，费用入口仍�
   expect(screen.queryByRole("button", { name: "更正真实读数" })).not.toBeInTheDocument();
 });
 
-it("展示生成快照、原计划和差额，不推断收款", async () => {
+it("隐藏生成快照和批次，保留合同入口、费用和差额，不推断收款", async () => {
   const api = billsApiFixture({
     getBill: vi.fn().mockResolvedValue({
       ...billFixture,
@@ -286,12 +316,15 @@ it("展示生成快照、原计划和差额，不推断收款", async () => {
       />
     </QueryClientProvider>,
   );
-  expect(await screen.findByText("生成时房产")).toBeInTheDocument();
+  const contract = await screen.findByRole("link", { name: "RC-2026-000001" });
+  expect(contract).toHaveAttribute("href", "/rentals/contracts/contract");
+  expect(screen.queryByText("生成时房产")).not.toBeInTheDocument();
+  expect(screen.queryByText("生成时来源快照")).not.toBeInTheDocument();
   expect(screen.getByText("CNY -4,000.00")).toBeInTheDocument();
-  expect(screen.getByText(/· 到期日已过/)).toBeInTheDocument();
+  expect(screen.getByText("到期日已过")).toHaveAttribute("data-slot", "badge");
   expect(screen.getByText(/本阶段仅记录应收/)).toBeInTheDocument();
   expect(screen.getByText(/合同修正/)).toBeInTheDocument();
-  expect(screen.getByText("生成批次：batch")).toBeInTheDocument();
+  expect(screen.queryByText("生成批次：batch")).not.toBeInTheDocument();
   expect(screen.getByText("原付款账期：2026-01-01 至 2026-03-31")).toBeInTheDocument();
   expect(screen.getByText("实际计租范围：2026-01-01 至 2026-03-31")).toBeInTheDocument();
   expect(screen.queryByText(/欠款|未付款|已收款/)).not.toBeInTheDocument();
@@ -346,7 +379,7 @@ it("月度综合账单按账单费用覆盖期间展示水费区间，不把合�
     </QueryClientProvider>,
   );
 
-  expect(await screen.findByText("月度综合账单 · 有效")).toBeInTheDocument();
+  expect(await screen.findByText("月度综合账单")).toBeInTheDocument();
   expect(screen.getByText("账单费用覆盖期间：2026-08-31 至 2026-09-30")).toBeInTheDocument();
   expect(screen.queryByText(/原付款账期/)).not.toBeInTheDocument();
   expect(screen.queryByText(/实际计租范围/)).not.toBeInTheDocument();
@@ -373,7 +406,7 @@ it("押金账单不显示租金计期文案", async () => {
     </QueryClientProvider>,
   );
 
-  expect(await screen.findByText("押金 · 有效")).toBeInTheDocument();
+  expect(await screen.findByText("押金")).toBeInTheDocument();
   expect(screen.queryByText(/原付款账期|实际计租范围|账单费用覆盖期间/)).not.toBeInTheDocument();
 });
 
@@ -454,8 +487,8 @@ it("v2综合账单显示服务端实际收款余额，不套用legacy未知收�
     </QueryClientProvider>,
   );
 
-  expect(await screen.findByText("已收 CNY 400.00")).toBeInTheDocument();
-  expect(screen.getByText("待收 CNY 500.00")).toBeInTheDocument();
+  expect((await screen.findByText("已收")).parentElement).toHaveTextContent("CNY 400.00");
+  expect(screen.getByText("待收").parentElement).toHaveTextContent("CNY 500.00");
   expect(screen.queryByText("当前补收、退款以合同结算为准。")).not.toBeInTheDocument();
   expect(screen.queryByText(/收款情况尚未登记/)).not.toBeInTheDocument();
   expect(screen.getByText("备注：上月多收冲减")).toBeInTheDocument();
@@ -479,8 +512,8 @@ it("v2综合账单详情标示月度综合账单而非押金", async () => {
       />
     </QueryClientProvider>,
   );
-  expect(await screen.findByText("月度综合账单 · 有效")).toBeInTheDocument();
-  expect(screen.queryByText("押金 · 有效")).not.toBeInTheDocument();
+  expect(await screen.findByText("月度综合账单")).toBeInTheDocument();
+  expect(screen.queryByText("押金")).not.toBeInTheDocument();
 });
 it("关联结算的有效账单保留原目标资金历史但不显示独立待收", async () => {
   const billReceipt: RentalCashEntry = {
@@ -538,12 +571,11 @@ it("关联结算的有效账单保留原目标资金历史但不显示独立待�
   );
 
   expect(await screen.findByText("当前补收、退款以合同结算为准。")).toBeInTheDocument();
-  expect(screen.getByText("本账单已收 CNY 300.00")).toBeInTheDocument();
-  expect(screen.getByText("本账单已退 CNY 0.00")).toBeInTheDocument();
+  expect(screen.getByText("本账单已收").parentElement).toHaveTextContent("CNY 300.00");
+  expect(screen.getByText("本账单已退").parentElement).toHaveTextContent("CNY 0.00");
   expect(await screen.findByText(/收款 · CNY 300\.00 · 2026-09-30/)).toBeInTheDocument();
   expect(screen.getByText("已纳入退租结算（settlement-a）")).toBeInTheDocument();
-  expect(screen.queryByText("待收 CNY 500.00")).not.toBeInTheDocument();
-  expect(screen.queryByText("待收 CNY 0.00")).not.toBeInTheDocument();
+  expect(screen.queryByText("待收")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "查看退租结算" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "登记收退款" })).not.toBeInTheDocument();
   expect(financeApi.listCash).toHaveBeenCalledWith(
@@ -588,11 +620,10 @@ it("关联结算的作废账单保留本账单已收已退并隐藏独立可退�
   );
 
   expect(await screen.findByText("当前补收、退款以合同结算为准。")).toBeInTheDocument();
-  expect(screen.getByText("本账单已收 CNY 300.00")).toBeInTheDocument();
-  expect(screen.getByText("本账单已退 CNY 0.00")).toBeInTheDocument();
+  expect(screen.getByText("本账单已收").parentElement).toHaveTextContent("CNY 300.00");
+  expect(screen.getByText("本账单已退").parentElement).toHaveTextContent("CNY 0.00");
   expect(screen.getByRole("button", { name: "查看退租结算" })).toBeInTheDocument();
-  expect(screen.queryByText("可退 CNY 300.00")).not.toBeInTheDocument();
-  expect(screen.queryByText("可退 CNY 0.00")).not.toBeInTheDocument();
+  expect(screen.queryByText("可退")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "登记收退款" })).not.toBeInTheDocument();
 });
 
