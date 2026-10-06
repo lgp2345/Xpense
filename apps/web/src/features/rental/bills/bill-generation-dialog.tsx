@@ -188,7 +188,7 @@ function GenerationSession({ contractId, api, scope, onOpenChange, onGenerated }
         if (!busy) onOpenChange(open);
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
             {scope === "deposits" ? "预览并生成押金账单" : "预览并生成合同应收"}
