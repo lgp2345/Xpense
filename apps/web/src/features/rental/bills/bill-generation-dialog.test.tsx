@@ -5,12 +5,12 @@ import { ApiError } from "../../../services/api-client";
 import { BillGenerationDialog } from "./bill-generation-dialog";
 import { billsApiFixture, previewFixture } from "./bill-test-fixtures";
 
-async function dates() {
+async function dates(autoPreview = false) {
   const input = await screen.findByLabelText("统一押金到期日");
   fireEvent.change(input, { target: { value: "2026/01/01" } });
   fireEvent.blur(input);
   await userEvent.click(screen.getByRole("button", { name: "应用到新增押金" }));
-  await userEvent.click(screen.getByRole("button", { name: "更新预览" }));
+  if (!autoPreview) await userEvent.click(screen.getByRole("button", { name: "更新预览" }));
 }
 describe("完整计划确认", () => {
   it("当前页仅有租金时也能填写所有押金，预览通过后仍可修改各项日期", async () => {
@@ -201,7 +201,7 @@ describe("完整计划确认", () => {
       />,
     );
     expect(await screen.findByText(/新增 6 张/)).toBeInTheDocument();
-    await dates();
+    await dates(true);
     await userEvent.click(screen.getByRole("button", { name: "确认生成" }));
     await userEvent.click(await screen.findByRole("button", { name: "重试原请求" }));
 
@@ -288,7 +288,7 @@ describe("完整计划确认", () => {
     );
 
     expect(await screen.findByText(/新增 6 张/)).toBeInTheDocument();
-    await dates();
+    await dates(true);
     expect(api.previewBills).toHaveBeenCalledTimes(2);
 
     view.rerender(

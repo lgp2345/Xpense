@@ -65,6 +65,7 @@ function GenerationSession({ contractId, api, scope, onOpenChange, onGenerated }
     mounted.current = true;
     return () => {
       mounted.current = false;
+      inFlight.current = false;
       requestSequence.current++;
     };
   }, []);
@@ -113,15 +114,17 @@ function GenerationSession({ contractId, api, scope, onOpenChange, onGenerated }
         setValid(true);
       }
     } catch (cause) {
-      if (mounted.current)
+      if (mounted.current && sequence === requestSequence.current)
         setError(
           cause instanceof ApiError && cause.status === 409
             ? "账单已变化，请重新预览。"
             : "预览失败，请重试。",
         );
     } finally {
-      inFlight.current = false;
-      if (mounted.current) setBusy(false);
+      if (mounted.current && sequence === requestSequence.current) {
+        inFlight.current = false;
+        setBusy(false);
+      }
     }
   };
   // 初次打开只读预览；组织/合同 key 变化创建新的会话并丢弃旧响应。
@@ -133,6 +136,7 @@ function GenerationSession({ contractId, api, scope, onOpenChange, onGenerated }
     setValid(false);
     attempt.current = null;
     setError(null);
+    if (scope === "deposits") void refresh();
   };
   const depositInputs =
     preview?.depositInputs ??
@@ -295,9 +299,11 @@ function GenerationSession({ contractId, api, scope, onOpenChange, onGenerated }
           <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
             关闭
           </Button>
-          <Button variant="outline" disabled={busy} onClick={() => void refresh()}>
-            更新预览
-          </Button>
+          {scope !== "deposits" || (error && !valid) ? (
+            <Button variant="outline" disabled={busy} onClick={() => void refresh()}>
+              {scope === "deposits" ? "重试预览" : "更新预览"}
+            </Button>
+          ) : null}
           <Button
             disabled={busy || !valid || !preview?.canGenerate || preview.createCount === 0}
             onClick={() => void submit()}
