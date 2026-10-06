@@ -1,11 +1,142 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RentalCashEntry } from "@xpense/shared";
 import { expect, it, vi } from "vitest";
 import { ApiError } from "../../../services/api-client";
 import { BillDetailPage } from "./bill-detail-page";
 import { billFixture, billsApiFixture, financeApiFixture } from "./bill-test-fixtures";
+
+it.each([
+  { outstandingMinor: 0, refundableMinor: 0, permission: "rental_receipts:create", visible: false },
+  { outstandingMinor: 0, refundableMinor: 0, permission: "rental_refunds:create", visible: false },
+  {
+    outstandingMinor: 50_000,
+    refundableMinor: 0,
+    permission: "rental_receipts:create",
+    visible: true,
+  },
+  {
+    outstandingMinor: 50_000,
+    refundableMinor: 0,
+    permission: "rental_refunds:create",
+    visible: false,
+  },
+  {
+    outstandingMinor: 0,
+    refundableMinor: 5_000,
+    permission: "rental_refunds:create",
+    visible: true,
+  },
+  {
+    outstandingMinor: 0,
+    refundableMinor: 5_000,
+    permission: "rental_receipts:create",
+    visible: false,
+  },
+] as const)("待收 $outstandingMinor、可退 $refundableMinor、权限 $permission 时按可操作金额显示登记入口", async ({
+  outstandingMinor,
+  refundableMinor,
+  permission,
+  visible,
+}) => {
+  const receivedMinor = 100_000 - outstandingMinor + refundableMinor;
+  const api = billsApiFixture({
+    getBill: vi.fn().mockResolvedValue({
+      ...billFixture,
+      amountMinor: 100_000,
+      modelVersion: 2,
+      financial: {
+        receivedMinor,
+        refundedMinor: 0,
+        netReceivedMinor: receivedMinor,
+        outstandingMinor,
+        refundableMinor,
+        state: outstandingMinor > 0 ? "partial" : refundableMinor > 0 ? "refundable" : "settled",
+        overdue: false,
+        version: "cash-v1",
+      },
+    }),
+  });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <BillDetailPage
+        organizationId="org"
+        billId="bill"
+        api={api}
+        financeApi={financeApiFixture()}
+        permissions={["rental_bills:read", permission]}
+      />
+    </QueryClientProvider>,
+  );
+  await screen.findByRole("heading", { name: billFixture.billNumber });
+  if (visible) expect(screen.getByRole("button", { name: "登记收退款" })).toBeInTheDocument();
+  else expect(screen.queryByRole("button", { name: "登记收退款" })).not.toBeInTheDocument();
+});
+
+it("押金全额登记成功后刷新余额并立即隐藏登记入口", async () => {
+  let registered = false;
+  const api = billsApiFixture({
+    getBill: vi.fn().mockImplementation(async () => ({
+      ...billFixture,
+      type: "deposit",
+      modelVersion: 2,
+      amountMinor: 100_000,
+      financial: {
+        receivedMinor: registered ? 100_000 : 0,
+        refundedMinor: 0,
+        netReceivedMinor: registered ? 100_000 : 0,
+        outstandingMinor: registered ? 0 : 100_000,
+        refundableMinor: 0,
+        state: registered ? "settled" : "unpaid",
+        overdue: false,
+        version: registered ? "cash-v2" : "cash-v1",
+      },
+    })),
+  });
+  const receipt: RentalCashEntry = {
+    id: "receipt",
+    contractId: "contract",
+    target: { kind: "bill", billId: "bill" },
+    kind: "receipt",
+    purpose: "deposit_receipt",
+    amountMinor: 100_000,
+    occurredOn: "2026-10-06",
+    note: null,
+    createdAt: "2026-10-06T00:00:00.000Z",
+    createdByUserId: "user",
+    revokedAt: null,
+    revokedByUserId: null,
+    revokeReason: null,
+  };
+  const financeApi = financeApiFixture({
+    confirmDepositReceipt: vi.fn().mockImplementation(async () => {
+      registered = true;
+      return receipt;
+    }),
+  });
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <BillDetailPage
+        organizationId="org"
+        billId="bill"
+        api={api}
+        financeApi={financeApi}
+        permissions={["rental_bills:read", "rental_receipts:create", "rental_refunds:create"]}
+      />
+    </QueryClientProvider>,
+  );
+  await userEvent.click(await screen.findByRole("button", { name: "登记收退款" }));
+  const date = screen.getByLabelText("收款日期");
+  fireEvent.change(date, { target: { value: "2026/10/06" } });
+  fireEvent.blur(date);
+  await userEvent.click(screen.getByRole("button", { name: "确认押金全额收款" }));
+  await screen.findByText("已收 CNY 1,000.00");
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "登记收退款" })).not.toBeInTheDocument(),
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
 
 it.each([0, 5_000])("依据有效收款 %i 展示费用入口并保留单独读数更正", async (receivedMinor) => {
   const api = billsApiFixture({

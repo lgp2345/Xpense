@@ -48,6 +48,7 @@ function BillsRoutePage({
   return (
     <BillsPage
       api={session.rentalBillsApi}
+      financeApi={session.rentalFinanceApi}
       organizationId={organizationId}
       permissions={permissions}
       search={search}

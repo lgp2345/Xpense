@@ -5,7 +5,7 @@ import { expect, it, vi } from "vitest";
 import { billFixture, billsApiFixture } from "./bill-test-fixtures";
 import { BillsPage } from "./bills-page";
 
-it("恢复 URL 筛选和分页，作废查询仅展示服务端有效分类汇总", async () => {
+it("恢复 URL 筛选和分页，不再展示费用构成汇总", async () => {
   const api = billsApiFixture({
     listBills: vi.fn().mockResolvedValue({
       items: [{ ...billFixture, status: "voided" }],
@@ -32,8 +32,7 @@ it("恢复 URL 筛选和分页，作废查询仅展示服务端有效分类汇�
   );
   expect(await screen.findByText("RB-2026-000001")).toBeInTheDocument();
   expect(screen.getByLabelText("关键词")).toHaveValue("RC");
-  expect(screen.getByText(/有效租金 9,000.00/)).toBeInTheDocument();
-  expect(screen.getByText(/有效押金 3,000.00/)).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "费用构成汇总" })).not.toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "收退款汇总" })).not.toBeInTheDocument();
   expect(screen.queryByText(/有效月度账单/)).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "下一页" }));
@@ -140,10 +139,10 @@ it("新版账单含实际收款时不再宣称收款情况尚未登记", async (
 
   expect(await screen.findByText("RB-2026-000001")).toBeInTheDocument();
   expect(screen.queryByText("本阶段仅记录应收，收款情况尚未登记")).not.toBeInTheDocument();
-  expect(screen.getByText("按条件查询合同账单及费用汇总")).toBeInTheDocument();
+  expect(screen.getByText("按条件查询账单，核对收款与退款余额")).toBeInTheDocument();
 });
 
-it.each([1, 9])("第 %i 页展示全筛选费用与合同结算资金汇总，空页也不丢失金额", async (page) => {
+it.each([1, 9])("第 %i 页保留全筛选收退款汇总，空页也不丢失金额", async (page) => {
   const api = billsApiFixture({
     listBills: vi.fn().mockResolvedValue({
       items: page === 1 ? [{ ...billFixture, type: "monthly", modelVersion: 2 }] : [],
@@ -177,15 +176,14 @@ it.each([1, 9])("第 %i 页展示全筛选费用与合同结算资金汇总，�
     </QueryClientProvider>,
   );
 
-  expect(await screen.findByText("有效月度账单 100.00")).toBeInTheDocument();
-  expect(screen.getByRole("region", { name: "费用构成汇总" })).toBeInTheDocument();
-  expect(screen.getByRole("region", { name: "收退款汇总" })).toBeInTheDocument();
+  expect(await screen.findByRole("region", { name: "收退款汇总" })).toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "费用构成汇总" })).not.toBeInTheDocument();
   expect(screen.getByText("累计已收 1,000.00")).toBeInTheDocument();
   expect(screen.getByText("累计已退 900.00")).toBeInTheDocument();
   expect(screen.getByText("待收 40.00")).toBeInTheDocument();
   expect(screen.getByText("待退 70.00")).toBeInTheDocument();
   expect(
-    screen.getByText("费用按筛选账单统计；已纳入结算的收退与余额按整个合同统计。"),
+    screen.getByText("当前筛选结果汇总。已纳入结算的收退与余额按整个合同统计。"),
   ).toBeInTheDocument();
   if (page === 9) expect(screen.getByText("没有符合条件的账单。")).toBeInTheDocument();
 });

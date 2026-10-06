@@ -138,10 +138,54 @@ describe("账单收退款", () => {
 
   it("已纳入结算的账单不接受原账单目标的收退款", () => {
     const api = financeApiFixture();
-    renderDialog({ ...monthlyBill, settlementId: "settlement-1" }, api);
+    renderDialog(
+      {
+        ...monthlyBill,
+        settlementId: "settlement-1",
+        financial: { ...monthlyBill.financial, refundableMinor: 10000 },
+      },
+      api,
+    );
     expect(screen.getByText(/已纳入退租结算/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "登记本次收款" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "确认全额退款" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("收款日期")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("本次收款金额（元）")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("备注")).not.toBeInTheDocument();
     expect(api.recordReceipt).not.toHaveBeenCalled();
+    expect(api.confirmRefund).not.toHaveBeenCalled();
+  });
+
+  it("提交期间关闭控件和 Escape 都不能关闭收退款弹框", async () => {
+    const user = userEvent.setup();
+    const api = financeApiFixture({
+      recordReceipt: vi.fn(() => new Promise<RentalCashEntry>(() => {})),
+    });
+    const onOpenChange = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <BillReceiptDialog
+          organizationId="org"
+          bill={monthlyBill}
+          api={api}
+          permissions={["rental_receipts:create"]}
+          open
+          onOpenChange={onOpenChange}
+          onUpdated={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText("收款日期"), { target: { value: "2026-08-31" } });
+    await user.type(screen.getByLabelText("本次收款金额（元）"), "250");
+    await user.click(screen.getByRole("button", { name: "登记本次收款" }));
+    await waitFor(() => expect(api.recordReceipt).toHaveBeenCalledOnce());
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByRole("heading", { name: "登记账单收退款" })).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 
   it("账单详情卸载后忽略迟到的收款成功及旧页面刷新", async () => {

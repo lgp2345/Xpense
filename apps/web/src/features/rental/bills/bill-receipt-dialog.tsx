@@ -3,7 +3,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { PermissionKey, RentalBillDetail, RentalCashEntry } from "@xpense/shared";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { DatePickerInput } from "@/components/date-picker";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,14 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ApiError } from "../../../services/api-client";
 import {
@@ -31,10 +23,12 @@ import {
 } from "../../../services/rental-finance-api";
 import { invalidateRentalFinance } from "../../../services/rental-finance-query";
 import { isCalendarDate } from "../contracts/contract-action-model";
+import { type BillCashBatchProps, BillCashBatchSession } from "./bill-cash-batch-dialog";
+import { BillCashDialogFrame, BillCashFormFields } from "./bill-cash-dialog";
 import { formatBillAmount } from "./bill-format";
 import { parseSignedMoneyMinor } from "./monthly-bill-form";
 
-type Props = {
+type SingleProps = {
   organizationId: string;
   bill: RentalBillDetail;
   api: RentalFinanceApi;
@@ -53,7 +47,15 @@ function validationMessage(error: unknown): string | undefined {
   return undefined;
 }
 
-export function BillReceiptDialog(props: Props) {
+export function BillReceiptDialog(props: SingleProps | BillCashBatchProps) {
+  if ("bills" in props) {
+    return props.open ? (
+      <BillCashBatchSession
+        key={`${props.organizationId}:${props.bills.map((bill) => bill.id).join(",")}`}
+        {...props}
+      />
+    ) : null;
+  }
   return props.open ? (
     <ReceiptSession key={`${props.organizationId}:${props.bill.id}`} {...props} />
   ) : null;
@@ -66,7 +68,7 @@ function ReceiptSession({
   permissions,
   onOpenChange,
   onUpdated,
-}: Props) {
+}: SingleProps) {
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [refundConfirm, setRefundConfirm] = useState(false);
@@ -224,162 +226,141 @@ function ReceiptSession({
 
   return (
     <>
-      <Dialog open onOpenChange={(open) => !busy && onOpenChange(open)}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>登记账单收退款</DialogTitle>
-            <DialogDescription>
-              {bill.billNumber} · {formatBillAmount(bill.amountMinor, bill.currencyCode)}
-            </DialogDescription>
-          </DialogHeader>
-          {isInSettlement ? (
-            <p className="rounded-md border bg-muted/40 p-3 text-sm">
-              已纳入退租结算，收退款请在结算记录中处理。
-            </p>
-          ) : balance ? (
-            <form
-              noValidate
-              className="space-y-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                form.setFieldValue("intent", defaultIntent);
-                void form.handleSubmit();
-              }}
-            >
-              <p className="text-sm tabular-nums">
-                已收 {formatBillAmount(balance.receivedMinor, bill.currencyCode)} · 待收{" "}
-                {formatBillAmount(balance.outstandingMinor, bill.currencyCode)} · 可退{" "}
-                {formatBillAmount(balance.refundableMinor, bill.currencyCode)}
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <form.Field name="occurredOn">
-                  {(field) => {
-                    const fieldError = field.state.meta.isTouched
-                      ? validationMessage(field.state.meta.errors[0])
-                      : undefined;
-                    return (
-                      <div className="space-y-1 text-sm">
-                        <span className="block">发生日期</span>
-                        <DatePickerInput
-                          aria-label="收款日期"
-                          aria-invalid={Boolean(fieldError)}
-                          aria-describedby={fieldError ? `${field.name}-error` : undefined}
-                          value={field.state.value}
-                          onChange={(date) => {
-                            field.handleChange(date ?? "");
-                            resetPartialAttempt();
-                            resetDepositAttempt();
-                          }}
-                        />
-                        {fieldError ? (
-                          <p id={`${field.name}-error`} role="alert" className="text-destructive">
-                            {fieldError}
-                          </p>
-                        ) : null}
-                      </div>
-                    );
-                  }}
-                </form.Field>
-                {bill.type !== "deposit" ? (
-                  <form.Field name="amount">
-                    {(field) => {
-                      const fieldError = field.state.meta.isTouched
-                        ? validationMessage(field.state.meta.errors[0])
-                        : undefined;
-                      return (
-                        <label className="space-y-1 text-sm" htmlFor="receipt-amount">
-                          <span>本次收款金额（元）</span>
-                          <Input
-                            aria-label="本次收款金额（元）"
-                            id="receipt-amount"
-                            inputMode="decimal"
-                            value={field.state.value}
-                            aria-invalid={Boolean(fieldError)}
-                            aria-describedby={fieldError ? `${field.name}-error` : undefined}
-                            onChange={(event) => {
-                              field.handleChange(event.target.value);
-                              resetPartialAttempt();
-                            }}
-                          />
-                          {fieldError ? (
-                            <p id={`${field.name}-error`} role="alert" className="text-destructive">
-                              {fieldError}
-                            </p>
-                          ) : null}
-                        </label>
-                      );
-                    }}
-                  </form.Field>
+      <BillCashDialogFrame
+        title="登记账单收退款"
+        description={`${bill.billNumber} · ${formatBillAmount(bill.amountMinor, bill.currencyCode)}`}
+        busy={busy}
+        onOpenChange={onOpenChange}
+        onSubmit={(event) => {
+          event.preventDefault();
+          form.setFieldValue("intent", defaultIntent);
+          void form.handleSubmit();
+        }}
+        footer={
+          !isInSettlement && balance ? (
+            <DialogFooter className="flex flex-wrap gap-2 sm:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {bill.type === "deposit" && balance.outstandingMinor > 0 ? (
+                  <Button
+                    type="button"
+                    disabled={!canConfirmDeposit || busy}
+                    onClick={() => submitIntent("deposit")}
+                  >
+                    确认押金全额收款
+                  </Button>
                 ) : null}
-              </div>
-              <form.Field name="note">
-                {(field) => (
-                  <label className="block space-y-1 text-sm" htmlFor="receipt-note">
-                    <span>备注</span>
-                    <Input
-                      id="receipt-note"
-                      value={field.state.value}
-                      onChange={(event) => {
-                        field.handleChange(event.target.value);
-                        resetPartialAttempt();
-                        resetDepositAttempt();
-                      }}
-                    />
-                  </label>
-                )}
-              </form.Field>
-              {error ? <p role="alert">{error}</p> : null}
-              <DialogFooter className="flex flex-wrap gap-2 sm:justify-between">
-                <div className="flex flex-wrap gap-2">
-                  {bill.type === "deposit" && balance.outstandingMinor > 0 ? (
-                    <Button
-                      type="button"
-                      disabled={!canConfirmDeposit || busy}
-                      onClick={() => submitIntent("deposit")}
-                    >
-                      确认押金全额收款
-                    </Button>
-                  ) : null}
-                  {bill.type !== "deposit" && balance.outstandingMinor > 0 ? (
-                    <Button
-                      type="button"
-                      disabled={!canRecordPartial || busy}
-                      onClick={() => submitIntent("receipt")}
-                    >
-                      登记本次收款
-                    </Button>
-                  ) : null}
-                  {balance.refundableMinor > 0 ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={!canRefund || busy}
-                      onClick={() => setRefundConfirm(true)}
-                    >
-                      确认全额退款
-                    </Button>
-                  ) : null}
-                </div>
-                <div className="flex gap-2">
-                  <button className="sr-only" type="submit" tabIndex={-1} aria-hidden="true">
-                    提交
-                  </button>
+                {bill.type !== "deposit" && balance.outstandingMinor > 0 ? (
+                  <Button
+                    type="button"
+                    disabled={!canRecordPartial || busy}
+                    onClick={() => submitIntent("receipt")}
+                  >
+                    登记本次收款
+                  </Button>
+                ) : null}
+                {balance.refundableMinor > 0 ? (
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => onOpenChange(false)}
-                    disabled={busy}
+                    disabled={!canRefund || busy}
+                    onClick={() => setRefundConfirm(true)}
                   >
-                    关闭
+                    确认全额退款
                   </Button>
-                </div>
-              </DialogFooter>
-            </form>
-          ) : (
-            <p className="text-sm text-muted-foreground">此账单没有可用的 v2 收退款余额。</p>
-          )}
-        </DialogContent>
-      </Dialog>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={busy}
+              >
+                关闭
+              </Button>
+            </DialogFooter>
+          ) : null
+        }
+      >
+        {isInSettlement ? (
+          <p className="rounded-md border bg-muted/40 p-3 text-sm">
+            已纳入退租结算，收退款请在结算记录中处理。
+          </p>
+        ) : balance ? (
+          <div className="space-y-3">
+            <p className="text-sm tabular-nums">
+              已收 {formatBillAmount(balance.receivedMinor, bill.currencyCode)} · 待收{" "}
+              {formatBillAmount(balance.outstandingMinor, bill.currencyCode)} · 可退{" "}
+              {formatBillAmount(balance.refundableMinor, bill.currencyCode)}
+            </p>
+            <form.Field name="occurredOn">
+              {(dateField) => (
+                <form.Field name="note">
+                  {(noteField) => (
+                    <BillCashFormFields
+                      occurredOn={dateField.state.value}
+                      note={noteField.state.value}
+                      dateError={
+                        dateField.state.meta.isTouched
+                          ? validationMessage(dateField.state.meta.errors[0])
+                          : undefined
+                      }
+                      onDateChange={(value) => {
+                        dateField.handleChange(value);
+                        resetPartialAttempt();
+                        resetDepositAttempt();
+                      }}
+                      onNoteChange={(value) => {
+                        noteField.handleChange(value);
+                        resetPartialAttempt();
+                        resetDepositAttempt();
+                      }}
+                    >
+                      {bill.type !== "deposit" ? (
+                        <form.Field name="amount">
+                          {(field) => {
+                            const fieldError = field.state.meta.isTouched
+                              ? validationMessage(field.state.meta.errors[0])
+                              : undefined;
+                            return (
+                              <label className="space-y-1 text-sm" htmlFor="receipt-amount">
+                                <span>本次收款金额（元）</span>
+                                <Input
+                                  aria-label="本次收款金额（元）"
+                                  id="receipt-amount"
+                                  inputMode="decimal"
+                                  value={field.state.value}
+                                  aria-invalid={Boolean(fieldError)}
+                                  aria-describedby={fieldError ? `${field.name}-error` : undefined}
+                                  onChange={(event) => {
+                                    field.handleChange(event.target.value);
+                                    resetPartialAttempt();
+                                  }}
+                                />
+                                {fieldError ? (
+                                  <p
+                                    id={`${field.name}-error`}
+                                    role="alert"
+                                    className="text-destructive"
+                                  >
+                                    {fieldError}
+                                  </p>
+                                ) : null}
+                              </label>
+                            );
+                          }}
+                        </form.Field>
+                      ) : null}
+                    </BillCashFormFields>
+                  )}
+                </form.Field>
+              )}
+            </form.Field>
+            {error ? <p role="alert">{error}</p> : null}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">此账单没有可用的 v2 收退款余额。</p>
+        )}
+      </BillCashDialogFrame>
       <AlertDialog open={refundConfirm} onOpenChange={setRefundConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>

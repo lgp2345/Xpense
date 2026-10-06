@@ -147,8 +147,10 @@ export function BillDetailPage({
             ) : null}
             {financeApi &&
             !bill.settlementId &&
-            (permissions.includes("rental_receipts:create") ||
-              permissions.includes("rental_refunds:create")) ? (
+            ((permissions.includes("rental_receipts:create") &&
+              bill.financial.outstandingMinor > 0) ||
+              (permissions.includes("rental_refunds:create") &&
+                bill.financial.refundableMinor > 0)) ? (
               <Button variant="outline" onClick={() => setReceiptOpen(true)}>
                 登记收退款
               </Button>
