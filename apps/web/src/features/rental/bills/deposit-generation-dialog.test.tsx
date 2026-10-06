@@ -68,7 +68,7 @@ describe("押金账单自动预览", () => {
     const unified = await screen.findByLabelText("统一押金到期日");
     fireEvent.change(unified, { target: { value: "2026/01/01" } });
     fireEvent.blur(unified);
-    await userEvent.click(screen.getByRole("button", { name: "应用到新增押金" }));
+    await userEvent.click(screen.getByRole("button", { name: "填入全部待生成账单" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
 
     const secondDate = screen.getByLabelText("押金（2）到期日");
@@ -110,7 +110,7 @@ describe("押金账单自动预览", () => {
     const unified = await screen.findByLabelText("统一押金到期日");
     fireEvent.change(unified, { target: { value: "2026/01/01" } });
     fireEvent.blur(unified);
-    await userEvent.click(screen.getByRole("button", { name: "应用到新增押金" }));
+    await userEvent.click(screen.getByRole("button", { name: "填入全部待生成账单" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "确认生成" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("请重新预览");

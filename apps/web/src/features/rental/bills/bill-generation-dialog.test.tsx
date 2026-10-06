@@ -9,7 +9,9 @@ async function dates(autoPreview = false) {
   const input = await screen.findByLabelText("统一押金到期日");
   fireEvent.change(input, { target: { value: "2026/01/01" } });
   fireEvent.blur(input);
-  await userEvent.click(screen.getByRole("button", { name: "应用到新增押金" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: autoPreview ? "填入全部待生成账单" : "应用到新增押金" }),
+  );
   if (!autoPreview) await userEvent.click(screen.getByRole("button", { name: "更新预览" }));
 }
 describe("完整计划确认", () => {
