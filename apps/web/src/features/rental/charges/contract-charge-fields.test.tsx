@@ -49,8 +49,8 @@ describe("共用月度收费字段", () => {
     expect(input).toHaveAttribute("readonly");
     await user.type(input, "改名");
     expect(input).toHaveValue(name);
-    await user.type(screen.getByLabelText("月费金额 1"), "25.50");
-    expect(screen.getByLabelText("月费金额 1")).toHaveValue("25.50");
+    await user.type(screen.getByLabelText("每期金额 1"), "25.50");
+    expect(screen.getByLabelText("每期金额 1")).toHaveValue("25.50");
     await user.click(screen.getByRole("button", { name: "移除事项 1" }));
     expect(screen.queryByLabelText("事项名称 1")).not.toBeInTheDocument();
   });
@@ -91,8 +91,8 @@ describe("共用月度收费字段", () => {
     expect(screen.queryByLabelText("水费单价（元）")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "管理费" }));
     expect(screen.getByLabelText("事项名称 1")).toHaveValue("管理费");
-    await user.type(screen.getByLabelText("月费金额 1"), "50");
-    expect(screen.getByLabelText("月费金额 1")).toHaveValue("50");
+    await user.type(screen.getByLabelText("每期金额 1"), "50");
+    expect(screen.getByLabelText("每期金额 1")).toHaveValue("50");
     await user.click(screen.getByRole("button", { name: "移除事项 1" }));
     expect(screen.queryByLabelText("事项名称 1")).not.toBeInTheDocument();
   });

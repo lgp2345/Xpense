@@ -1,6 +1,6 @@
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 
-type FinanceResource = "charges" | "meters" | "bills" | "cash" | "settlements";
+type FinanceResource = "charges" | "meters" | "bills" | "cash" | "settlements" | "period-context";
 type FinanceFilters = Readonly<Record<string, string | number | boolean | undefined>>;
 
 function key(
@@ -15,6 +15,8 @@ function key(
 /** 租赁财务查询的组织、资源、资源标识和筛选边界。 */
 export const rentalFinanceKeys = {
   root: (organizationId: string) => ["rental", organizationId, "finance"] as const,
+  periodBillContext: (organizationId: string, contractId: string, page = 1, pageSize = 20) =>
+    key(organizationId, "period-context", contractId, { page, pageSize }),
   chargeTerms: (organizationId: string, contractId: string) =>
     key(organizationId, "charges", contractId),
   meterBaseline: (organizationId: string, contractId: string) =>
@@ -81,7 +83,8 @@ export async function invalidateRentalFinance(
       if (queryKey[2] === "finance") {
         const resource = queryKey[3];
         return (
-          (resource === "charges" ||
+          (resource === "period-context" ||
+            resource === "charges" ||
             resource === "meters" ||
             resource === "bills" ||
             resource === "cash" ||

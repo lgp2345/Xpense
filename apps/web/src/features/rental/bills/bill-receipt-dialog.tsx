@@ -26,7 +26,7 @@ import { isCalendarDate } from "../contracts/contract-action-model";
 import { type BillCashBatchProps, BillCashBatchSession } from "./bill-cash-batch-dialog";
 import { BillCashDialogFrame, BillCashFormFields } from "./bill-cash-dialog";
 import { formatBillAmount } from "./bill-format";
-import { parseSignedMoneyMinor } from "./monthly-bill-form";
+import { parseSignedMoneyMinor } from "./period-bill-form";
 
 type SingleProps = {
   organizationId: string;
@@ -83,7 +83,7 @@ function ReceiptSession({
       mounted.current = false;
     };
   }, []);
-  const balance = bill.modelVersion === 2 ? bill.financial : undefined;
+  const balance = bill.financial;
   const isInSettlement = Boolean(bill.settlementId);
   const defaultIntent: Intent = bill.type === "deposit" ? "deposit" : "receipt";
   const canRecordPartial = Boolean(

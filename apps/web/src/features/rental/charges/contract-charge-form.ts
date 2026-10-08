@@ -62,7 +62,7 @@ export const contractChargeFormSchema = z
           .string()
           .refine(
             (value) => parseFixedFeeAmount(value) !== null,
-            "请输入非负且最多两位小数的月费金额",
+            "请输入非负且最多两位小数的每期金额",
           ),
       }),
     ),

@@ -1,4 +1,9 @@
 import type {
+  RentalPeriodBillContext,
+  RentalPeriodBillPreview,
+  PreviewRentalPeriodBillRequest,
+  GenerateRentalPeriodBillRequest,
+  VoidRentalPeriodBillRequest,
   ConfirmRentalDepositReceiptRequest,
   ConfirmRentalRefundRequest,
   ConfirmRentalSettlementRequest,
@@ -101,21 +106,20 @@ export function createRentalFinanceApi(client: ApiClient) {
       ),
     updateMeterBaseline: (input: UpdateRentalMeterBaselineRequest) =>
       client.post<RentalMeterBaseline>("/rental-meters/update", input),
-    previewMonthlyBill: (input: PreviewRentalMonthlyBillRequest, options?: ApiRequestOptions) =>
-      client.post<RentalMonthlyBillPreview>("/rental-monthly-bills/preview", input, options),
-    generateMonthlyBill: (input: GenerateRentalMonthlyBillRequest) =>
-      client.post<RentalBillDetail>("/rental-monthly-bills/generate", input),
-    previewBillRevision: (
-      input: Omit<RentalBillRevisionInput, "idempotencyKey">,
+    getPeriodBillContext: (
+      input: { contractId: string; page?: number; pageSize?: number },
       options?: ApiRequestOptions,
     ) =>
-      client.post<RentalBillRevisionPreview>(
-        "/rental-monthly-bills/adjust-preview",
-        input,
+      client.get<RentalPeriodBillContext>(
+        `/rental-period-bills/context${queryString({ contractId: input.contractId, page: input.page ?? 1, pageSize: input.pageSize ?? 20 })}`,
         options,
       ),
-    adjustBill: (input: AdjustRentalBillRequest) =>
-      client.post<RentalBillRevisionPreview>("/rental-monthly-bills/adjust", input),
+    previewPeriodBill: (input: PreviewRentalPeriodBillRequest, options?: ApiRequestOptions) =>
+      client.post<RentalPeriodBillPreview>("/rental-period-bills/preview", input, options),
+    generatePeriodBill: (input: GenerateRentalPeriodBillRequest) =>
+      client.post<RentalBillDetail>("/rental-period-bills/generate", input),
+    voidPeriodBill: (input: VoidRentalPeriodBillRequest) =>
+      client.post<RentalBillDetail>("/rental-period-bills/void", input),
     recordReceipt: (input: RecordRentalReceiptRequest) =>
       client.post<RentalCashEntry>("/rental-receipts/create", input),
     confirmDepositReceipt: (input: ConfirmRentalDepositReceiptRequest) =>

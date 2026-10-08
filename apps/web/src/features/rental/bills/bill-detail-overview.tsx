@@ -16,7 +16,7 @@ export function BillDetailOverview({
   navigate?: UseNavigateResult<"/rentals/bills/$billId">;
   children?: ReactNode;
 }) {
-  const financial = bill.modelVersion === 2 ? bill.financial : null;
+  const financial = bill.financial;
   const metrics = financial
     ? [
         { label: bill.settlementId ? "本账单已收" : "已收", amount: financial.receivedMinor },
@@ -40,9 +40,7 @@ export function BillDetailOverview({
       </Button>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="break-all text-2xl font-bold">{bill.billNumber}</h1>
-        <Badge variant="secondary">
-          {bill.type === "rent" ? "租金" : bill.type === "deposit" ? "押金" : "月度综合账单"}
-        </Badge>
+        <Badge variant="secondary">{bill.type === "deposit" ? "押金" : "账期账单"}</Badge>
         <Badge
           variant="secondary"
           className={
@@ -96,20 +94,9 @@ export function BillDetailOverview({
       </div>
       {bill.periodStart ? (
         <div className="space-y-1 text-xs text-muted-foreground">
-          {bill.type === "monthly" ? (
-            <p>
-              账单费用覆盖期间：{bill.periodStart} 至 {bill.periodEnd}
-            </p>
-          ) : bill.type === "rent" ? (
-            <>
-              <p>
-                原付款账期：{bill.periodStart} 至 {bill.periodEnd}
-              </p>
-              <p>
-                实际计租范围：{bill.periodStart} 至 {bill.effectiveEnd}
-              </p>
-            </>
-          ) : null}
+          <p>
+            账期：{bill.periodStart} 至 {bill.periodEnd}
+          </p>
         </div>
       ) : null}
       <div className="rounded-lg border bg-card text-card-foreground">
@@ -131,10 +118,6 @@ export function BillDetailOverview({
                 </div>
               ))}
             </dl>
-          ) : bill.modelVersion !== 2 ? (
-            <p className="self-center text-sm text-muted-foreground">
-              本阶段仅记录应收，收款情况尚未登记
-            </p>
           ) : null}
         </div>
         {bill.settlementId && financial ? (

@@ -16,7 +16,7 @@ import {
   type RentalFinanceApi,
 } from "../../../services/rental-finance-api";
 import { invalidateRentalFinance, rentalFinanceKeys } from "../../../services/rental-finance-query";
-import { parseSignedMoneyMinor } from "../bills/monthly-bill-form";
+import { parseSignedMoneyMinor } from "../bills/period-bill-form";
 import {
   FieldInput,
   fieldMessage,

@@ -1,6 +1,6 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { RentalBillingMode } from "@xpense/shared";
+import type { PermissionKey } from "@xpense/shared";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,31 +14,26 @@ import {
   type ContractBillFiltersValue,
   contractBillFiltersSchema,
 } from "./contract-bill-filters";
-import {
-  LegacyContractBillsSection,
-  type LegacyContractBillsSectionProps,
-} from "./legacy-contract-bills-section";
-import { MonthlyBillDialog } from "./monthly-bill-dialog";
-
-type Props = LegacyContractBillsSectionProps & {
-  billingMode?: RentalBillingMode;
+import type { RentalBillsApi } from "../../../services/rental-bills-api";
+import { PeriodBillDialog } from "./period-bill-dialog";
+type Props = {
+  organizationId: string;
+  contractId: string;
+  api: RentalBillsApi;
   financeApi?: RentalFinanceApi;
+  permissions: readonly PermissionKey[];
+  canGenerate?: boolean;
+  onNavigate?: (id: string) => void;
 };
-
-export function ContractBillsSection(props: Props) {
-  if (props.billingMode === "monthly_settlement" && props.financeApi)
-    return <MonthlyContractBillsSection {...props} financeApi={props.financeApi} />;
-  return <LegacyContractBillsSection {...props} />;
-}
-
-function MonthlyContractBillsSection({
+export function ContractBillsSection({
   organizationId,
   contractId,
   api,
   financeApi,
   permissions,
   onNavigate,
-}: Props & { financeApi: RentalFinanceApi }) {
+  canGenerate: billingOpen = true,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const form = useForm({
@@ -62,21 +57,25 @@ function MonthlyContractBillsSection({
   });
   if (!read) return null;
   const canGenerate =
+    billingOpen &&
+    Boolean(financeApi) &&
     permissions.includes("rental_contracts:read") &&
-    permissions.includes("rental_monthly_bills:generate");
+    permissions.includes("rental_period_bills:generate");
   const canGenerateDeposits =
-    permissions.includes("rental_contracts:read") && permissions.includes("rental_bills:generate");
+    billingOpen &&
+    permissions.includes("rental_contracts:read") &&
+    permissions.includes("rental_bills:generate");
   return (
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-        <CardTitle>月度综合账单</CardTitle>
+        <CardTitle>合同账单</CardTitle>
         <div className="flex flex-wrap gap-2">
           {canGenerateDeposits ? (
             <Button variant="outline" onClick={() => setDepositOpen(true)}>
               生成押金账单
             </Button>
           ) : null}
-          {canGenerate ? <Button onClick={() => setOpen(true)}>生成本月账单</Button> : null}
+          {canGenerate ? <Button onClick={() => setOpen(true)}>生成下一张账单</Button> : null}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -84,7 +83,6 @@ function MonthlyContractBillsSection({
           租金只读；电、水、固定费用与额外费用均以服务端预览为准。
         </p>
         <ContractBillFilters
-          monthly
           values={filters}
           onTypeChange={(value) => form.setFieldValue("type", value)}
           onStatusChange={(value) => form.setFieldValue("status", value)}
@@ -107,7 +105,7 @@ function MonthlyContractBillsSection({
         {query.data && list.data ? (
           <>
             <p className="text-sm tabular-nums">
-              有效月度账单 {formatMoney(query.data.totals.periodAmountMinor ?? 0)}
+              有效普通账单 {formatMoney(query.data.totals.periodAmountMinor ?? 0)}
             </p>
             {list.data.items.length ? (
               <ul className="divide-y">
@@ -129,8 +127,10 @@ function MonthlyContractBillsSection({
                         <span>{bill.billNumber}</span>
                       )}
                       <p>
-                        {bill.billingMonth ?? bill.dueDate.slice(0, 7)} ·{" "}
-                        {bill.status === "active" ? "有效" : "作废"}
+                        {bill.type === "deposit"
+                          ? "押金"
+                          : `${bill.periodStart} 至 ${bill.periodEnd}`}{" "}
+                        · {bill.status === "active" ? "有效" : "作废"}
                         {bill.settlementId ? " · 已纳入退租结算" : ""}
                       </p>
                     </div>
@@ -147,20 +147,22 @@ function MonthlyContractBillsSection({
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">尚无符合条件的月度账单。</p>
+              <p className="text-sm text-muted-foreground">尚无符合条件的账期账单。</p>
             )}
           </>
         ) : null}
-        <MonthlyBillDialog
-          organizationId={organizationId}
-          contractId={contractId}
-          api={financeApi}
-          open={open}
-          onOpenChange={setOpen}
-          onGenerated={() => {
-            void invalidateRentalFinance(queryClient, organizationId, contractId);
-          }}
-        />
+        {financeApi ? (
+          <PeriodBillDialog
+            organizationId={organizationId}
+            contractId={contractId}
+            api={financeApi}
+            open={open}
+            onOpenChange={setOpen}
+            onGenerated={() => {
+              void invalidateRentalFinance(queryClient, organizationId, contractId);
+            }}
+          />
+        ) : null}
         <BillGenerationDialog
           organizationId={organizationId}
           contractId={contractId}

@@ -21,7 +21,7 @@ import {
 } from "../../../services/rental-finance-api";
 import { invalidateRentalFinance } from "../../../services/rental-finance-query";
 import { formatBillAmount } from "../bills/bill-format";
-import { parseSignedMoneyMinor } from "../bills/monthly-bill-form";
+import { parseSignedMoneyMinor } from "../bills/period-bill-form";
 import { SettlementCashHistory } from "./settlement-history";
 import { DateField, MoneyField, TextField } from "./settlement-preview";
 

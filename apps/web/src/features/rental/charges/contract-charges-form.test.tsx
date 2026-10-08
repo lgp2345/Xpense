@@ -49,7 +49,7 @@ describe("合同收费标准表单", () => {
     expect(screen.getByRole("button", { name: "保存收费标准" })).toBeDisabled();
   });
 
-  it("保留固定月费的逐键金额中间态，并将无效金额定位到字段", async () => {
+  it("保留每期固定费的逐键金额中间态，并将无效金额定位到字段", async () => {
     const user = userEvent.setup();
     const api = financeApiFixture();
     render(
@@ -61,14 +61,14 @@ describe("合同收费标准表单", () => {
         onSaved={vi.fn()}
       />,
     );
-    const amount = screen.getByLabelText("月费金额 1");
+    const amount = screen.getByLabelText("每期金额 1");
     await user.clear(amount);
     await user.type(amount, "12.");
     expect(amount).toHaveValue("12.");
 
     await user.click(screen.getByRole("button", { name: "保存收费标准" }));
     expect(
-      await screen.findByText("请输入非负且最多两位小数的月费金额", { selector: "[role=alert]" }),
+      await screen.findByText("请输入非负且最多两位小数的每期金额", { selector: "[role=alert]" }),
     ).toBeInTheDocument();
     expect(amount).toHaveAttribute("aria-invalid", "true");
     expect(api.updateChargeTerms).not.toHaveBeenCalled();
@@ -138,7 +138,7 @@ describe("合同收费标准表单", () => {
     expect(onSaved).not.toHaveBeenCalled();
   });
 
-  it("安全整数上界附近的固定月费回填与提交仍精确保留最小单位", async () => {
+  it("安全整数上界附近的每期固定费回填与提交仍精确保留最小单位", async () => {
     const user = userEvent.setup();
     const api = financeApiFixture();
     const terms = {
@@ -160,7 +160,7 @@ describe("合同收费标准表单", () => {
         onSaved={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("月费金额 1")).toHaveValue("90071992547409.90");
+    expect(screen.getByLabelText("每期金额 1")).toHaveValue("90071992547409.90");
     await user.type(screen.getByLabelText("收费标准变更原因"), "复核");
     await user.click(screen.getByRole("button", { name: "保存收费标准" }));
     await waitFor(() =>

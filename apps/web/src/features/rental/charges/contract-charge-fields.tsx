@@ -66,7 +66,7 @@ export function ContractChargeFields({
         <h3 id={`${prefix}-title`} className="text-base font-semibold">
           月度收费事项
         </h3>
-        <p className="text-xs leading-5 text-muted-foreground">统一设置水电代收与固定月费。</p>
+        <p className="text-xs leading-5 text-muted-foreground">统一设置水电代收与每期固定费。</p>
       </div>
       <div className="space-y-3">
         <h4 className="text-sm font-medium">水电代收</h4>
@@ -145,7 +145,7 @@ export function ContractChargeFields({
       </div>
       <div className="space-y-4 border-t pt-4">
         <div className="space-y-1">
-          <h4 className="text-sm font-medium">固定月费</h4>
+          <h4 className="text-sm font-medium">每期固定费</h4>
           <p className="text-xs leading-5 text-muted-foreground">
             按月收取，不足月按整月计费。默认事项名称不可修改。
           </p>
@@ -178,7 +178,7 @@ export function ContractChargeFields({
               {message(`fixedFees.${index}.name`)}
             </div>
             <div className="space-y-2">
-              <Label htmlFor={`${prefix}-${fee.id}-amount`}>月费金额 {index + 1}</Label>
+              <Label htmlFor={`${prefix}-${fee.id}-amount`}>每期金额 {index + 1}</Label>
               <Input
                 id={`${prefix}-${fee.id}-amount`}
                 {...feedback(`fixedFees.${index}.amount`)}
@@ -266,7 +266,7 @@ export function ContractChargeSummary({ value }: { value: ContractChargeFormValu
       ))}
       {value.fixedFees.map((fee) => (
         <p key={fee.id} className="tabular-nums">
-          {fee.name}：{fee.amount} 元/月
+          {fee.name}：{fee.amount} 元/期
         </p>
       ))}
     </div>

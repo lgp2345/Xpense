@@ -72,15 +72,7 @@ export function ContractActions({
     (state: TerminationBillingState) => setFinancial({ ...state, date: financialDate }),
     [financialDate],
   );
-  const needsFinancialCheck = Boolean(
-    billsApi &&
-      contract.billingMode !== "monthly_settlement" &&
-      permissions.includes("rental_bills:read") &&
-      dialog.tag === "open" &&
-      dialog.kind === "terminate",
-  );
-  const financialReady =
-    !needsFinancialCheck || (financial.date === financialDate && financial.ready);
+  const financialReady = true;
   const contextKey = `${organizationId}:${contract.id}`;
   const liveContextRef = useRef(contextKey);
   liveContextRef.current = contextKey;
@@ -300,30 +292,14 @@ export function ContractActions({
               {dialog.tag === "open" && dialog.kind === "cancel"
                 ? "取消合同会作废全部有效账单，保留历史记录。"
                 : dialog.tag === "open" && dialog.kind === "revoke"
-                  ? contract.billingMode === "monthly_settlement"
-                    ? "撤销预定终止会恢复合同原租期，不修改已生成的月度账单和收退款记录。"
-                    : "撤销终止会作废本次终止替代账单；原作废账单不会自动恢复，请重新预览补齐。"
+                  ? "撤销预定终止会恢复合同原租期，已生成账单和收退款记录保留。"
                   : "请确认操作并填写必要信息，最终结果以服务端校验为准。"}
             </DialogDescription>
           </DialogHeader>
           {dialog.tag === "open" && dialog.kind !== "delete" && dialog.kind !== "renew" ? (
             <ActionFields state={dialog} onChange={update} />
           ) : null}
-          {dialog.tag === "open" &&
-          dialog.kind === "terminate" &&
-          billsApi &&
-          contract.billingMode !== "monthly_settlement" &&
-          permissions.includes("rental_bills:read") ? (
-            <ContractTerminationBilling
-              key={`${contextKey}:${dialog.terminationDate}`}
-              api={billsApi}
-              organizationId={organizationId}
-              contractId={contract.id}
-              terminationDate={dialog.terminationDate}
-              canAdjust={permissions.includes("rental_bills:adjust")}
-              onChange={onFinancialChange}
-            />
-          ) : null}
+
           {dialog.tag === "open" && dialog.submitError ? (
             <p role="alert" className="text-sm text-destructive">
               {dialog.submitError}

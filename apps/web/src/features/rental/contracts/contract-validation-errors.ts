@@ -13,7 +13,6 @@ export function validateContractValues(values: ContractFormValues, scope: Contra
       };
     }
     return stepSchemas.spaces.safeParse({
-      billingMode: values.billingMode,
       propertyId: values.propertyId,
       spaces: values.spaces,
     });

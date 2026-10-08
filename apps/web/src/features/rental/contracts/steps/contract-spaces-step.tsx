@@ -80,7 +80,7 @@ function ContractSpacesStepContent({
   seedSpaceIds,
   onNames,
 }: ContractSpacesStepProps) {
-  const legacy = values.billingMode === 'legacy_receivable'
+  const legacy = false
   const errors = useContext(ContractFieldErrorsContext)
   const propertyFeedback = useContractFieldFeedback('propertyId')
   const [keyword, setKeyword] = useState('')

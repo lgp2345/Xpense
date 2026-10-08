@@ -34,8 +34,8 @@ export function BillCashBatchItems({
                   {bill.propertyName} ·{" "}
                   {bill.type === "deposit"
                     ? "押金"
-                    : bill.type === "monthly"
-                      ? "月度综合账单"
+                    : bill.type === "period"
+                      ? "账期账单"
                       : "租金"}
                 </p>
               </div>

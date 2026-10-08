@@ -25,7 +25,7 @@ import { BillCashBatchItems, BillCashBatchSummary } from "./bill-cash-batch-item
 import { BillCashDialogFrame, BillCashFormFields } from "./bill-cash-dialog";
 import { billCashBatchSchema, canRegisterBillReceipt, cashAmountText } from "./bill-cash-model";
 import { formatBillAmount } from "./bill-format";
-import { parseSignedMoneyMinor } from "./monthly-bill-form";
+import { parseSignedMoneyMinor } from "./period-bill-form";
 
 export type BillCashBatchProps = {
   organizationId: string;

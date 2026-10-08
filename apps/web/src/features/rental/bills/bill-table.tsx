@@ -109,7 +109,7 @@ export function BillTable({
               ) : null}
             </TableCell>
             <TableCell className="align-top text-xs tabular-nums">
-              {bill.modelVersion === 2 && bill.financial ? (
+              {bill.financial ? (
                 <div className="space-y-1">
                   <p className="font-medium">
                     已收 {formatBillAmount(bill.financial.receivedMinor, bill.currencyCode)}
@@ -137,7 +137,7 @@ export function BillTable({
             <TableCell className="max-w-48 whitespace-normal break-words">
               {bill.propertyName}
               <p className="mt-1 text-xs text-muted-foreground">
-                {bill.type === "rent" ? "租金" : bill.type === "deposit" ? "押金" : "月度综合账单"}
+                {bill.type === "period" ? "租金" : bill.type === "deposit" ? "押金" : "账期账单"}
               </p>
             </TableCell>
             <TableCell>

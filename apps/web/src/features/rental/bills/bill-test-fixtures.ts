@@ -30,10 +30,23 @@ export function financeApiFixture(overrides: Partial<RentalFinanceApi> = {}): Re
     updateChargeTerms: vi.fn().mockResolvedValue(chargeTermsFixture),
     getMeterBaseline: vi.fn().mockResolvedValue(meterBaselineFixture),
     updateMeterBaseline: vi.fn().mockResolvedValue(meterBaselineFixture),
-    previewMonthlyBill: vi.fn().mockResolvedValue({}),
-    generateMonthlyBill: vi.fn().mockResolvedValue(billFixture),
-    previewBillRevision: vi.fn().mockResolvedValue({}),
-    adjustBill: vi.fn().mockResolvedValue({}),
+    getPeriodBillContext: vi.fn().mockResolvedValue(periodContextFixture),
+    previewPeriodBill: vi
+      .fn()
+      .mockImplementation(async (input) => ({
+        version: "preview-v1",
+        period: { periodStart: input.periodStart, periodEnd: "2026-11-04" },
+        dueDate: input.dueDate,
+        defaults: chargeTermsFixture,
+        baselineReadings: periodContextFixture.baselineReadings,
+        defaultReadings: periodContextFixture.defaultReadings,
+        lines: [],
+        amountMinor: 300000,
+        canConfirm: true,
+        missingFields: [],
+      })),
+    generatePeriodBill: vi.fn().mockResolvedValue(billFixture),
+    voidPeriodBill: vi.fn().mockResolvedValue({ ...billFixture, status: "voided" }),
     recordReceipt: vi.fn().mockResolvedValue({}),
     confirmDepositReceipt: vi.fn().mockResolvedValue({}),
     confirmRefund: vi.fn().mockResolvedValue({}),
@@ -49,7 +62,7 @@ export function financeApiFixture(overrides: Partial<RentalFinanceApi> = {}): Re
 }
 export const previewFixture: RentalBillPreview = {
   items: Array.from({ length: 6 }, (_, index) => ({
-    type: index < 4 ? "rent" : "deposit",
+    type: index < 4 ? "period" : "deposit",
     sourceKey: `source-${index}`,
     periodStart: index < 4 ? "2026-01-01" : null,
     periodEnd: index < 4 ? "2026-03-31" : null,
@@ -80,7 +93,7 @@ export const billFixture: RentalBillDetail = {
   propertyId: "property",
   propertyName: "生成时房产",
   currencyCode: "CNY",
-  type: "rent",
+  type: "period",
   status: "active",
   sourceKey: "rent:2026-01-01:2026-03-31",
   periodStart: "2026-01-01",
@@ -105,6 +118,9 @@ export const billFixture: RentalBillDetail = {
   voidedAt: null,
   voidedBy: null,
   history: [],
+  version: "bill-v1",
+  canVoid: true,
+  voidBlockedReason: null,
 };
 export function billsApiFixture(overrides: Partial<RentalBillsApi> = {}): RentalBillsApi {
   return {
@@ -149,3 +165,30 @@ export function billsApiFixture(overrides: Partial<RentalBillsApi> = {}): Rental
     ...overrides,
   };
 }
+
+export const periodContextFixture: import("@xpense/shared").RentalPeriodBillContext = {
+  version: "context-v1",
+  billingStart: null,
+  canSelectBillingStart: true,
+  nextPeriod: { periodStart: "2026-10-05", periodEnd: "2026-11-04" },
+  defaultDueDate: "2026-10-05",
+  defaults: chargeTermsFixture,
+  baselineReadings: [
+    { kind: "water", readingDate: "2026-10-05", reading: "3500" },
+    { kind: "electricity", readingDate: "2026-10-05", reading: "50" },
+  ],
+  defaultReadings: [
+    { kind: "water", readingDate: "2026-10-08", reading: "3500" },
+    { kind: "electricity", readingDate: "2026-10-08", reading: "50" },
+  ],
+  selectablePeriods: {
+    items: [
+      { periodStart: "2026-10-05", periodEnd: "2026-11-04" },
+      { periodStart: "2026-11-05", periodEnd: "2026-12-04" },
+    ],
+    total: 2,
+    page: 1,
+    pageSize: 20,
+  },
+  missingFields: [],
+};

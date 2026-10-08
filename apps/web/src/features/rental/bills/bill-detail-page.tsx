@@ -11,7 +11,7 @@ import { BillCashHistory } from "./bill-cash-history";
 import { BillDetailOverview } from "./bill-detail-overview";
 import { BillDetailSections } from "./bill-detail-sections";
 import { BillReceiptDialog } from "./bill-receipt-dialog";
-import { BillRevisionDialog } from "./bill-revision-dialog";
+import { BillVoidDialog } from "./bill-void-dialog";
 import { BillSourceHistory } from "./bill-source-history";
 export function BillDetailPage({
   organizationId,
@@ -29,8 +29,7 @@ export function BillDetailPage({
   navigate?: UseNavigateResult<"/rentals/bills/$billId">;
 }) {
   const [receiptOpen, setReceiptOpen] = useState(false);
-  const [revisionOpen, setRevisionOpen] = useState(false);
-  const [revisionIntent, setRevisionIntent] = useState<"fees" | "readings">("fees");
+  const [voidOpen, setVoidOpen] = useState(false);
   const read = permissions.includes("rental_bills:read");
   const query = useQuery({
     ...rentalBillsQueryOptions.detail(api, organizationId, billId),
@@ -71,17 +70,11 @@ export function BillDetailPage({
     bill.financial &&
     ((permissions.includes("rental_receipts:create") && bill.financial.outstandingMinor > 0) ||
       (permissions.includes("rental_refunds:create") && bill.financial.refundableMinor > 0));
-  const canAdjust =
-    financeApi &&
-    bill.type === "monthly" &&
-    bill.status === "active" &&
-    permissions.includes("rental_monthly_bills:adjust");
+  const canVoid = financeApi && bill.canVoid && permissions.includes("rental_period_bills:void");
   return (
     <main className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8">
       <BillDetailOverview bill={bill} navigate={navigate}>
-        {bill.modelVersion === 2 &&
-        bill.financial &&
-        (canViewSettlement || canRegisterCash || canAdjust) ? (
+        {bill.financial && (canViewSettlement || canRegisterCash || canVoid) ? (
           <div className="flex flex-wrap items-center gap-2">
             {canViewSettlement ? (
               <Button
@@ -101,38 +94,16 @@ export function BillDetailPage({
                 登记收退款
               </Button>
             ) : null}
-            {canAdjust ? (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setRevisionIntent("fees");
-                    setRevisionOpen(true);
-                  }}
-                >
-                  {bill.financial.receivedMinor === 0 ? "编辑本期费用" : "更正账单"}
-                </Button>
-                {bill.lines.some(
-                  ({ feeSnapshot }) =>
-                    feeSnapshot?.kind === "water" || feeSnapshot?.kind === "electricity",
-                ) ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setRevisionIntent("readings");
-                      setRevisionOpen(true);
-                    }}
-                  >
-                    更正真实读数
-                  </Button>
-                ) : null}
-              </>
+            {canVoid ? (
+              <Button variant="outline" onClick={() => setVoidOpen(true)}>
+                作废末期账单
+              </Button>
             ) : null}
           </div>
         ) : null}
       </BillDetailOverview>
       <BillDetailSections bill={bill} />
-      {financeApi && bill.modelVersion === 2 ? (
+      {financeApi ? (
         <BillCashHistory
           key={`${organizationId}:${bill.id}`}
           organizationId={organizationId}
@@ -142,7 +113,7 @@ export function BillDetailPage({
         />
       ) : null}
       <BillSourceHistory bill={bill} navigate={navigate} />
-      {financeApi && bill.modelVersion === 2 ? (
+      {financeApi ? (
         <>
           <BillReceiptDialog
             organizationId={organizationId}
@@ -153,17 +124,13 @@ export function BillDetailPage({
             onOpenChange={setReceiptOpen}
             onUpdated={() => void query.refetch()}
           />
-          <BillRevisionDialog
-            key={`${organizationId}:${bill.id}`}
+          <BillVoidDialog
             organizationId={organizationId}
             bill={bill}
             api={financeApi}
-            billsApi={api}
-            permissions={permissions}
-            open={revisionOpen}
-            intent={revisionIntent}
-            onOpenChange={setRevisionOpen}
-            onAdjusted={() => void query.refetch()}
+            open={voidOpen}
+            onOpenChange={setVoidOpen}
+            onVoided={() => void query.refetch()}
           />
         </>
       ) : null}

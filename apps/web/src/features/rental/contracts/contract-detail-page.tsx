@@ -102,8 +102,7 @@ export function ContractDetailPage({
               search={search}
               navigate={navigate}
             />
-            {contract.billingMode === "monthly_settlement" &&
-            permissions.includes("rental_settlements:read") &&
+            {permissions.includes("rental_settlements:read") &&
             (contract.hasScheduledTermination ||
               contract.lifecycleStatus === "terminated" ||
               contract.lifecycleStatus === "cancelled" ||
@@ -139,7 +138,7 @@ export function ContractDetailPage({
         </div>
       ) : null}
       <Overview contract={contract} />
-      {contract.billingMode === "monthly_settlement" && financeApi ? (
+      {financeApi ? (
         <ContractChargesSection
           key={`charges:${organizationId}:${contract.id}`}
           organizationId={organizationId}
@@ -161,7 +160,6 @@ export function ContractDetailPage({
           contractId={contract.id}
           api={billsApi}
           financeApi={financeApi}
-          billingMode={contract.billingMode}
           permissions={permissions}
           canGenerate={
             contract.lifecycleStatus === "confirmed" || contract.lifecycleStatus === "terminated"

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { MonthlyBillExtraFeeDraft } from "./monthly-bill-form";
+import type { PeriodBillExtraFeeDraft } from "./period-bill-form";
 
 export function ExtraFeeFields({
   fees,
@@ -8,16 +8,16 @@ export function ExtraFeeFields({
   disabled = false,
   errorsById,
 }: {
-  fees: MonthlyBillExtraFeeDraft[];
-  onChange: (fees: MonthlyBillExtraFeeDraft[]) => void;
+  fees: PeriodBillExtraFeeDraft[];
+  onChange: (fees: PeriodBillExtraFeeDraft[]) => void;
   disabled?: boolean;
   errorsById?: ReadonlyMap<string, Partial<Record<"name" | "amount" | "note", string>>>;
 }) {
   return (
     <fieldset disabled={disabled} className="space-y-3">
-      <legend className="text-sm font-medium">额外费用（可正可负）</legend>
+      <legend className="font-medium text-sm">额外费用</legend>
       {fees.map((fee, index) => (
-        <div className="grid min-w-0 gap-2 rounded-md border p-3 sm:grid-cols-2" key={fee.id}>
+        <div className="border rounded-md min-w-0 grid p-3 gap-2 sm:grid-cols-2" key={fee.id}>
           <FeeInput
             id={`extra-fee-name-${fee.id}`}
             label={`额外费用名称 ${index + 1}`}

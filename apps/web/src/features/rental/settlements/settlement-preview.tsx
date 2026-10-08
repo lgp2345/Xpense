@@ -7,7 +7,7 @@ import { z } from "zod";
 import { DatePickerInput } from "@/components/date-picker";
 import { Input } from "@/components/ui/input";
 import { formatBillAmount } from "../bills/bill-format";
-import { parseSignedMoneyMinor } from "../bills/monthly-bill-form";
+import { parseSignedMoneyMinor } from "../bills/period-bill-form";
 
 export function fieldMessage(error: unknown): string | undefined {
   if (typeof error === "string") return error;
@@ -59,17 +59,17 @@ const missingFieldLabels: Record<string, string> = {
 };
 
 export function SettlementPreview({ preview }: { preview: RentalSettlementPreviewData }) {
-  const effectiveMonth = preview.effectiveEndDate.slice(0, 7);
-  const lines = preview.billChanges.flatMap((change) =>
-    change.lines.map((line) => ({ month: change.billingMonth, line })),
+  const periodLines = preview.periodCharges.flatMap((charge) =>
+    charge.lines.map((line) => ({
+      month: `${charge.period.periodStart} 至 ${charge.period.periodEnd}`,
+      line,
+    })),
   );
-  const monthlyLines = lines.filter(({ line }) => !isSettlementExtra(line));
-  const settlementExtras = lines.filter(({ line }) => isSettlementExtra(line));
-  const withdrawals = preview.billChanges.filter(
-    (change) =>
-      change.billingMonth > effectiveMonth && change.amountMinor === 0 && change.lines.length === 0,
-  );
-
+  const terminalLines = preview.terminalLines.map((line) => ({
+    month: preview.effectiveEndDate,
+    line,
+  }));
+  const extraLines = preview.extraLines.map((line) => ({ month: preview.effectiveEndDate, line }));
   return (
     <section className="space-y-4 rounded-lg border p-4" aria-label="结算预览">
       <h2 className="font-semibold">结算预览 · 截至 {preview.effectiveEndDate}</h2>
@@ -80,20 +80,12 @@ export function SettlementPreview({ preview }: { preview: RentalSettlementPrevie
           ))}
         </ul>
       ) : null}
-      {withdrawals.length ? (
-        <section className="space-y-2" aria-label="待撤回账单">
-          <h3 className="text-sm font-medium">未来账单</h3>
-          <ul className="space-y-1 text-sm">
-            {withdrawals.map((change) => (
-              <li key={`${change.billingMonth}:${change.billId ?? "new"}`}>
-                {change.billingMonth} · 本次撤回
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      <FeeGroup title="月度费用" items={monthlyLines} />
-      <FeeGroup title="退租补充费用" items={settlementExtras} />
+      <FeeGroup title="账期费用" items={periodLines} />
+      <FeeGroup title="尾期水电" items={terminalLines} />
+      <FeeGroup title="固定费用退款事项与额外费用" items={extraLines} />
+      <p className="text-sm text-muted-foreground">
+        固定费用不自动退款。负费用减少结算成本，实际退款仍需单独登记。
+      </p>
       <div className="flex flex-wrap gap-x-5 gap-y-2 border-t pt-3 text-sm tabular-nums">
         <span>最终费用 {formatBillAmount(preview.finalCostMinor)}</span>
         <span>实际收款 {formatBillAmount(preview.receivedMinor)}</span>
@@ -132,14 +124,6 @@ function FeeGroup({
         <p className="text-sm text-muted-foreground">暂无费用。</p>
       )}
     </section>
-  );
-}
-
-function isSettlementExtra(line: RentalBillLine): boolean {
-  return (
-    line.kind === "extra_fee" &&
-    line.feeSnapshot?.kind === "extra_fee" &&
-    line.feeSnapshot.origin === "settlement"
   );
 }
 
