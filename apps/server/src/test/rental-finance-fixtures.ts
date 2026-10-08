@@ -319,6 +319,7 @@ export function createRentalFinanceRepositoryFakes(state: RentalTestState) {
     },
   };
   const settlementsRepository: Partial<RentalSettlementsRepository> = {
+    finalizeSnapshot:async(scope,id,plan)=>{const record=state.settlements.find(record=>record.organizationId===scope.organizationId&&record.contractId===scope.contractId&&record.id===id);if(!record)throw new Error("Settlement missing");record.snapshot=structuredClone(plan);},
     findContractId: async (organizationId, settlementId) =>
       state.settlements.find(
         (record) => record.organizationId === organizationId && record.id === settlementId,

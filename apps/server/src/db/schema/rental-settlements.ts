@@ -19,19 +19,8 @@ import { users } from "./identity.js";
 import { rentalBills } from "./rental-billing.js";
 import { rentalContracts } from "./rental-tenancy.js";
 
-type SettlementSnapshot = {
-  effectiveEndDate: string;
-  /** 老快照缺少该字段时按空集合读取。 */
-  withdrawnBillIds?: string[];
-  finalBills: Array<{
-    billId: string | null;
-    billingMonth: string;
-    lines: unknown[];
-    amountMinor: number;
-  }>;
-  finalCostMinor: number;
-  differenceMinor: number;
-};
+type SettlementSnapshot =
+  import("../../modules/rental/period-settlement.rules.js").PeriodSettlementPlan;
 
 /** 合同当前结算；修改沿用稳定 ID 并追加修订快照。 */
 export const rentalSettlements = snakeCase.table(

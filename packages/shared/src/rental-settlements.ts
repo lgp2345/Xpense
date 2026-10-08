@@ -28,22 +28,21 @@ export type ConfirmRentalSettlementRequest = PreviewRentalSettlementRequest & {
   idempotencyKey: string;
 };
 
-/** 结算预览中的既有账单变化或待补建月份。 */
-export type RentalSettlementBillChange = {
+/** 结算独立快照中的账期成本，billId为空表示未出账的已履行账期。 */
+export type RentalSettlementPeriodCharge = {
   billId: string | null;
-  billingMonth: string;
+  period: import("./rental-period-bills.js").RentalBillingPeriod;
   lines: RentalBillLine[];
   amountMinor: number;
-  changeAmountMinor: number;
 };
-
-/** 整份合同的最终费用与实际收退款差额预览。 */
 export type RentalSettlementPreview = {
   version: string;
   canConfirm: boolean;
   missingFields: string[];
   effectiveEndDate: string;
-  billChanges: RentalSettlementBillChange[];
+  periodCharges: RentalSettlementPeriodCharge[];
+  terminalLines: RentalBillLine[];
+  extraLines: RentalBillLine[];
   finalCostMinor: number;
   receivedMinor: number;
   refundedMinor: number;

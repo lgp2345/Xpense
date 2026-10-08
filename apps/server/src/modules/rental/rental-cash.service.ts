@@ -85,8 +85,8 @@ export class RentalCashService {
         if (request.target.kind === "bill") {
           if (source.settlement) throw this.conflict("结算确认后请使用结算目标登记新收款");
           if (target.kind !== "bill") throw this.notFound();
-          if (target.bill.type !== "monthly") throw this.conflict("押金请使用整额押金收款确认");
-          this.assertActiveV2Bill(target.bill);
+          if (target.bill.type !== "period") throw this.conflict("押金请使用整额押金收款确认");
+          this.assertActiveBill(target.bill);
         }
         assertPositiveMinor(request.amountMinor, "收款金额");
         const balance = balanceFor(source, request.target, target.amountMinor, target.dueDate);
@@ -121,7 +121,7 @@ export class RentalCashService {
         if (source.settlement) throw this.conflict("结算确认后请使用结算目标登记新收款");
         if (current.kind !== "bill") throw this.conflict("目标不是押金账单");
         if (current.bill.type !== "deposit") throw this.conflict("目标不是押金账单");
-        this.assertActiveV2Bill(current.bill);
+        this.assertActiveBill(current.bill);
         assertPositiveMinor(current.bill.amountMinor, "押金金额");
         const alreadyReceived = source.cashEntries.some(
           (entry) =>
@@ -156,7 +156,7 @@ export class RentalCashService {
         if (request.target.kind === "bill") {
           if (source.settlement) throw this.conflict("结算确认后请使用结算目标登记退款");
           if (current.kind !== "bill") throw this.notFound();
-          this.assertRefundableV2Bill(current.bill);
+          this.assertRefundableBill(current.bill);
         }
         const balance = balanceFor(
           source,
@@ -480,21 +480,20 @@ export class RentalCashService {
     return { kind: "settlement", amountMinor: source.settlement.finalCostMinor, dueDate: null };
   }
 
-  private assertActiveV2Bill(bill: RentalFinanceSnapshot["bills"][number]) {
-    if (bill.status !== "active" || bill.modelVersion !== 2)
-      throw this.conflict("仅可对有效的新版账单登记收退款");
+  private assertActiveBill(bill: RentalFinanceSnapshot["bills"][number]) {
+    if (bill.status !== "active")
+      throw this.conflict("仅可对有效账单登记收退款");
   }
 
-  private assertRefundableV2Bill(bill: RentalFinanceSnapshot["bills"][number]) {
-    if (bill.status === "voided" && bill.modelVersion === 2) return;
-    this.assertActiveV2Bill(bill);
+  private assertRefundableBill(bill: RentalFinanceSnapshot["bills"][number]) {
+    if (bill.status === "voided") return;
+    this.assertActiveBill(bill);
   }
 
   private balanceAmount(target: ResolvedTarget) {
     if (
       target.kind === "bill" &&
-      target.bill.status === "voided" &&
-      target.bill.modelVersion === 2
+      target.bill.status === "voided"
     ) {
       return 0;
     }

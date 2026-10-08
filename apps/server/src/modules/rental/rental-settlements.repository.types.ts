@@ -4,7 +4,7 @@ import type {
   rentalSettlementRevisions,
   rentalSettlements,
 } from "../../db/schema.js";
-import type { SettlementPlan } from "./rental-finance.types.js";
+import type { PeriodSettlementPlan } from "./period-settlement.rules.js";
 
 export type RentalSettlementRecord = typeof rentalSettlements.$inferSelect;
 export type RentalSettlementRevisionRecord = typeof rentalSettlementRevisions.$inferSelect;
@@ -19,7 +19,7 @@ export type RentalSettlementEvent = {
   version: string;
 };
 export type RentalSettlementProjection = {
-  plan: SettlementPlan;
+  plan: PeriodSettlementPlan;
   status: RentalSettlementStatus;
   version: string;
   reason?: string | null;

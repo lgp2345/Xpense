@@ -5,7 +5,7 @@ import {
   optionalRentalMeterReadingsSchema,
   rentalCompleteMeterReadingsSchema,
 } from "./rental-meters.dto.js";
-import { rentalExtraFeeInputSchema } from "./rental-monthly-bills.dto.js";
+import { rentalExtraFeeInputSchema } from "./rental-period-bills.dto.js";
 
 const settlementPreviewShape = {
   contractId: z.string().uuid(),

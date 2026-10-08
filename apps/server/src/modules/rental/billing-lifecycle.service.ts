@@ -15,7 +15,9 @@ import { finalDepositAmount } from "./contract.rules.js";
 import type { MutableContractAggregate } from "./contract-lifecycle.service.js";
 import type { PreviewTerminationDto } from "./dto/preview-termination.dto.js";
 import type { TerminateContractDto } from "./dto/terminate-contract.dto.js";
-import { MonthlyBillingLifecycleService } from "./monthly-billing-lifecycle.service.js";
+import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
+import { SettlementWriteService } from "./settlement-write.service.js";
+import { buildPeriodSettlementPlan } from "./period-settlement.rules.js";
 
 /** 合同事务内的账单联动，不反向调用合同 service。 */
 @Injectable()
@@ -25,7 +27,8 @@ export class BillingLifecycleService {
     private readonly termination: BillingTerminationService,
     private readonly access: AccessService,
     private readonly audit: AuditService,
-    private readonly monthly: MonthlyBillingLifecycleService,
+    private readonly financeSources: RentalFinanceSourceService,
+    private readonly settlementWriter: SettlementWriteService,
     private readonly starts: BillingStartsRepository,
   ) {}
 
@@ -106,93 +109,99 @@ export class BillingLifecycleService {
   }
   async onCancel(
     auth: AuthContext,
-    source: BillingSource,
+    before: BillingSource,
     after: BillingSource & { cancelledOn: string },
     tx: AppDbTransaction,
   ): Promise<void> {
-    {
-      await this.monthly.onCancel(auth, source, after, tx);
-      return;
+    const scope = { organizationId: auth.organizationId, contractId: before.contract.id };
+    const source = await this.financeSources.read(scope, tx);
+    if (source.settlement)
+      throw new ConflictException({
+        code: apiErrorCodes.conflict,
+        message: "已确认结算不能取消合同",
+      });
+    const ids = source.bills.filter((bill) => bill.status === "active").map((bill) => bill.id);
+    if (ids.length) {
+      this.access.assertPermission(auth, "rental_period_bills:void");
+      await this.bills.voidBills(
+        { organizationId: auth.organizationId, userId: auth.userId, today: before.today },
+        ids,
+        "合同取消",
+        tx,
+      );
     }
-    await this.void(
-      auth,
-      source,
-      source.activeBills.map((bill) => bill.id),
-      "合同取消",
-      tx,
-    );
+    if (source.cashEntries.some((entry) => entry.revokedAt === null && entry.kind === "receipt")) {
+      this.access.assertPermission(auth, "rental_settlements:confirm");
+      const plan = buildPeriodSettlementPlan(
+        {
+          ...source,
+          contract: { ...source.contract, lifecycleStatus: "cancelled" },
+          cancelledOn: after.cancelledOn,
+        },
+        { contractId: before.contract.id, finalReadings: [], extraFees: [] },
+      );
+      const settlement = await this.settlementWriter.persist(
+        scope,
+        plan,
+        [],
+        { userId: auth.userId },
+        tx,
+      );
+      await this.audit.appendRequired(
+        {
+          organizationId: auth.organizationId,
+          actorUserId: auth.userId,
+          action: "rental_settlement.confirmed",
+          targetType: "rental_settlement",
+          targetId: settlement.id,
+          result: "succeeded",
+          metadata: { contractId: before.contract.id, kind: "cancellation" },
+        },
+        tx,
+      );
+    }
+    if (ids.length)
+      await this.audit.appendRequired(
+        {
+          organizationId: auth.organizationId,
+          actorUserId: auth.userId,
+          action: "rental_bill.voided",
+          targetType: "rental_contract",
+          targetId: before.contract.id,
+          result: "succeeded",
+          metadata: { count: ids.length, reason: "合同取消" },
+        },
+        tx,
+      );
   }
   previewTermination(auth: AuthContext, dto: PreviewTerminationDto) {
     return this.termination.previewTermination(auth, dto);
   }
   async onTerminate(
-    _auth: AuthContext,
-    _source: BillingSource,
-    _dto: TerminateContractDto,
-    _tx: AppDbTransaction,
-    _recordedAt?: Date,
-  ): Promise<void> {}
-  async onRevokeTermination(
-    _auth: AuthContext,
-    _source: BillingSource,
-    _tx: AppDbTransaction,
-  ): Promise<void> {}
-
-  private affected(before: BillingSource, after: BillingSource): string[] {
-    if (!before.activeBills.length) return [];
-    const affiliation = (source: BillingSource) => ({
-      propertyId: source.contract.propertyId,
-      spaces: source.contract.spaces
-        .map(({ spaceId, rentAllocationMinor }) => ({ spaceId, rentAllocationMinor }))
-        .toSorted((a, b) => a.spaceId.localeCompare(b.spaceId)),
-      parties: source.contract.parties
-        .map(({ tenantId, isPrimaryPayer }) => ({ tenantId, isPrimaryPayer }))
-        .toSorted((a, b) => a.tenantId.localeCompare(b.tenantId)),
-    });
-    if (billingDigest(affiliation(before)) !== billingDigest(affiliation(after)))
-      return before.activeBills.map((bill) => bill.id);
-    const applicable = new Map(
-      normalBillingDrafts(after, {}).map((draft) => [draft.sourceKey, draft]),
-    );
-    return before.activeBills
-      .filter((bill) => {
-        const draft = applicable.get(bill.sourceKey);
-        return !draft || !billingDraftMatches(draft, bill);
-      })
-      .map((bill) => bill.id);
-  }
-  private assertAffected(auth: AuthContext, ids: string[]) {
-    if (ids.length) {
-      this.access.assertPermission(auth, "rental_bills:read");
-      this.access.assertPermission(auth, "rental_bills:adjust");
-    }
-  }
-  private async void(
     auth: AuthContext,
     source: BillingSource,
-    ids: string[],
-    reason: string,
+    _dto: TerminateContractDto,
     tx: AppDbTransaction,
-  ) {
-    this.assertAffected(auth, ids);
-    if (!ids.length) return;
-    await this.bills.voidBills(
-      { organizationId: auth.organizationId, userId: auth.userId, today: source.today },
-      ids,
-      reason,
+    _recordedAt?: Date,
+  ): Promise<void> {
+    await this.assertNoSettlement(auth, source, tx);
+  }
+  async onRevokeTermination(
+    auth: AuthContext,
+    source: BillingSource,
+    tx: AppDbTransaction,
+  ): Promise<void> {
+    await this.assertNoSettlement(auth, source, tx);
+  }
+  private async assertNoSettlement(auth: AuthContext, source: BillingSource, tx: AppDbTransaction) {
+    const current = await this.financeSources.read(
+      { organizationId: auth.organizationId, contractId: source.contract.id },
       tx,
     );
-    await this.audit.appendRequired(
-      {
-        organizationId: auth.organizationId,
-        actorUserId: auth.userId,
-        action: "rental_bill.voided",
-        targetType: "rental_contract",
-        targetId: source.contract.id,
-        result: "succeeded",
-        metadata: { count: ids.length, reason },
-      },
-      tx,
-    );
+    if (current.settlement)
+      throw new ConflictException({
+        code: apiErrorCodes.conflict,
+        message: "已确认结算不能更改合同结束事件",
+      });
   }
 }

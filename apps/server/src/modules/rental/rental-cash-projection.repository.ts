@@ -170,7 +170,6 @@ export class RentalCashProjectionRepository {
           organizationId,
           contractId,
           contract: toBillingContractDates({
-            billingMode: contract.billingMode,
             lifecycleStatus: contract.lifecycleStatus,
             startDate: contract.startDate,
             endDate: contract.endDate,

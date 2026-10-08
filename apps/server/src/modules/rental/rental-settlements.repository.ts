@@ -7,7 +7,7 @@ import {
   rentalSettlementRevisions,
   rentalSettlements,
 } from "../../db/schema.js";
-import type { SettlementPlan } from "./rental-finance.types.js";
+import type { PeriodSettlementPlan } from "./period-settlement.rules.js";
 import type {
   RentalSettlementActor,
   RentalSettlementEvent,
@@ -90,7 +90,7 @@ export class RentalSettlementsRepository {
 
   async create(
     scope: FinanceScope,
-    plan: SettlementPlan,
+    plan: PeriodSettlementPlan,
     event: RentalSettlementEvent,
     actor: RentalSettlementActor,
     executor: AppDbExecutor,
@@ -115,6 +115,26 @@ export class RentalSettlementsRepository {
     return record;
   }
 
+  /** 结算头和真实终读数写入后，在同一事务补齐最终快照。 */
+  async finalizeSnapshot(
+    scope: FinanceScope,
+    id: string,
+    plan: PeriodSettlementPlan,
+    tx: AppDbExecutor,
+  ): Promise<void> {
+    const [record] = await tx
+      .update(rentalSettlements)
+      .set({ snapshot: plan })
+      .where(
+        and(
+          eq(rentalSettlements.organizationId, scope.organizationId),
+          eq(rentalSettlements.contractId, scope.contractId),
+          eq(rentalSettlements.id, id),
+        ),
+      )
+      .returning({ id: rentalSettlements.id });
+    if (!record) throw new Error("Missing settlement to finalize");
+  }
   async linkBills(
     scope: FinanceScope,
     settlementId: string,

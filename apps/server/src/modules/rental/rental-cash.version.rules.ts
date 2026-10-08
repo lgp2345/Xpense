@@ -6,7 +6,6 @@ export type RentalCashVersionFacts = {
   organizationId: string;
   contractId: string;
   contract: {
-    billingMode: string | null;
     lifecycleStatus: string | null;
     terminationDate: string | null;
     startDate?: string | null;
@@ -17,7 +16,6 @@ export type RentalCashVersionFacts = {
     id: string;
     type: string;
     status: string;
-    modelVersion: number | null;
     revision: number | null;
     amountMinor: number;
     sourceKey: string | null;
@@ -62,7 +60,6 @@ export function rentalCashSourceVersion(
     organizationId: facts.organizationId,
     contractId: facts.contractId,
     contract: {
-      billingMode: facts.contract.billingMode,
       lifecycleStatus: facts.contract.lifecycleStatus,
       terminationDate: facts.contract.terminationDate,
       startDate: facts.contract.startDate ?? null,
@@ -70,11 +67,10 @@ export function rentalCashSourceVersion(
       cancelledAt: facts.contract.cancelledAt ?? null,
     },
     bills: [...facts.bills]
-      .map(({ id, type, status, modelVersion, revision, amountMinor, sourceKey }) => ({
+      .map(({ id, type, status, revision, amountMinor, sourceKey }) => ({
         id,
         type,
         status,
-        modelVersion,
         revision,
         amountMinor,
         sourceKey,
