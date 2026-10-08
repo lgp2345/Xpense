@@ -84,8 +84,7 @@ export class MeterReadingsService {
         { organizationId: auth.organizationId, contractId: dto.contractId },
         tx,
       );
-      this.assertMonthlyMode(snapshot);
-      return detail(snapshot);
+        return detail(snapshot);
     });
   }
 
@@ -113,7 +112,7 @@ export class MeterReadingsService {
 
       await this.lockContract(auth, dto.contractId, tx);
       const snapshot = await this.sources.read(scope, tx);
-      this.assertMonthlyContract(snapshot);
+      this.assertConfirmedContract(snapshot);
       if (snapshot.contract.spaces.length !== 1)
         throw this.conflict("月度结算合同必须且只能关联一个空间");
       if (financeSourceVersion(snapshot, {}) !== dto.expectedVersion)
@@ -172,16 +171,11 @@ export class MeterReadingsService {
     );
   }
 
-  private assertMonthlyContract(snapshot: RentalFinanceSnapshot) {
-    this.assertMonthlyMode(snapshot);
+  private assertConfirmedContract(snapshot: RentalFinanceSnapshot) {
     if (snapshot.contract.lifecycleStatus !== "confirmed")
       throw this.conflict("只有履行中的合同可以登记入住底数");
   }
 
-  private assertMonthlyMode(snapshot: RentalFinanceSnapshot) {
-    if (snapshot.contract.billingMode !== "monthly_settlement")
-      throw this.conflict("存量合同仍使用旧账单模式");
-  }
 
   private conflict(message: string) {
     return new ConflictException({ code: apiErrorCodes.conflict, message });

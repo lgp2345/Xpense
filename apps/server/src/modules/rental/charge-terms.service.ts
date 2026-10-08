@@ -65,8 +65,7 @@ export class ChargeTermsService {
         { organizationId: auth.organizationId, contractId: dto.contractId },
         tx,
       );
-      this.assertMonthlyMode(snapshot);
-      return currentTerms(snapshot);
+        return currentTerms(snapshot);
     });
   }
 
@@ -95,7 +94,7 @@ export class ChargeTermsService {
 
       await this.lockContract(auth, dto.contractId, tx);
       const snapshot = await this.sources.read(scope, tx);
-      this.assertMonthlyContract(snapshot);
+      this.assertConfirmedContract(snapshot);
       if (financeSourceVersion(snapshot, {}) !== dto.expectedVersion)
         throw this.conflict("收费标准已变化，请重新读取后再保存");
 
@@ -175,16 +174,11 @@ export class ChargeTermsService {
     );
   }
 
-  private assertMonthlyContract(snapshot: RentalFinanceSnapshot) {
-    this.assertMonthlyMode(snapshot);
+  private assertConfirmedContract(snapshot: RentalFinanceSnapshot) {
     if (snapshot.contract.lifecycleStatus !== "confirmed")
       throw this.conflict("只有履行中的合同可以修改收费标准");
   }
 
-  private assertMonthlyMode(snapshot: RentalFinanceSnapshot) {
-    if (snapshot.contract.billingMode !== "monthly_settlement")
-      throw this.conflict("存量合同仍使用旧账单模式");
-  }
 
   private conflict(message: string) {
     return new ConflictException({ code: apiErrorCodes.conflict, message });

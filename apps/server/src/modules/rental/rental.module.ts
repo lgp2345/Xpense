@@ -5,6 +5,9 @@ import { AuthModule } from "../auth/auth.module.js";
 import { BookkeepingModule } from "../bookkeeping/bookkeeping.module.js";
 import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import { IamModule } from "../iam/iam.module.js";
+import { BillingStartsRepository } from "./billing-starts.repository.js";
+import { PeriodBillsController } from "./period-bills.controller.js";
+import { PeriodBillsService } from "./period-bills.service.js";
 import { BillAdjustmentsRepository } from "./bill-adjustments.repository.js";
 import { BillRevisionsRepository } from "./bill-revisions.repository.js";
 import { BillRevisionsService } from "./bill-revisions.service.js";
@@ -70,7 +73,7 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
     ContractsController,
     ChargeTermsController,
     MeterReadingsController,
-    MonthlyBillsController,
+    PeriodBillsController,
     RentalReceiptsController,
     RentalRefundsController,
     RentalCashController,
@@ -85,7 +88,8 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
     FinanceRequestsRepository,
     MeterReadingsRepository,
     MeterReadingsService,
-    MonthlyBillsService,
+    PeriodBillsService,
+    BillingStartsRepository,
     RentalFinanceSourceService,
     RentalCashRepository,
     RentalCashProjectionRepository,

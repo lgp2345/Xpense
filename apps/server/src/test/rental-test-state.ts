@@ -54,6 +54,7 @@ export type RentalTestState = {
   billAdjustments: AdjustmentRecord[];
   billRevisions: BillRevisionRecord[];
   billCounter: number;
+  billingStarts: import("../modules/rental/rental-finance.types.js").BillingStartRecord[];
   chargeTerms: Map<string, ChargeTermsRecord>;
   chargeTermRevisions: ChargeTermsRevisionRecord[];
   meterReadings: MeterReadingRecord[];
@@ -222,6 +223,7 @@ export function createRentalTestState(): RentalTestState {
     billAdjustments: [],
     billRevisions: [],
     billCounter: 0,
+    billingStarts: [],
     chargeTerms: new Map(),
     chargeTermRevisions: [],
     meterReadings: [],
@@ -300,6 +302,7 @@ export function cloneRentalTestState(state: RentalTestState): RentalTestState {
     billAdjustments: structuredClone(state.billAdjustments),
     billRevisions: structuredClone(state.billRevisions),
     billCounter: state.billCounter,
+    billingStarts: structuredClone(state.billingStarts),
     chargeTerms: new Map(structuredClone([...state.chargeTerms.entries()])),
     chargeTermRevisions: structuredClone(state.chargeTermRevisions),
     meterReadings: structuredClone(state.meterReadings),
@@ -342,6 +345,11 @@ export function cloneRentalTestState(state: RentalTestState): RentalTestState {
 
 /** 原位恢复租赁状态，保持所有仓储捕获的 state 引用有效。 */
 export function restoreRentalTestState(state: RentalTestState, snapshot: RentalTestState): void {
+  state.billingStarts.splice(
+    0,
+    state.billingStarts.length,
+    ...structuredClone(snapshot.billingStarts),
+  );
   state.bills.splice(0, state.bills.length, ...structuredClone(snapshot.bills));
   state.billGenerations.splice(
     0,

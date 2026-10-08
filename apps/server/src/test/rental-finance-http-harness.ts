@@ -7,6 +7,7 @@ import type {
 } from "../modules/rental/bill-revisions.repository.js";
 import { BillRevisionsRepository } from "../modules/rental/bill-revisions.repository.js";
 import { toBillingContractDates } from "../modules/rental/billing-contract-dates.rules.js";
+import { BillingStartsRepository } from "../modules/rental/billing-starts.repository.js";
 import { BillsRepository } from "../modules/rental/bills.repository.js";
 import type { BillRecord } from "../modules/rental/bills.repository.types.js";
 import { organizationDate } from "../modules/rental/contract-date.rules.js";
@@ -44,13 +45,12 @@ type RentalFinanceHttpHarness = Omit<
 
 /** 真正运行 finance services/controller 的 HTTP harness，仓储与事务使用可回滚内存状态。 */
 export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHttpHarness> {
-  const setup = await createRentalBillingHttpHarness({ billingMode: "monthly_settlement" });
+  const setup = await createRentalBillingHttpHarness();
   const state = setup.state.rental;
   const organizationId = testIds.organization;
   const contractId = rentalTestIds.contract;
   const storedContract = state.contracts.get(contractId);
   if (!storedContract) throw new Error("Monthly finance HTTP fixture contract unavailable");
-  state.contracts.set(contractId, { ...storedContract, billingMode: "monthly_settlement" });
 
   const base = rentalFinanceSnapshot();
   const financeSpaceId = setup.source.contract.spaces[0]?.spaceId ?? rentalTestIds.childSpace;
@@ -113,9 +113,7 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
         const detail = rentalBillingDetail(billingSource, draft);
         const billNumber = `RB-2026-${state.billCounter - drafts.length + index + 1}`;
         const createdAt = new Date("2026-08-31T04:00:00.000Z");
-        const modelVersion = draft.modelVersion ?? 1;
-        const billingMonth = draft.type === "monthly" ? (draft.billingMonth ?? null) : null;
-        const revision = draft.revision ?? 1;
+        const revision = 1;
         const record: BillRecord = {
           id: detail.id,
           organizationId: context.organizationId,
@@ -127,8 +125,6 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
           currencyCode: billingSource.currencyCode,
           type: draft.type,
           status: "active",
-          modelVersion,
-          billingMonth,
           revision,
           sourceKey: draft.sourceKey,
           periodStart: draft.periodStart,
@@ -152,8 +148,6 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
           organizationId: context.organizationId,
           billNumber,
           generationId,
-          modelVersion,
-          billingMonth,
           revision,
           createdAt: createdAt.toISOString(),
         };
@@ -169,7 +163,7 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
     const page = await originalList(org, query, executor);
     const matchingIds = new Set((await matchingFinancialBills(org, query)).map(({ id }) => id));
     const monthlyBills = state.bills.filter(
-      (bill) => matchingIds.has(bill.id) && bill.type === "monthly" && bill.status === "active",
+      (bill) => matchingIds.has(bill.id) && bill.type === "period" && bill.status === "active",
     );
     // Mirror the SQL fee composition seam; cash totals still use real services.
     const monthlyRent = monthlyBills.reduce(
@@ -190,7 +184,82 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
       },
     };
   };
+  billsRepository.insertPeriodHeader = async (context, source, generationId, draft, tx) => {
+    const [bill] = await billsRepository.insertBills!(
+      context,
+      source,
+      generationId,
+      [{ ...draft, lines: [] }],
+      tx,
+    );
+    if (!bill) throw new Error("Missing period bill header");
+    return { id: bill.id };
+  };
+  billsRepository.insertPeriodLines = async (scope, billId, lines) => {
+    const bill = state.bills.find(
+      (bill) =>
+        bill.organizationId === scope.organizationId &&
+        bill.contractId === scope.contractId &&
+        bill.id === billId,
+    );
+    if (!bill) throw new Error("Missing scoped period bill");
+    bill.lines = structuredClone(lines);
+  };
   Object.assign(repository, billsRepository);
+  Object.assign(setup.app.get(BillingStartsRepository), {
+    find: async (scope: FinanceScope) =>
+      structuredClone(
+        state.billingStarts.find(
+          (start) =>
+            start.organizationId === scope.organizationId && start.contractId === scope.contractId,
+        ) ?? null,
+      ),
+    create: async (
+      scope: FinanceScope,
+      input: import("@xpense/shared").RentalBillingStartInput,
+    ) => {
+      if (
+        state.billingStarts.some(
+          (start) =>
+            start.organizationId === scope.organizationId && start.contractId === scope.contractId,
+        )
+      )
+        throw new Error("Duplicate billing start");
+      const startId = randomUUID();
+      const baselineReadings = input.baselineReadings.map((reading) => ({
+        ...reading,
+        id: randomUUID(),
+        contractId: scope.contractId,
+        spaceId: financeSpaceId,
+        revision: 1,
+        predecessorId: null,
+        source: "billing_start" as const,
+        billingStartId: startId,
+        billId: null,
+        settlementId: null,
+      }));
+      const record = {
+        ...scope,
+        id: startId,
+        version: 1,
+        firstPeriodStart: input.firstPeriodStart,
+        baselineReadings,
+      };
+      state.billingStarts.push(record);
+      state.meterReadings.push(
+        ...baselineReadings.map((reading) => ({
+          ...reading,
+          ...scope,
+          reason: "接续起算",
+          createdByUserId: testIds.ownerUser,
+          updatedByUserId: testIds.ownerUser,
+          createdAt: now,
+          updatedAt: now,
+        })),
+      );
+      return structuredClone(record);
+    },
+  });
 
   const meterReadingsRepository: Partial<MeterReadingsRepository> = {
     appendBoundary: async (
@@ -407,7 +476,6 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
           id: contractId,
           contractNumber: header.contractNumber,
           depositTerms: structuredClone(state.deposits.get(contractId) ?? []),
-          billingMode: header.billingMode,
           lifecycleStatus: header.status,
           rentAmountMinor: header.rentAmountMinor,
           billingAnchor: header.billingAnchor,
@@ -433,6 +501,13 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
               fixedFees: structuredClone(terms.fixedFees),
             }
           : null,
+        billingStart: structuredClone(
+          state.billingStarts.find(
+            (start) =>
+              start.organizationId === scope.organizationId &&
+              start.contractId === scope.contractId,
+          ) ?? null,
+        ),
         readings: state.meterReadings
           .filter(
             (reading) =>
