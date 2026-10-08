@@ -27,9 +27,6 @@ import type {
   UpdateRentalMeterBaselineRequest,
 } from "@xpense/shared";
 import type { ApiClient, ApiRequestOptions } from "./api-client";
-import type { RentalBillRevisionRecord } from "./rental-bills-api";
-
-export type RentalFinanceRevisionRecord = RentalBillRevisionRecord;
 
 export type RentalMeterBaseline = {
   contractId: string;
@@ -47,13 +44,9 @@ export type RentalFinanceSettlementVersionSnapshot = Omit<RentalSettlementDetail
   organizationId: string;
   snapshot: {
     effectiveEndDate: string;
-    withdrawnBillIds?: string[];
-    finalBills: Array<{
-      billId: string | null;
-      billingMonth: string;
-      lines: unknown[];
-      amountMinor: number;
-    }>;
+    periodCharges: import("@xpense/shared").RentalSettlementPeriodCharge[];
+    terminalLines: import("@xpense/shared").RentalBillLine[];
+    extraLines: import("@xpense/shared").RentalBillLine[];
     finalCostMinor: number;
     differenceMinor: number;
   };
@@ -69,8 +62,6 @@ export type RentalFinanceSettlementHistoryItem = {
   createdByUserId: string;
   createdAt: string;
 };
-
-export type AdjustRentalBillRequest = RentalBillRevisionInput & { idempotencyKey: string };
 
 function queryString(params: Record<string, string | number | undefined>): string {
   const search = new URLSearchParams();

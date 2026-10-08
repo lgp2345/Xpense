@@ -2,7 +2,6 @@ import type {
   PreviewRentalSettlementRequest,
   RentalBillDetail,
   RentalBillLine,
-  RentalBillRevisionInput,
   RentalCashEntry,
   RentalChargeTerms,
   RentalExtraFeeInput,
@@ -46,35 +45,6 @@ export type RentalFinanceSnapshot = {
   cancelledOn: string | null;
 };
 
-export type MonthlyChargeInput = {
-  billingTerms: BillingTerms;
-  billingMonth: string;
-  effectiveEndDate: string | null;
-  chargeTerms: RentalChargeTerms;
-  readings: Record<
-    "water" | "electricity",
-    {
-      previous: RentalMeterReading;
-      current: RentalMeterReading;
-    } | null
-  >;
-  extraFees: RentalExtraFeeInput[];
-  overrides?: {
-    waterUnitPrice?: string;
-    electricityUnitPrice?: string;
-    fixedFees?: Array<{ id: string; periodAmountMinor: number }>;
-    reason: string;
-  };
-};
-
-export type MonthlyChargeResult = { lines: RentalBillLine[]; amountMinor: number };
-
-export type BillRevisionPlan = {
-  bills: Array<{ billId: string; lines: RentalBillLine[]; amountMinor: number }>;
-  readings: RentalMeterReading[];
-  affectedBillIds: string[];
-};
-
 export type CashWriteInput = Omit<
   RentalCashEntry,
   "id" | "createdAt" | "createdByUserId" | "revokedAt" | "revokedByUserId" | "revokeReason"
@@ -85,7 +55,7 @@ export type RequestResult = {
   resourceKind: "terms" | "baseline" | "bill" | "generation" | "cash" | "revision" | "settlement";
 };
 
-export type { PreviewRentalSettlementRequest, RentalBillRevisionInput, RentalFeeSnapshot };
+export type { PreviewRentalSettlementRequest, RentalFeeSnapshot };
 
 export type BillingStartRecord = FinanceScope & {
   id: string;

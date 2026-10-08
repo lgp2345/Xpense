@@ -73,7 +73,7 @@ export function BillCashHistory({
       api.listCash({ target, page: 1, pageSize: 20 }, { signal }),
     enabled: Boolean(
       organizationId &&
-      bill.modelVersion === 2 &&
+
       permissions.includes('rental_bills:read'),
     ),
   })
@@ -149,7 +149,7 @@ export function BillCashHistory({
       }
     },
   })
-  if (bill.modelVersion !== 2 || !permissions.includes('rental_bills:read'))
+  if (!permissions.includes('rental_bills:read'))
     return null
 
   const closeRevoke = () => {

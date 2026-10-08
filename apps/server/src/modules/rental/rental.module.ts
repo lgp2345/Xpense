@@ -10,11 +10,8 @@ import { PeriodBillVoidService } from "./period-bill-void.service.js";
 import { PeriodBillsController } from "./period-bills.controller.js";
 import { PeriodBillsService } from "./period-bills.service.js";
 import { BillAdjustmentsRepository } from "./bill-adjustments.repository.js";
-import { BillRevisionsRepository } from "./bill-revisions.repository.js";
-import { BillRevisionsService } from "./bill-revisions.service.js";
 import { BillingLifecycleService } from "./billing-lifecycle.service.js";
 import { BillingSourceService } from "./billing-source.service.js";
-import { BillingTerminationService } from "./billing-termination.service.js";
 import { BillsController } from "./bills.controller.js";
 import { BillsRepository } from "./bills.repository.js";
 import { BillsService } from "./bills.service.js";
@@ -35,8 +32,6 @@ import { FinanceRequestsRepository } from "./finance-requests.repository.js";
 import { MeterReadingsController } from "./meter-readings.controller.js";
 import { MeterReadingsRepository } from "./meter-readings.repository.js";
 import { MeterReadingsService } from "./meter-readings.service.js";
-import { MonthlyBillsController } from "./monthly-bills.controller.js";
-import { MonthlyBillsService } from "./monthly-bills.service.js";
 import { PropertiesController } from "./properties.controller.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import { PropertiesService } from "./properties.service.js";
@@ -82,8 +77,6 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
   ],
   providers: [
     BillAdjustmentsRepository,
-    BillRevisionsRepository,
-    BillRevisionsService,
     ChargeTermsRepository,
     ChargeTermsService,
     FinanceRequestsRepository,
@@ -102,7 +95,6 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
     SettlementProjectionService,
     BillingSourceService,
     BillingLifecycleService,
-    BillingTerminationService,
     BillsService,
     BillsReadService,
     BillsRepository,

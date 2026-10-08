@@ -9,7 +9,6 @@ import type { BillingSource } from "./billing.types.js";
 import { toBillingContractDates } from "./billing-contract-dates.rules.js";
 import { billingDraftMatches, normalBillingDrafts } from "./billing-plan.rules.js";
 import { billingDigest } from "./billing-source.rules.js";
-import { BillingTerminationService } from "./billing-termination.service.js";
 import { BillsRepository } from "./bills.repository.js";
 import { finalDepositAmount } from "./contract.rules.js";
 import type { MutableContractAggregate } from "./contract-lifecycle.service.js";
@@ -24,7 +23,6 @@ import { buildPeriodSettlementPlan } from "./period-settlement.rules.js";
 export class BillingLifecycleService {
   constructor(
     private readonly bills: BillsRepository,
-    private readonly termination: BillingTerminationService,
     private readonly access: AccessService,
     private readonly audit: AuditService,
     private readonly financeSources: RentalFinanceSourceService,
@@ -173,9 +171,6 @@ export class BillingLifecycleService {
         },
         tx,
       );
-  }
-  previewTermination(auth: AuthContext, dto: PreviewTerminationDto) {
-    return this.termination.previewTermination(auth, dto);
   }
   async onTerminate(
     auth: AuthContext,

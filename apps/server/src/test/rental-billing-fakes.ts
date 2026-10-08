@@ -106,11 +106,7 @@ export function createRentalBillingFakes(state: RentalTestState) {
       };
     },
     matchingFinancialBills: async (org, query) =>
-      matchingBills(org, query).map(({ id, contractId, modelVersion }) => ({
-        id,
-        contractId,
-        modelVersion: modelVersion ?? 1,
-      })),
+      matchingBills(org, query).map(({ id, contractId }) => ({id,contractId})),
     detail: async (org, id) => {
       const bill = state.bills.find((item) => item.organizationId === org && item.id === id);
       if (!bill) return null;

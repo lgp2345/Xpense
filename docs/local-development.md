@@ -65,3 +65,15 @@ pnpm dev:down
 
 - `GET http://localhost:4000/health`：只表示 server 进程存活。
 - `GET http://localhost:4000/ready`：检查 server 是否可以访问 PostgreSQL；数据库不可用时返回 HTTP 503。
+
+## 本地账期出账切换
+
+只在已确认的本项目本地数据库执行，根 `.env` 由现有 dotenv-cli 在进程内加载，禁止输出连接配置。
+
+1. 演练：`pnpm exec turbo run db:reset-rental-billing --filter=@xpense/server -- --organization-id <组织ID>`。可追加 `--contract-id <合同ID>`；默认只列明表、数量及依赖。
+2. 核对范围与现有用户许可后，同一命令追加 `--apply`。用户、组织、房产、空间、租户、合同和无关记账交易保留。旧收费设置、入住底数及相关账务被清理，需重新登记。
+3. migration 必须另外取得执行许可；随后 `pnpm exec turbo run db:migrate --filter=@xpense/server` 和现有权限种子脚本更新本地 schema 与权限。
+4. 新库从历史 migration 链顺序到达账期模型；旧库只在相关旧账务全部清理后切换。保留旧月账务的组织不能直接套用新枚举，工具不会清空全库绕过限制。
+5. 若发现范围外或余额交易外键依赖，工具拒绝 apply；须先通过已有业务撤销及余额更新能力处理，不能裸删记账交易。
+
+任务8的浏览器样例与自动化隔离 schema 分开；样例留供检查，测试 helper 只清理本次 schema。

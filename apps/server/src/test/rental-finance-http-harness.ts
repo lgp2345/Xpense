@@ -1,11 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NotFoundException } from "@nestjs/common";
 import type { ListRentalBillsQuery, RentalBillDetail } from "@xpense/shared";
-import type {
-  BillRevisionAppendResult,
-  BillRevisionRecord,
-} from "../modules/rental/bill-revisions.repository.js";
-import { BillRevisionsRepository } from "../modules/rental/bill-revisions.repository.js";
 import { toBillingContractDates } from "../modules/rental/billing-contract-dates.rules.js";
 import { BillingStartsRepository } from "../modules/rental/billing-starts.repository.js";
 import { BillsRepository } from "../modules/rental/bills.repository.js";
@@ -319,77 +314,6 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
     },
   };
   Object.assign(setup.app.get(MeterReadingsRepository), meterReadingsRepository);
-
-  const billRevisionsRepository: Partial<BillRevisionsRepository> = {
-    append: async (
-      scope: FinanceScope,
-      billId: string,
-      lines: RentalBillDetail["lines"],
-      amountMinor: number,
-      reason: string,
-      actor: { userId: string },
-    ) => {
-      const bill = state.bills.find(
-        (item) =>
-          item.organizationId === scope.organizationId &&
-          item.contractId === scope.contractId &&
-          item.id === billId,
-      );
-      if (!bill) throw new Error("Rental test bill not found in contract scope");
-      const previousRevision = bill.revision ?? 1;
-      const revision = {
-        id: randomUUID(),
-        ...scope,
-        billId,
-        revision: previousRevision,
-        amountMinor: bill.amountMinor,
-        billSnapshot: structuredClone(bill),
-        linesSnapshot: structuredClone(bill.lines),
-        reason,
-        createdByUserId: actor.userId,
-        createdAt: new Date(FIXED_FINANCE_NOW),
-      };
-      state.billRevisions.push(revision as BillRevisionRecord);
-      Object.assign(bill, {
-        amountMinor,
-        lines: structuredClone(lines),
-        revision: previousRevision + 1,
-      });
-      return {
-        bill: {
-          id: billId,
-          ...scope,
-          amountMinor,
-          revision: previousRevision + 1,
-        } as BillRevisionAppendResult["bill"],
-        revision,
-      };
-    },
-    history: async (
-      scope: FinanceScope,
-      billId: string,
-      page: { page: number; pageSize: number },
-    ) => {
-      const records = state.billRevisions
-        .filter(
-          (revision) =>
-            revision.organizationId === scope.organizationId &&
-            revision.contractId === scope.contractId &&
-            revision.billId === billId,
-        )
-        .toSorted((left, right) => right.revision - left.revision);
-      const pageNumber = Math.max(1, Math.trunc(page.page));
-      const pageSize = Math.min(100, Math.max(1, Math.trunc(page.pageSize)));
-      const offset = (pageNumber - 1) * pageSize;
-      return {
-        items: structuredClone(records.slice(offset, offset + pageSize)),
-        total: records.length,
-        page: pageNumber,
-        pageSize,
-      };
-    },
-  };
-  Object.assign(setup.app.get(BillRevisionsRepository), billRevisionsRepository);
 
   const source: Partial<RentalFinanceSourceService> = {
     read: async (scope) => {

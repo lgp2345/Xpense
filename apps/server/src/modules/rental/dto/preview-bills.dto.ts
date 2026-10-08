@@ -12,8 +12,7 @@ export const billingAmountConfirmationShape = {
 export const billGenerationInputShape = {
   contractId: z.string().uuid(),
   depositDueDates: z.record(z.string().min(1).max(200), contractCalendarDateSchema).default({}),
-  scope: z.literal("deposits").optional(),
-  terminationConfirmation: z.object(billingAmountConfirmationShape).strict().optional(),
+  scope: z.literal("deposits"),
 };
 
 /** 预览支持分页；后续页必须携带同一完整计划版本。 */

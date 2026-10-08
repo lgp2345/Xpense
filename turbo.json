@@ -40,6 +40,12 @@
     },
     "db:push": {
       "cache": false
+    },
+    "db:reset-rental-billing": {
+      "cache": false,
+      "passThroughEnv": [
+        "DATABASE_URL"
+      ]
     }
   }
 }

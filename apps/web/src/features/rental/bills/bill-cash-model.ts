@@ -8,7 +8,6 @@ export function canRegisterBillReceipt(
   permissions: readonly PermissionKey[],
 ): boolean {
   return (
-    bill.modelVersion === 2 &&
     !bill.settlementId &&
     Boolean(bill.financial) &&
     permissions.includes("rental_receipts:create") &&
@@ -18,7 +17,7 @@ export function canRegisterBillReceipt(
 
 export function billFinancialLabel(bill: RentalBillSummary): string {
   if (bill.settlementId) return "已纳入结算";
-  if (bill.modelVersion !== 2 || !bill.financial) return "收款状态未提供";
+  if (!bill.financial) return "收款状态未提供";
   return { unpaid: "待收款", partial: "部分收款", settled: "已结清", refundable: "待退款" }[
     bill.financial.state
   ];

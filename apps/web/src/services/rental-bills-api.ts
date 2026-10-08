@@ -14,19 +14,6 @@ import type {
 } from "@xpense/shared";
 import type { ApiClient } from "./api-client";
 
-export type RentalBillRevisionRecord = {
-  id: string;
-  billId: string;
-  revision: number;
-  amountMinor: number;
-  billSnapshot: Pick<RentalBillSummary, "type" | "amountMinor" | "dueDate"> & {
-    billingMonth?: string | null;
-  };
-  linesSnapshot: RentalBillLine[];
-  reason: string;
-  createdAt: string;
-};
-
 /** 账单 HTTP 边界，正常租金与金额依据始终由服务端计算。 */
 export function createRentalBillsApi(client: ApiClient) {
   return {
@@ -34,14 +21,6 @@ export function createRentalBillsApi(client: ApiClient) {
       client.get<RentalBillPage>(`/rental-bills/list${listQueryString(query)}`),
     getBill: (id: string) =>
       client.get<RentalBillDetail>(`/rental-bills/detail?id=${encodeURIComponent(id)}`),
-    listRevisions: (input: { billId: string; page?: number; pageSize?: number }) => {
-      const params = new URLSearchParams({
-        billId: input.billId,
-        page: String(input.page ?? 1),
-        pageSize: String(input.pageSize ?? 20),
-      });
-      return client.get<PageResult<RentalBillRevisionRecord>>(`/rental-bills/revisions?${params}`);
-    },
     previewBills: (input: PreviewRentalBillsRequest) =>
       client.post<RentalBillPreview>("/rental-bills/preview", {
         ...generationInput(input),

@@ -167,8 +167,7 @@ export type RentalBillGenerationInput = {
   contractId: string;
   depositDueDates: Record<string, string>;
   /** v2 合同仅允许显式生成独立押金账单。 */
-  scope?: "deposits";
-  terminationConfirmation?: RentalBillTerminationConfirmation;
+  scope: "deposits";
 };
 export type PreviewRentalBillsRequest = RentalBillGenerationInput & {
   expectedVersion?: string;

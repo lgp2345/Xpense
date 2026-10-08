@@ -53,7 +53,7 @@ export const rentalFixedFeeOverrideSchema = z
   .strict();
 
 /** 本期非租金覆盖必须留原因，不改合同默认收费标准。 */
-export const rentalMonthlyOverridesSchema = z
+export const rentalPeriodOverridesSchema = z
   .object({
     waterUnitPrice: rentalDecimalFourSchema.optional(),
     electricityUnitPrice: rentalDecimalFourSchema.optional(),

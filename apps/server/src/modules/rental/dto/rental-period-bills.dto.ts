@@ -3,7 +3,7 @@ import { contractCalendarDateSchema } from "./rental-calendar-date.schema.js";
 import {
   rentalExpectedVersionSchema,
   rentalIdempotencyKeySchema,
-  rentalMonthlyOverridesSchema,
+  rentalPeriodOverridesSchema,
   rentalReasonSchema,
   rentalSafeMinorAmountSchema,
   rentalFeeNameSchema,
@@ -38,7 +38,7 @@ const shape = {
     .optional(),
   dueDate: contractCalendarDateSchema.optional(),
   readings: optionalRentalMeterReadingsSchema.optional(),
-  overrides: rentalMonthlyOverridesSchema.optional(),
+  overrides: rentalPeriodOverridesSchema.optional(),
   extraFees: z.array(rentalExtraFeeInputSchema),
 };
 /** 预览可以缺少读数，由服务端返回可补齐的业务缺项。 */

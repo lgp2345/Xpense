@@ -35,8 +35,6 @@ function validateCurrentBill(
     current.status !== selected.status ||
     current.currencyCode !== selected.currencyCode ||
     current.amountMinor !== selected.amountMinor ||
-    current.modelVersion !== 2 ||
-    selected.modelVersion !== 2 ||
     current.settlementId ||
     selected.settlementId ||
     !current.financial ||

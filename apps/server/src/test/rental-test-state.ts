@@ -1,5 +1,5 @@
 import type { RentalBillDetail } from "@xpense/shared";
-import type { BillRevisionRecord } from "../modules/rental/bill-revisions.repository.types.js";
+type BillRevisionRecord=typeof import("../db/schema.js").rentalBillRevisions.$inferSelect;
 import type {
   AdjustmentRecord,
   GenerationRecord,

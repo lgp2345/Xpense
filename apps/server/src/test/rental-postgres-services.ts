@@ -9,8 +9,10 @@ import { AuditRepository } from "../modules/audit/audit.repository.js";
 import { AuditService } from "../modules/audit/audit.service.js";
 import { BookkeepingWriteLockRepository } from "../modules/bookkeeping/bookkeeping-write-lock.repository.js";
 import { AccessService } from "../modules/iam/access.service.js";
-import { BillRevisionsRepository } from "../modules/rental/bill-revisions.repository.js";
-import { BillRevisionsService } from "../modules/rental/bill-revisions.service.js";
+import { BillingStartsRepository } from "../modules/rental/billing-starts.repository.js";
+import { PeriodBillsService } from "../modules/rental/period-bills.service.js";
+import { PeriodBillVoidService } from "../modules/rental/period-bill-void.service.js";
+import { SettlementWriteService } from "../modules/rental/settlement-write.service.js";
 import { BillsRepository } from "../modules/rental/bills.repository.js";
 import { ChargeTermsRepository } from "../modules/rental/charge-terms.repository.js";
 import { ContractRelationsRepository } from "../modules/rental/contract-relations.repository.js";
@@ -45,7 +47,7 @@ export function createRentalPostgresServices(db: AppDb) {
       },
       DatabaseTransactionService,
       RentalCashService,
-      BillRevisionsService,
+      PeriodBillsService, PeriodBillVoidService, BillingStartsRepository, SettlementWriteService,
       RentalSettlementsService,
       RentalFinanceSourceService,
       SettlementProjectionService,
@@ -59,7 +61,6 @@ export function createRentalPostgresServices(db: AppDb) {
       BillsRepository,
       ChargeTermsRepository,
       MeterReadingsRepository,
-      BillRevisionsRepository,
       FinanceRequestsRepository,
       RentalCashRepository,
       RentalCashProjectionRepository,

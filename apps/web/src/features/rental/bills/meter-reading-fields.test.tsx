@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MeterReadingFields } from "./meter-reading-fields";
-import type { MonthlyBillDraft } from "./monthly-bill-form";
+import type { MonthlyBillDraft } from "./period-bill-form";
 
 describe("月度账单抄表字段", () => {
   it("分别编辑两类读数和实际抄表日期", () => {

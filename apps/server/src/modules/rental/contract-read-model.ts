@@ -13,7 +13,6 @@ import type {
 export function toContractDetail(contract: RentalContractDetailRecord): RentalContractDetail {
   return {
     ...toContractSummary(contract),
-    billingMode: contract.billingMode,
     billingAnchor: contract.billingAnchor,
     paymentIntervalMonths: contract.paymentIntervalMonths as RentalPaymentIntervalMonths | null,
     dueDaysBefore: contract.dueDaysBefore,
