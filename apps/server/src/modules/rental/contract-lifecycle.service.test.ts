@@ -98,13 +98,11 @@ function harness(
     replaceDraftDeposits: vi.fn(),
   };
   const policy = {
-    lockOrganizationContext: vi
-      .fn()
-      .mockResolvedValue({
-        timezone: "Asia/Shanghai",
-        today: "2026-08-30",
-        now: "2026-08-30T12:00:00",
-      }),
+    lockOrganizationContext: vi.fn().mockResolvedValue({
+      timezone: "Asia/Shanghai",
+      today: "2026-08-30",
+      now: "2026-08-30T12:00:00",
+    }),
     requireContract: vi.fn((value: unknown) => {
       if (!value) throw new NotFoundException();
       return value;
@@ -242,29 +240,26 @@ describe("ContractLifecycleService", () => {
     expect(persisted()).toEqual({ lifecycleWrites: 1, snapshotWrites: 1, audits: 1 });
   });
 
-  it("keeps multi-space legacy drafts confirmable", async () => {
-    const legacy = harness(contract({ billingMode: "legacy_receivable" }));
+  it("rejects all multi-space drafts before lifecycle writes", async () => {
+    const legacy = harness(contract({}));
     legacy.repository.detail.mockResolvedValue({
-      ...detail({ billingMode: "legacy_receivable" }),
+      ...detail({}),
       spaces: [
         { spaceId: "space-1", rentAllocationMinor: 400_000 },
         { spaceId: "space-2", rentAllocationMinor: 400_000 },
       ],
     } as never);
 
-    await legacy.service.confirm(auth, { id: "contract-1" } as never);
-
-    expect(legacy.status()).toBe("confirmed");
-    expect(legacy.repository.setLifecycle).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "confirmed" }),
-      transaction,
-    );
+    await expect(
+      legacy.service.confirm(auth, { id: "contract-1" } as never),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(legacy.repository.setLifecycle).not.toHaveBeenCalled();
   });
 
   it("rejects multi-space monthly-settlement drafts", async () => {
-    const monthly = harness(contract({ billingMode: "monthly_settlement" }));
+    const monthly = harness(contract({}));
     monthly.repository.detail.mockResolvedValue({
-      ...detail({ billingMode: "monthly_settlement" }),
+      ...detail({}),
       spaces: [
         { spaceId: "space-1", rentAllocationMinor: 400_000 },
         { spaceId: "space-2", rentAllocationMinor: 400_000 },
@@ -528,7 +523,7 @@ describe("ContractLifecycleService", () => {
     await setup.service.renew(auth, { id: "contract-1" } as never);
 
     expect(setup.repository.createDraft).toHaveBeenCalledWith(
-      expect.objectContaining({ billingMode: "monthly_settlement" }),
+      expect.objectContaining({}),
       transaction,
     );
     expect(chargeTerms.find).toHaveBeenCalledWith(

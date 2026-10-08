@@ -1,11 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
+import { periodContextFixture } from "./bill-test-fixtures";
 import {
   createPeriodBillDraft,
   createPeriodBillDraftSchema,
   parseSignedMoneyMinor,
   toPeriodBillPreviewRequest,
 } from "./period-bill-form";
-import { periodContextFixture } from "./bill-test-fixtures";
+
 it("默认截止日与读数完全来自服务端上下文，不计算账期", () => {
   const draft = createPeriodBillDraft(periodContextFixture);
   expect(draft.periodStart).toBe("2026-10-05");

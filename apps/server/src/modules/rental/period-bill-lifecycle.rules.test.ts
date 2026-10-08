@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import { rentalFinanceSnapshot } from "../../test/rental-finance-fixtures.js";
 import { assertPeriodBillVoidable } from "./period-bill-lifecycle.rules.js";
+
 function source() {
   const value = rentalFinanceSnapshot();
   value.bills = [

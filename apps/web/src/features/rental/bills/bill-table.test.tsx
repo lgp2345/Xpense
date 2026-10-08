@@ -7,7 +7,6 @@ import { billFixture } from "./bill-test-fixtures";
 const paid = {
   ...billFixture,
   id: "paid",
-  modelVersion: 2 as const,
   type: "deposit" as const,
   amountMinor: 100_000,
   financial: {

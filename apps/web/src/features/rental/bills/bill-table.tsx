@@ -58,9 +58,11 @@ export function BillTable({
               />
             </TableHead>
           ) : null}
-          {["账单/合同", "收退款", "房产与费用", "到期日", "应收金额", "费用所属期间"].map((label) => (
-            <TableHead key={label}>{label}</TableHead>
-          ))}
+          {["账单/合同", "收退款", "房产与费用", "到期日", "应收金额", "费用所属期间"].map(
+            (label) => (
+              <TableHead key={label}>{label}</TableHead>
+            ),
+          )}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -137,7 +139,7 @@ export function BillTable({
             <TableCell className="max-w-48 whitespace-normal break-words">
               {bill.propertyName}
               <p className="mt-1 text-xs text-muted-foreground">
-                {bill.type === "period" ? "租金" : bill.type === "deposit" ? "押金" : "账期账单"}
+                {bill.type === "deposit" ? "押金" : "账期账单"}
               </p>
             </TableCell>
             <TableCell>

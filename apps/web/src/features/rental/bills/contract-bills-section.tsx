@@ -4,6 +4,7 @@ import type { PermissionKey } from "@xpense/shared";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { RentalBillsApi } from "../../../services/rental-bills-api";
 import { rentalBillsQueryOptions } from "../../../services/rental-bills-query";
 import type { RentalFinanceApi } from "../../../services/rental-finance-api";
 import { invalidateRentalFinance } from "../../../services/rental-finance-query";
@@ -14,8 +15,8 @@ import {
   type ContractBillFiltersValue,
   contractBillFiltersSchema,
 } from "./contract-bill-filters";
-import type { RentalBillsApi } from "../../../services/rental-bills-api";
 import { PeriodBillDialog } from "./period-bill-dialog";
+
 type Props = {
   organizationId: string;
   contractId: string;

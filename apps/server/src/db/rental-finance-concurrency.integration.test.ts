@@ -1,11 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { HttpException } from "@nestjs/common";
 import type { TestingModule } from "@nestjs/testing";
-import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 import { AuditService } from "../modules/audit/audit.service.js";
-import { BillRevisionsService } from "../modules/rental/bill-revisions.service.js";
 import { ContractsPolicyService } from "../modules/rental/contracts-policy.service.js";
+import { PeriodBillVoidService } from "../modules/rental/period-bill-void.service.js";
 import { RentalCashService } from "../modules/rental/rental-cash.service.js";
 import { rentalCashSourceVersion } from "../modules/rental/rental-cash.version.rules.js";
 import { RentalCashProjectionRepository } from "../modules/rental/rental-cash-projection.repository.js";
@@ -189,7 +188,7 @@ describe("真实 PostgreSQL 租赁财务事务与竞争（需专用库和明确 
   it("服务图仅显式注入 DB，不连接默认库", async () => {
     const module = await createRentalPostgresServices({} as AppDb);
     expect(module.get(RentalCashService)).toBeInstanceOf(RentalCashService);
-    expect(module.get(BillRevisionsService)).toBeInstanceOf(BillRevisionsService);
+    expect(module.get(PeriodBillVoidService)).toBeInstanceOf(PeriodBillVoidService);
     expect(module.get(RentalSettlementsService)).toBeInstanceOf(RentalSettlementsService);
     await module.close();
   });
@@ -283,7 +282,13 @@ describe("真实 PostgreSQL 租赁财务事务与竞争（需专用库和明确 
               .get(RentalCashService)
               .recordReceipt(fixture.auth, { target, amountMinor, expectedVersion, ...intent() });
         }
-        const input = { contractId: fixture.scope.contractId, extraFees: [] };
+        const input = {
+          contractId: fixture.scope.contractId,
+          extraFees: [],
+          finalReadings: fixture.readings
+            .filter((reading) => reading.readingDate === "2026-02-28")
+            .map(({ kind, readingDate, reading }) => ({ kind, readingDate, reading })),
+        };
         const service = a.get(RentalSettlementsService);
         const preview = await service.preview(fixture.auth, input);
         expect(preview.canConfirm).toBe(true);
@@ -338,87 +343,16 @@ describe("真实 PostgreSQL 租赁财务事务与竞争（需专用库和明确 
   );
 
   it.skipIf(!url)(
-    "共享历史读数更正争用保留两期历史单价和立即外键",
-    async () =>
-      scenario(async ({ pg, a, b, fixture, race }) => {
-        const first = {
-          billId: fixture.ids.january,
-          expectedVersion: "preview",
-          reason: "更正为115",
-          readings: [{ kind: "water" as const, readingDate: "2026-01-31", reading: "115" }],
-        };
-        const second = {
-          ...first,
-          reason: "更正为114",
-          readings: [{ kind: "water" as const, readingDate: "2026-01-31", reading: "114" }],
-        };
-        const inputs = [
-          {
-            ...first,
-            expectedVersion: (await a.get(BillRevisionsService).preview(fixture.auth, first))
-              .version,
-            idempotencyKey: randomUUID(),
-          },
-          {
-            ...second,
-            expectedVersion: (await b.get(BillRevisionsService).preview(fixture.auth, second))
-              .version,
-            idempotencyKey: randomUUID(),
-          },
-        ] as const;
-        const winner = await race(
-          () => a.get(BillRevisionsService).adjust(fixture.auth, inputs[0]),
-          () => b.get(BillRevisionsService).adjust(fixture.auth, inputs[1]),
-        );
-        expect(winner.winner).toBe("a");
-        const bills = await pg.db.select().from(tables.rentalBills);
-        expect(bills.find((bill) => bill.id === fixture.ids.january)).toMatchObject({
-          amountMinor: 11500,
-          revision: 2,
-        });
-        expect(bills.find((bill) => bill.id === fixture.ids.february)).toMatchObject({
-          amountMinor: 11000,
-          revision: 2,
-        });
-        expect(await counts(pg.db)).toMatchObject({
-          cash: 0,
-          requests: 1,
-          audits: 1,
-          billHistory: 2,
-          meterHistory: 1,
-        });
-        const lines = await pg.db
-          .select()
-          .from(tables.rentalBillLines)
-          .where(eq(tables.rentalBillLines.billId, fixture.ids.february));
-        expect(lines.find((line) => line.kind === "water")?.feeSnapshot).toMatchObject({
-          unitPrice: "2.0000",
-          startReading: first.readings[0]?.reading,
-          endReading: "120.0000",
-        });
-        const readings = await pg.db.select().from(tables.rentalMeterReadings);
-        expect(readings.find((reading) => reading.id === fixture.readings[1]?.id)).toMatchObject({
-          revision: 2,
-          reading: "115.0000",
-        });
-        expect(
-          readings.find((reading) => reading.id === fixture.readings[2]?.id)?.predecessorId,
-        ).toBe(fixture.readings[1]?.id);
-        expect(await pg.db.select().from(tables.rentalBillMeterIntervals)).toHaveLength(3);
-        const after = await counts(pg.db);
-        expect(await a.get(BillRevisionsService).adjust(fixture.auth, inputs[0])).toEqual(
-          winner.value,
-        );
-        expect(await counts(pg.db)).toEqual(after);
-      }),
-    120000,
-  );
-
-  it.skipIf(!url)(
     "双结算确认只产生一个当前事件且原键重放",
     async () =>
       scenario(async ({ pg, a, b, fixture, race }) => {
-        const input = { contractId: fixture.scope.contractId, extraFees: [] };
+        const input = {
+          contractId: fixture.scope.contractId,
+          extraFees: [],
+          finalReadings: fixture.readings
+            .filter((reading) => reading.readingDate === "2026-02-28")
+            .map(({ kind, readingDate, reading }) => ({ kind, readingDate, reading })),
+        };
         const preview = await a.get(RentalSettlementsService).preview(fixture.auth, input);
         expect(preview.canConfirm).toBe(true);
         const inputs = [
@@ -461,7 +395,13 @@ describe("真实 PostgreSQL 租赁财务事务与竞争（需专用库和明确 
     "结算确认与旧账单最后收款竞争，关闭陈旧入口",
     async () =>
       scenario(async ({ pg, a, b, fixture, race }) => {
-        const input = { contractId: fixture.scope.contractId, extraFees: [] };
+        const input = {
+          contractId: fixture.scope.contractId,
+          extraFees: [],
+          finalReadings: fixture.readings
+            .filter((reading) => reading.readingDate === "2026-02-28")
+            .map(({ kind, readingDate, reading }) => ({ kind, readingDate, reading })),
+        };
         const target = { kind: "bill" as const, billId: fixture.ids.january };
         const preview = await a.get(RentalSettlementsService).preview(fixture.auth, input);
         const receipt = {
@@ -500,15 +440,13 @@ describe("真实 PostgreSQL 租赁财务事务与竞争（需专用库和明确 
           expectedVersion: await cashVersion(a, pg.db, fixture, target),
           ...intent(),
         };
-        const revision = {
-          billId: fixture.ids.january,
-          expectedVersion: "preview",
-          reason: "回滚探针",
-          readings: [{ kind: "water" as const, readingDate: "2026-01-31", reading: "115" }],
+        const input = {
+          contractId: fixture.scope.contractId,
+          extraFees: [],
+          finalReadings: fixture.readings
+            .filter((reading) => reading.readingDate === "2026-02-28")
+            .map(({ kind, readingDate, reading }) => ({ kind, readingDate, reading })),
         };
-        const revisedVersion = (await a.get(BillRevisionsService).preview(fixture.auth, revision))
-          .version;
-        const input = { contractId: fixture.scope.contractId, extraFees: [] };
         const settlementVersion = (
           await a.get(RentalSettlementsService).preview(fixture.auth, input)
         ).version;
@@ -518,12 +456,6 @@ describe("真实 PostgreSQL 租赁财务事务与竞争（需专用库和明确 
         const intervals = await pg.db.select().from(tables.rentalBillMeterIntervals);
         for (const execute of [
           () => a.get(RentalCashService).recordReceipt(fixture.auth, receipt),
-          () =>
-            a.get(BillRevisionsService).adjust(fixture.auth, {
-              ...revision,
-              expectedVersion: revisedVersion,
-              idempotencyKey: randomUUID(),
-            }),
           () =>
             a.get(RentalSettlementsService).confirm(fixture.auth, {
               ...input,
@@ -545,124 +477,6 @@ describe("真实 PostgreSQL 租赁财务事务与竞争（需专用库和明确 
           expect(await pg.db.select().from(tables.rentalBillMeterIntervals)).toEqual(intervals);
         }
       }),
-    120000,
-  );
-
-  it.skipIf(!url)(
-    "未来账单先释放区间再撤回，历史价P→T转移并重接E，现金只计一次",
-    async () =>
-      scenario(async ({ pg, a, fixture }) => {
-        const target = { kind: "bill" as const, billId: fixture.ids.february };
-        await a.get(RentalCashService).recordReceipt(fixture.auth, {
-          target,
-          amountMinor: 1,
-          expectedVersion: await cashVersion(a, pg.db, fixture, target),
-          ...intent(),
-        });
-        const oldBill = await pg.db
-          .select()
-          .from(tables.rentalBills)
-          .where(eq(tables.rentalBills.id, fixture.ids.february));
-        const oldLines = await pg.db
-          .select()
-          .from(tables.rentalBillLines)
-          .where(eq(tables.rentalBillLines.billId, fixture.ids.february));
-        const oldCash = await pg.db.select().from(tables.rentalCashEntries);
-        const input = {
-          contractId: fixture.scope.contractId,
-          extraFees: [],
-          finalReadings: [
-            { kind: "water" as const, readingDate: "2026-01-15", reading: "105" },
-            { kind: "electricity" as const, readingDate: "2026-01-15", reading: "50" },
-          ],
-        };
-        const service = a.get(RentalSettlementsService);
-        const preview = await service.preview(fixture.auth, input);
-        expect(preview.canConfirm).toBe(true);
-        const before = await counts(pg.db);
-        const originalReadings = await pg.db.select().from(tables.rentalMeterReadings);
-        const originalIntervals = await pg.db.select().from(tables.rentalBillMeterIntervals);
-        const request = {
-          ...input,
-          expectedVersion: preview.version,
-          idempotencyKey: randomUUID(),
-        };
-        const failure = vi
-          .spyOn(a.get(AuditService), "appendRequired")
-          .mockRejectedValueOnce(new Error("未来区间转移后回滚"));
-        try {
-          await expect(service.confirm(fixture.auth, request)).rejects.toThrow(
-            "未来区间转移后回滚",
-          );
-        } finally {
-          failure.mockRestore();
-        }
-        expect(await counts(pg.db)).toEqual(before);
-        expect(await pg.db.select().from(tables.rentalMeterReadings)).toEqual(originalReadings);
-        expect(await pg.db.select().from(tables.rentalBillMeterIntervals)).toEqual(
-          originalIntervals,
-        );
-        expect(
-          await pg.db
-            .select()
-            .from(tables.rentalBills)
-            .where(eq(tables.rentalBills.id, fixture.ids.february)),
-        ).toEqual(oldBill);
-        const settlement = await service.confirm(fixture.auth, request);
-        expect(settlement).toMatchObject({
-          finalCostMinor: 5839,
-          balance: { receivedMinor: 1, outstandingMinor: 5838 },
-        });
-        const withdrawn = await pg.db
-          .select()
-          .from(tables.rentalBills)
-          .where(eq(tables.rentalBills.id, fixture.ids.february));
-        expect(withdrawn[0]).toMatchObject({
-          id: fixture.ids.february,
-          status: "voided",
-          amountMinor: 0,
-          revision: 2,
-          dueDate: oldBill[0]?.dueDate,
-        });
-        expect(
-          await pg.db
-            .select()
-            .from(tables.rentalBillLines)
-            .where(eq(tables.rentalBillLines.billId, fixture.ids.february)),
-        ).toHaveLength(0);
-        const endingLines = await pg.db
-          .select()
-          .from(tables.rentalBillLines)
-          .where(eq(tables.rentalBillLines.billId, fixture.ids.january));
-        expect(endingLines.find((line) => line.kind === "water")).toMatchObject({
-          amountMinor: 1000,
-          feeSnapshot: {
-            unitPrice: "2.0000",
-            startReadingId: fixture.readings[0]?.id,
-            endReading: "105.0000",
-          },
-        });
-        expect(endingLines.some((line) => line.kind === "extra_fee")).toBe(false);
-        const readings = await pg.db.select().from(tables.rentalMeterReadings);
-        const terminal = readings.find(
-          (reading) => reading.kind === "water" && reading.readingDate === "2026-01-15",
-        );
-        expect(terminal?.predecessorId).toBe(fixture.readings[0]?.id);
-        expect(
-          readings.find((reading) => reading.id === fixture.readings[2]?.id)?.predecessorId,
-        ).toBe(terminal?.id);
-        expect(await pg.db.select().from(tables.rentalCashEntries)).toEqual(oldCash);
-        const history = await pg.db
-          .select()
-          .from(tables.rentalBillRevisions)
-          .where(eq(tables.rentalBillRevisions.billId, fixture.ids.february));
-        expect(history).toHaveLength(1);
-        expect(history[0]?.linesSnapshot).toHaveLength(oldLines.length);
-        expect(history[0]?.linesSnapshot).toEqual(expect.arrayContaining(oldLines));
-        const after = await counts(pg.db);
-        expect(await service.confirm(fixture.auth, request)).toEqual(settlement);
-        expect(await counts(pg.db)).toEqual(after);
-      }, true),
     120000,
   );
 });

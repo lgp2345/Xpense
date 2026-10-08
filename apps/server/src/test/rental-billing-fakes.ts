@@ -83,6 +83,10 @@ export function createRentalBillingFakes(state: RentalTestState) {
         }
       fail("billing.void");
     },
+    allForContract: async (org, id) =>
+      structuredClone(
+        state.bills.filter((bill) => bill.organizationId === org && bill.contractId === id),
+      ),
     activeForContract: async (org, id) =>
       structuredClone(
         state.bills.filter(
@@ -106,7 +110,7 @@ export function createRentalBillingFakes(state: RentalTestState) {
       };
     },
     matchingFinancialBills: async (org, query) =>
-      matchingBills(org, query).map(({ id, contractId }) => ({id,contractId})),
+      matchingBills(org, query).map(({ id, contractId }) => ({ id, contractId })),
     detail: async (org, id) => {
       const bill = state.bills.find((item) => item.organizationId === org && item.id === id);
       if (!bill) return null;

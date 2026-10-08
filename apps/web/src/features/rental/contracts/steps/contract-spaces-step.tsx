@@ -1,19 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
-import type {
-  PermissionKey,
-  RentalPropertySummary,
-  RentalSpaceNode,
-} from '@xpense/shared'
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
-import { LoadMoreButton } from '@/components/load-more-button'
-import { Button } from '@/components/ui/button'
+import { useQuery } from "@tanstack/react-query";
+import type { PermissionKey, RentalPropertySummary, RentalSpaceNode } from "@xpense/shared";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { LoadMoreButton } from "@/components/load-more-button";
+import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
@@ -21,45 +10,42 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSet,
-} from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import type { RentalApi } from '../../../../services/rental-api'
-import { rentalQueryOptions } from '../../../../services/rental-query'
+} from "@/components/ui/select";
+import type { RentalApi } from "../../../../services/rental-api";
+import { rentalQueryOptions } from "../../../../services/rental-query";
 import {
   ContractFieldErrorsContext,
   ContractFieldMessage,
   contractFeedbackProps,
   useContractFieldFeedback,
-} from '../contract-field-feedback'
-import type { ContractFormValues } from '../contract-form-schema'
+} from "../contract-field-feedback";
+import type { ContractFormValues } from "../contract-form-schema";
 
 import {
   ContractSpaceList,
   type SpaceBranchCache,
   type SpaceWithPath,
   spaceLabel,
-} from './contract-space-tree'
-
-const unresolvedSelectedSpaceMessage =
-  '存在未解析的已选空间，请先搜索解析或移除后再新增'
+} from "./contract-space-tree";
 
 type ContractSpacesStepProps = {
-  api: RentalApi
-  organizationId: string
-  permissions: readonly PermissionKey[]
-  values: ContractFormValues
-  onChange: (values: ContractFormValues) => void
-  showPropertySelector?: boolean
-  seedSpaceIds?: string[]
-  onNames?: (names: Record<string, string>) => void
-}
+  api: RentalApi;
+  organizationId: string;
+  permissions: readonly PermissionKey[];
+  values: ContractFormValues;
+  onChange: (values: ContractFormValues) => void;
+  showPropertySelector?: boolean;
+  seedSpaceIds?: string[];
+  onNames?: (names: Record<string, string>) => void;
+};
 
 export function ContractSpacesStep(props: ContractSpacesStepProps) {
   return (
@@ -67,7 +53,7 @@ export function ContractSpacesStep(props: ContractSpacesStepProps) {
       key={`${props.organizationId}:${props.values.propertyId}`}
       {...props}
     />
-  )
+  );
 }
 
 function ContractSpacesStepContent({
@@ -80,38 +66,37 @@ function ContractSpacesStepContent({
   seedSpaceIds,
   onNames,
 }: ContractSpacesStepProps) {
-  const legacy = false
-  const errors = useContext(ContractFieldErrorsContext)
-  const propertyFeedback = useContractFieldFeedback('propertyId')
-  const [keyword, setKeyword] = useState('')
-  const [searchKeyword, setSearchKeyword] = useState('')
-  const normalizedKeyword = keyword.trim()
-  const searchPending = normalizedKeyword !== searchKeyword
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [branchCache] = useState<SpaceBranchCache>(() => new Map())
-  const [descendants, setDescendants] = useState<SpaceWithPath[]>([])
-  const [childrenPage, setChildrenPage] = useState(1)
-  const [searchPage, setSearchPage] = useState(1)
-  const [childrenItems, setChildrenItems] = useState<SpaceWithPath[]>([])
-  const [searchItems, setSearchItems] = useState<SpaceWithPath[]>([])
-  const [seedMessage, setSeedMessage] = useState<string | null>(null)
-  const registry = useRef(new Map<string, SpaceWithPath>())
-  const seededRef = useRef(new Set<string>())
-  const ignoredSeedRef = useRef(new Set<string>())
+  const errors = useContext(ContractFieldErrorsContext);
+  const propertyFeedback = useContractFieldFeedback("propertyId");
+  const [keyword, setKeyword] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const normalizedKeyword = keyword.trim();
+  const searchPending = normalizedKeyword !== searchKeyword;
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [branchCache] = useState<SpaceBranchCache>(() => new Map());
+  const [descendants, setDescendants] = useState<SpaceWithPath[]>([]);
+  const [childrenPage, setChildrenPage] = useState(1);
+  const [searchPage, setSearchPage] = useState(1);
+  const [childrenItems, setChildrenItems] = useState<SpaceWithPath[]>([]);
+  const [searchItems, setSearchItems] = useState<SpaceWithPath[]>([]);
+  const [seedMessage, setSeedMessage] = useState<string | null>(null);
+  const registry = useRef(new Map<string, SpaceWithPath>());
+  const seededRef = useRef(new Set<string>());
+  const ignoredSeedRef = useRef(new Set<string>());
   const onLoaded = useCallback((items: SpaceWithPath[]) => {
-    for (const item of items) upsertSpace(registry.current, item)
-    setDescendants((current) => mergeSpaces(current, items))
-  }, [])
+    for (const item of items) upsertSpace(registry.current, item);
+    setDescendants((current) => mergeSpaces(current, items));
+  }, []);
 
   useEffect(() => {
-    if (!normalizedKeyword || normalizedKeyword === searchKeyword) return
+    if (!normalizedKeyword || normalizedKeyword === searchKeyword) return;
     const timer = setTimeout(() => {
-      setSearchKeyword(normalizedKeyword)
-      setSearchPage(1)
-      setSearchItems([])
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [normalizedKeyword, searchKeyword])
+      setSearchKeyword(normalizedKeyword);
+      setSearchPage(1);
+      setSearchItems([]);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [normalizedKeyword, searchKeyword]);
 
   const propertyList = useQuery({
     ...rentalQueryOptions.properties(api, organizationId, {
@@ -120,22 +105,20 @@ function ContractSpacesStepContent({
       pageSize: 50,
     }),
     enabled: Boolean(
-      showPropertySelector &&
-      permissions.includes('rental_properties:read') &&
-      api.listProperties,
+      showPropertySelector && permissions.includes("rental_properties:read") && api.listProperties,
     ),
     retry: false,
-  })
+  });
   const propertyDetail = useQuery({
     ...rentalQueryOptions.property(api, organizationId, values.propertyId),
     enabled: Boolean(
       showPropertySelector &&
-      values.propertyId &&
-      permissions.includes('rental_properties:read') &&
-      api.getProperty,
+        values.propertyId &&
+        permissions.includes("rental_properties:read") &&
+        api.getProperty,
     ),
     retry: false,
-  })
+  });
   const children = useQuery({
     ...rentalQueryOptions.children(api, organizationId, {
       propertyId: values.propertyId,
@@ -143,11 +126,9 @@ function ContractSpacesStepContent({
       page: childrenPage,
       pageSize: 50,
     }),
-    enabled: Boolean(
-      values.propertyId && permissions.includes('rental_spaces:read'),
-    ),
+    enabled: Boolean(values.propertyId && permissions.includes("rental_spaces:read")),
     retry: false,
-  })
+  });
   const search = useQuery({
     ...rentalQueryOptions.search(api, organizationId, {
       propertyId: values.propertyId,
@@ -157,53 +138,49 @@ function ContractSpacesStepContent({
     }),
     enabled: Boolean(
       values.propertyId &&
-      searchKeyword &&
-      !searchPending &&
-      permissions.includes('rental_spaces:read'),
+        searchKeyword &&
+        !searchPending &&
+        permissions.includes("rental_spaces:read"),
     ),
     retry: false,
-  })
+  });
 
   useEffect(() => {
-    const pageItems = (children.data?.items ?? []) as SpaceWithPath[]
-    if (!children.data) return
-    for (const item of pageItems) upsertSpace(registry.current, item)
-    setChildrenItems((current) =>
-      mergeSpaces(childrenPage === 1 ? [] : current, pageItems),
-    )
-  }, [children.data, childrenPage])
+    const pageItems = (children.data?.items ?? []) as SpaceWithPath[];
+    if (!children.data) return;
+    for (const item of pageItems) upsertSpace(registry.current, item);
+    setChildrenItems((current) => mergeSpaces(childrenPage === 1 ? [] : current, pageItems));
+  }, [children.data, childrenPage]);
 
   useEffect(() => {
-    const pageItems = (search.data?.items ?? []) as SpaceWithPath[]
-    if (!search.data || searchPending) return
-    for (const item of pageItems) upsertSpace(registry.current, item)
-    setSearchItems((current) =>
-      mergeSpaces(searchPage === 1 ? [] : current, pageItems),
-    )
-  }, [search.data, searchPage, searchPending])
+    const pageItems = (search.data?.items ?? []) as SpaceWithPath[];
+    if (!search.data || searchPending) return;
+    for (const item of pageItems) upsertSpace(registry.current, item);
+    setSearchItems((current) => mergeSpaces(searchPage === 1 ? [] : current, pageItems));
+  }, [search.data, searchPage, searchPending]);
 
   useEffect(() => {
-    if (!seedSpaceIds?.length || !children.data || childrenPage !== 1) return
-    if (!legacy && seedSpaceIds.length > 1) {
-      if (seedSpaceIds.every((id) => ignoredSeedRef.current.has(id))) return
-      for (const id of seedSpaceIds) ignoredSeedRef.current.add(id)
-      setSeedMessage('合同只能选择一个空间，请重新选择出租空间。')
-      return
+    if (!seedSpaceIds?.length || !children.data || childrenPage !== 1) return;
+    if (seedSpaceIds.length > 1) {
+      if (seedSpaceIds.every((id) => ignoredSeedRef.current.has(id))) return;
+      for (const id of seedSpaceIds) ignoredSeedRef.current.add(id);
+      setSeedMessage("合同只能选择一个空间，请重新选择出租空间。");
+      return;
     }
-    if (!legacy && values.spaces.length) return
-    const unresolved: string[] = []
-    const verified: SpaceWithPath[] = []
+    if (values.spaces.length) return;
+    const unresolved: string[] = [];
+    const verified: SpaceWithPath[] = [];
     for (const id of seedSpaceIds) {
-      if (seededRef.current.has(id) || ignoredSeedRef.current.has(id)) continue
-      const candidate = registry.current.get(id)
+      if (seededRef.current.has(id) || ignoredSeedRef.current.has(id)) continue;
+      const candidate = registry.current.get(id);
       if (!candidate) {
-        unresolved.push(id)
-        ignoredSeedRef.current.add(id)
-        continue
+        unresolved.push(id);
+        ignoredSeedRef.current.add(id);
+        continue;
       }
       const conflict = values.spaces.some((selected) =>
         isSpaceConflict(candidate, registry.current.get(selected.spaceId)),
-      )
+      );
       if (
         candidate.propertyId !== values.propertyId ||
         !candidate.isRentable ||
@@ -211,12 +188,12 @@ function ContractSpacesStepContent({
         restrictionReason(candidate) ||
         conflict
       ) {
-        ignoredSeedRef.current.add(id)
-        unresolved.push(id)
-        continue
+        ignoredSeedRef.current.add(id);
+        unresolved.push(id);
+        continue;
       }
-      seededRef.current.add(id)
-      verified.push(candidate)
+      seededRef.current.add(id);
+      verified.push(candidate);
     }
     if (verified.length) {
       onChange({
@@ -224,81 +201,58 @@ function ContractSpacesStepContent({
         spaces: [
           ...values.spaces,
           ...verified
-            .filter(
-              (item) =>
-                !values.spaces.some((selected) => selected.spaceId === item.id),
-            )
-            .map((item) => ({ spaceId: item.id, rentAllocationText: '' })),
+            .filter((item) => !values.spaces.some((selected) => selected.spaceId === item.id))
+            .map((item) => ({ spaceId: item.id, rentAllocationText: "" })),
         ],
-      })
+      });
     }
     if (unresolved.length)
-      setSeedMessage(
-        '无法验证，已忽略部分空间；深层空间不会自动恢复，请展开或搜索后选择。',
-      )
-  }, [children.data, childrenPage, legacy, onChange, seedSpaceIds, values])
+      setSeedMessage("无法验证，已忽略部分空间；深层空间不会自动恢复，请展开或搜索后选择。");
+  }, [children.data, childrenPage, onChange, seedSpaceIds, values]);
 
   const selected = useMemo(
     () => new Set(values.spaces.map((item) => item.spaceId)),
     [values.spaces],
-  )
-  const hasUnresolvedSelectedSpace = values.spaces.some(
-    (item) => !registry.current.has(item.spaceId),
-  )
-  const items = searchPending
-    ? []
-    : keyword.trim()
-      ? searchItems
-      : childrenItems
-  const activeQuery = keyword.trim() ? search : children
-  const activePage = keyword.trim() ? searchPage : childrenPage
+  );
+  const items = searchPending ? [] : keyword.trim() ? searchItems : childrenItems;
+  const activeQuery = keyword.trim() ? search : children;
+  const activePage = keyword.trim() ? searchPage : childrenPage;
   const canLoadMore = Boolean(
     !searchPending &&
-    activeQuery.data &&
-    activeQuery.data.page * activeQuery.data.pageSize < activeQuery.data.total,
-  )
-  const propertyItems = (propertyList.data?.items ??
-    []) as RentalPropertySummary[]
-  const propertyName =
-    propertyDetail.data?.name ??
-    propertyItems.find((property) => property.id === values.propertyId)?.name
+      activeQuery.data &&
+      activeQuery.data.page * activeQuery.data.pageSize < activeQuery.data.total,
+  );
+  const propertyItems = (propertyList.data?.items ?? []) as RentalPropertySummary[];
   const propertyInactive = Boolean(
-    showPropertySelector &&
-    propertyDetail.data &&
-    !propertyDetail.data.isActive,
-  )
+    showPropertySelector && propertyDetail.data && !propertyDetail.data.isActive,
+  );
 
   useEffect(() => {
-    if (!propertyInactive || !values.propertyId) return
-    onChange({ ...values, propertyId: '', spaces: [] })
-  }, [onChange, propertyInactive, values])
+    if (!propertyInactive || !values.propertyId) return;
+    onChange({ ...values, propertyId: "", spaces: [] });
+  }, [onChange, propertyInactive, values]);
 
   useEffect(() => {
-    if (!onNames) return
-    const names: Record<string, string> = {}
+    if (!onNames) return;
+    const names: Record<string, string> = {};
     const property =
-      propertyDetail.data ??
-      propertyList.data?.items.find((item) => item.id === values.propertyId)
-    if (property) names[property.id] = property.name
+      propertyDetail.data ?? propertyList.data?.items.find((item) => item.id === values.propertyId);
+    if (property) names[property.id] = property.name;
     for (const space of [...childrenItems, ...searchItems, ...descendants]) {
       names[space.id] = [
-        ...(space.path ?? [])
-          .filter((node) => node.id !== space.id)
-          .map((node) => node.name),
+        ...(space.path ?? []).filter((node) => node.id !== space.id).map((node) => node.name),
         space.name,
-      ].join(' / ')
+      ].join(" / ");
     }
     for (const item of values.spaces) {
-      const space = registry.current.get(item.spaceId)
+      const space = registry.current.get(item.spaceId);
       if (space)
         names[space.id] = [
-          ...(space.path ?? [])
-            .filter((node) => node.id !== space.id)
-            .map((node) => node.name),
+          ...(space.path ?? []).filter((node) => node.id !== space.id).map((node) => node.name),
           space.name,
-        ].join(' / ')
+        ].join(" / ");
     }
-    onNames(names)
+    onNames(names);
   }, [
     onNames,
     values.propertyId,
@@ -308,40 +262,29 @@ function ContractSpacesStepContent({
     childrenItems,
     searchItems,
     descendants,
-  ])
+  ]);
 
   function toggle(space: SpaceWithPath) {
     if (selected.has(space.id)) {
       onChange({
         ...values,
         spaces: values.spaces.filter((item) => item.spaceId !== space.id),
-      })
-      return
+      });
+      return;
     }
-    if (legacy && hasUnresolvedSelectedSpace) return
-    const reason = restrictionReason(space)
-    if (
-      reason ||
-      (legacy &&
-        values.spaces.some((item) =>
-          isSpaceConflict(space, registry.current.get(item.spaceId)),
-        ))
-    )
-      return
-    setSeedMessage(null)
+    const reason = restrictionReason(space);
+    if (reason) return;
+    setSeedMessage(null);
     onChange({
       ...values,
-      spaces: [
-        ...(legacy ? values.spaces : []),
-        { spaceId: space.id, rentAllocationText: '' },
-      ],
-    })
+      spaces: [{ spaceId: space.id, rentAllocationText: "" }],
+    });
   }
 
   function retrySpaces() {
-    ignoredSeedRef.current.clear()
-    setSeedMessage(null)
-    void activeQuery.refetch()
+    ignoredSeedRef.current.clear();
+    setSeedMessage(null);
+    void activeQuery.refetch();
   }
 
   return (
@@ -350,18 +293,14 @@ function ContractSpacesStepContent({
         选择房产与空间
       </h2>
       {showPropertySelector ? (
-        <Field
-          data-invalid={
-            contractFeedbackProps(errors, 'propertyId')['aria-invalid']
-          }
-        >
+        <Field data-invalid={contractFeedbackProps(errors, "propertyId")["aria-invalid"]}>
           <FieldLabel htmlFor="contract-property">房产</FieldLabel>
           <Select
-            value={values.propertyId || 'none'}
+            value={values.propertyId || "none"}
             onValueChange={(propertyId) =>
               onChange({
                 ...values,
-                propertyId: propertyId === 'none' ? '' : propertyId,
+                propertyId: propertyId === "none" ? "" : propertyId,
                 spaces: [],
               })
             }
@@ -390,17 +329,12 @@ function ContractSpacesStepContent({
       ) : null}
       {propertyInactive || propertyDetail.isError ? (
         <FieldError>
-          {propertyInactive
-            ? '该房产已停用，无法创建合同。'
-            : '房产验证失败，请重试加载。'}
+          {propertyInactive ? "该房产已停用，无法创建合同。" : "房产验证失败，请重试加载。"}
         </FieldError>
       ) : null}
-      <FieldSet
-        data-invalid={Boolean(errors.spaces)}
-        {...contractFeedbackProps(errors, 'spaces')}
-      >
+      <FieldSet data-invalid={Boolean(errors.spaces)} {...contractFeedbackProps(errors, "spaces")}>
         <FieldLegend variant="label">出租空间</FieldLegend>
-        {!permissions.includes('rental_properties:read') ? (
+        {!permissions.includes("rental_properties:read") ? (
           <FieldDescription className="text-sm text-muted-foreground">
             你没有查看房产的权限。
           </FieldDescription>
@@ -413,22 +347,20 @@ function ContractSpacesStepContent({
                 aria-label="搜索空间"
                 value={keyword}
                 onChange={(event) => {
-                  setKeyword(event.target.value)
+                  setKeyword(event.target.value);
                   if (!event.target.value.trim()) {
-                    setSearchKeyword('')
-                    setSearchPage(1)
-                    setSearchItems([])
+                    setSearchKeyword("");
+                    setSearchPage(1);
+                    setSearchItems([]);
                   }
                 }}
                 placeholder="输入空间名称或编码"
               />
             </Field>
             <FieldDescription className="text-xs text-muted-foreground">
-              {legacy
-                ? '展开空间名称查看内部空间；父空间与子空间不能同时选择。'
-                : '每份合同只能选择一个出租空间，选择其他空间将替换当前选择；可展开查看内部空间。'}
+              每份合同只能选择一个出租空间，选择其他空间将替换当前选择；可展开查看内部空间。
             </FieldDescription>
-            {!legacy && values.spaces.length > 1 ? (
+            {values.spaces.length > 1 ? (
               <FieldError>合同只能选择一个空间，请移除多余空间或重新选择。</FieldError>
             ) : null}
             {seedMessage ? (
@@ -443,13 +375,13 @@ function ContractSpacesStepContent({
             ) : null}
             {!searchPending && activeQuery.isError ? (
               <div role="alert">
-                空间加载失败，请重试。{' '}
+                空间加载失败，请重试。{" "}
                 <Button type="button" variant="link" onClick={retrySpaces}>
                   重试
                 </Button>
               </div>
             ) : null}
-            {!permissions.includes('rental_spaces:read') ? (
+            {!permissions.includes("rental_spaces:read") ? (
               <FieldDescription className="text-sm text-muted-foreground">
                 你没有查看空间的权限。
               </FieldDescription>
@@ -472,26 +404,16 @@ function ContractSpacesStepContent({
                   branchCache={branchCache}
                   onExpand={(id) =>
                     setExpanded((current) => {
-                      const next = new Set(current)
-                      if (next.has(id)) next.delete(id)
-                      else next.add(id)
-                      return next
+                      const next = new Set(current);
+                      if (next.has(id)) next.delete(id);
+                      else next.add(id);
+                      return next;
                     })
                   }
                   onLoaded={onLoaded}
                   selected={selected}
                   onToggle={toggle}
-                  reasonFor={(space) =>
-                    legacy && hasUnresolvedSelectedSpace
-                      ? unresolvedSelectedSpaceMessage
-                      : restrictionReason(space) ||
-                        (legacy &&
-                          values.spaces.some((item) =>
-                            isSpaceConflict(space, registry.current.get(item.spaceId)),
-                          )
-                          ? '已选父级或子级空间，不能同时选择'
-                          : '')
-                  }
+                  reasonFor={restrictionReason}
                 />
               </div>
             )}
@@ -499,25 +421,20 @@ function ContractSpacesStepContent({
               <LoadMoreButton
                 pending={activeQuery.isFetching}
                 onClick={() =>
-                  keyword.trim()
-                    ? setSearchPage(activePage + 1)
-                    : setChildrenPage(activePage + 1)
+                  keyword.trim() ? setSearchPage(activePage + 1) : setChildrenPage(activePage + 1)
                 }
               >
                 加载更多空间
               </LoadMoreButton>
             ) : null}
             {values.spaces.length ? (
-              <FieldSet
-                aria-label="已选空间"
-                className="rounded-md bg-muted/40 p-3 gap-2"
-              >
+              <FieldSet aria-label="已选空间" className="rounded-md bg-muted/40 p-3 gap-2">
                 <FieldLegend className="font-medium text-sm">
                   已选空间 {values.spaces.length}
                 </FieldLegend>
                 {values.spaces.map((item) => {
-                  const registered = registry.current.get(item.spaceId)
-                  const name = registered?.name ?? item.spaceId
+                  const registered = registry.current.get(item.spaceId);
+                  const name = registered?.name ?? item.spaceId;
                   return (
                     <div
                       key={item.spaceId}
@@ -541,18 +458,16 @@ function ContractSpacesStepContent({
                         移除
                       </Button>
                     </div>
-                  )
+                  );
                 })}
               </FieldSet>
             ) : null}
             {values.spaces.length &&
-            (legacy || values.spaces.some((item) => item.rentAllocationText.trim())) ? (
+            values.spaces.some((item) => item.rentAllocationText.trim()) ? (
               <FieldSet className="gap-2">
-                <FieldLegend className="font-medium text-sm">
-                  已选空间租金分摊（可选）
-                </FieldLegend>
+                <FieldLegend className="font-medium text-sm">已选空间租金分摊（可选）</FieldLegend>
                 {values.spaces.map((item) => {
-                  const registered = registry.current.get(item.spaceId)
+                  const registered = registry.current.get(item.spaceId);
                   return (
                     <Field
                       key={item.spaceId}
@@ -560,16 +475,16 @@ function ContractSpacesStepContent({
                         contractFeedbackProps(
                           errors,
                           `spaces.${values.spaces.indexOf(item)}.rentAllocationText`,
-                        )['aria-invalid']
+                        )["aria-invalid"]
                       }
                     >
                       <FieldLabel htmlFor={`allocation-${item.spaceId}`}>
                         <span>
                           空间
-                          {registered?.name ? ` · ${registered.name}` : ''}
+                          {registered?.name ? ` · ${registered.name}` : ""}
                           {registered?.path?.length
-                            ? `（${registered.path.map((node) => node.name).join(' / ')}）`
-                            : ''}
+                            ? `（${registered.path.map((node) => node.name).join(" / ")}）`
+                            : ""}
                         </span>
                       </FieldLabel>
                       <Input
@@ -600,7 +515,7 @@ function ContractSpacesStepContent({
                         name={`spaces.${values.spaces.indexOf(item)}.rentAllocationText`}
                       />
                     </Field>
-                  )
+                  );
                 })}
               </FieldSet>
             ) : null}
@@ -609,63 +524,49 @@ function ContractSpacesStepContent({
         <ContractFieldMessage name="spaces" />
       </FieldSet>
     </section>
-  )
+  );
 }
 
 export function isSpaceConflict(
   candidate: SpaceWithPath,
   selected: SpaceWithPath | undefined,
 ): boolean {
-  if (!selected || candidate.id === selected.id) return false
+  if (!selected || candidate.id === selected.id) return false;
   const candidateAncestors = new Set([
     candidate.parentId,
     ...(candidate.path ?? []).map((node) => node.id),
-  ])
+  ]);
   const selectedAncestors = new Set([
     selected.parentId,
     ...(selected.path ?? []).map((node) => node.id),
-  ])
-  return (
-    candidateAncestors.has(selected.id) || selectedAncestors.has(candidate.id)
-  )
+  ]);
+  return candidateAncestors.has(selected.id) || selectedAncestors.has(candidate.id);
 }
 
-function mergeSpaces(
-  current: SpaceWithPath[],
-  next: SpaceWithPath[],
-): SpaceWithPath[] {
-  const merged = new Map(current.map((item) => [item.id, item]))
+function mergeSpaces(current: SpaceWithPath[], next: SpaceWithPath[]): SpaceWithPath[] {
+  const merged = new Map(current.map((item) => [item.id, item]));
   for (const item of next) {
-    const previous = merged.get(item.id)
+    const previous = merged.get(item.id);
     merged.set(
       item.id,
-      previous && !item.path?.length
-        ? { ...previous, ...item, path: previous.path }
-        : item,
-    )
+      previous && !item.path?.length ? { ...previous, ...item, path: previous.path } : item,
+    );
   }
-  return [...merged.values()]
+  return [...merged.values()];
 }
 
-function upsertSpace(
-  registry: Map<string, SpaceWithPath>,
-  item: SpaceWithPath,
-): void {
-  const previous = registry.get(item.id)
+function upsertSpace(registry: Map<string, SpaceWithPath>, item: SpaceWithPath): void {
+  const previous = registry.get(item.id);
   registry.set(
     item.id,
-    previous && !item.path?.length
-      ? { ...previous, ...item, path: previous.path }
-      : item,
-  )
+    previous && !item.path?.length ? { ...previous, ...item, path: previous.path } : item,
+  );
 }
 
 function restrictionReason(space: RentalSpaceNode): string {
-  if (!space.isRentable) return '该空间未标记为可出租'
-  if (!space.isEffectivelyActive) return '该空间自身或上级已停用'
-  if (space.leaseBlockedReason === 'ancestor_contract')
-    return '上级空间已有合同'
-  if (space.leaseBlockedReason === 'descendant_contract')
-    return '下级空间已有合同'
-  return ''
+  if (!space.isRentable) return "该空间未标记为可出租";
+  if (!space.isEffectivelyActive) return "该空间自身或上级已停用";
+  if (space.leaseBlockedReason === "ancestor_contract") return "上级空间已有合同";
+  if (space.leaseBlockedReason === "descendant_contract") return "下级空间已有合同";
+  return "";
 }

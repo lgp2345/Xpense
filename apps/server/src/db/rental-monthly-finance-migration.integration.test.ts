@@ -87,13 +87,13 @@ describe("租赁月度财务数据库契约", () => {
 
   it("账单保留模型版本、月份、修订、费用快照和真实行 ID", () => {
     expect(table("rentalBills").columns.map((column) => column.name)).toEqual(
-      expect.arrayContaining(["model_version", "billing_month", "revision"]),
+      expect.arrayContaining(["period_start", "period_end", "revision"]),
     );
     expect(table("rentalBillLines").columns.map((column) => column.name)).toEqual(
       expect.arrayContaining(["note", "fee_snapshot"]),
     );
     const unique = table("rentalBills").indexes.find(
-      (item) => item.config.name === "rental_bills_monthly_current_unique",
+      (item) => item.config.name === "rental_bills_period_current_unique",
     );
     expect(unique?.config.unique).toBe(true);
     expect(unique?.config.where).toBeDefined();
@@ -202,8 +202,8 @@ describe("租赁月度财务数据库契约", () => {
       "rental_charges:update",
       "rental_meters:read",
       "rental_meters:update",
-      "rental_period_bills:generate",
-      "rental_period_bills:void",
+      "rental_monthly_bills:generate",
+      "rental_monthly_bills:adjust",
       "rental_receipts:create",
       "rental_receipts:revoke",
       "rental_refunds:create",
@@ -253,7 +253,7 @@ describe("租赁月度财务数据库契约", () => {
         const fixture = await insertRentalPostgresFixture(pg.db);
         const bills = await pg.db.select().from(schema.rentalBills);
         expect(bills).toHaveLength(3);
-        expect(bills.every((bill) => bill.modelVersion === 2)).toBe(true);
+        expect(bills.every((bill) => bill.type === "period" || bill.type === "deposit")).toBe(true);
         const bill = bills.find((item) => item.id === fixture.ids.january);
         if (!bill) throw new Error("真实账单缺失");
         await expect(
@@ -357,7 +357,7 @@ describe("租赁月度财务数据库契约", () => {
           isVisible: true,
         });
         const menusBefore = await pg.db.select().from(schema.menus);
-        const full = await pg.applyMigrations();
+        const full = await pg.applyMigrations("20261001131738_rental_monthly_permissions");
         expect(full.entries).toHaveLength(14);
         expect(
           await pg.client`SELECT id, source_key, amount_minor, snapshot FROM rental_bills ORDER BY id`,
@@ -365,18 +365,17 @@ describe("租赁月度财务数据库契约", () => {
         expect(
           await pg.client`SELECT id, bill_id, amount_minor, kind::text FROM rental_bill_lines ORDER BY id`,
         ).toEqual(oldLines);
-        const updatedBills = await pg.db.select().from(schema.rentalBills);
+        const updatedBills =
+          await pg.client`SELECT model_version, billing_month, revision FROM rental_bills ORDER BY id`;
         expect(
-          updatedBills.map((bill) => [bill.modelVersion, bill.billingMonth, bill.revision]),
+          updatedBills.map((bill) => [bill.model_version, bill.billing_month, bill.revision]),
         ).toEqual([
           [1, null, 1],
           [1, null, 1],
         ]);
-        const [contract] = await pg.db
-          .select()
-          .from(schema.rentalContracts)
-          .where(eq(schema.rentalContracts.id, fixture.scope.contractId));
-        expect(contract?.billingMode).toBe("legacy_receivable");
+        const [contract] =
+          await pg.client`SELECT billing_mode FROM rental_contracts WHERE id = ${fixture.scope.contractId}`;
+        expect(contract?.billing_mode).toBe("legacy_receivable");
         const checkGrants = async () => {
           const grants = await pg.db.select().from(schema.rolePermissions);
           expect(grants.filter((grant) => grant.roleId === ownerId)).toHaveLength(12);
@@ -401,7 +400,7 @@ describe("租赁月度财务数据库契约", () => {
         await checkGrants();
         const history = await pg.client`SELECT name, hash FROM __drizzle_migrations ORDER BY name`;
         expect(history).toHaveLength(14);
-        await pg.applyMigrations();
+        await pg.applyMigrations("20261001131738_rental_monthly_permissions");
         expect(await pg.client`SELECT name, hash FROM __drizzle_migrations ORDER BY name`).toEqual(
           history,
         );

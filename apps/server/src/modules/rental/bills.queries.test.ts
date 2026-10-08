@@ -66,7 +66,7 @@ describe("账单明细兼容可选财务快照", () => {
       contractNumber: "RC-2026-0001",
       propertyName: "房产",
       currencyCode: "CNY",
-      type: "monthly",
+      type: "period",
       status: "active",
       sourceKey: "monthly:2026-09",
       periodStart: null,
@@ -88,8 +88,6 @@ describe("账单明细兼容可选财务快照", () => {
       voidReason: null,
       voidedAt: null,
       voidedBy: null,
-      modelVersion: 2,
-      billingMonth: "2026-09",
       revision: 1,
       createdByUserId: "user",
       createdAt: new Date("2026-09-01T00:00:00.000Z"),
@@ -117,7 +115,7 @@ describe("月度账单列表投影", () => {
       contractNumber: "RC-2026-0001",
       propertyName: "房产",
       currencyCode: "CNY",
-      type: "monthly",
+      type: "period",
       status: "active",
       sourceKey: "monthly:2026-09",
       periodStart: null,
@@ -133,8 +131,6 @@ describe("月度账单列表投影", () => {
       voidReason: null,
       voidedAt: null,
       voidedBy: null,
-      modelVersion: 2,
-      billingMonth: "2026-09",
       revision: 3,
       createdByUserId: "user",
       createdAt: new Date("2026-09-01T00:00:00.000Z"),
@@ -162,7 +158,7 @@ describe("月度账单列表投影", () => {
 
     const page = await queryBillPage("org", {}, executor as never);
 
-    expect(page.items[0]).toMatchObject({ modelVersion: 2, billingMonth: "2026-09", revision: 3 });
+    expect(page.items[0]).toMatchObject({ revision: 3 });
     expect(page.totals).toMatchObject({
       rentAmountMinor: 10_200,
       depositAmountMinor: 500,
@@ -171,17 +167,14 @@ describe("月度账单列表投影", () => {
     const rentExpression = new PgDialect().sqlToQuery(totalsSelection?.rent as never);
     const rentSql = rentExpression.sql.toLowerCase();
     expect(rentSql).toContain(
-      `when "rental_bills"."status" = 'active' and "rental_bills"."type" = 'rent' then "rental_bills"."amount_minor"`,
-    );
-    expect(rentSql).toContain(
-      `when "rental_bills"."status" = 'active' and "rental_bills"."type" = 'monthly' then (`,
+      `when "rental_bills"."status" = 'active' and "rental_bills"."type" = 'period' then (`,
     );
     expect(rentSql).toContain('from "rental_bill_lines"');
     expect(rentSql).toContain('"rental_bill_lines"."bill_id" = "rental_bills"."id"');
     expect(rentSql).toContain(`"rental_bill_lines"."kind" = 'rent_period'`);
     expect(rentSql).not.toContain(" join ");
     expect(new PgDialect().sqlToQuery(totalsSelection?.monthly as never).sql).toContain(
-      `"rental_bills"."type" = 'monthly' then "rental_bills"."amount_minor"`,
+      `"rental_bills"."type" = 'period' then "rental_bills"."amount_minor"`,
     );
     expect(new PgDialect().sqlToQuery(totalsSelection?.deposit as never).sql).toContain(
       `"rental_bills"."type" = 'deposit' then "rental_bills"."amount_minor"`,
@@ -207,15 +200,12 @@ describe("月度账单列表投影", () => {
       amountMinor: 300_000,
       dueState: null,
       createdAt: "2026-08-01T00:00:00.000Z",
-      modelVersion: 2,
-      billingMonth: null,
       revision: 1,
     } as const;
     const facts = (refunded: boolean): RentalCashProjectionFacts => ({
       organizationId: "org",
       contractId: "contract",
       contract: {
-        billingMode: "monthly_settlement",
         lifecycleStatus: "confirmed",
         startDate: "2026-12-01",
         endDate: "2027-11-30",
@@ -229,10 +219,10 @@ describe("月度账单列表投影", () => {
       bills: [
         {
           id: bill.id,
+          periodStart: null,
+          periodEnd: null,
           type: bill.type,
           status: bill.status,
-          modelVersion: bill.modelVersion,
-          billingMonth: bill.billingMonth,
           revision: bill.revision,
           amountMinor: bill.amountMinor,
           sourceKey: bill.sourceKey,
@@ -284,9 +274,6 @@ describe("月度账单列表投影", () => {
     expect(afterRefund).toMatchObject({
       financial: { outstandingMinor: 0, refundableMinor: 0 },
     });
-
-    const legacy = { ...bill, modelVersion: 1 as const };
-    expect(withBillFinancial(legacy, facts(false), "2026-12-01", "org")).toBe(legacy);
   });
 });
 
@@ -294,7 +281,7 @@ describe("全筛选财务账单身份查询", () => {
   it("复用全部列表筛选，只取身份字段且不分页、不联接明细或现金", async () => {
     const selected: Record<string, unknown>[] = [];
     const conditions: unknown[] = [];
-    const rows = [{ id: "bill-a", contractId: "contract-a", modelVersion: 2 }];
+    const rows = [{ id: "bill-a", contractId: "contract-a" }];
     const executor = {
       select: (selection: Record<string, unknown>) => {
         selected.push(selection);
@@ -319,7 +306,7 @@ describe("全筛选财务账单身份查询", () => {
         billListCondition("org", {
           contractId: "contract-a",
           propertyId: "property-a",
-          type: "monthly",
+          type: "period",
           status: "voided",
           dueDateFrom: "2026-09-01",
           dueDateTo: "2026-09-30",
@@ -332,14 +319,14 @@ describe("全筛选财务账单身份查询", () => {
     ).resolves.toEqual(rows);
 
     expect(selected).toHaveLength(1);
-    expect(Object.keys(selected[0] ?? {}).sort()).toEqual(["contractId", "id", "modelVersion"]);
+    expect(Object.keys(selected[0] ?? {}).sort()).toEqual(["contractId", "id"]);
     const query = new PgDialect().sqlToQuery(conditions[0] as never);
     expect(query.params).toEqual(
       expect.arrayContaining([
         "org",
         "contract-a",
         "property-a",
-        "monthly",
+        "period",
         "voided",
         "2026-09-01",
         "2026-09-30",

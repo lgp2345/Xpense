@@ -14,7 +14,9 @@ async function harness() {
   const readings = {
     saveBaseline: vi.fn(),
     clearDraftBaselines: vi.fn(),
-    list: vi.fn().mockResolvedValue([]),
+    list: vi
+      .fn<() => Promise<import("./rental-finance.types.js").RentalMeterReading[]>>()
+      .mockResolvedValue([]),
   };
   const audit = { appendRequired: vi.fn() };
   const access = {
@@ -142,4 +144,30 @@ describe("合同收费初始化", () => {
     ).rejects.toThrow("审计失败");
     await h.module.close();
   });
+});
+
+it("开始前更换空间只清除未使用底数，历史所属读数阻断而不删除", async () => {
+  const h = await harness();
+  const scope = {
+    organizationId: rentalFinanceAuth.organizationId,
+    contractId: h.snapshot.context.contractId,
+  };
+  const baseline = { ...h.snapshot.readings[0]!, spaceId: "old-space" };
+  h.readings.list.mockResolvedValue([baseline]);
+  await h.service.syncDraftSpace(rentalFinanceAuth as never, scope, ["new-space"], {} as never);
+  expect(h.readings.clearDraftBaselines).toHaveBeenCalledWith(
+    scope,
+    [baseline.id],
+    expect.anything(),
+  );
+  h.readings.clearDraftBaselines.mockClear();
+  h.readings.list.mockResolvedValue([
+    baseline,
+    { ...baseline, id: "used", source: "bill", billId: "bill", predecessorId: baseline.id },
+  ]);
+  await expect(
+    h.service.syncDraftSpace(rentalFinanceAuth as never, scope, ["new-space"], {} as never),
+  ).rejects.toThrow(/已使用/);
+  expect(h.readings.clearDraftBaselines).not.toHaveBeenCalled();
+  await h.module.close();
 });

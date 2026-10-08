@@ -73,7 +73,11 @@ describe("押金业务身份", () => {
       activeBills: [],
       adjustment: null,
     } as unknown as BillingSource;
-    const input = { contractId: "contract", depositDueDates: { a: "2026-01-01", b: "2026-02-01" } };
+    const input = {
+      scope: "deposits" as const,
+      contractId: "contract",
+      depositDueDates: { a: "2026-01-01", b: "2026-02-01" },
+    };
     const changed = {
       ...source,
       contract: {

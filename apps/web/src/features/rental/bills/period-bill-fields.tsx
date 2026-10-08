@@ -1,4 +1,5 @@
 import type { RentalPeriodBillContext } from "@xpense/shared";
+import { useId } from "react";
 import { DatePickerInput } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { formatBillAmount } from "./bill-format";
 import { ExtraFeeFields } from "./extra-fee-fields";
 import { MeterReadingFields } from "./meter-reading-fields";
 import type { PeriodBillDraft } from "./period-bill-form";
+
 type Props = {
   draft: PeriodBillDraft;
   context: RentalPeriodBillContext;
@@ -37,6 +39,7 @@ export function PeriodBillFields({
       },
     ]),
   );
+  const fieldId = useId();
   const meterErrors = (name: "readings" | "baselineReadings") =>
     Object.fromEntries(
       (["water", "electricity"] as const).map((kind) => [
@@ -184,9 +187,10 @@ export function PeriodBillFields({
               const key =
                 kind === "water" ? "overrideWaterUnitPrice" : "overrideElectricityUnitPrice";
               return (
-                <label key={kind} className="space-y-1 text-sm">
+                <label key={kind} htmlFor={`${fieldId}-${kind}`} className="space-y-1 text-sm">
                   <span>本期{kind === "water" ? "水费" : "电费"}单价（元）</span>
                   <Input
+                    id={`${fieldId}-${kind}`}
                     aria-label={`本期${kind === "water" ? "水费" : "电费"}单价`}
                     placeholder="沿用合同单价"
                     inputMode="decimal"
@@ -202,11 +206,12 @@ export function PeriodBillFields({
               );
             })}
           {draft.overrideFixedFees.map((fee, index) => (
-            <label key={fee.id} className="space-y-1 text-sm">
+            <label key={fee.id} htmlFor={`${fieldId}-${fee.id}`} className="space-y-1 text-sm">
               <span>
                 本期{context.defaults.fixedFees.find((item) => item.id === fee.id)?.name}（元/期）
               </span>
               <Input
+                id={`${fieldId}-${fee.id}`}
                 aria-label={`本期固定费 ${index + 1}`}
                 placeholder="沿用合同每期金额"
                 value={fee.amount}
@@ -227,9 +232,10 @@ export function PeriodBillFields({
               ) : null}
             </label>
           ))}
-          <label className="space-y-1 text-sm sm:col-span-2">
+          <label htmlFor={`${fieldId}-reason`} className="space-y-1 text-sm sm:col-span-2">
             <span>本期收费调整原因</span>
             <Input
+              id={`${fieldId}-reason`}
               aria-label="本期收费调整原因"
               value={draft.overrideReason}
               onChange={(event) => onChange("overrideReason", event.target.value)}

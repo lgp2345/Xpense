@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import type {
-  RentalBillingMode,
   RentalChargeTerms,
   RentalMeterReadingInput,
   UpdateRentalChargeTermsRequest,
@@ -11,15 +10,14 @@ import type {
 const contractId = "123e4567-e89b-42d3-a456-426614174000";
 
 describe("租赁收费和计量共享契约", () => {
-  it("区分 legacy 与月度结算合同并定义水电类型", async () => {
+  it("定义水电类型，移除合同模式分支", async () => {
     const shared = await import("./index.js");
 
-    expect(shared.rentalBillingModes).toEqual(["legacy_receivable", "monthly_settlement"]);
+    expect(shared).not.toHaveProperty("rentalBillingModes");
     expect(shared.rentalMeterKinds).toEqual(["water", "electricity"]);
   });
 
   it("提供稳定条款、单次抄表和底数更新请求类型", () => {
-    const billingMode: RentalBillingMode = "monthly_settlement";
     const terms: RentalChargeTerms = {
       contractId,
       version: "charge-v3",
@@ -51,7 +49,6 @@ describe("租赁收费和计量共享契约", () => {
       reason: "入住交接底数",
     };
 
-    expect(billingMode).toBe("monthly_settlement");
     expect(terms.fixedFees[0]?.periodAmountMinor).toBe(5000);
     expect(updateTerms.fixedFees[0]?.name).toBe("网费");
     expect(updateBaseline.readings.map(({ kind }) => kind)).toEqual(["water", "electricity"]);

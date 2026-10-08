@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rentalFinanceSnapshot } from "../../test/rental-finance-fixtures.js";
-import { buildPeriodBillPlan } from "./period-bill-plan.rules.js";
+import { buildPeriodBillContext, buildPeriodBillPlan } from "./period-bill-plan.rules.js";
+
 const request = {
   contractId: rentalFinanceSnapshot().context.contractId,
   periodStart: "2026-01-01",
@@ -93,4 +94,50 @@ describe("下一账期预览", () => {
     source.settlement = { id: "settlement" } as never;
     expect(() => buildPeriodBillPlan(source, request)).toThrow(/结算/);
   });
+});
+it("未来合同用今天真实底数提前生成首期，以基准日期限制下界", () => {
+  const source = rentalFinanceSnapshot();
+  source.context.today = "2026-10-08";
+  Object.assign(source.contract, {
+    startDate: "2026-10-15",
+    endDate: "2027-01-14",
+    actualEndDate: "2027-01-14",
+    billingAnchor: "contract_start",
+    paymentIntervalMonths: 1,
+  });
+  source.readings = source.readings.map((reading) => ({ ...reading, readingDate: "2026-10-08" }));
+  const context = buildPeriodBillContext(source, { page: 1, pageSize: 20 });
+  const input = {
+    contractId: source.context.contractId,
+    periodStart: context.nextPeriod!.periodStart,
+    readings: context.defaultReadings,
+    extraFees: [],
+  };
+  const plan = buildPeriodBillPlan(source, input);
+  expect(plan.missingFields).toEqual([]);
+  expect(plan.period.periodStart).toBe("2026-10-15");
+  expect(
+    plan.lines
+      .filter((line) => line.kind === "water" || line.kind === "electricity")
+      .map((line) => line.amountMinor),
+  ).toEqual([0, 0]);
+  expect(() =>
+    buildPeriodBillPlan(source, {
+      ...input,
+      readings: input.readings.map((reading) => ({ ...reading, readingDate: "2026-10-07" })),
+    }),
+  ).toThrow(/基准/);
+  expect(() =>
+    buildPeriodBillPlan(source, {
+      ...input,
+      readings: input.readings.map((reading) => ({ ...reading, readingDate: "2026-10-09" })),
+    }),
+  ).toThrow(/抄表日期/);
+  expect(() =>
+    buildPeriodBillPlan(source, {
+      ...input,
+      periodStart: "2026-11-15",
+      billingStart: { firstPeriodStart: "2026-11-15", baselineReadings: context.defaultReadings },
+    }),
+  ).not.toThrow();
 });

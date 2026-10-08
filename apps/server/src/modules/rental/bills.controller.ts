@@ -4,27 +4,20 @@ import type {
   RentalBillGenerationResult,
   RentalBillPage,
   RentalBillPreview,
-  RentalTerminationPreview,
 } from "@xpense/shared";
-import { z } from "zod";
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
 import { RequirePermission } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
-import { BillingLifecycleService } from "./billing-lifecycle.service.js";
 import { BillsService } from "./bills.service.js";
 import { BillsReadService } from "./bills-read.service.js";
 import { type BillDetailDto, billDetailSchema } from "./dto/bill-detail.dto.js";
 import { type GenerateBillsDto, generateBillsSchema } from "./dto/generate-bills.dto.js";
 import { type ListBillsDto, listBillsSchema } from "./dto/list-bills.dto.js";
 import { type PreviewBillsDto, previewBillsSchema } from "./dto/preview-bills.dto.js";
-import {
-  type PreviewTerminationDto,
-  previewTerminationSchema,
-} from "./dto/preview-termination.dto.js";
 
-/** 应收只读查询、全租期生成和终止参考，不开放通用金额编辑。 */
+/** 账单只读查询和押金生成；普通账单通过独立账期接口生成及作废。 */
 @Controller("rental-bills")
 @UseGuards(AuthGuard, RbacGuard)
 export class BillsController {

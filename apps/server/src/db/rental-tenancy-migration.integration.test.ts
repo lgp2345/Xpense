@@ -523,7 +523,7 @@ describe("rental tenant and contract migration contract", () => {
         const foreignKeys = await sql<{ definition: string; name: string }[]>`
           SELECT conname AS name, pg_get_constraintdef(oid) AS definition
           FROM pg_constraint
-          WHERE contype = 'f' AND conname IN (
+          WHERE connamespace = (SELECT oid FROM pg_namespace WHERE nspname=current_schema()) AND contype = 'f' AND conname IN (
             'rental_contract_changes_contract_scope_fk',
             'rental_contract_deposit_terms_contract_scope_fk',
             'rental_contract_party_periods_contract_scope_fk',
@@ -771,7 +771,7 @@ describe("rental tenant and contract migration contract", () => {
           ),
         ).rejects.toMatchObject({
           code: "23505",
-          constraint: "rental_tenants_active_document_hash_unique",
+          constraint_name: "rental_tenants_active_document_hash_unique",
         });
         await expect(
           sql.savepoint(
@@ -784,7 +784,7 @@ describe("rental tenant and contract migration contract", () => {
           ),
         ).rejects.toMatchObject({
           code: "23503",
-          constraint: "rental_contracts_property_scope_fk",
+          constraint_name: "rental_contracts_property_scope_fk",
         });
       });
     } finally {

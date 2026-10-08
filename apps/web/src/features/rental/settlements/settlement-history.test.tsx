@@ -28,15 +28,9 @@ it("显示合同结算版本历史并按合同读取", async () => {
             status: "settled",
             snapshot: {
               effectiveEndDate: "2026-09-30",
-              withdrawnBillIds: [],
-              finalBills: [
-                {
-                  billId: "bill-a",
-                  billingMonth: "2026-09",
-                  lines: [],
-                  amountMinor: 125_000,
-                },
-              ],
+              periodCharges: [],
+              terminalLines: [],
+              extraLines: [],
               finalCostMinor: 125_000,
               differenceMinor: 0,
             },
@@ -44,7 +38,7 @@ it("显示合同结算版本历史并按合同读取", async () => {
             confirmedByUserId: "user-a",
             updatedAt: "2026-10-01T09:00:00.000Z",
           },
-          reason: "修正结束日期",
+          reason: "登记退款",
           createdByUserId: "user-a",
           createdAt: "2026-10-01T10:00:00.000Z",
         } satisfies RentalFinanceSettlementHistoryItem,
@@ -60,7 +54,7 @@ it("显示合同结算版本历史并按合同读取", async () => {
     </QueryClientProvider>,
   );
 
-  expect(await screen.findByText("第 2 次结算更正 · 2026-09-30 · 已结清")).toBeInTheDocument();
+  expect(await screen.findByText("第 2 次结算余额更新 · 2026-09-30 · 已结清")).toBeInTheDocument();
   expect(screen.getByText("最终费用 1,250.00")).toBeInTheDocument();
   expect(api.settlementHistory).toHaveBeenCalledExactlyOnceWith(
     { contractId: "contract-a", page: 1, pageSize: 20 },

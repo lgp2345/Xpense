@@ -6,7 +6,7 @@ import type {
   RentalContractDetail,
   TerminateRentalContractRequest,
 } from "@xpense/shared";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { DatePickerInput } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,10 +28,6 @@ import {
   invalidateContractMutation,
   invalidateDeletedContractMutation,
 } from "../../../services/rental-query";
-import {
-  ContractTerminationBilling,
-  type TerminationBillingState,
-} from "../bills/contract-termination-billing";
 import {
   ACTION_LABELS,
   ACTION_TITLES,
@@ -62,16 +58,6 @@ export function ContractActions({
 }) {
   const queryClient = useQueryClient();
   const [dialog, setDialog] = useState<DialogState>({ tag: "closed" });
-  const [financial, setFinancial] = useState<TerminationBillingState & { date: string }>({
-    ready: false,
-    date: "",
-  });
-  const financialDate =
-    dialog.tag === "open" && dialog.kind === "terminate" ? dialog.terminationDate : "";
-  const onFinancialChange = useCallback(
-    (state: TerminationBillingState) => setFinancial({ ...state, date: financialDate }),
-    [financialDate],
-  );
   const financialReady = true;
   const contextKey = `${organizationId}:${contract.id}`;
   const liveContextRef = useRef(contextKey);
@@ -153,7 +139,6 @@ export function ContractActions({
     remove.isPending;
   const open = (kind: ActionKind) => {
     if (pending) return;
-    setFinancial({ ready: false, date: "" });
     const target = currentTarget();
     if (kind === "delete" || kind === "renew")
       setDialog({ tag: "open", kind, target, submitError: null });
@@ -231,9 +216,6 @@ export function ContractActions({
             id: state.target.contractId,
             terminationDate: state.terminationDate,
             reason: state.reason.trim(),
-            ...(needsFinancialCheck && financial.confirmation
-              ? { billingConfirmation: financial.confirmation }
-              : {}),
           },
           target: state.target,
         });

@@ -1,11 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MeterReadingFields } from "./meter-reading-fields";
-import type { MonthlyBillDraft } from "./period-bill-form";
+import type { PeriodBillDraft } from "./period-bill-form";
 
 describe("月度账单抄表字段", () => {
   it("分别编辑两类读数和实际抄表日期", () => {
-    const readings: MonthlyBillDraft["readings"] = {
+    const readings: PeriodBillDraft["readings"] = {
       water: { readingDate: "2026-08-30", reading: "110" },
       electricity: { readingDate: "2026-08-30", reading: "260" },
     };

@@ -5,21 +5,21 @@ import { ApiError } from "../../../services/api-client";
 import { BillGenerationDialog } from "./bill-generation-dialog";
 import { billsApiFixture, previewFixture } from "./bill-test-fixtures";
 
-async function dates(autoPreview = false) {
+async function dates(autoPreview = true) {
   const input = await screen.findByLabelText("统一押金到期日");
   fireEvent.change(input, { target: { value: "2026/01/01" } });
   fireEvent.blur(input);
   await userEvent.click(
     screen.getByRole("button", { name: autoPreview ? "填入全部待生成账单" : "应用到新增押金" }),
   );
-  if (!autoPreview) await userEvent.click(screen.getByRole("button", { name: "更新预览" }));
+  if (!autoPreview) await userEvent.click(screen.getByRole("button", { name: "重试预览" }));
 }
 describe("完整计划确认", () => {
   it("当前页仅有租金时也能填写所有押金，预览通过后仍可修改各项日期", async () => {
     const api = billsApiFixture({
       previewBills: vi.fn().mockImplementation(async (input) => ({
         ...previewFixture,
-        items: previewFixture.items.filter((item) => item.type === "rent"),
+        items: previewFixture.items.filter((item) => item.type === "period"),
         depositInputs: [
           { sourceKey: "source-4", label: "租赁押金", amountMinor: 150000 },
           { sourceKey: "source-5", label: "水电押金", amountMinor: 150000 },
@@ -40,14 +40,13 @@ describe("完整计划确认", () => {
         onGenerated={vi.fn()}
       />,
     );
-    expect(await screen.findByLabelText(/租赁押金.*到期日/)).toBeInTheDocument();
+    expect(await screen.findByRole("textbox", { name: /租赁押金.*到期日/ })).toBeInTheDocument();
     await dates();
     expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled();
-    const utilityDate = screen.getByLabelText(/水电押金.*到期日/);
+    const utilityDate = screen.getByRole("textbox", { name: /水电押金.*到期日/ });
     fireEvent.change(utilityDate, { target: { value: "2026/02/01" } });
     fireEvent.blur(utilityDate);
-    expect(screen.getByRole("button", { name: "确认生成" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "更新预览" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "确认生成" }));
     expect(api.generateBills).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -92,8 +91,8 @@ describe("完整计划确认", () => {
         onGenerated={vi.fn()}
       />,
     );
-    expect(await screen.findByLabelText(/租赁押金.*到期日/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/水电押金.*到期日/)).toBeInTheDocument();
+    expect(await screen.findByRole("textbox", { name: /租赁押金.*到期日/ })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /水电押金.*到期日/ })).toBeInTheDocument();
   });
   it("分页维持全计划汇总并携带版本；请求进行中连点只提交一次", async () => {
     const api = billsApiFixture({
@@ -183,7 +182,7 @@ describe("完整计划确认", () => {
     await userEvent.click(screen.getByRole("button", { name: "确认生成" }));
     expect(await screen.findByText(/请重新预览/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "确认生成" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "更新预览" }));
+    await userEvent.click(screen.getByRole("button", { name: "重试预览" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
   });
 

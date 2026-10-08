@@ -27,15 +27,16 @@ describe("租赁合同结算共享契约", () => {
       canConfirm: false,
       missingFields: ["finalReadings"],
       effectiveEndDate: "2026-09-27",
-      billChanges: [
+      periodCharges: [
         {
           billId: null,
-          billingMonth: "2026-09",
+          period: { periodStart: "2026-09-01", periodEnd: "2026-09-27" },
           lines: [],
           amountMinor: 10000,
-          changeAmountMinor: 10000,
         },
       ],
+      terminalLines: [],
+      extraLines: [],
       finalCostMinor: 10000,
       receivedMinor: 5000,
       refundedMinor: 0,

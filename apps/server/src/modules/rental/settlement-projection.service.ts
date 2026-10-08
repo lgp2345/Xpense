@@ -1,11 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import type { RentalSettlementDetail } from "@xpense/shared";
 import type { AppDbExecutor } from "../../db/db.module.js";
+import { settlementStatus } from "./period-settlement.rules.js";
 import { calculateRentalCashBalance } from "./rental-cash.rules.js";
 import { rentalCashSourceVersion } from "./rental-cash.version.rules.js";
 import { RentalCashProjectionRepository } from "./rental-cash-projection.repository.js";
 import type { FinanceScope } from "./rental-finance.types.js";
-import { settlementStatus } from "./period-settlement.rules.js";
 import { RentalSettlementsRepository } from "./rental-settlements.repository.js";
 /** 确认后的成本永远取结算快照；资金变动只刷新余额、状态与版本。 */
 @Injectable()

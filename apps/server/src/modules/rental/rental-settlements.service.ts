@@ -15,8 +15,8 @@ import { BillsRepository } from "./bills.repository.js";
 import { ContractsRepository } from "./contracts.repository.js";
 import { ContractsPolicyService } from "./contracts-policy.service.js";
 import { FinanceRequestsRepository } from "./finance-requests.repository.js";
-import { buildPeriodSettlementPlan } from "./period-settlement.rules.js";
 import { resolvePeriodMeterBaselines } from "./period-meter.rules.js";
+import { buildPeriodSettlementPlan } from "./period-settlement.rules.js";
 import { rentalCashSourceVersion } from "./rental-cash.version.rules.js";
 import { RentalCashProjectionRepository } from "./rental-cash-projection.repository.js";
 import type { RentalFinanceSnapshot } from "./rental-finance.types.js";
@@ -25,6 +25,7 @@ import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
 import { proposeSettlementReadings } from "./rental-settlement-readings.rules.js";
 import { RentalSettlementsRepository } from "./rental-settlements.repository.js";
 import { SettlementWriteService } from "./settlement-write.service.js";
+
 const action = "rental_settlement.confirm";
 /** 只在正式结束事件下确认独立结算快照，后续资金动作只刷新余额。 */
 @Injectable()

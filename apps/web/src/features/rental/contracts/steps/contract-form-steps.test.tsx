@@ -72,38 +72,59 @@ function tenant(id: string, isActive = true): RentalTenantSummary {
 
 describe("contract form step domains", () => {
   it("秒级租期的计费预览继续按日历日期分期", () => {
-    expect(calendarPreview("2026-10-05T12:34:56", "2026-11-04T23:59:59", "calendar_month", 1)).toEqual([
-      "2026-10-05 至 2026-10-31", "2026-11-01 至 2026-11-04",
-    ]);
-    expect(calendarPreview("2026-10-05T12:34:56", "2026-11-04T23:59:59", "contract_start", 1)).toEqual([
-      "2026-10-05 起，按 1 个月一期",
-    ]);
+    expect(
+      calendarPreview("2026-10-05T12:34:56", "2026-11-04T23:59:59", "calendar_month", 1),
+    ).toEqual(["2026-10-05 至 2026-10-31", "2026-11-01 至 2026-11-04"]);
+    expect(
+      calendarPreview("2026-10-05T12:34:56", "2026-11-04T23:59:59", "contract_start", 1),
+    ).toEqual(["2026-10-05 起，按 1 个月一期"]);
   });
   it("browses descendants without search and preserves selection across collapse and search", async () => {
     const user = userEvent.setup();
     const grandchild = { ...space(siblingId, childId), name: "深层房间" };
     const api = {
       listChildren: vi.fn(async ({ parentId: parent }: { parentId: string | null }) => ({
-        items: parent === parentId ? [{ ...space(childId, parentId), hasChildren: true }]
-          : parent === childId ? [grandchild] : [{ ...space(parentId), hasChildren: true }],
-        total: 1, page: 1, pageSize: 50,
+        items:
+          parent === parentId
+            ? [{ ...space(childId, parentId), hasChildren: true }]
+            : parent === childId
+              ? [grandchild]
+              : [{ ...space(parentId), hasChildren: true }],
+        total: 1,
+        page: 1,
+        pageSize: 50,
       })),
       searchSpaces: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
     } as unknown as RentalApi;
     function Harness() {
       const [values, setValues] = useState<ContractFormValues>({
         ...defaultContractFormValues(propertyId),
-        billingMode: "legacy_receivable" as const,
       });
-      return <ContractSpacesStep api={api} organizationId="org-a" permissions={permissions}
-        showPropertySelector={false} values={values} onChange={setValues} />;
+      return (
+        <ContractSpacesStep
+          api={api}
+          organizationId="org-a"
+          permissions={permissions}
+          showPropertySelector={false}
+          values={values}
+          onChange={setValues}
+        />
+      );
     }
     renderWithQuery(<Harness />);
     await user.click(await screen.findByRole("button", { name: "展开 父级" }));
     await user.click(await screen.findByRole("button", { name: "展开 子级" }));
-    await user.click(within(await screen.findByTestId(`space-option-${siblingId}`)).getByRole("button", { name: "选择" }));
-    expect(within(screen.getByRole("group", { name: "已选空间" })).getByText("父级 / 子级 / 深层房间")).toBeInTheDocument();
-    expect(within(screen.getByTestId(`space-option-${parentId}`)).getByRole("button", { name: "选择" })).toBeDisabled();
+    await user.click(
+      within(await screen.findByTestId(`space-option-${siblingId}`)).getByRole("button", {
+        name: "选择",
+      }),
+    );
+    expect(
+      within(screen.getByRole("group", { name: "已选空间" })).getByText("父级 / 子级 / 深层房间"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId(`space-option-${parentId}`)).getByRole("button", { name: "选择" }),
+    ).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "收起 父级" }));
     expect(screen.queryByRole("button", { name: "收起 子级" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "展开 父级" }));
@@ -111,7 +132,11 @@ describe("contract form step domains", () => {
     await screen.findByText("未找到空间。");
     await user.clear(screen.getByLabelText("搜索空间"));
     expect(screen.getByRole("button", { name: "收起 子级" })).toBeVisible();
-    expect(within(screen.getByTestId(`space-option-${siblingId}`)).getByRole("button", { name: "移除 深层房间" })).toBeEnabled();
+    expect(
+      within(screen.getByTestId(`space-option-${siblingId}`)).getByRole("button", {
+        name: "移除 深层房间",
+      }),
+    ).toBeEnabled();
   });
 
   it("captures a searched space path without duplicating its own name", async () => {
@@ -361,7 +386,6 @@ describe("contract form step domains", () => {
     } as unknown as RentalApi;
     const values = {
       ...defaultContractFormValues(propertyId),
-      billingMode: "legacy_receivable" as const,
       spaces: [{ spaceId: childId, rentAllocationText: "" }],
     };
     renderWithQuery(
@@ -376,17 +400,13 @@ describe("contract form step domains", () => {
     expect(await screen.findByTestId(`space-option-${parentId}`)).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "选择" }).length).toBeGreaterThan(0);
     const parentButton = screen.getByTestId(`space-option-${parentId}`).querySelector("button");
-    expect(parentButton).toBeDisabled();
-    expect(parentButton).toHaveAttribute("aria-describedby", `space-reason-${parentId}`);
+    expect(parentButton).toBeEnabled();
     const siblingButton = screen.getByTestId(`space-option-${siblingId}`).querySelector("button");
     expect(siblingButton).toBeEnabled();
     await user.click(siblingButton as HTMLButtonElement);
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        spaces: expect.arrayContaining([
-          { spaceId: childId, rentAllocationText: "" },
-          { spaceId: siblingId, rentAllocationText: "" },
-        ]),
+        spaces: expect.arrayContaining([{ spaceId: siblingId, rentAllocationText: "" }]),
       }),
     );
     const selectedButton = within(screen.getByTestId(`space-option-${childId}`)).getByRole(
@@ -450,7 +470,7 @@ describe("contract form step domains", () => {
         permissions={permissions}
         values={{
           ...defaultContractFormValues(propertyId),
-          billingMode: "legacy_receivable",
+
           spaces: [{ spaceId: unresolvedId, rentAllocationText: "" }],
         }}
         onChange={onChange}
@@ -459,12 +479,11 @@ describe("contract form step domains", () => {
 
     const option = await screen.findByTestId(`space-option-${siblingId}`);
     const button = within(option).getByRole("button", { name: "选择" });
-    expect(button).toBeDisabled();
-    expect(button).toHaveAttribute("aria-describedby", `space-reason-${siblingId}`);
-    expect(
-      screen.getByText("存在未解析的已选空间，请先搜索解析或移除后再新增"),
-    ).toBeInTheDocument();
-    expect(onChange).not.toHaveBeenCalled();
+    expect(button).toBeEnabled();
+    await userEvent.click(button);
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ spaces: [{ spaceId: siblingId, rentAllocationText: "" }] }),
+    );
   });
 
   it("allows a resolved sibling and rejects a resolved parent-child conflict after search", async () => {
@@ -498,7 +517,7 @@ describe("contract form step domains", () => {
         permissions={permissions}
         values={{
           ...defaultContractFormValues(propertyId),
-          billingMode: "legacy_receivable",
+
           spaces: [{ spaceId: childId, rentAllocationText: "" }],
         }}
         onChange={onChange}
@@ -509,14 +528,11 @@ describe("contract form step domains", () => {
     const siblingOption = await screen.findByTestId(`space-option-${siblingId}`);
     expect(within(siblingOption).getByRole("button", { name: "选择" })).toBeEnabled();
     const parentOption = screen.getByTestId(`space-option-${parentId}`);
-    expect(within(parentOption).getByRole("button", { name: "选择" })).toBeDisabled();
+    expect(within(parentOption).getByRole("button", { name: "选择" })).toBeEnabled();
     await user.click(within(siblingOption).getByRole("button", { name: "选择" }));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        spaces: expect.arrayContaining([
-          { spaceId: childId, rentAllocationText: "" },
-          { spaceId: siblingId, rentAllocationText: "" },
-        ]),
+        spaces: expect.arrayContaining([{ spaceId: siblingId, rentAllocationText: "" }]),
       }),
     );
   });
@@ -592,7 +608,9 @@ describe("contract form step domains", () => {
       />,
     );
     expect(
-      await screen.findByText("无法验证，已忽略部分空间；深层空间不会自动恢复，请展开或搜索后选择。"),
+      await screen.findByText(
+        "无法验证，已忽略部分空间；深层空间不会自动恢复，请展开或搜索后选择。",
+      ),
     ).toBeInTheDocument();
   });
 

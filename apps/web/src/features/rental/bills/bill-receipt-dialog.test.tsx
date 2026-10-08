@@ -26,8 +26,7 @@ function renderDialog(bill = billFixture, api = financeApiFixture()) {
 
 const monthlyBill = {
   ...billFixture,
-  type: "monthly" as const,
-  modelVersion: 2 as const,
+  type: "period" as const,
   financial: {
     receivedMinor: 10000,
     refundedMinor: 0,

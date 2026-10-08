@@ -225,7 +225,7 @@ export const rentalBills = snakeCase.table(
     check("rental_bills_revision_check", sql`${table.revision} >= 1`),
     check(
       "rental_bills_period_check",
-      sql`(${table.type}::text = 'deposit' AND ${table.periodStart} IS NULL AND ${table.periodEnd} IS NULL AND ${table.effectiveEnd} IS NULL) OR (${table.type}::text = 'period' AND ${table.periodStart} IS NOT NULL AND ${table.periodEnd} IS NOT NULL AND ${table.periodEnd} >= ${table.periodStart} AND ${table.effectiveEnd} BETWEEN ${table.periodStart} AND ${table.periodEnd})`,
+      sql`(${table.type}::text = 'deposit' AND ${table.periodStart} IS NULL AND ${table.periodEnd} IS NULL AND ${table.effectiveEnd} IS NULL) OR (${table.type}::text = 'period' AND ${table.periodStart} IS NOT NULL AND ${table.periodEnd} IS NOT NULL AND ${table.periodEnd} >= ${table.periodStart} AND ${table.effectiveEnd} IS NOT NULL AND ${table.effectiveEnd} BETWEEN ${table.periodStart} AND ${table.periodEnd})`,
     ),
     check(
       "rental_bills_void_check",

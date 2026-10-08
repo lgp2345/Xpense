@@ -6,7 +6,7 @@ export function validateRentalBillsSearch(search: Record<string, unknown>): List
     const value = search[key];
     if (typeof value === "string" && value.trim()) result[key] = value.trim();
   }
-  if (search.type === "rent" || search.type === "deposit" || search.type === "monthly")
+  if (search.type === "period" || search.type === "deposit" || search.type === "period")
     result.type = search.type;
   if (search.status === "active" || search.status === "voided") result.status = search.status;
   for (const key of ["dueDateFrom", "dueDateTo"] as const) {

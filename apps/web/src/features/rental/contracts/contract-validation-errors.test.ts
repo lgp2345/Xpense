@@ -3,7 +3,7 @@ import { defaultContractFormValues } from "./contract-form-schema";
 import { contractFieldErrors, validateContractValues } from "./contract-validation-errors";
 
 describe("contractFieldErrors", () => {
-  it("空间步骤按合同模式校验数量，并将错误归到空间字段", () => {
+  it("空间步骤统一校验单空间数量，并将错误归到空间字段", () => {
     const values = {
       ...defaultContractFormValues("11111111-1111-4111-8111-111111111111"),
       spaces: [
@@ -16,9 +16,9 @@ describe("contractFieldErrors", () => {
     if (!result.success) {
       expect(contractFieldErrors(result.error.issues)).toEqual({ spaces: "合同只能选择一个空间" });
     }
-    expect(validateContractValues({ ...values, billingMode: "legacy_receivable" }, 0).success).toBe(
-      true,
-    );
+    expect(
+      validateContractValues({ ...values, spaces: values.spaces.slice(0, 1) }, 0).success,
+    ).toBe(true);
   });
   it("preserves nested row paths and the first message for each field", () => {
     expect(

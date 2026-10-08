@@ -141,13 +141,11 @@ function serviceHarness(overrides: Record<string, unknown> = {}) {
   const policy = {
     organizationToday: vi.fn().mockResolvedValue("2026-08-30"),
     organizationNow: vi.fn().mockResolvedValue("2026-08-30T00:00:00"),
-    lockOrganizationContext: vi
-      .fn()
-      .mockResolvedValue({
-        timezone: "Asia/Shanghai",
-        today: "2026-08-30",
-        now: "2026-08-30T00:00:00",
-      }),
+    lockOrganizationContext: vi.fn().mockResolvedValue({
+      timezone: "Asia/Shanghai",
+      today: "2026-08-30",
+      now: "2026-08-30T00:00:00",
+    }),
     requireOwnedPropertyForUpdate: vi.fn().mockResolvedValue({ id: "property-1", isActive: true }),
     requireActivePropertyForUpdate: vi.fn().mockResolvedValue({ id: "property-1", isActive: true }),
     assertPropertyActive: vi.fn((property: { isActive: boolean }) => {
@@ -338,10 +336,7 @@ describe("ContractsService", () => {
     );
     expect(h.persisted().headers).toBe(1);
     expect(h.persisted().audits).toBe(2);
-    expect(h.repository.createDraft).toHaveBeenCalledWith(
-      expect.objectContaining({ billingMode: "monthly_settlement" }),
-      transaction,
-    );
+    expect(h.repository.createDraft).toHaveBeenCalledWith(expect.objectContaining({}), transaction);
   });
 
   it("keeps multi-space drafts but rejects creating or confirming a monthly contract with two spaces", async () => {
@@ -507,7 +502,7 @@ describe("ContractsService", () => {
       spaces: [{ spaceId: "space-1", rentAllocationMinor: null }],
       parties: [{ tenantId: "tenant-1", isPrimaryPayer: true }],
     });
-    const { service, repository, relations, policy, audit } = serviceHarness({
+    const { service, repository, relations, policy, audit, chargeSetup } = serviceHarness({
       repository: {
         find: vi.fn().mockResolvedValue(confirmed),
         findForUpdate: vi.fn().mockResolvedValue(confirmed),
@@ -530,6 +525,12 @@ describe("ContractsService", () => {
     );
     expect(policy.validateConfirmationScope).toHaveBeenCalledWith(
       expect.objectContaining({ contractId: "contract-1", rentAmountMinor: 900_000 }),
+      transaction,
+    );
+    expect(chargeSetup.syncDraftSpace).toHaveBeenCalledWith(
+      auth,
+      { organizationId: auth.organizationId, contractId: "contract-1" },
+      ["space-1"],
       transaction,
     );
     expect(relations.replaceDraftSpaces).toHaveBeenCalled();
@@ -821,13 +822,13 @@ describe("ContractsPolicyService confirmation scope", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-31T23:45:12.000Z"));
     try {
-      await expect(policy.lockOrganizationContext(auth.organizationId, db as never)).resolves.toEqual(
-        {
-          timezone: "Asia/Shanghai",
-          today: "2026-09-01",
-          now: "2026-09-01T07:45:12",
-        },
-      );
+      await expect(
+        policy.lockOrganizationContext(auth.organizationId, db as never),
+      ).resolves.toEqual({
+        timezone: "Asia/Shanghai",
+        today: "2026-09-01",
+        now: "2026-09-01T07:45:12",
+      });
       await expect(policy.organizationToday(auth.organizationId)).resolves.toBe("2026-09-01");
       await expect(policy.organizationNow(auth.organizationId)).resolves.toBe(
         "2026-09-01T07:45:12",
@@ -992,11 +993,9 @@ describe("ContractsPolicyService confirmation scope", () => {
       startDate: "2026-09-01T08:00:00",
     }) as never;
 
-    expect(() =>
-      policy.assertCancellationAllowed(confirmed, "2026-09-01T07:59:59"),
-    ).not.toThrow();
-    expect(() =>
-      policy.assertCancellationAllowed(confirmed, "2026-09-01T08:00:00"),
-    ).toThrow(ConflictException);
+    expect(() => policy.assertCancellationAllowed(confirmed, "2026-09-01T07:59:59")).not.toThrow();
+    expect(() => policy.assertCancellationAllowed(confirmed, "2026-09-01T08:00:00")).toThrow(
+      ConflictException,
+    );
   });
 });

@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import { rentalBillingSource } from "../../test/rental-billing-fixtures.js";
 import { AccessService } from "../iam/access.service.js";
-import { BillingSourceService } from "./billing-source.service.js";
 import { BillsRepository } from "./bills.repository.js";
 import { BillsReadService } from "./bills-read.service.js";
 import { ContractsPolicyService } from "./contracts-policy.service.js";
@@ -12,6 +11,7 @@ import { listBillsSchema } from "./dto/list-bills.dto.js";
 import { rentalCashSourceVersion } from "./rental-cash.version.rules.js";
 import { RentalCashProjectionRepository } from "./rental-cash-projection.repository.js";
 import type { RentalCashProjectionFacts } from "./rental-cash-projection.repository.types.js";
+import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
 
 function cashFacts(
   contractId: string,
@@ -23,7 +23,6 @@ function cashFacts(
     organizationId: "org",
     contractId,
     contract: {
-      billingMode: "monthly_settlement",
       lifecycleStatus: "confirmed",
       startDate: "2026-01-01",
       endDate: "2026-12-31",
@@ -37,10 +36,10 @@ function cashFacts(
     bills: [
       {
         id: billId,
-        type: "monthly",
+        periodStart: "2026-09-01",
+        periodEnd: "2026-09-30",
+        type: "period",
         status: "active",
-        modelVersion: 2,
-        billingMonth: "2026-09",
         revision: 1,
         amountMinor,
         sourceKey: "monthly:2026-09",
@@ -91,7 +90,7 @@ describe("只读应收查询", () => {
           },
         },
         { provide: RentalCashProjectionRepository, useValue: { readMany: async () => [] } },
-        { provide: BillingSourceService, useValue: { read: async () => source } },
+        { provide: RentalFinanceSourceService, useValue: { read: async () => source } },
         {
           provide: ContractsPolicyService,
           useValue: {
@@ -127,12 +126,7 @@ describe("只读应收查询", () => {
     const page = await module
       .get(BillsReadService)
       .list(auth, listBillsSchema.parse({ contractId: source.contract.id }));
-    expect(page.coverage).toEqual({
-      existingRentCount: 0,
-      existingDepositCount: 0,
-      missingRentCount: 4,
-      missingDepositCount: 2,
-    });
+    expect(page.coverage).toBeNull();
     await expect(
       module.get(BillsReadService).detail(auth, { id: "missing" }),
     ).rejects.toMatchObject({ status: 404 });
@@ -140,7 +134,7 @@ describe("只读应收查询", () => {
   });
 
   it("月度合同按实际月度来源键列账单，不生成旧租金覆盖计数", async () => {
-    const source = rentalBillingSource({ billingMode: "monthly_settlement" });
+    const source = rentalBillingSource({});
     const monthlyBill = {
       id: "monthly-bill",
       billNumber: "RB-2026-000001",
@@ -149,7 +143,7 @@ describe("只读应收查询", () => {
       propertyId: source.contract.propertyId,
       propertyName: source.contract.propertyName,
       currencyCode: "CNY",
-      type: "monthly",
+      type: "period",
       status: "active",
       sourceKey: "monthly:2026-09",
       periodStart: null,
@@ -159,8 +153,6 @@ describe("只读应收查询", () => {
       amountMinor: 12300,
       dueState: null,
       createdAt: "2026-09-01T00:00:00.000Z",
-      modelVersion: 2,
-      billingMonth: "2026-09",
       revision: 1,
     };
     const sourceRead = { read: vi.fn(async () => source) };
@@ -181,13 +173,13 @@ describe("只读应收查询", () => {
               coverage: null,
             }),
             matchingFinancialBills: vi.fn(async () => [
-              { id: monthlyBill.id, contractId: source.contract.id, modelVersion: 2 },
+              { id: monthlyBill.id, contractId: source.contract.id },
             ]),
             detail: async () => null,
           },
         },
         { provide: RentalCashProjectionRepository, useValue: projectionSources },
-        { provide: BillingSourceService, useValue: sourceRead },
+        { provide: RentalFinanceSourceService, useValue: sourceRead },
         {
           provide: ContractsPolicyService,
           useValue: { lockOrganizationContext: async () => ({ today: "2026-09-01" }) },
@@ -210,7 +202,7 @@ describe("只读应收查询", () => {
       listBillsSchema.parse({ contractId: source.contract.id }),
     );
 
-    expect(sourceRead.read).toHaveBeenCalledWith("org", source.contract.id, expect.anything());
+    expect(sourceRead.read).not.toHaveBeenCalled();
     expect(
       (module.get(BillsRepository) as unknown as Record<string, unknown>).matchingFinancialBills,
     ).toHaveBeenCalledWith(
@@ -256,7 +248,7 @@ describe("只读应收查询", () => {
       propertyId: "property",
       propertyName: "房产",
       currencyCode: "CNY",
-      type: "monthly" as const,
+      type: "period" as const,
       status: "active" as const,
       sourceKey: "monthly:2026-09",
       periodStart: "2026-09-01",
@@ -266,8 +258,6 @@ describe("只读应收查询", () => {
       amountMinor: item.bills[0]?.amountMinor ?? 0,
       dueState: null,
       createdAt: "2026-09-01T00:00:00.000Z",
-      modelVersion: 2 as const,
-      billingMonth: "2026-09",
       revision: 1,
     }));
     const secondSummary = summaries[1];
@@ -286,7 +276,6 @@ describe("只读应收查询", () => {
         summaries.map((summary) => ({
           id: summary.id,
           contractId: summary.contractId,
-          modelVersion: 2,
         })),
       ),
       detail: vi.fn(async () => ({
@@ -346,7 +335,7 @@ describe("只读应收查询", () => {
         propertyId: "property",
         propertyName: "房产",
         currencyCode: "CNY",
-        type: "monthly" as const,
+        type: "period" as const,
         status: "active" as const,
         sourceKey: "monthly:2026-09",
         periodStart: "2026-09-01",
@@ -356,8 +345,6 @@ describe("只读应收查询", () => {
         amountMinor: 100,
         dueState: null,
         createdAt: "2026-09-01T00:00:00.000Z",
-        modelVersion: 2 as const,
-        billingMonth: "2026-09",
         revision: 1,
       },
       {
@@ -368,7 +355,7 @@ describe("只读应收查询", () => {
         propertyId: "property",
         propertyName: "房产",
         currencyCode: "CNY",
-        type: "monthly" as const,
+        type: "period" as const,
         status: "active" as const,
         sourceKey: "monthly:2026-09",
         periodStart: "2026-09-01",
@@ -378,8 +365,6 @@ describe("只读应收查询", () => {
         amountMinor: 0,
         dueState: null,
         createdAt: "2026-09-02T00:00:00.000Z",
-        modelVersion: 2 as const,
-        billingMonth: "2026-09",
         revision: 1,
       },
     ];
@@ -397,7 +382,7 @@ describe("只读应收查询", () => {
         coverage: null,
       })),
       matchingFinancialBills: vi.fn(async () =>
-        summaries.map(({ id, contractId }) => ({ id, contractId, modelVersion: 2 })),
+        summaries.map(({ id, contractId }) => ({ id, contractId })),
       ),
     };
     const projectionSources = {
@@ -431,7 +416,6 @@ describe("只读应收查询", () => {
     const financialBills = Array.from({ length: 501 }, (_, index) => ({
       id: `bill-${index}`,
       contractId: `contract-${index}`,
-      modelVersion: 2,
     }));
     const query = listBillsSchema.parse({ page: 9, pageSize: 1, status: "voided" });
     const tx = { transaction: "same" };
@@ -490,41 +474,9 @@ describe("只读应收查询", () => {
     });
   });
 
-  it("legacy-only 筛选省略可选 financial 字段", async () => {
-    const totals = { rentAmountMinor: 1_000, depositAmountMinor: 0 };
-    const bills = {
-      list: vi.fn(async () => ({
-        items: [{ id: "legacy-bill", contractId: "legacy-contract", modelVersion: 1 }],
-        total: 1,
-        page: 1,
-        pageSize: 20,
-        totals,
-        coverage: null,
-      })),
-      matchingFinancialBills: vi.fn(async () => [
-        { id: "legacy-bill", contractId: "legacy-contract", modelVersion: 1 },
-      ]),
-    };
-    const projectionSources = { readMany: vi.fn(async () => []) };
-    const service = new BillsReadService(
-      bills as never,
-      projectionSources as never,
-      { read: vi.fn() } as never,
-      { lockOrganizationContext: vi.fn(async () => ({ today: "2026-09-01" })) } as never,
-      { assertPermission: vi.fn() } as never,
-      { run: vi.fn((operation) => operation({})) } as never,
-    );
-
-    const page = await service.list({ organizationId: "org" } as never, listBillsSchema.parse({}));
-
-    expect(page.totals).toEqual(totals);
-    expect(page.totals).not.toHaveProperty("financial");
-    expect(projectionSources.readMany).not.toHaveBeenCalled();
-  });
-
   it("匹配新版账单但批量合同事实缺失时失败，不把缺失事实当作零", async () => {
     const query = listBillsSchema.parse({ page: 2, pageSize: 1 });
-    const bill = { id: "bill-a", contractId: "contract-a", modelVersion: 2 };
+    const bill = { id: "bill-a", contractId: "contract-a" };
     const service = new BillsReadService(
       {
         list: vi.fn(async () => ({

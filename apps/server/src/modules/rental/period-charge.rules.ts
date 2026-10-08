@@ -123,6 +123,8 @@ export function calculatePeriodCharges(input: PeriodChargeInput): {
       }),
     );
   }
+  if (new Set(input.extraFees.map((fee) => fee.id)).size !== input.extraFees.length)
+    throw new RangeError("额外费用标识重复");
   for (const fee of input.extraFees) {
     if (!Number.isSafeInteger(fee.amountMinor)) throw new RangeError("额外费用必须是安全整数");
     lines.push(

@@ -1,8 +1,9 @@
+import type { RentalBillDetail } from "@xpense/shared";
 import { describe, expect, it } from "vitest";
 import { rentalFinanceSnapshot } from "../../test/rental-finance-fixtures.js";
-import { resolvePeriodMeterBaselines } from "./period-meter.rules.js";
 import { periodMeterLine } from "./period-charge.rules.js";
-import type { RentalBillDetail } from "@xpense/shared";
+import { resolvePeriodMeterBaselines } from "./period-meter.rules.js";
+
 describe("有效账单水电前驱", () => {
   it("作废尾期排除，恢复最后有效账单，不取日期或孤立读数", () => {
     const source = rentalFinanceSnapshot();

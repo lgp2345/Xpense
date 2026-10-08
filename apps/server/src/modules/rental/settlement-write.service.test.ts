@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import { rentalFinanceSnapshot } from "../../test/rental-finance-fixtures.js";
 import { buildPeriodSettlementPlan } from "./period-settlement.rules.js";
 import { proposeSettlementReadings } from "./rental-settlement-readings.rules.js";
 import { SettlementWriteService } from "./settlement-write.service.js";
+
 it("先写结算头再写有所属终读数，快照替换真实ID且不改普通账单", async () => {
   const source = rentalFinanceSnapshot();
   source.context.today = "2026-12-31";
@@ -23,15 +24,21 @@ it("先写结算头再写有所属终读数，快照替换真实ID且不改普�
       order.push("head");
       return { id: "settlement" };
     }),
-    finalizeSnapshot: vi.fn(async () => {
-      order.push("snapshot");
-    }),
+    finalizeSnapshot: vi.fn(
+      async (
+        ..._args: Parameters<
+          import("./rental-settlements.repository.js").RentalSettlementsRepository["finalizeSnapshot"]
+        >
+      ) => {
+        order.push("snapshot");
+      },
+    ),
     linkBills: vi.fn(async () => {
       order.push("links");
     }),
   };
   const readings = {
-    appendBoundary: vi.fn(async (_scope, input) => {
+    appendBoundary: vi.fn(async (_scope: object, input: { kind: string; settlementId: string }) => {
       order.push(input.kind);
       return { id: `real-${input.kind}` };
     }),
@@ -57,5 +64,5 @@ it("先写结算头再写有所属终读数，快照替换真实ID且不改普�
   expect(order).toEqual(["head", "water", "electricity", "snapshot", "links", "projection"]);
   expect(readings.appendBoundary.mock.calls[0]![1].settlementId).toBe("settlement");
   const snapshot = settlements.finalizeSnapshot.mock.calls[0]![2];
-  expect(snapshot.terminalLines[0].feeSnapshot.endReadingId).toBe("real-water");
+  expect(snapshot.terminalLines[0]?.feeSnapshot).toMatchObject({ endReadingId: "real-water" });
 });

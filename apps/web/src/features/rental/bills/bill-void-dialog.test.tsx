@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { billFixture, financeApiFixture } from "./bill-test-fixtures";
 import { BillVoidDialog } from "./bill-void-dialog";
+
 it("二次确认说明回退与资金限制，带版本及原因作废", async () => {
   const api = financeApiFixture();
   render(

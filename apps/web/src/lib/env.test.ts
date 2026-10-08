@@ -4,8 +4,8 @@ import { API_BASE_URL, createApiBaseUrl } from "./env";
 
 describe("API environment", () => {
   it("falls back to the api prefix when the environment value is missing", () => {
-    expect(import.meta.env.VITE_API_PREFIX).toBeUndefined();
-    expect(API_BASE_URL).toBe("/api");
+    expect(createApiBaseUrl(undefined)).toBe("/api");
+    expect(API_BASE_URL).toBe(createApiBaseUrl(import.meta.env.VITE_API_PREFIX));
   });
 
   it("builds a base path from a custom prefix", () => {

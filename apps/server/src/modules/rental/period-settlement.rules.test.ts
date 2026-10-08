@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import { rentalFinanceSnapshot } from "../../test/rental-finance-fixtures.js";
-import { buildPeriodSettlementPlan } from "./period-settlement.rules.js";
 import { buildPeriodBillPlan } from "./period-bill-plan.rules.js";
+import { buildPeriodSettlementPlan } from "./period-settlement.rules.js";
+
 function source() {
   const value = rentalFinanceSnapshot();
   value.contract = {
@@ -9,6 +10,8 @@ function source() {
     startDate: "2026-10-05",
     endDate: "2026-12-04",
     actualEndDate: "2026-12-04",
+    billingAnchor: "contract_start",
+    paymentIntervalMonths: 1,
     lifecycleStatus: "terminated",
     terminationDate: "2026-12-04",
   };
@@ -147,4 +150,32 @@ it("同值终读数零收费，低于有效基准拒绝", () => {
       finalReadings: [{ kind: "water", readingDate: "2026-12-04", reading: "3499" }],
     }),
   ).toThrow(/读数/);
+});
+it("结算事项标识不得重复或覆盖仍有效账单事项", () => {
+  const value = source();
+  const fee = { id: "same", name: "管理费退款", amountMinor: -1, note: "核定" };
+  const input = { contractId: value.context.contractId, finalReadings: [], extraFees: [fee, fee] };
+  expect(() => buildPeriodSettlementPlan(value, input)).toThrow(/标识/);
+  value.bills = [
+    {
+      id: "bill",
+      type: "period",
+      status: "active",
+      periodStart: "2026-10-05",
+      periodEnd: "2026-11-04",
+      lines: [
+        {
+          kind: "extra_fee",
+          label: "维修费",
+          amountMinor: 100,
+          feeSnapshot: { kind: "extra_fee", extraFeeId: fee.id, origin: "period" },
+        },
+      ],
+    },
+  ] as never;
+  expect(() => buildPeriodSettlementPlan(value, { ...input, extraFees: [fee] })).toThrow(/标识/);
+  value.bills[0]!.status = "voided";
+  expect(() =>
+    buildPeriodSettlementPlan(value, { ...input, extraFees: [{ ...fee, amountMinor: 1 }] }),
+  ).not.toThrow();
 });

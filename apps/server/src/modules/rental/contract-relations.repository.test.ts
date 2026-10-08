@@ -20,7 +20,9 @@ function compileSql(value: Parameters<PgDialect["sqlToQuery"]>[0]) {
 function createReplacementExecutor() {
   const deleteWhere = vi.fn().mockResolvedValue(undefined);
   const remove = vi.fn().mockReturnValue({ where: deleteWhere });
-  const values = vi.fn().mockResolvedValue(undefined);
+  const values = vi
+    .fn()
+    .mockReturnValue({ onConflictDoUpdate: vi.fn().mockResolvedValue(undefined) });
   const insert = vi.fn().mockReturnValue({ values });
   return { deleteWhere, delete: remove, values, insert };
 }
@@ -377,4 +379,31 @@ describe("ContractRelationsRepository snapshots and changes", () => {
       ]),
     );
   });
+});
+
+it("相同空间保存不删除已有外键目标，更新原关联行分摊", async () => {
+  const executor = createReplacementExecutor();
+  const upsert = vi.fn().mockResolvedValue(undefined);
+  executor.values.mockImplementation(() => ({ onConflictDoUpdate: upsert }) as never);
+  await new ContractRelationsRepository().replaceDraftSpaces(
+    {
+      organizationId: "org",
+      contractId: "contract",
+      propertyId: "property",
+      spaces: [{ spaceId: "space", rentAllocationMinor: 100 }],
+    },
+    executor as never,
+  );
+  const where = compileSql(executor.deleteWhere.mock.calls[0]![0]);
+  expect(normalizeSql(where.sql)).toContain('"space_id" not in');
+  expect(where.params).toEqual(["org", "contract", "space"]);
+  expect(upsert).toHaveBeenCalledWith(
+    expect.objectContaining({
+      target: [
+        rentalContractSpaces.organizationId,
+        rentalContractSpaces.contractId,
+        rentalContractSpaces.spaceId,
+      ],
+    }),
+  );
 });

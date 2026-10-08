@@ -1,7 +1,7 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import type { RentalBillDetail } from "@xpense/shared";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,7 @@ import {
   type RentalFinanceApi,
 } from "../../../services/rental-finance-api";
 import { invalidateRentalFinance } from "../../../services/rental-finance-query";
+
 type Props = {
   organizationId: string;
   bill: RentalBillDetail;
@@ -37,6 +38,7 @@ export function BillVoidDialog(props: Props) {
   ) : null;
 }
 function VoidSession({ organizationId, bill, api, onOpenChange, onVoided }: Props) {
+  const reasonId = useId();
   const client = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ function VoidSession({ organizationId, bill, api, onOpenChange, onVoided }: Prop
   const attempt = useRef<ReturnType<typeof createRentalFinanceAttempt> | null>(null);
   const form = useForm({
     defaultValues: { reason: "" },
-    validators: { onSubmit: schema },
+    validators: { onChange: schema, onSubmit: schema },
     onSubmit: async ({ value }) => {
       setBusy(true);
       setError(null);
@@ -94,18 +96,24 @@ function VoidSession({ organizationId, bill, api, onOpenChange, onVoided }: Prop
             void form.handleSubmit();
           }}
         >
-          <label className="block space-y-1 text-sm">
-            <span>作废原因</span>
-            <Input
-              aria-label="作废原因"
-              value={reason}
-              disabled={busy}
-              onChange={(event) => {
-                form.setFieldValue("reason", event.target.value);
-                attempt.current = null;
-              }}
-            />
-          </label>
+          <form.Field name="reason">
+            {(field) => (
+              <label htmlFor={reasonId} className="block space-y-1 text-sm">
+                <span>作废原因</span>
+                <Input
+                  id={reasonId}
+                  aria-label="作废原因"
+                  value={field.state.value}
+                  disabled={busy}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                    attempt.current = null;
+                  }}
+                />
+              </label>
+            )}
+          </form.Field>
           {attempted && !validation.success ? (
             <p role="alert" className="text-destructive">
               {validation.error.issues[0]?.message}

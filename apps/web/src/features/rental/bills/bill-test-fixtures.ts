@@ -31,20 +31,18 @@ export function financeApiFixture(overrides: Partial<RentalFinanceApi> = {}): Re
     getMeterBaseline: vi.fn().mockResolvedValue(meterBaselineFixture),
     updateMeterBaseline: vi.fn().mockResolvedValue(meterBaselineFixture),
     getPeriodBillContext: vi.fn().mockResolvedValue(periodContextFixture),
-    previewPeriodBill: vi
-      .fn()
-      .mockImplementation(async (input) => ({
-        version: "preview-v1",
-        period: { periodStart: input.periodStart, periodEnd: "2026-11-04" },
-        dueDate: input.dueDate,
-        defaults: chargeTermsFixture,
-        baselineReadings: periodContextFixture.baselineReadings,
-        defaultReadings: periodContextFixture.defaultReadings,
-        lines: [],
-        amountMinor: 300000,
-        canConfirm: true,
-        missingFields: [],
-      })),
+    previewPeriodBill: vi.fn().mockImplementation(async (input) => ({
+      version: "preview-v1",
+      period: { periodStart: input.periodStart, periodEnd: "2026-11-04" },
+      dueDate: input.dueDate,
+      defaults: chargeTermsFixture,
+      baselineReadings: periodContextFixture.baselineReadings,
+      defaultReadings: periodContextFixture.defaultReadings,
+      lines: [],
+      amountMinor: 300000,
+      canConfirm: true,
+      missingFields: [],
+    })),
     generatePeriodBill: vi.fn().mockResolvedValue(billFixture),
     voidPeriodBill: vi.fn().mockResolvedValue({ ...billFixture, status: "voided" }),
     recordReceipt: vi.fn().mockResolvedValue({}),
@@ -138,7 +136,6 @@ export function billsApiFixture(overrides: Partial<RentalBillsApi> = {}): Rental
       },
     }),
     getBill: vi.fn().mockResolvedValue(billFixture),
-    listRevisions: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
     previewBills: vi.fn().mockImplementation(async (input) => ({
       ...structuredClone(previewFixture),
       canGenerate: previewFixture.missingDepositSourceKeys.every(
@@ -152,15 +149,6 @@ export function billsApiFixture(overrides: Partial<RentalBillsApi> = {}): Rental
       existingCount: 0,
       totals: previewFixture.createTotals,
       replayed: false,
-    }),
-    previewTermination: vi.fn().mockResolvedValue({
-      periodStart: "2026-01-01",
-      periodEnd: "2026-03-31",
-      originalAmountMinor: 900000,
-      referenceAmountMinor: 450000,
-      version: "termination-v1",
-      affectedBillCount: 2,
-      requiresConfirmation: true,
     }),
     ...overrides,
   };

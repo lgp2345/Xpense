@@ -4,7 +4,6 @@ import { billFixture } from "./bill-test-fixtures";
 
 const bill = {
   ...billFixture,
-  modelVersion: 2 as const,
   financial: {
     receivedMinor: 0,
     refundedMinor: 0,
@@ -20,9 +19,12 @@ describe("列表收款可操作性", () => {
   it("只允许有对应权限和余额的独立新版账单", () => {
     expect(canRegisterBillReceipt(bill, ["rental_receipts:create"])).toBe(true);
     expect(canRegisterBillReceipt(bill, ["rental_refunds:create"])).toBe(false);
-    expect(canRegisterBillReceipt({ ...bill, modelVersion: 1 }, ["rental_receipts:create"])).toBe(
-      false,
-    );
+    expect(
+      canRegisterBillReceipt(
+        { ...bill, status: "voided", financial: { ...bill.financial, outstandingMinor: 0 } },
+        ["rental_receipts:create"],
+      ),
+    ).toBe(false);
     expect(
       canRegisterBillReceipt({ ...bill, settlementId: "settlement" }, ["rental_receipts:create"]),
     ).toBe(false);

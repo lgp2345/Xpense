@@ -34,7 +34,7 @@ it("恢复 URL 筛选和分页，不再展示费用构成汇总", async () => {
   expect(screen.getByLabelText("关键词")).toHaveValue("RC");
   expect(screen.queryByRole("region", { name: "费用构成汇总" })).not.toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "收退款汇总" })).not.toBeInTheDocument();
-  expect(screen.queryByText(/有效月度账单/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/有效账期账单/)).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "下一页" }));
   expect(onSearchChange).toHaveBeenCalledWith(
     expect.objectContaining({ page: 3, status: "voided", keyword: "RC" }),
@@ -59,10 +59,10 @@ it("无查看权限不请求", () => {
   expect(api.listBills).not.toHaveBeenCalled();
 });
 
-it("在账单列表中准确标示月度综合账单", async () => {
+it("在账单列表中准确标示账期账单", async () => {
   const api = billsApiFixture({
     listBills: vi.fn().mockResolvedValue({
-      items: [{ ...billFixture, type: "monthly", modelVersion: 2, billingMonth: "2026-09" }],
+      items: [{ ...billFixture, type: "period" }],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -76,14 +76,14 @@ it("在账单列表中准确标示月度综合账单", async () => {
         organizationId="org"
         api={api}
         permissions={["rental_bills:read"]}
-        search={{ type: "monthly" }}
+        search={{ type: "period" }}
         onSearchChange={vi.fn()}
         onNavigate={vi.fn()}
       />
     </QueryClientProvider>,
   );
 
-  expect(await screen.findByText("月度综合账单")).toBeInTheDocument();
+  expect(await screen.findByText("账期账单")).toBeInTheDocument();
 });
 
 it("新版账单含实际收款时不再宣称收款情况尚未登记", async () => {
@@ -92,9 +92,7 @@ it("新版账单含实际收款时不再宣称收款情况尚未登记", async (
       items: [
         {
           ...billFixture,
-          type: "monthly",
-          modelVersion: 2,
-          billingMonth: "2026-09",
+          type: "period",
           financial: {
             receivedMinor: 30000,
             refundedMinor: 0,
@@ -139,13 +137,13 @@ it("新版账单含实际收款时不再宣称收款情况尚未登记", async (
 
   expect(await screen.findByText("RB-2026-000001")).toBeInTheDocument();
   expect(screen.queryByText("本阶段仅记录应收，收款情况尚未登记")).not.toBeInTheDocument();
-  expect(screen.getByText("按条件查询账单，核对收款与退款余额")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "租赁账单" })).toBeInTheDocument();
 });
 
 it.each([1, 9])("第 %i 页保留全筛选收退款汇总，空页也不丢失金额", async (page) => {
   const api = billsApiFixture({
     listBills: vi.fn().mockResolvedValue({
-      items: page === 1 ? [{ ...billFixture, type: "monthly", modelVersion: 2 }] : [],
+      items: page === 1 ? [{ ...billFixture, type: "period" }] : [],
       total: 1,
       page,
       pageSize: 20,
@@ -169,7 +167,7 @@ it.each([1, 9])("第 %i 页保留全筛选收退款汇总，空页也不丢失�
         organizationId="org"
         api={api}
         permissions={["rental_bills:read"]}
-        search={{ type: "monthly", page }}
+        search={{ type: "period", page }}
         onSearchChange={vi.fn()}
         onNavigate={vi.fn()}
       />

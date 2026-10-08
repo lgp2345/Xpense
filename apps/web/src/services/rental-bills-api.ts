@@ -1,16 +1,11 @@
 import type {
   GenerateRentalBillsRequest,
   ListRentalBillsQuery,
-  PageResult,
   PreviewRentalBillsRequest,
-  PreviewRentalTerminationRequest,
   RentalBillDetail,
   RentalBillGenerationResult,
-  RentalBillLine,
   RentalBillPage,
   RentalBillPreview,
-  RentalBillSummary,
-  RentalTerminationPreview,
 } from "@xpense/shared";
 import type { ApiClient } from "./api-client";
 
@@ -34,8 +29,6 @@ export function createRentalBillsApi(client: ApiClient) {
         expectedVersion: input.expectedVersion,
         idempotencyKey: input.idempotencyKey,
       }),
-    previewTermination: (input: PreviewRentalTerminationRequest) =>
-      client.post<RentalTerminationPreview>("/rental-bills/termination-preview", input),
   };
 }
 export type RentalBillsApi = ReturnType<typeof createRentalBillsApi>;
@@ -43,10 +36,7 @@ function generationInput(input: PreviewRentalBillsRequest) {
   return {
     contractId: input.contractId,
     depositDueDates: input.depositDueDates,
-    ...(input.scope ? { scope: input.scope } : {}),
-    ...(input.terminationConfirmation
-      ? { terminationConfirmation: input.terminationConfirmation }
-      : {}),
+    scope: input.scope,
   };
 }
 function listQueryString(query: ListRentalBillsQuery): string {

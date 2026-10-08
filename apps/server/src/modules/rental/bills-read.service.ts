@@ -6,16 +6,16 @@ import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import { AccessService } from "../iam/access.service.js";
 import { calculateBillFinancialTotals } from "./bill-financial-summary.rules.js";
-import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
-import { periodBillVoidBlockedReason } from "./period-bill-lifecycle.rules.js";
-import { financeSourceVersion } from "./rental-finance-request.rules.js";
 import { withBillFinancial } from "./bills.queries.js";
 import { BillsRepository } from "./bills.repository.js";
 import { ContractsPolicyService } from "./contracts-policy.service.js";
 import type { BillDetailDto } from "./dto/bill-detail.dto.js";
 import type { ListBillsDto } from "./dto/list-bills.dto.js";
+import { periodBillVoidBlockedReason } from "./period-bill-lifecycle.rules.js";
 import { RentalCashProjectionRepository } from "./rental-cash-projection.repository.js";
 import type { RentalCashProjectionFacts } from "./rental-cash-projection.repository.types.js";
+import { financeSourceVersion } from "./rental-finance-request.rules.js";
+import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
 
 function dueState<T extends RentalBillSummary>(bill: T, today: string): T {
   return {

@@ -36,8 +36,8 @@ export function BillPreviewTable({
             {preview.items.map((item) => (
               <TableRow key={item.sourceKey}>
                 <TableCell className="align-top">
-                  {item.type === "rent"
-                    ? "租金"
+                  {item.type === "period"
+                    ? "账期账单"
                     : (item.lines.find((line) => line.kind === "deposit")?.label ?? "押金")}
                   {item.lines.length ? (
                     <details className="mt-2">

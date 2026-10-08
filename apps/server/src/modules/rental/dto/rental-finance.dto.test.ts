@@ -10,10 +10,10 @@ import {
 import { updateRentalChargeTermsSchema } from "./rental-charges.dto.js";
 import { updateRentalMeterBaselineSchema } from "./rental-meters.dto.js";
 import {
-  generateRentalMonthlyBillSchema,
-  previewRentalMonthlyBillSchema,
-  reviseRentalBillSchema,
-} from "./rental-monthly-bills.dto.js";
+  generateRentalPeriodBillSchema,
+  previewRentalPeriodBillSchema,
+  voidRentalPeriodBillSchema,
+} from "./rental-period-bills.dto.js";
 import {
   confirmRentalSettlementSchema,
   previewRentalSettlementSchema,
@@ -38,7 +38,7 @@ const validExtraFee = {
 
 const validMonthlyInput = {
   contractId,
-  billingMonth: "2026-09",
+  periodStart: "2026-09-01",
   dueDate: "2026-09-30",
   readings: [...validReadings],
   extraFees: [validExtraFee],
@@ -70,7 +70,7 @@ describe("租赁收费与结算 DTO", () => {
     [[validReadings[1]]],
   ])("按项目提交读数结构合法 %j", (readings) => {
     expect(
-      generateRentalMonthlyBillSchema.safeParse({ ...validMonthlyInput, readings }).success,
+      generateRentalPeriodBillSchema.safeParse({ ...validMonthlyInput, readings }).success,
     ).toBe(true);
     expect(
       updateRentalMeterBaselineSchema.safeParse({
@@ -105,41 +105,6 @@ describe("租赁收费与结算 DTO", () => {
     ).toBe(false);
   });
 
-  it("本期最终金额允许零和删除，拒绝重复、负数、溢出及双重覆盖", () => {
-    const input = {
-      billId,
-      expectedVersion: "v1",
-      idempotencyKey,
-      reason: "修改本期",
-      mode: "edit_unpaid",
-    };
-    for (const item of [
-      { feeId: contractId, action: "set_amount", amountMinor: 0 },
-      { feeId: contractId, action: "remove" },
-    ]) {
-      expect(
-        reviseRentalBillSchema.safeParse({ ...input, fixedFeeAdjustments: [item] }).success,
-      ).toBe(true);
-    }
-    const item = { feeId: contractId, action: "set_amount", amountMinor: 2000 };
-    for (const fixedFeeAdjustments of [
-      [item, item],
-      [{ ...item, amountMinor: -1 }],
-      [{ ...item, amountMinor: Number.MAX_SAFE_INTEGER + 1 }],
-    ]) {
-      expect(reviseRentalBillSchema.safeParse({ ...input, fixedFeeAdjustments }).success).toBe(
-        false,
-      );
-    }
-    expect(
-      reviseRentalBillSchema.safeParse({
-        ...input,
-        fixedFeeAdjustments: [item],
-        overrides: { fixedFees: [{ id: contractId, periodAmountMinor: 100 }], reason: "旧覆盖" },
-      }).success,
-    ).toBe(false);
-  });
-
   it("为每个写入 schema 接受独立合法请求并保留预览缺项", () => {
     expect(
       updateRentalChargeTermsSchema.safeParse({
@@ -162,20 +127,20 @@ describe("租赁收费与结算 DTO", () => {
       }).success,
     ).toBe(true);
     expect(
-      previewRentalMonthlyBillSchema.safeParse({
+      previewRentalPeriodBillSchema.safeParse({
         contractId,
-        billingMonth: "2026-09",
+        periodStart: "2026-09-01",
         extraFees: [],
       }).success,
     ).toBe(true);
     expect(
-      generateRentalMonthlyBillSchema.safeParse({
+      generateRentalPeriodBillSchema.safeParse({
         ...validMonthlyInput,
         extraFees: [{ ...validExtraFee, amountMinor: -10000, note: "  本期减免  " }],
       }).success,
     ).toBe(true);
     expect(
-      reviseRentalBillSchema.safeParse({
+      voidRentalPeriodBillSchema.safeParse({
         billId,
         expectedVersion: "bill-v2",
         idempotencyKey,
@@ -214,7 +179,7 @@ describe("租赁收费与结算 DTO", () => {
   });
 
   it("允许有符号额外费用及空备注并去除首尾空白", () => {
-    const parsed = generateRentalMonthlyBillSchema.safeParse({
+    const parsed = generateRentalPeriodBillSchema.safeParse({
       ...validMonthlyInput,
       extraFees: [{ ...validExtraFee, amountMinor: -10000, note: "  本期减免  " }],
     });
@@ -224,7 +189,7 @@ describe("租赁收费与结算 DTO", () => {
       expect(parsed.data.extraFees[0]).toMatchObject({ amountMinor: -10000, note: "本期减免" });
     }
     expect(
-      generateRentalMonthlyBillSchema.safeParse({
+      generateRentalPeriodBillSchema.safeParse({
         ...validMonthlyInput,
         extraFees: [{ ...validExtraFee, note: "   " }],
       }).success,
@@ -275,14 +240,14 @@ describe("租赁收费与结算 DTO", () => {
     }
     for (const reading of ["-1", "+1", "1e2", "1.12345", "12345678901234567"]) {
       expect(
-        generateRentalMonthlyBillSchema.safeParse({
+        generateRentalPeriodBillSchema.safeParse({
           ...validMonthlyInput,
           readings: [{ ...validReadings[0], reading }, validReadings[1]],
         }).success,
       ).toBe(false);
     }
     expect(
-      generateRentalMonthlyBillSchema.safeParse({
+      generateRentalPeriodBillSchema.safeParse({
         ...validMonthlyInput,
         readings: [{ ...validReadings[0], reading: "1234567890123456.1234" }, validReadings[1]],
       }).success,
@@ -292,7 +257,7 @@ describe("租赁收费与结算 DTO", () => {
   it("拒绝非法年月、日期、重复读数类型及预览缺项用于正式确认", () => {
     for (const billingMonth of ["2026-00", "2026-13", "2026-9", "2026-09-01"]) {
       expect(
-        previewRentalMonthlyBillSchema.safeParse({
+        previewRentalPeriodBillSchema.safeParse({
           contractId,
           billingMonth,
           extraFees: [],
@@ -301,7 +266,7 @@ describe("租赁收费与结算 DTO", () => {
     }
     for (const date of ["2026-02-29", "2026-04-31", "2026-9-01"]) {
       expect(
-        generateRentalMonthlyBillSchema.safeParse({
+        generateRentalPeriodBillSchema.safeParse({
           ...validMonthlyInput,
           readings: [{ ...validReadings[0], readingDate: date }, validReadings[1]],
         }).success,
@@ -317,10 +282,10 @@ describe("租赁收费与结算 DTO", () => {
       }).success,
     ).toBe(false);
     expect(
-      generateRentalMonthlyBillSchema.safeParse({ ...validMonthlyInput, readings: [] }).success,
+      generateRentalPeriodBillSchema.safeParse({ ...validMonthlyInput, readings: [] }).success,
     ).toBe(true);
     expect(
-      generateRentalMonthlyBillSchema.safeParse({ ...validMonthlyInput, dueDate: undefined })
+      generateRentalPeriodBillSchema.safeParse({ ...validMonthlyInput, dueDate: undefined })
         .success,
     ).toBe(false);
   });
@@ -355,40 +320,22 @@ describe("租赁收费与结算 DTO", () => {
     ).toBe(true);
   });
 
-  it("拒绝年份零的月度账期并接受合法的 0001 年一月", () => {
-    const firstYearReadings = validReadings.map((reading) => ({
-      ...reading,
-      readingDate: "0001-01-01",
-    }));
-
-    expect(
-      previewRentalMonthlyBillSchema.safeParse({
-        contractId,
-        billingMonth: "0000-09",
-        extraFees: [],
-      }).success,
-    ).toBe(false);
-    expect(
-      generateRentalMonthlyBillSchema.safeParse({
-        ...validMonthlyInput,
-        billingMonth: "0000-09",
-      }).success,
-    ).toBe(false);
-    expect(
-      previewRentalMonthlyBillSchema.safeParse({
-        contractId,
-        billingMonth: "0001-01",
-        extraFees: [],
-      }).success,
-    ).toBe(true);
-    expect(
-      generateRentalMonthlyBillSchema.safeParse({
-        ...validMonthlyInput,
-        billingMonth: "0001-01",
-        dueDate: "0001-01-31",
-        readings: firstYearReadings,
-      }).success,
-    ).toBe(true);
+  it("拒绝年份零的账期并接受合法的 0001 年一月", () => {
+    for (const schema of [previewRentalPeriodBillSchema, generateRentalPeriodBillSchema]) {
+      const valid =
+        schema === previewRentalPeriodBillSchema
+          ? { contractId, extraFees: [] }
+          : validMonthlyInput;
+      expect(schema.safeParse({ ...valid, periodStart: "0000-01-01" }).success).toBe(false);
+      expect(
+        schema.safeParse({
+          ...valid,
+          periodStart: "0001-01-01",
+          dueDate: "0001-01-31",
+          readings: [],
+        }).success,
+      ).toBe(true);
+    }
   });
 
   it("拒绝空原因、双重目标、零收款和客户端决定的押金或退款金额", () => {
@@ -439,13 +386,12 @@ describe("租赁收费与结算 DTO", () => {
 
   it("拒绝普通租金金额、未声明字段和错误的结算读数集合", () => {
     expect(
-      generateRentalMonthlyBillSchema.safeParse({ ...validMonthlyInput, rentAmountMinor: 800000 })
+      generateRentalPeriodBillSchema.safeParse({ ...validMonthlyInput, rentAmountMinor: 800000 })
         .success,
     ).toBe(false);
     expect(
-      previewRentalMonthlyBillSchema.safeParse({
+      previewRentalPeriodBillSchema.safeParse({
         contractId,
-        billingMonth: "2026-09",
         extraFees: [],
         organizationId: contractId,
       }).success,

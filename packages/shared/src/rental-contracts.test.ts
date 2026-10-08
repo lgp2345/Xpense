@@ -78,7 +78,6 @@ const contractDetailContract = {
 
 const monthlyContractDetailContract = {
   ...contractDetailContract,
-  billingMode: "monthly_settlement",
 } satisfies RentalContractDetail;
 
 const contractPageContract = {
@@ -171,7 +170,7 @@ describe("rental contract shared contracts", () => {
 
   it("uses string dates and decimal rent multiples while retaining minor-unit amounts as numbers", () => {
     expect(contractDetailContract.rentAmountMinor).toBe(8_000_00);
-    expect(monthlyContractDetailContract.billingMode).toBe("monthly_settlement");
+    expect(monthlyContractDetailContract).not.toHaveProperty("billingMode");
     expect(contractPageContract.items).toEqual([contractDetailContract]);
     expect(contractAvailabilityContract.conflicts[0]?.contractNumber).toBe("RC-2026-000002");
     expect(partySensitiveDetailContract.documentNumber).toBe("440300199001011234");

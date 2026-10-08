@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import { ApiError } from "../../../services/api-client";
 import { financeApiFixture, periodContextFixture } from "./bill-test-fixtures";
 import { PeriodBillDialog } from "./period-bill-dialog";
+
 function setup(api = financeApiFixture()) {
   const onOpenChange = vi.fn();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -101,7 +102,7 @@ it("额外费用错误就近显示，备注要求保留", async () => {
 });
 it("冲突不自动提交下一期，网络未知重试使用原请求", async () => {
   const api = financeApiFixture({
-    generatePeriodBill: vi.fn().mockRejectedValue(new ApiError("冲突", 409, "CONFLICT")),
+    generatePeriodBill: vi.fn().mockRejectedValue(new ApiError(409, "CONFLICT", "冲突")),
   });
   setup(api);
   await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());

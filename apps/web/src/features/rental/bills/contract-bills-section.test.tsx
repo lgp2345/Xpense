@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { rentalBillsKeys } from "../../../services/rental-bills-query";
@@ -15,14 +15,14 @@ describe("合同应收覆盖", () => {
   it("合同内可切换押金作废历史，同时保留全部有效应收和覆盖数量", async () => {
     const api = billsApiFixture({
       listBills: vi.fn().mockImplementation(async (input) => ({
-        items: [{ ...billFixture, type: input.type ?? "rent", status: input.status ?? "active" }],
+        items: [{ ...billFixture, type: input.type ?? "period", status: input.status ?? "active" }],
         total: 1,
         page: 1,
         pageSize: 20,
         totals:
           input.status === "voided"
             ? { rentAmountMinor: 0, depositAmountMinor: 0 }
-            : { rentAmountMinor: 900000, depositAmountMinor: 300000 },
+            : { periodAmountMinor: 900000, rentAmountMinor: 900000, depositAmountMinor: 300000 },
         coverage: {
           existingRentCount: 1,
           existingDepositCount: 2,
@@ -43,7 +43,7 @@ describe("合同应收覆盖", () => {
         />
       </QueryClientProvider>,
     );
-    expect(await screen.findByText(/已生成租金 1 期、押金 2 项/)).toBeInTheDocument();
+    expect(await screen.findByText(/有效普通账单 9,000.00/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("combobox", { name: "合同账单费用" }));
     expect(await screen.findByRole("listbox")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("option", { name: "押金" }));
@@ -54,12 +54,8 @@ describe("合同应收覆盖", () => {
         expect.objectContaining({ contractId: "contract", type: "deposit", status: "voided" }),
       ),
     );
-    expect(await screen.findByText(/押金 \/ 2026\/01\/01.*作废/)).toBeInTheDocument();
-    const overview = within(screen.getByRole("region", { name: "有效应收金额与账单覆盖" }));
-    expect(overview.getByText("有效租金")).toBeInTheDocument();
-    expect(overview.getByText("9,000.00")).toBeInTheDocument();
-    expect(overview.getByText("有效押金")).toBeInTheDocument();
-    expect(overview.getByText("3,000.00")).toBeInTheDocument();
+    expect(await screen.findByText(/押金.*作废/)).toBeInTheDocument();
+    expect(screen.getByText(/有效普通账单 9,000.00/)).toBeInTheDocument();
   });
   it("只读用户查看缺失数量，不能发起生成预览", async () => {
     const api = billsApiFixture();
@@ -75,10 +71,10 @@ describe("合同应收覆盖", () => {
         />
       </QueryClientProvider>,
     );
-    expect(await screen.findByText(/需补齐租金 3 期、押金 2 项/)).toBeInTheDocument();
+    expect(await screen.findByText(billFixture.billNumber)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "预览并生成" })).not.toBeInTheDocument();
     expect(api.previewBills).not.toHaveBeenCalled();
-    expect(screen.getByText("本阶段仅记录应收，收款情况尚未登记")).toBeInTheDocument();
+    expect(screen.getByText(/租金只读/)).toBeInTheDocument();
   });
   it("无 read 不请求账单", () => {
     const api = billsApiFixture();
@@ -136,7 +132,7 @@ describe("合同应收覆盖", () => {
         total: 0,
         page: 1,
         pageSize: 20,
-        totals: { rentAmountMinor: 900000, depositAmountMinor: 300000 },
+        totals: { periodAmountMinor: 900000, rentAmountMinor: 900000, depositAmountMinor: 300000 },
         coverage: {
           existingRentCount: 1,
           existingDepositCount: 2,
@@ -158,11 +154,8 @@ describe("合同应收覆盖", () => {
         />
       </QueryClientProvider>,
     );
-    expect(await screen.findByText("尚无符合条件的有效账单。")).toBeInTheDocument();
-    expect(screen.getByText("可调整费用或状态筛选，查看其他账单。")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "有效应收金额与账单覆盖" })).toHaveTextContent(
-      "9,000.00",
-    );
+    expect(await screen.findByText("尚无符合条件的账期账单。")).toBeInTheDocument();
+    expect(screen.getByText(/有效普通账单 9,000.00/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "预览并生成" })).not.toBeInTheDocument();
   });
 
@@ -178,7 +171,7 @@ describe("合同应收覆盖", () => {
           total: 1,
           page: 1,
           pageSize: 20,
-          totals: { rentAmountMinor: 900000, depositAmountMinor: 0 },
+          totals: { periodAmountMinor: 900000, rentAmountMinor: 900000, depositAmountMinor: 0 },
         };
       }),
     });
@@ -203,16 +196,14 @@ describe("合同应收覆盖", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("v2 合同显示月度账单实收余额和出账入口，不显示 legacy 未知收款提示", async () => {
+  it("v2 合同显示普通账单实收余额和出账入口，不显示 legacy 未知收款提示", async () => {
     const user = userEvent.setup();
     const api = billsApiFixture({
       listBills: vi.fn().mockResolvedValue({
         items: [
           {
             ...billFixture,
-            type: "monthly",
-            modelVersion: 2,
-            billingMonth: "2026-08",
+            type: "period",
             financial: {
               receivedMinor: 30000,
               refundedMinor: 0,
@@ -240,32 +231,31 @@ describe("合同应收覆盖", () => {
           contractId="contract"
           api={api}
           financeApi={financeApiFixture()}
-          billingMode="monthly_settlement"
           permissions={[
             "rental_contracts:read",
             "rental_bills:read",
-            "rental_monthly_bills:generate",
+            "rental_period_bills:generate",
           ]}
           onNavigate={vi.fn()}
         />
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByText(/有效月度账单 1,000.00/)).toBeInTheDocument();
+    expect(await screen.findByText(/有效普通账单 1,000.00/)).toBeInTheDocument();
     expect(screen.getByText(/已收 300.00 · 待收 700.00/)).toBeInTheDocument();
     expect(screen.queryByText(/收款情况尚未登记/)).not.toBeInTheDocument();
     await user.click(screen.getByRole("combobox", { name: "合同账单费用" }));
     expect(screen.queryByRole("option", { name: "租金" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "月度账单" }));
+    await user.click(screen.getByRole("option", { name: "账期账单" }));
     await user.click(screen.getByRole("combobox", { name: "合同账单状态" }));
     await user.click(screen.getByRole("option", { name: "作废历史" }));
     await waitFor(() =>
       expect(api.listBills).toHaveBeenLastCalledWith(
-        expect.objectContaining({ contractId: "contract", type: "monthly", status: "voided" }),
+        expect.objectContaining({ contractId: "contract", type: "period", status: "voided" }),
       ),
     );
-    await user.click(screen.getByRole("button", { name: "生成本月账单" }));
-    expect(await screen.findByRole("heading", { name: "生成本月账单" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "生成下一张账单" }));
+    expect(await screen.findByRole("heading", { name: "生成下一张账单" })).toBeInTheDocument();
   });
 
   it("月度合同单独提供受 bills:generate 控制的押金出账入口", async () => {
@@ -279,13 +269,12 @@ describe("合同应收覆盖", () => {
           contractId="contract"
           api={api}
           financeApi={financeApiFixture()}
-          billingMode="monthly_settlement"
           permissions={["rental_contracts:read", "rental_bills:read", "rental_bills:generate"]}
         />
       </QueryClientProvider>,
     );
 
-    await screen.findByText(/有效月度账单/);
+    await screen.findByText(/有效普通账单/);
     await userEvent.click(screen.getByRole("button", { name: "生成押金账单" }));
     expect(await screen.findByRole("heading", { name: "预览并生成押金账单" })).toBeInTheDocument();
     expect(api.previewBills).toHaveBeenLastCalledWith(
@@ -293,7 +282,7 @@ describe("合同应收覆盖", () => {
     );
   });
 
-  it("月度账单生成只失效当前合同和本组织全合同列表缓存", async () => {
+  it("普通账单生成只失效当前合同和本组织全合同列表缓存", async () => {
     const user = userEvent.setup();
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const api = billsApiFixture({
@@ -302,32 +291,9 @@ describe("合同应收覆盖", () => {
         missingDepositSourceKeys: [],
         canGenerate: true,
       }),
-      generateBills: vi
-        .fn()
-        .mockResolvedValue({ ...billFixture, type: "monthly", modelVersion: 2 }),
+      generateBills: vi.fn().mockResolvedValue({ ...billFixture, type: "period" }),
     });
-    const financeApi = financeApiFixture({
-      previewMonthlyBill: vi.fn().mockResolvedValue({
-        version: "preview-v1",
-        canConfirm: true,
-        missingFields: [],
-        defaults: {
-          contractId: "contract-a",
-          version: "terms-v1",
-          waterUnitPrice: "3",
-          electricityUnitPrice: "4",
-          fixedFees: [],
-        },
-        baselineReadings: [
-          { kind: "water", readingDate: "2026-08-01", reading: "100" },
-          { kind: "electricity", readingDate: "2026-08-01", reading: "200" },
-        ],
-        lines: [],
-        amountMinor: 10000,
-        billingMonth: "2026-08",
-        existingBillId: null,
-      }),
-    });
+    const financeApi = financeApiFixture();
     const cache = {
       items: [],
       total: 0,
@@ -357,28 +323,21 @@ describe("合同应收覆盖", () => {
           contractId="contract-a"
           api={api}
           financeApi={financeApi}
-          billingMode="monthly_settlement"
           permissions={[
             "rental_contracts:read",
             "rental_bills:read",
-            "rental_monthly_bills:generate",
+            "rental_period_bills:generate",
           ]}
         />
       </QueryClientProvider>,
     );
-    await screen.findByText(/有效月度账单/);
+    await screen.findByText(/有效普通账单/);
     const initialListCalls = vi.mocked(api.listBills).mock.calls.length;
-    await user.click(screen.getByRole("button", { name: "生成本月账单" }));
-    fireEvent.change(screen.getByLabelText("账单月份"), { target: { value: "2026-08" } });
-    fireEvent.change(screen.getByLabelText("账单到期日"), { target: { value: "2026-08-31" } });
-    fireEvent.change(screen.getByLabelText("水表读数日期"), { target: { value: "2026-08-30" } });
-    await user.type(screen.getByLabelText("水表读数"), "110");
-    fireEvent.change(screen.getByLabelText("电表读数日期"), { target: { value: "2026-08-30" } });
-    await user.type(screen.getByLabelText("电表读数"), "210");
-    await screen.findByText(/服务端预览金额/);
+    await user.click(screen.getByRole("button", { name: "生成下一张账单" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
     await user.click(screen.getByRole("button", { name: "确认生成" }));
 
-    await waitFor(() => expect(financeApi.generateMonthlyBill).toHaveBeenCalledOnce());
+    await waitFor(() => expect(financeApi.generatePeriodBill).toHaveBeenCalledOnce());
     await waitFor(() =>
       expect(vi.mocked(api.listBills).mock.calls.length).toBeGreaterThan(initialListCalls),
     );

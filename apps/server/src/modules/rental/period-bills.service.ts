@@ -12,31 +12,24 @@ import { DatabaseTransactionService } from "../../db/database-transaction.servic
 import type { AppDbTransaction } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import { AccessService } from "../iam/access.service.js";
-import { BillingStartsRepository } from "./billing-starts.repository.js";
 import type { PersistableBillingDraft } from "./billing.types.js";
+import { BillingStartsRepository } from "./billing-starts.repository.js";
 import { BillsRepository } from "./bills.repository.js";
 import { ContractsRepository } from "./contracts.repository.js";
 import { ContractsPolicyService } from "./contracts-policy.service.js";
 import { FinanceRequestsRepository } from "./finance-requests.repository.js";
 import { MeterReadingsRepository } from "./meter-readings.repository.js";
 import {
-  assertPeriodBillingOpen,
+  buildPeriodBillContext,
   buildPeriodBillPlan,
-  defaultPeriodChargeTerms,
-  nextPeriod,
   PeriodBillPlanError,
-  selectableBillingPeriods,
   sourceForPeriodBills,
 } from "./period-bill-plan.rules.js";
 import { calculatePeriodCharges } from "./period-charge.rules.js";
-import { resolvePeriodMeterBaselines } from "./period-meter.rules.js";
 import type { RentalFinanceSnapshot } from "./rental-finance.types.js";
-import {
-  financeRequestHash,
-  financeSourceVersion,
-  isFinanceRequestReplay,
-} from "./rental-finance-request.rules.js";
+import { financeRequestHash, isFinanceRequestReplay } from "./rental-finance-request.rules.js";
 import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
+
 const action = "period_bill.generate";
 @Injectable()
 export class PeriodBillsService {
@@ -63,59 +56,7 @@ export class PeriodBillsService {
         { organizationId: auth.organizationId, contractId: input.contractId },
         tx,
       );
-      return this.mapErrors(() => {
-        assertPeriodBillingOpen(source);
-        const period = nextPeriod(source);
-        const all = selectableBillingPeriods(source);
-        const defaults = defaultPeriodChargeTerms(source);
-        const baselines = resolvePeriodMeterBaselines({ ...source, terms: defaults });
-        const end = source.contract.terminationDate ?? source.contract.endDate!;
-        const canSelectBillingStart =
-          source.billingStart === null &&
-          !source.bills.some((bill) => bill.type === "period" && bill.status === "active");
-        return {
-          version: financeSourceVersion(source, {}),
-          billingStart: source.billingStart
-            ? {
-                firstPeriodStart: source.billingStart.firstPeriodStart,
-                baselineReadings: source.billingStart.baselineReadings.map(
-                  ({ kind, readingDate, reading }) => ({ kind, readingDate, reading }),
-                ),
-              }
-            : null,
-          canSelectBillingStart,
-          nextPeriod: period
-            ? { periodStart: period.periodStart, periodEnd: period.periodEnd }
-            : null,
-          defaultDueDate: period?.periodStart ?? null,
-          defaults,
-          baselineReadings: baselines.map(({ kind, readingDate, reading }) => ({
-            kind,
-            readingDate,
-            reading,
-          })),
-          defaultReadings: baselines.map(({ kind, reading }) => ({
-            kind,
-            readingDate: source.context.today < end ? source.context.today : end,
-            reading,
-          })),
-          selectablePeriods: {
-            items: canSelectBillingStart
-              ? all.slice((input.page - 1) * input.pageSize, input.page * input.pageSize)
-              : [],
-            total: canSelectBillingStart ? all.length : 0,
-            page: input.page,
-            pageSize: input.pageSize,
-          },
-          missingFields: (["water", "electricity"] as const)
-            .filter(
-              (kind) =>
-                defaults[`${kind}CollectionEnabled`] &&
-                !baselines.some((reading) => reading.kind === kind),
-            )
-            .map((kind) => `${kind}Baseline`),
-        };
-      });
+      return this.mapErrors(() => buildPeriodBillContext(source, input));
     });
   }
   preview(

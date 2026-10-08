@@ -1,12 +1,7 @@
-import type {
-  RentalBillCoverage,
-  RentalBillGenerationInput,
-  RentalBillPreviewItem,
-  RentalBillTotals,
-} from "@xpense/shared";
+import type { RentalBillTotals } from "@xpense/shared";
 import type { BillingDraft, BillingSource } from "./billing.types.js";
-import { buildRentPlan, sumBillingAmounts } from "./billing-period.rules.js";
-import { billingDigest, billingTerms, buildDepositDrafts } from "./billing-source.rules.js";
+import { sumBillingAmounts } from "./billing-period.rules.js";
+import { billingDigest } from "./billing-source.rules.js";
 
 /** 全计划分类汇总，金额超限明确拒绝。 */
 export function billingTotals(

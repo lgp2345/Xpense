@@ -365,7 +365,7 @@ describe("ContractFormPage", () => {
     );
     await screen.findByRole("heading", { name: "复核并确认" });
     expect(screen.getByText(/入住底数 0/)).toBeInTheDocument();
-    expect(screen.getByText(/管理费：50.00 元\/月/)).toBeInTheDocument();
+    expect(screen.getByText(/管理费：50.00 元\/期/)).toBeInTheDocument();
     expect(screen.getByText(/电费：不代收/)).toBeInTheDocument();
   });
 
@@ -729,14 +729,13 @@ describe("ContractFormPage", () => {
     await user.click(screen.getByRole("button", { name: "保存空间并下一步" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("操作失败，请稍后重试。");
     expect(screen.getByRole("alert")).not.toHaveTextContent("保存失败");
-    await user.type(screen.getByLabelText(`空间 ${spaceId}`), "100");
     await user.click(screen.getByRole("button", { name: "重试保存" }));
     expect(createContract).not.toHaveBeenCalled();
     expect(updateContract).toHaveBeenCalledTimes(2);
     expect(updateContract).toHaveBeenLastCalledWith({
       id: draftId,
       propertyId,
-      spaces: [{ spaceId, rentAllocationMinor: 10000 }],
+      spaces: [{ spaceId }],
     });
   });
 
@@ -1730,7 +1729,7 @@ it("财务权限撤销后清除已回填的收费设置，不提交不可见收�
     </QueryClientProvider>
   );
   const view = render(page(perms));
-  expect(await screen.findByText("权限撤销测试费：50.00 元/月")).toBeInTheDocument();
+  expect(await screen.findByText("权限撤销测试费：50.00 元/期")).toBeInTheDocument();
   view.rerender(page(perms.filter((p) => !p.startsWith("rental_charges:"))));
   await waitFor(() => expect(screen.queryByText(/权限撤销测试费/)).not.toBeInTheDocument());
 });

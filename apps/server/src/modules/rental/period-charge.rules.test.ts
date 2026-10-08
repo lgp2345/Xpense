@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { rentalFinanceSnapshot } from "../../test/rental-finance-fixtures.js";
 import { buildRentPlan } from "./billing-period.rules.js";
 import { calculatePeriodCharges, type PeriodChargeInput } from "./period-charge.rules.js";
+
 const source = rentalFinanceSnapshot();
 function input(): PeriodChargeInput {
   return {
@@ -90,4 +91,9 @@ describe("每账期收费快照", () => {
     };
     expect(() => calculatePeriodCharges(value)).toThrow(/边界/);
   });
+});
+it("单张账单额外费用标识不能重复", () => {
+  const value = input();
+  const fee = { id: "same", name: "额外费", amountMinor: 1, note: "按实" };
+  expect(() => calculatePeriodCharges({ ...value, extraFees: [fee, fee] })).toThrow(/标识/);
 });

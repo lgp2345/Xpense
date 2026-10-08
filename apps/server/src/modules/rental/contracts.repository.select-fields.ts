@@ -51,7 +51,7 @@ export const contractRecordFields = {
   organizationId: rentalContracts.organizationId,
   propertyId: rentalContracts.propertyId,
   contractNumber: rentalContracts.contractNumber,
-  billingMode: rentalContracts.billingMode,
+
   externalContractNumber: rentalContracts.externalContractNumber,
   status: rentalContracts.status,
   startDate: contractStartDate,
@@ -206,7 +206,7 @@ export function contractDetailFields(today: string) {
   const now = normalizeContractTime(today, "start");
   return {
     ...contractSummaryFields(today),
-    billingMode: rentalContracts.billingMode,
+
     billingAnchor: rentalContracts.billingAnchor,
     paymentIntervalMonths: rentalContracts.paymentIntervalMonths,
     dueDaysBefore: rentalContracts.dueDaysBefore,

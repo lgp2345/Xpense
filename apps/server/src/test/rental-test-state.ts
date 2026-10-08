@@ -1,5 +1,7 @@
 import type { RentalBillDetail } from "@xpense/shared";
-type BillRevisionRecord=typeof import("../db/schema.js").rentalBillRevisions.$inferSelect;
+
+type BillRevisionRecord = typeof import("../db/schema.js").rentalBillRevisions.$inferSelect;
+
 import type {
   AdjustmentRecord,
   GenerationRecord,
@@ -594,7 +596,6 @@ export function createContractRecord(
     organizationId: input.organizationId,
     propertyId: input.propertyId,
     contractNumber: input.contractNumber,
-    billingMode: input.billingMode ?? "legacy_receivable",
     externalContractNumber: input.externalContractNumber ?? null,
     status: input.status ?? "draft",
     startDate: input.startDate ?? null,

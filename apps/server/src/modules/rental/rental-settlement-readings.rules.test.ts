@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import { rentalFinanceSnapshot } from "../../test/rental-finance-fixtures.js";
 import { proposeSettlementReadings } from "./rental-settlement-readings.rules.js";
+
 it("即使同日同值也构造独立结算读数，不复用原节点", () => {
   const source = rentalFinanceSnapshot();
   source.context.today = "2026-12-31";

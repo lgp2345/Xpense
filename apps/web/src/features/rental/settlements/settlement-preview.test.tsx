@@ -1,94 +1,70 @@
 import { render, screen } from "@testing-library/react";
-import type { RentalSettlementPreview } from "@xpense/shared";
+import type { RentalBillLine, RentalSettlementPreview } from "@xpense/shared";
 import { expect, it } from "vitest";
 import { SettlementPreview } from "./settlement-preview";
 
-it("分别显示月度费用、退租补充费用与结束月后的账单撤回", () => {
-  const preview: RentalSettlementPreview = {
-    version: "preview-v1",
-    canConfirm: true,
-    missingFields: [],
-    effectiveEndDate: "2026-09-30",
-    billChanges: [
-      {
-        billId: "bill-september",
-        billingMonth: "2026-09",
-        lines: [
+const line = (
+  kind: RentalBillLine["kind"],
+  label: string,
+  amountMinor: number,
+): RentalBillLine => ({
+  kind,
+  label,
+  amountMinor,
+  periodStart: null,
+  periodEnd: null,
+  referenceStart: null,
+  referenceEnd: null,
+  coveredDays: null,
+  referenceDays: null,
+  baseRentAmountMinor: null,
+  sortOrder: 0,
+});
+const empty: RentalSettlementPreview = {
+  version: "v1",
+  canConfirm: true,
+  missingFields: [],
+  effectiveEndDate: "2026-09-30",
+  periodCharges: [],
+  terminalLines: [],
+  extraLines: [],
+  finalCostMinor: 7000,
+  receivedMinor: 20000,
+  refundedMinor: 0,
+  differenceMinor: -13000,
+};
+it("分别显示账期费用、尾期水电、手动退款事项与真实资金", () => {
+  render(
+    <SettlementPreview
+      preview={{
+        ...empty,
+        periodCharges: [
           {
-            kind: "water",
-            label: "水费",
-            amountMinor: 3_000,
-            periodStart: "2026-09-01",
-            periodEnd: "2026-09-30",
-            referenceStart: null,
-            referenceEnd: null,
-            coveredDays: null,
-            referenceDays: null,
-            baseRentAmountMinor: null,
-            sortOrder: 0,
-          },
-          {
-            kind: "extra_fee",
-            label: "结清清洁费",
-            amountMinor: 4_000,
-            periodStart: null,
-            periodEnd: null,
-            referenceStart: null,
-            referenceEnd: null,
-            coveredDays: null,
-            referenceDays: null,
-            baseRentAmountMinor: null,
-            sortOrder: 1,
-            feeSnapshot: {
-              kind: "extra_fee",
-              extraFeeId: "00000000-0000-4000-8000-000000000001",
-              origin: "settlement",
-            },
+            billId: "bill",
+            period: { periodStart: "2026-09-01", periodEnd: "2026-09-30" },
+            lines: [line("rent_period", "租金", 5000)],
+            amountMinor: 5000,
           },
         ],
-        amountMinor: 7_000,
-        changeAmountMinor: 2_000,
-      },
-      {
-        billId: "bill-october",
-        billingMonth: "2026-10",
-        lines: [],
-        amountMinor: 0,
-        changeAmountMinor: -50_000,
-      },
-    ],
-    finalCostMinor: 7_000,
-    receivedMinor: 20_000,
-    refundedMinor: 0,
-    differenceMinor: -13_000,
-  };
-
-  render(<SettlementPreview preview={preview} />);
-
-  expect(screen.getByRole("heading", { name: "月度费用" })).toBeInTheDocument();
-  expect(screen.getByText(/水费/)).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "退租补充费用" })).toBeInTheDocument();
-  expect(screen.getByText(/结清清洁费/)).toBeInTheDocument();
-  expect(screen.getByText("2026-10 · 本次撤回")).toBeInTheDocument();
+        terminalLines: [line("water", "水费", 3000)],
+        extraLines: [line("extra_fee", "管理费退款", -1000)],
+      }}
+    />,
+  );
+  for (const name of ["账期费用", "尾期水电", "固定费用退款事项与额外费用"])
+    expect(screen.getByRole("heading", { name })).toBeInTheDocument();
+  expect(screen.getByText(/管理费退款/)).toBeInTheDocument();
+  expect(screen.getByText(/固定费用不自动退款/)).toBeInTheDocument();
   expect(screen.getByText("实际收款 200.00")).toBeInTheDocument();
   expect(screen.getByText("实际退款 0.00")).toBeInTheDocument();
   expect(screen.getByText("最终差额 -130.00")).toBeInTheDocument();
+  expect(screen.queryByText(/本次撤回/)).not.toBeInTheDocument();
 });
-
 it("有缺失终读数时明确列出尚未补齐项目", () => {
-  const preview: RentalSettlementPreview = {
-    version: "preview-v1",
-    canConfirm: false,
-    missingFields: ["waterReading"],
-    effectiveEndDate: "2026-09-30",
-    billChanges: [],
-    finalCostMinor: 0,
-    receivedMinor: 0,
-    refundedMinor: 0,
-    differenceMinor: 0,
-  };
-
-  render(<SettlementPreview preview={preview} />);
-
+  render(
+    <SettlementPreview
+      preview={{ ...empty, canConfirm: false, missingFields: ["waterReading"] }}
+    />,
+  );
   expect(screen.getByText("水表终读数尚未填写。")).toBeInTheDocument();
 });

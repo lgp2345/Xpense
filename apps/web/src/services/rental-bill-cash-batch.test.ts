@@ -35,7 +35,7 @@ function bill(id: string, overrides: Partial<RentalBillSummary> = {}): RentalBil
     propertyId: "property-1",
     propertyName: "测试房产",
     currencyCode: "CNY",
-    type: "rent",
+    type: "period",
     status: "active",
     sourceKey: `rent:${id}`,
     periodStart: "2026-09-01",
@@ -45,7 +45,6 @@ function bill(id: string, overrides: Partial<RentalBillSummary> = {}): RentalBil
     amountMinor: 1_000,
     dueState: "date_passed",
     createdAt: "2026-09-01T00:00:00.000Z",
-    modelVersion: 2,
     financial: balance(),
     ...overrides,
   };
@@ -54,6 +53,7 @@ function bill(id: string, overrides: Partial<RentalBillSummary> = {}): RentalBil
 function detail(summary: RentalBillSummary): RentalBillDetail {
   return {
     ...summary,
+    version: "v1",
     lines: [],
     generationId: null,
     adjustmentId: null,
@@ -309,7 +309,6 @@ describe("租赁账单批量收款", () => {
     { label: "账单状态", latest: { status: "voided" as const } },
     { label: "币种", latest: { currencyCode: "USD" } },
     { label: "应收金额", latest: { amountMinor: 1_001 } },
-    { label: "账单模型版本", latest: { modelVersion: 1 as const } },
     { label: "已关联结算", latest: { settlementId: "settlement-1" } },
   ])("$label 与选择快照不一致时不登记", async ({ latest }) => {
     const selected = selectedBill("bill-1");

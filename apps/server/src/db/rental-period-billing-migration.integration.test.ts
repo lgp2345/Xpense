@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rentalTestDatabaseUrl } from "../test/rental-postgres-corpus.js";
 import { withRentalPostgres } from "../test/rental-postgres-harness.js";
+
 const url = rentalTestDatabaseUrl(process.env);
 describe.skipIf(!url)("账期账单存储迁移", () => {
   it("新库从完整历史链到达账期模型，同日读数不再日期唯一", async () => {

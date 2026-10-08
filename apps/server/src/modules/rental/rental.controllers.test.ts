@@ -13,8 +13,6 @@ import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write
 import { REQUIRE_PERMISSION_KEY } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
-import { BillRevisionsRepository } from "./bill-revisions.repository.js";
-import { BillRevisionsService } from "./bill-revisions.service.js";
 import { BillsController } from "./bills.controller.js";
 import { ChargeTermsController } from "./charge-terms.controller.js";
 import { ChargeTermsRepository } from "./charge-terms.repository.js";
@@ -30,8 +28,8 @@ import { FinanceRequestsRepository } from "./finance-requests.repository.js";
 import { MeterReadingsController } from "./meter-readings.controller.js";
 import { MeterReadingsRepository } from "./meter-readings.repository.js";
 import { MeterReadingsService } from "./meter-readings.service.js";
-import { MonthlyBillsController } from "./monthly-bills.controller.js";
-import { MonthlyBillsService } from "./monthly-bills.service.js";
+import { PeriodBillsController } from "./period-bills.controller.js";
+import { PeriodBillsService } from "./period-bills.service.js";
 import { PropertiesController } from "./properties.controller.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import { PropertiesService } from "./properties.service.js";
@@ -142,7 +140,7 @@ describe("rental property controller", () => {
       ContractsController,
       ChargeTermsController,
       MeterReadingsController,
-      MonthlyBillsController,
+      PeriodBillsController,
       RentalReceiptsController,
       RentalRefundsController,
       RentalCashController,
@@ -151,8 +149,6 @@ describe("rental property controller", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([
         BookkeepingWriteLockRepository,
-        BillRevisionsRepository,
-        BillRevisionsService,
         PropertiesRepository,
         PropertiesPolicyService,
         PropertiesService,
@@ -161,7 +157,7 @@ describe("rental property controller", () => {
         FinanceRequestsRepository,
         MeterReadingsRepository,
         MeterReadingsService,
-        MonthlyBillsService,
+        PeriodBillsService,
         RentalFinanceSourceService,
         RentalCashProjectionRepository,
         RentalCashService,
@@ -283,7 +279,7 @@ describe("rental space controller", () => {
       ContractsController,
       ChargeTermsController,
       MeterReadingsController,
-      MonthlyBillsController,
+      PeriodBillsController,
       RentalReceiptsController,
       RentalRefundsController,
       RentalCashController,
@@ -506,7 +502,7 @@ describe("rental contract controller", () => {
       ContractsController,
       ChargeTermsController,
       MeterReadingsController,
-      MonthlyBillsController,
+      PeriodBillsController,
       RentalReceiptsController,
       RentalRefundsController,
       RentalCashController,

@@ -2,11 +2,11 @@ import { z } from "zod";
 import { contractCalendarDateSchema } from "./rental-calendar-date.schema.js";
 import {
   rentalExpectedVersionSchema,
+  rentalFeeNameSchema,
   rentalIdempotencyKeySchema,
   rentalPeriodOverridesSchema,
   rentalReasonSchema,
   rentalSafeMinorAmountSchema,
-  rentalFeeNameSchema,
 } from "./rental-charges.dto.js";
 import { optionalRentalMeterReadingsSchema } from "./rental-meters.dto.js";
 /** 账期与结算额外收费事项，金额正负明确且条目有稳定标识。 */

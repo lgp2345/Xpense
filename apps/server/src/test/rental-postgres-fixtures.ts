@@ -6,7 +6,12 @@ import type { AppDb } from "../db/db.module.js";
 import * as tables from "../db/schema.js";
 
 /** 一份完整、无外部账号或资金账户的真实库来源；legacy 模式只用旧迁移已有字段。 */
-export async function insertRentalPostgresFixture(db: AppDb, legacy = false, futureOnly = false) {
+export async function insertRentalPostgresFixture(
+  db: AppDb,
+  legacy = false,
+  futureOnly = false,
+  fresh = false,
+) {
   const userId = randomUUID();
   const organizationId = randomUUID();
   const ledgerId = randomUUID();
@@ -65,7 +70,7 @@ export async function insertRentalPostgresFixture(db: AppDb, legacy = false, fut
       propertyId,
       contractNumber: `TEST-${contractId}`,
       status: "confirmed",
-      ...(legacy ? {} : { billingMode: "monthly_settlement" as const }),
+      ...(legacy ? {} : {}),
       startDate: "2026-01-01",
       endDate: "2026-02-28",
       rentAmountMinor: 10000,
@@ -119,6 +124,47 @@ export async function insertRentalPostgresFixture(db: AppDb, legacy = false, fut
     sortOrder: 0,
   };
   await db.insert(tables.rentalContractDepositTerms).values({ ...scope, ...deposit });
+  if (fresh) {
+    await db.insert(tables.rentalChargeTerms).values({
+      ...scope,
+      waterCollectionEnabled: true,
+      electricityCollectionEnabled: true,
+      waterUnitPrice: "3.0000",
+      electricityUnitPrice: "4.0000",
+      fixedFees: [{ id: randomUUID(), name: "管理费", periodAmountMinor: 10000 }],
+      updatedByUserId: userId,
+    });
+    const readings = [];
+    for (const kind of ["water", "electricity"] as const) {
+      const [reading] = await db
+        .insert(tables.rentalMeterReadings)
+        .values({
+          ...scope,
+          spaceId,
+          kind,
+          source: "contract",
+          readingDate: "2026-01-01",
+          reading: kind === "water" ? "3500" : "50",
+          reason: "合成交接",
+          ...actor,
+        })
+        .returning();
+      if (!reading) throw new Error("缺少合成底数");
+      readings.push(reading);
+    }
+    return {
+      scope,
+      ids,
+      lineIds: [],
+      actor,
+      userId,
+      organizationId,
+      propertyId,
+      spaceId,
+      readings,
+      auth: fixtureAuth(userId, organizationId),
+    };
+  }
   const snapshot: RentalBillSnapshot = {
     propertyId,
     propertyName: "测试房产",
@@ -142,7 +188,7 @@ export async function insertRentalPostgresFixture(db: AppDb, legacy = false, fut
     ? [
         {
           id: ids.january,
-          type: "rent" as const,
+          type: "period" as const,
           sourceKey: "rent:2026-01-01",
           amountMinor: 10000,
           periodStart: "2026-01-01",
@@ -161,16 +207,20 @@ export async function insertRentalPostgresFixture(db: AppDb, legacy = false, fut
     : [
         {
           id: ids.january,
-          type: "monthly" as const,
-          billingMonth: "2026-01",
-          sourceKey: "monthly:2026-01",
+          type: "period" as const,
+          sourceKey: "period:2026-01-01",
+          periodStart: "2026-01-01",
+          periodEnd: "2026-01-31",
+          effectiveEnd: "2026-01-31",
           amountMinor: futureOnly ? 10000 : 11000,
         },
         {
           id: ids.february,
-          type: "monthly" as const,
-          billingMonth: "2026-02",
-          sourceKey: "monthly:2026-02",
+          type: "period" as const,
+          sourceKey: "period:2026-02-01",
+          periodStart: "2026-02-01",
+          periodEnd: "2026-02-28",
+          effectiveEnd: "2026-02-28",
           amountMinor: futureOnly ? 14300 : 12000,
         },
         {
@@ -187,7 +237,7 @@ export async function insertRentalPostgresFixture(db: AppDb, legacy = false, fut
       const legacyBill = bill as typeof tables.rentalBills.$inferInsert;
       await db.execute(sql`INSERT INTO rental_bills
         (id, organization_id, contract_id, property_id, bill_number, contract_number, property_name, currency_code, type, source_key, period_start, period_end, effective_end, due_date, amount_minor, generation_id, snapshot, deposit_source_id, deposit_snapshot, created_by_user_id)
-        VALUES (${bill.id}, ${organizationId}, ${contractId}, ${propertyId}, ${`B-${bill.id}`}, ${snapshot.contractNumber}, ${snapshot.propertyName}, 'CNY', ${bill.type}, ${bill.sourceKey}, ${legacyBill.periodStart ?? null}, ${legacyBill.periodEnd ?? null}, ${legacyBill.effectiveEnd ?? null}, '2026-01-01', ${bill.amountMinor}, ${generationId}, ${JSON.stringify(snapshot)}::jsonb, ${legacyBill.depositSourceId ?? null}, ${legacyBill.depositSnapshot ? JSON.stringify(legacyBill.depositSnapshot) : null}::jsonb, ${userId})`);
+        VALUES (${bill.id}, ${organizationId}, ${contractId}, ${propertyId}, ${`B-${bill.id}`}, ${snapshot.contractNumber}, ${snapshot.propertyName}, 'CNY', ${bill.type === "period" ? "rent" : bill.type}, ${bill.sourceKey}, ${legacyBill.periodStart ?? null}, ${legacyBill.periodEnd ?? null}, ${legacyBill.effectiveEnd ?? null}, '2026-01-01', ${bill.amountMinor}, ${generationId}, ${JSON.stringify(snapshot)}::jsonb, ${legacyBill.depositSourceId ?? null}, ${legacyBill.depositSnapshot ? JSON.stringify(legacyBill.depositSnapshot) : null}::jsonb, ${userId})`);
     } else
       await db.insert(tables.rentalBills).values({
         ...bill,
@@ -201,7 +251,7 @@ export async function insertRentalPostgresFixture(db: AppDb, legacy = false, fut
         generationId,
         snapshot,
         createdByUserId: userId,
-        ...(legacy ? {} : { modelVersion: 2 }),
+        ...(legacy ? {} : {}),
       });
   }
   const line = (kind: RentalBillLine["kind"], amountMinor: number): RentalBillLine => ({
@@ -292,9 +342,19 @@ export async function insertRentalPostgresFixture(db: AppDb, legacy = false, fut
     readings[2].predecessorId = futureOnly ? readings[0].id : readings[1].id;
     readings[4].predecessorId = readings[3].id;
     for (const reading of readings.filter((_, index) => !futureOnly || index !== 1))
-      await db
-        .insert(tables.rentalMeterReadings)
-        .values({ ...scope, spaceId, ...reading, reason: "测试抄表", ...actor });
+      await db.insert(tables.rentalMeterReadings).values({
+        ...scope,
+        spaceId,
+        ...reading,
+        source: reading.predecessorId ? "bill" : "contract",
+        billId: reading.predecessorId
+          ? reading.id === readings[1].id
+            ? ids.january
+            : ids.february
+          : null,
+        reason: "测试抄表",
+        ...actor,
+      });
     const intervals = futureOnly
       ? ([
           [ids.february, readings[0], readings[2], "2.0000", 4000],
@@ -339,7 +399,7 @@ export async function insertRentalPostgresFixture(db: AppDb, legacy = false, fut
           ...line("extra_fee", amountMinor),
           sortOrder: amountMinor > 0 ? 3 : 4,
           note: "未来月份额外费用",
-          feeSnapshot: { kind: "extra_fee", extraFeeId: randomUUID(), origin: "monthly" },
+          feeSnapshot: { kind: "extra_fee", extraFeeId: randomUUID(), origin: "period" },
         });
     }
     return {
@@ -378,7 +438,9 @@ function fixtureAuth(userId: string, organizationId: string): AuthContext {
     permissions: [
       "rental_contracts:read",
       "rental_bills:read",
-      "rental_monthly_bills:adjust",
+      "rental_period_bills:void",
+      "rental_period_bills:generate",
+      "rental_receipts:revoke",
       "rental_settlements:read",
       "rental_settlements:confirm",
       "rental_receipts:create",

@@ -77,3 +77,13 @@ pnpm dev:down
 5. 若发现范围外或余额交易外键依赖，工具拒绝 apply；须先通过已有业务撤销及余额更新能力处理，不能裸删记账交易。
 
 任务8的浏览器样例与自动化隔离 schema 分开；样例留供检查，测试 helper 只清理本次 schema。
+
+样例演练：`pnpm exec turbo run db:seed-rental-period-billing --filter=@xpense/server -- --organization-id <组织ID> --actor-user-id <已有成员ID>`。默认只查询本地范围和 schema，列出场景。清理、获准迁移及权限种子完成后追加 `--apply`。通过业务服务创建 `账期验收-` 前缀房产、空间、租户和合同；稳定外部编号与步骤键支持重复执行，不创建用户或密码。
+
+输出包含合同与结算页面入口及业务 ID，样例保留供检查。重置时逐个使用输出合同 ID 限定清理，不清空组织或数据库。退租场景在结算页填写水表终值 `3700`、电表 `50`、实际结束日期及固定费退款 `-20.00` 元；普通账单水表为 `3500 → 3600 → 3680`，管理费 `100.00` 元/期。接续前的历史费用假定线下已结清。
+
+样例任务依赖本包 `build`，运行 `node dist/db/seed-local-rental-period-billing.js`，保留 Nest 构造器注入元数据；不要直接用 tsx 加载样例的 Nest 业务源。恢复中断样例时日期以已保存合同和服务端账期上下文为准，不按重跑当天重写原合同边界。
+
+现有组织的权限种子不会重置菜单。如果结算入口返回「路由不存在」，核对该组织是否缺少 `RentalSettlement` 隐藏菜单；按现有菜单管理流程在租赁账单下补齐，权限仍为 `rental_settlements:read`，确认按钮仍为 `rental_settlements:confirm`。不要重置整棵菜单树。
+
+本次实施、验证边界及保留样例入口见 [账期出账验收记录](superpowers/reports/2026-10-08-rental-period-billing.md)。

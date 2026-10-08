@@ -1,8 +1,9 @@
 import { ConflictException } from "@nestjs/common";
-import { describe, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import { rentalFinanceAuth, rentalFinanceSnapshot } from "../../test/rental-finance-fixtures.js";
-import { financeSourceVersion } from "./rental-finance-request.rules.js";
 import { PeriodBillVoidService } from "./period-bill-void.service.js";
+import { financeSourceVersion } from "./rental-finance-request.rules.js";
+
 function harness() {
   const source = rentalFinanceSnapshot();
   const bill = {
@@ -23,7 +24,7 @@ function harness() {
   };
   const requests = {
     find: async () => saved,
-    complete: async (scope, input) => {
+    complete: async (scope: object, input: object) => {
       saved = { ...scope, ...input };
     },
   };
@@ -33,13 +34,13 @@ function harness() {
     { find: async () => ({ propertyId: "property" }), findForUpdate: async () => ({}) } as never,
     {
       lockOrganizationContext: async () => ({ today: "2026-08-31" }),
-      requireContract: (value) => value,
+      requireContract: (value: unknown) => value,
       requireOwnedPropertyForUpdate: async () => ({}),
     } as never,
     requests as never,
     { assertPermission: vi.fn() } as never,
     { appendRequired: vi.fn() } as never,
-    { run: (operation) => operation({}) } as never,
+    { run: (operation: (tx: object) => Promise<unknown>) => operation({}) } as never,
   );
   return {
     source,

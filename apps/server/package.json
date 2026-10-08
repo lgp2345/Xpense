@@ -15,7 +15,8 @@
     "lint": "biome check src",
     "start": "node dist/main.js",
     "test": "vitest run",
-    "db:reset-rental-billing": "if [ -f ../../.env ]; then dotenv -e ../../.env -- tsx src/db/reset-local-rental-billing.ts; else tsx src/db/reset-local-rental-billing.ts; fi"
+    "db:reset-rental-billing": "dotenv -e ../../.env -- node --import tsx src/db/reset-local-rental-billing.ts",
+    "db:seed-rental-period-billing": "dotenv -e ../../.env -- node dist/db/seed-local-rental-period-billing.js"
   },
   "dependencies": {
     "@fastify/cookie": "^10.0.1",

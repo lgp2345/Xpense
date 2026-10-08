@@ -8,8 +8,7 @@ import { billFixture, financeApiFixture } from "./bill-test-fixtures";
 
 const bill = {
   ...billFixture,
-  type: "monthly" as const,
-  modelVersion: 2 as const,
+  type: "period" as const,
   financial: {
     receivedMinor: 40000,
     refundedMinor: 0,

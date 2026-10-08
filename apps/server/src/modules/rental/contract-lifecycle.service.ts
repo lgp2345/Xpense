@@ -12,11 +12,7 @@ import { AuditService } from "../audit/audit.service.js";
 import { BillingLifecycleService } from "./billing-lifecycle.service.js";
 import { BillingSourceService } from "./billing-source.service.js";
 import { ChargeTermsRepository } from "./charge-terms.repository.js";
-import {
-  addCalendarDays,
-  compareCalendarDates,
-  organizationDate,
-} from "./contract-date.rules.js";
+import { addCalendarDays, compareCalendarDates, organizationDate } from "./contract-date.rules.js";
 import { ContractRelationsRepository } from "./contract-relations.repository.js";
 import {
   actualContractEndTime,

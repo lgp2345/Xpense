@@ -7,7 +7,8 @@ import { DB } from "../../db/db.tokens.js";
 import { rentalBillLines, rentalBillMeterIntervals, rentalBills } from "../../db/schema.js";
 import { rentalBillingSource } from "../../test/rental-billing-fixtures.js";
 import type { BillingSource, PersistableBillingDraft } from "./billing.types.js";
-import { assembleBillingPreview } from "./billing-plan.rules.js";
+import { buildRentPlan } from "./billing-period.rules.js";
+import { billingTerms, buildDepositDrafts } from "./billing-source.rules.js";
 import { billListCondition } from "./bills.queries.js";
 import { BillsRepository, buildNextBillNumbersStatement } from "./bills.repository.js";
 
@@ -19,16 +20,16 @@ describe("账单仓储作用域及原子编号", () => {
       paymentIntervalMonths: 1,
     });
     const start = performance.now();
-    const initial = assembleBillingPreview(source, {
-      contractId: source.contract.id,
-      depositDueDates: {},
-    });
-    const plan = assembleBillingPreview(source, {
-      contractId: source.contract.id,
-      depositDueDates: Object.fromEntries(
-        initial.missingDepositSourceKeys.map((key) => [key, "2026-01-01"]),
-      ),
-    });
+    const deposits = buildDepositDrafts(source.contract.depositTerms, {});
+    const plan = {
+      creates: [
+        ...buildRentPlan(billingTerms(source)).drafts,
+        ...buildDepositDrafts(
+          source.contract.depositTerms,
+          Object.fromEntries(deposits.map((draft) => [draft.sourceKey, "2026-01-01"])),
+        ),
+      ],
+    };
     const previewMs = performance.now() - start;
     const drafts = plan.creates.map((draft) => {
       if (!draft.dueDate) throw new Error("missing due date");
@@ -93,12 +94,12 @@ describe("账单仓储作用域及原子编号", () => {
     const query = dialect.sqlToQuery(
       billListCondition("org", {
         contractId: "contract",
-        type: "rent",
+        type: "period",
         status: "voided",
         keyword: "100%_",
       }),
     );
-    expect(query.params).toEqual(expect.arrayContaining(["org", "contract", "rent", "voided"]));
+    expect(query.params).toEqual(expect.arrayContaining(["org", "contract", "period", "voided"]));
     expect(query.sql).toContain('"organization_id"');
     expect(query.sql).not.toContain("100%_");
   });
@@ -149,7 +150,7 @@ describe("账单仓储作用域及原子编号", () => {
   it("全筛选财务账单读取使用调用方事务并返回完整身份行", async () => {
     const selections: Record<string, unknown>[] = [];
     let condition: unknown;
-    const rows = [{ id: "bill-1", contractId: "contract-1", modelVersion: 2 }];
+    const rows = [{ id: "bill-1", contractId: "contract-1" }];
     const executor = {
       select: (selection: Record<string, unknown>) => {
         selections.push(selection);
@@ -177,7 +178,7 @@ describe("账单仓储作用域及原子编号", () => {
         {
           contractId: "contract-1",
           propertyId: "property-1",
-          type: "monthly",
+          type: "period",
           status: "voided",
           dueDateFrom: "2026-09-01",
           dueDateTo: "2026-09-30",
@@ -189,14 +190,14 @@ describe("账单仓储作用域及原子编号", () => {
     ).resolves.toEqual(rows);
 
     expect(selections).toHaveLength(1);
-    expect(Object.keys(selections[0] ?? {}).sort()).toEqual(["contractId", "id", "modelVersion"]);
+    expect(Object.keys(selections[0] ?? {}).sort()).toEqual(["contractId", "id"]);
     const query = dialect.sqlToQuery(condition as never);
     expect(query.params).toEqual(
       expect.arrayContaining([
         "org-1",
         "contract-1",
         "property-1",
-        "monthly",
+        "period",
         "voided",
         "2026-09-01",
         "2026-09-30",
@@ -341,7 +342,7 @@ describe("账单仓储作用域及原子编号", () => {
       },
     } as unknown as BillingSource;
     const draft = {
-      type: "monthly",
+      type: "period",
       sourceKey: "monthly:2026-09",
       periodStart: null,
       periodEnd: null,
@@ -377,9 +378,6 @@ describe("账单仓储作用域及原子编号", () => {
       depositSourceId: null,
       depositSnapshot: null,
       adjustmentId: null,
-      modelVersion: 2,
-      billingMonth: "2026-09",
-      revision: 1,
     } as unknown as PersistableBillingDraft;
     const billRows: unknown[] = [];
     const lineRows: unknown[] = [];
@@ -419,11 +417,8 @@ describe("账单仓储作用域及原子编号", () => {
       );
 
     expect(billRows[0]).toMatchObject({
-      type: "monthly",
+      type: "period",
       sourceKey: "monthly:2026-09",
-      modelVersion: 2,
-      billingMonth: "2026-09",
-      revision: 1,
     });
     expect(lineRows[0]).toMatchObject({
       feeSnapshot: expect.objectContaining({ endReadingId: "reading-end" }),
@@ -447,9 +442,6 @@ describe("账单仓储作用域及原子编号", () => {
     if (!depositTerm) throw new Error("missing fixture deposit term");
     const draft: PersistableBillingDraft = {
       type: "deposit",
-      modelVersion: 2,
-      billingMonth: null,
-      revision: 1,
       sourceKey: `deposit:${depositTerm.id}`,
       periodStart: null,
       periodEnd: null,
@@ -505,9 +497,6 @@ describe("账单仓储作用域及原子编号", () => {
 
     expect(billRows[0]).toMatchObject({
       type: "deposit",
-      modelVersion: 2,
-      billingMonth: null,
-      revision: 1,
       amountMinor: 300000,
       depositSourceId: depositTerm.id,
     });

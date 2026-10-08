@@ -18,7 +18,7 @@ describe("RentalFinanceSourceService", () => {
       startDate: `${source.contract.startDate}T12:34:56`,
       endDate: `${source.contract.endDate}T18:30:59`,
       actualEndDate: `${source.contract.actualEndDate}T18:30:59`,
-      billingMode: "monthly_settlement",
+
       createdAt: new Date(source.contract.createdAt),
       updatedAt: new Date(source.contract.updatedAt),
     };
@@ -33,9 +33,7 @@ describe("RentalFinanceSourceService", () => {
       id: "voided-bill-1",
       contractId: source.contract.id,
       status: "voided",
-      type: "monthly",
-      modelVersion: 2,
-      billingMonth: "2026-07",
+      type: "period",
       revision: 1,
       amountMinor: 900,
       lines: [],
@@ -81,6 +79,7 @@ describe("RentalFinanceSourceService", () => {
       readings as never,
       cash as never,
       settlements as never,
+      { find: vi.fn().mockResolvedValue(null) } as never,
     );
 
     try {
@@ -96,7 +95,7 @@ describe("RentalFinanceSourceService", () => {
         currencyCode: "CNY",
         timezone: "Asia/Shanghai",
       });
-      expect(snapshot.contract.billingMode).toBe("monthly_settlement");
+      expect(snapshot.contract).not.toHaveProperty("billingMode");
       expect(snapshot.contract).toMatchObject({
         startDate: source.contract.startDate,
         endDate: source.contract.endDate,
@@ -169,6 +168,7 @@ describe("RentalFinanceSourceService", () => {
       { list: vi.fn().mockResolvedValue([]) } as never,
       { allForContract: vi.fn().mockResolvedValue([]) } as never,
       { findCurrent: vi.fn().mockResolvedValue(null) } as never,
+      { find: vi.fn().mockResolvedValue(null) } as never,
     );
 
     const snapshot = await service.read(
@@ -176,7 +176,7 @@ describe("RentalFinanceSourceService", () => {
       tx as never,
     );
 
-    expect(snapshot.contract.billingMode).toBe("legacy_receivable");
+    expect(snapshot.contract).not.toHaveProperty("billingMode");
     expect(snapshot.cancelledOn).toBeNull();
   });
 
@@ -271,6 +271,7 @@ describe("RentalFinanceSourceService", () => {
       { list: vi.fn().mockResolvedValue([]) } as never,
       { allForContract: vi.fn().mockResolvedValue(cashRecords) } as never,
       { findCurrent: vi.fn().mockResolvedValue(settlement) } as never,
+      { find: vi.fn().mockResolvedValue(null) } as never,
     );
 
     const snapshot = await service.read(

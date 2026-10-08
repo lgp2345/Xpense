@@ -27,7 +27,7 @@ export const rentalFinanceAuth = {
     "rental_charges:update",
     "rental_meters:read",
     "rental_meters:update",
-    "rental_monthly_bills:generate",
+    "rental_period_bills:generate",
   ],
 } as const;
 
@@ -39,11 +39,11 @@ export function rentalFinanceSnapshot(
   overrides: Partial<RentalFinanceSnapshot> = {},
 ): RentalFinanceSnapshot {
   const billing = rentalBillingSource();
-  const contract: RentalContractDetail & { billingMode: "monthly_settlement" } = {
+  const contract: RentalContractDetail = {
     ...billing.contract,
     lifecycleStatus: "confirmed",
     displayStatus: "active",
-    billingMode: "monthly_settlement",
+
     startDate: "2026-01-01",
     endDate: "2026-12-31",
     actualEndDate: "2026-12-31",
@@ -80,7 +80,10 @@ export function rentalFinanceSnapshot(
       spaceId: financeSpaceId,
       revision: 1,
       predecessorId: null,
-      source: "contract", billingStartId: null, billId: null, settlementId: null,
+      source: "contract",
+      billingStartId: null,
+      billId: null,
+      settlementId: null,
     })),
     bills: [],
     cashEntries: [],
@@ -94,6 +97,21 @@ export function rentalFinanceSnapshot(
 export function createRentalFinanceRepositoryFakes(state: RentalTestState) {
   const scopeKey = (scope: { organizationId: string; contractId: string }) =>
     `${scope.organizationId}/${scope.contractId}`;
+  const billingStartsRepository = {
+    find: async (scope: import("../modules/rental/rental-finance.types.js").FinanceScope) =>
+      structuredClone(
+        state.billingStarts.find(
+          (start) =>
+            start.organizationId === scope.organizationId && start.contractId === scope.contractId,
+        ) ?? null,
+      ),
+    invalidate: async (scope: import("../modules/rental/rental-finance.types.js").FinanceScope) => {
+      state.billingStarts = state.billingStarts.filter(
+        (start) =>
+          start.organizationId !== scope.organizationId || start.contractId !== scope.contractId,
+      );
+    },
+  };
   const chargeTermsRepository: Partial<ChargeTermsRepository> = {
     find: async (scope) => {
       const record = state.chargeTerms.get(scopeKey(scope));
@@ -319,7 +337,16 @@ export function createRentalFinanceRepositoryFakes(state: RentalTestState) {
     },
   };
   const settlementsRepository: Partial<RentalSettlementsRepository> = {
-    finalizeSnapshot:async(scope,id,plan)=>{const record=state.settlements.find(record=>record.organizationId===scope.organizationId&&record.contractId===scope.contractId&&record.id===id);if(!record)throw new Error("Settlement missing");record.snapshot=structuredClone(plan);},
+    finalizeSnapshot: async (scope, id, plan) => {
+      const record = state.settlements.find(
+        (record) =>
+          record.organizationId === scope.organizationId &&
+          record.contractId === scope.contractId &&
+          record.id === id,
+      );
+      if (!record) throw new Error("Settlement missing");
+      record.snapshot = structuredClone(plan);
+    },
     findContractId: async (organizationId, settlementId) =>
       state.settlements.find(
         (record) => record.organizationId === organizationId && record.id === settlementId,
@@ -468,6 +495,7 @@ export function createRentalFinanceRepositoryFakes(state: RentalTestState) {
       }),
   };
   return {
+    billingStartsRepository,
     chargeTermsRepository,
     meterReadingsRepository,
     financeRequestsRepository,

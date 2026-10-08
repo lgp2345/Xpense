@@ -7,7 +7,6 @@ import { billFixture, billsApiFixture, financeApiFixture } from "./bill-test-fix
 
 const bill = {
   ...billFixture,
-  modelVersion: 2 as const,
   financial: {
     receivedMinor: 0,
     refundedMinor: 0,

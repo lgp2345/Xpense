@@ -55,7 +55,7 @@ export function SettlementHistory({
           {query.data.items.map((item) => (
             <li className="flex flex-wrap justify-between gap-2 py-3 text-sm" key={item.id}>
               <span>
-                第 {item.revision} 次结算更正 · {item.settlement.effectiveEndDate} ·{" "}
+                第 {item.revision} 次结算余额更新 · {item.settlement.effectiveEndDate} ·{" "}
                 {statusLabels[item.settlement.status]}
               </span>
               <span className="tabular-nums">

@@ -11,8 +11,8 @@ import { BillCashHistory } from "./bill-cash-history";
 import { BillDetailOverview } from "./bill-detail-overview";
 import { BillDetailSections } from "./bill-detail-sections";
 import { BillReceiptDialog } from "./bill-receipt-dialog";
-import { BillVoidDialog } from "./bill-void-dialog";
 import { BillSourceHistory } from "./bill-source-history";
+import { BillVoidDialog } from "./bill-void-dialog";
 export function BillDetailPage({
   organizationId,
   billId,

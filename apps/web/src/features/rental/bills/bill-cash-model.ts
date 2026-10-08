@@ -1,7 +1,7 @@
 import type { PermissionKey, RentalBillSummary } from "@xpense/shared";
 import { z } from "zod";
 import { isCalendarDate } from "../contracts/contract-action-model";
-import { parseSignedMoneyMinor } from "./monthly-bill-form";
+import { parseSignedMoneyMinor } from "./period-bill-form";
 
 export function canRegisterBillReceipt(
   bill: RentalBillSummary,

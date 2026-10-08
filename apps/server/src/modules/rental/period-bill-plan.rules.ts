@@ -4,6 +4,7 @@ import type {
   RentalChargeTerms,
   RentalMeterKind,
   RentalMeterReadingInput,
+  RentalPeriodBillContext,
 } from "@xpense/shared";
 import type { BillingSource, BillingTerms } from "./billing.types.js";
 import { parseCalendarDate } from "./contract-date.rules.js";
@@ -142,7 +143,6 @@ export function buildPeriodBillPlan(
     parseCalendarDate(reading.readingDate);
     parseDecimal4(reading.reading);
     if (
-      reading.readingDate < terms.startDate ||
       reading.readingDate > source.context.today ||
       reading.readingDate > (source.contract.terminationDate ?? terms.endDate)
     )
@@ -179,7 +179,6 @@ export function buildPeriodBillPlan(
     parseDecimal4(input.reading);
     if (
       input.readingDate > source.context.today ||
-      input.readingDate < terms.startDate ||
       input.readingDate > (source.contract.terminationDate ?? terms.endDate)
     )
       throw new RangeError("抄表日期不在有效范围内");
@@ -224,3 +223,59 @@ export function buildPeriodBillPlan(
   };
 }
 export type PeriodBillPlan = ReturnType<typeof buildPeriodBillPlan>;
+
+/** 只读表单上下文：候选期分页与下一期判定独立，日期和基准均由服务端提供。 */
+export function buildPeriodBillContext(
+  source: RentalFinanceSnapshot,
+  input: { page: number; pageSize: number },
+): RentalPeriodBillContext {
+  assertPeriodBillingOpen(source);
+  const period = nextPeriod(source);
+  const all = selectableBillingPeriods(source);
+  const defaults = defaultPeriodChargeTerms(source);
+  const baselines = resolvePeriodMeterBaselines({ ...source, terms: defaults });
+  const end = source.contract.terminationDate ?? source.contract.endDate!;
+  const canSelectBillingStart =
+    source.billingStart === null &&
+    !source.bills.some((bill) => bill.type === "period" && bill.status === "active");
+  return {
+    version: financeSourceVersion(source, {}),
+    billingStart: source.billingStart
+      ? {
+          firstPeriodStart: source.billingStart.firstPeriodStart,
+          baselineReadings: source.billingStart.baselineReadings.map(
+            ({ kind, readingDate, reading }) => ({ kind, readingDate, reading }),
+          ),
+        }
+      : null,
+    canSelectBillingStart,
+    nextPeriod: period ? { periodStart: period.periodStart, periodEnd: period.periodEnd } : null,
+    defaultDueDate: period?.periodStart ?? null,
+    defaults,
+    baselineReadings: baselines.map(({ kind, readingDate, reading }) => ({
+      kind,
+      readingDate,
+      reading,
+    })),
+    defaultReadings: baselines.map(({ kind, reading }) => ({
+      kind,
+      readingDate: source.context.today < end ? source.context.today : end,
+      reading,
+    })),
+    selectablePeriods: {
+      items: canSelectBillingStart
+        ? all.slice((input.page - 1) * input.pageSize, input.page * input.pageSize)
+        : [],
+      total: canSelectBillingStart ? all.length : 0,
+      page: input.page,
+      pageSize: input.pageSize,
+    },
+    missingFields: (["water", "electricity"] as const)
+      .filter(
+        (kind) =>
+          defaults[`${kind}CollectionEnabled`] &&
+          !baselines.some((reading) => reading.kind === kind),
+      )
+      .map((kind) => `${kind}Baseline`),
+  };
+}

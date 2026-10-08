@@ -24,7 +24,7 @@ describe("RentalCashProjectionRepository", () => {
           {
             organizationId: org,
             contractId: contractIds[0],
-            billingMode: "monthly_settlement",
+
             lifecycleStatus: "terminated",
             startDate: "2026-01-01 12:34:56",
             endDate: "2026-12-31 23:59:59",
@@ -38,7 +38,7 @@ describe("RentalCashProjectionRepository", () => {
           {
             organizationId: org,
             contractId: contractIds[1],
-            billingMode: "monthly_settlement",
+
             lifecycleStatus: "confirmed",
             startDate: "2026-01-01",
             endDate: "2026-12-31",
@@ -58,10 +58,8 @@ describe("RentalCashProjectionRepository", () => {
             organizationId: org,
             contractId: contractIds[0],
             id: "void-bill",
-            type: "monthly",
+            type: "period",
             status: "voided",
-            modelVersion: 2,
-            billingMonth: "2026-08",
             revision: 3,
             amountMinor: 300_000,
             sourceKey: "monthly:2026-08",
@@ -72,8 +70,6 @@ describe("RentalCashProjectionRepository", () => {
             id: "deposit-bill",
             type: "deposit",
             status: "active",
-            modelVersion: 2,
-            billingMonth: null,
             revision: 1,
             amountMinor: 200_000,
             sourceKey: "deposit:0",
@@ -167,7 +163,6 @@ describe("RentalCashProjectionRepository", () => {
       organizationId: org,
       contractId: contractIds[0],
       contract: {
-        billingMode: "monthly_settlement",
         lifecycleStatus: "terminated",
         startDate: "2026-01-01",
         endDate: "2026-12-31",

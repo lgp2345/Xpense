@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import { SettlementProjectionService } from "./settlement-projection.service.js";
-import { rentalCashSourceVersion } from "./rental-cash.version.rules.js";
+
 it("资金刷新保留独立尾期水电和退款事项，不从普通账单重新归集费用", async () => {
   const scope = { organizationId: "org", contractId: "contract" };
   const snapshot = {

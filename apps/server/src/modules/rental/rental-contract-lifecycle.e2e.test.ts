@@ -48,10 +48,6 @@ function registerContractDetail(
       endDate,
       rentAmountMinor: 10000,
       updatedAt: new Date(FIXED_RENTAL_NOW),
-      billingMode:
-        contractFixture?.billingMode ??
-        setup.state.rental.contracts.get(id)?.billingMode ??
-        "legacy_receivable",
       propertyName: "测试房产",
       lifecycleStatus: options.lifecycleStatus ?? "draft",
       displayStatus: options.displayStatus ?? "upcoming",
@@ -191,7 +187,7 @@ function registerCancelMutation(setup: TestAppHarness, actorUserId: string): voi
         startDate: "2026-09-15",
         endDate: "2026-12-31",
         rentAmountMinor: 10000,
-        billingMode: "legacy_receivable",
+
         billingAnchor: "contract_start",
         paymentIntervalMonths: 1,
         dueDaysBefore: 0,
@@ -226,7 +222,7 @@ function confirmedPreStartContract(): RentalContractRecord {
     startDate: "2026-09-15",
     endDate: "2026-12-31",
     rentAmountMinor: 10000,
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -259,7 +255,7 @@ function cancelledPreStartContract(actorUserId: string): RentalContractRecord {
     startDate: "2026-09-15",
     endDate: "2026-12-31",
     rentAmountMinor: 10000,
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -296,7 +292,7 @@ const CANCEL_RESPONSE = {
   tenantNames: ["测试租户"],
   spaceNames: ["测试房间"],
   updatedAt: "2026-08-31T04:00:00.000Z",
-  billingMode: "legacy_receivable",
+
   billingAnchor: "contract_start",
   paymentIntervalMonths: 1,
   dueDaysBefore: 0,
@@ -366,7 +362,7 @@ const CHANGE_PARTIES_RESPONSE = {
   tenantNames: ["变更后租户"],
   spaceNames: ["测试房间"],
   updatedAt: "2026-08-31T04:00:00.000Z",
-  billingMode: "legacy_receivable",
+
   billingAnchor: "contract_start",
   paymentIntervalMonths: 1,
   dueDaysBefore: 0,
@@ -608,7 +604,7 @@ function terminationDetail(
     rentAmountMinor: 10000,
     updatedAt: new Date(FIXED_RENTAL_NOW),
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -654,7 +650,7 @@ function terminationResponse(actualEndDate: string, displayStatus: "terminated" 
     tenantNames: ["测试租户"],
     spaceNames: ["测试空间"],
     updatedAt: "2026-08-31T04:00:00.000Z",
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -853,7 +849,7 @@ function expectTerminationSuccessState(
     startDate: "2026-08-01",
     endDate: "2026-12-31",
     rentAmountMinor: 10000,
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -974,7 +970,7 @@ function expectRevokeSuccessState(
     startDate: "2026-08-01",
     endDate: "2026-12-31",
     rentAmountMinor: 10000,
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -1310,7 +1306,7 @@ function renewalSourceContract(source: RenewalSourceKind): RentalContractRecord 
     startDate: "2026-08-01",
     endDate: "2026-12-31",
     rentAmountMinor: 10000,
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -1345,7 +1341,7 @@ function renewalSourceDetail(source: RenewalSourceKind): RentalContractDetailRec
     rentAmountMinor: 10000,
     updatedAt: new Date(FIXED_RENTAL_NOW),
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -1410,7 +1406,7 @@ function renewalDraftContract(
     startDate: dates.startDate,
     endDate: dates.endDate,
     rentAmountMinor: 10000,
-    billingMode: "monthly_settlement",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -1444,7 +1440,7 @@ function renewalDraftDetail(source: RenewalSourceKind): RentalContractDetailReco
     rentAmountMinor: 10000,
     updatedAt: new Date(FIXED_RENTAL_NOW),
     createdAt: new Date(FIXED_RENTAL_NOW),
-    billingMode: "monthly_settlement",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -1512,7 +1508,6 @@ function registerRenewFixtures(
     startDate: sourceDates.startDate,
     endDate: sourceDates.endDate,
     rentAmountMinor: 10000,
-    billingMode: "monthly_settlement" as const,
     billingAnchor: "contract_start" as const,
     paymentIntervalMonths: 1 as const,
     dueDaysBefore: 0,
@@ -1633,7 +1628,7 @@ function renewalResponse(source: RenewalSourceKind) {
     tenantNames: ["测试租户"],
     spaceNames: ["测试房间"],
     updatedAt: "2026-08-31T04:00:00.000Z",
-    billingMode: "monthly_settlement",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -1902,7 +1897,7 @@ function renewedConfirmedResponse() {
     tenantNames: ["测试租户"],
     spaceNames: ["测试房间"],
     updatedAt: "2026-08-31T04:00:00.000Z",
-    billingMode: "monthly_settlement",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -1968,7 +1963,7 @@ function registerChangePartiesFixture(
     startDate: "2026-08-01",
     endDate: "2026-12-31",
     rentAmountMinor: 10000,
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -2107,7 +2102,7 @@ function registerChangePartiesFixture(
     rentAmountMinor: contract.rentAmountMinor,
     updatedAt: contract.updatedAt,
     createdAt: contract.createdAt,
-    billingMode: contract.billingMode,
+
     billingAnchor: contract.billingAnchor,
     paymentIntervalMonths: contract.paymentIntervalMonths,
     dueDaysBefore: contract.dueDaysBefore,

@@ -440,7 +440,7 @@ describe("rental property and space migration contract", () => {
           ),
         ).rejects.toMatchObject({
           code: "23505",
-          constraint: "rental_properties_organization_ledger_unique",
+          constraint_name: "rental_properties_organization_ledger_unique",
         });
         await expect(
           sql.savepoint(
@@ -457,7 +457,7 @@ describe("rental property and space migration contract", () => {
           ),
         ).rejects.toMatchObject({
           code: "23505",
-          constraint: "rental_properties_active_name_unique",
+          constraint_name: "rental_properties_active_name_unique",
         });
         await sql`
           INSERT INTO "rental_properties" (
@@ -490,7 +490,7 @@ describe("rental property and space migration contract", () => {
           ),
         ).rejects.toMatchObject({
           code: "23505",
-          constraint: "rental_spaces_active_root_name_unique",
+          constraint_name: "rental_spaces_active_root_name_unique",
         });
         await expect(
           sql.savepoint(
@@ -507,7 +507,7 @@ describe("rental property and space migration contract", () => {
           ),
         ).rejects.toMatchObject({
           code: "23505",
-          constraint: "rental_spaces_active_root_code_unique",
+          constraint_name: "rental_spaces_active_root_code_unique",
         });
         await sql`
           INSERT INTO "rental_spaces" (
@@ -530,7 +530,10 @@ describe("rental property and space migration contract", () => {
               )
             `,
           ),
-        ).rejects.toMatchObject({ code: "23503", constraint: "rental_spaces_parent_scope_fk" });
+        ).rejects.toMatchObject({
+          code: "23503",
+          constraint_name: "rental_spaces_parent_scope_fk",
+        });
         await expect(
           sql.savepoint(
             async (savepoint) =>
@@ -546,7 +549,7 @@ describe("rental property and space migration contract", () => {
           ),
         ).rejects.toMatchObject({
           code: "23505",
-          constraint: "rental_spaces_active_child_name_unique",
+          constraint_name: "rental_spaces_active_child_name_unique",
         });
         await expect(
           sql.savepoint(
@@ -563,7 +566,7 @@ describe("rental property and space migration contract", () => {
           ),
         ).rejects.toMatchObject({
           code: "23505",
-          constraint: "rental_spaces_active_child_code_unique",
+          constraint_name: "rental_spaces_active_child_code_unique",
         });
         await sql`
           INSERT INTO "rental_spaces" (

@@ -16,26 +16,23 @@ describe("rentalCashSourceVersion", () => {
       organizationId: "org",
       contractId: "contract",
       contract: {
-        billingMode: "monthly_settlement",
         lifecycleStatus: "confirmed",
         terminationDate: null,
       },
       bills: [
         {
           id: billTarget.billId,
-          type: "monthly",
+          type: "period",
           amountMinor: 300_000,
           status: "active",
-          modelVersion: 2,
           revision: 1,
           sourceKey: "monthly:2026-08",
         },
         {
           id: otherBillId,
-          type: "monthly",
+          type: "period",
           amountMinor: 75_000,
           status: "active",
-          modelVersion: 2,
           revision: 1,
           sourceKey: "monthly:2026-07",
         },
@@ -102,17 +99,15 @@ describe("rentalCashSourceVersion", () => {
       organizationId: "org",
       contractId: "contract",
       contract: {
-        billingMode: "monthly_settlement",
         lifecycleStatus: "confirmed",
         terminationDate: null,
       },
       bills: [
         {
           id: billTarget.billId,
-          type: "monthly",
+          type: "period",
           amountMinor: 300_000,
           status: "active",
-          modelVersion: 2,
           revision: 1,
           sourceKey: "monthly:2026-08",
           financial: { receivedMinor: 0, version: "derived-bill-v1" },

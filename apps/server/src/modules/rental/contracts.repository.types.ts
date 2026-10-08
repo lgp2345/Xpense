@@ -1,6 +1,5 @@
 import type {
   RentalBillingAnchor,
-  RentalBillingMode,
   RentalContractDisplayStatus,
   RentalContractLifecycleStatus,
   RentalDepositCalculationMode,
@@ -29,7 +28,7 @@ export type RentalContractRecord = {
   organizationId: string;
   propertyId: string;
   contractNumber: string;
-  billingMode: RentalBillingMode;
+
   externalContractNumber: string | null;
   status: RentalContractLifecycleStatus;
   startDate: string | null;
@@ -118,7 +117,6 @@ export type RentalContractDepositRecord = {
 export type RentalContractDetailRecord = RentalContractSummaryRecord &
   Pick<
     RentalContractRecord,
-    | "billingMode"
     | "billingAnchor"
     | "paymentIntervalMonths"
     | "dueDaysBefore"
@@ -147,7 +145,6 @@ export type RentalContractPageRecord = {
 export type CreateDraftContractInput = Pick<
   RentalContractRecord,
   | "organizationId"
-  | "billingMode"
   | "propertyId"
   | "contractNumber"
   | "externalContractNumber"

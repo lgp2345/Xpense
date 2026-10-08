@@ -30,7 +30,7 @@ export class RentalCashProjectionRepository {
         .select({
           organizationId: rentalContracts.organizationId,
           contractId: rentalContracts.id,
-              lifecycleStatus: rentalContracts.status,
+          lifecycleStatus: rentalContracts.status,
           startDate: rentalContracts.startDate,
           endDate: rentalContracts.endDate,
           rentAmountMinor: rentalContracts.rentAmountMinor,

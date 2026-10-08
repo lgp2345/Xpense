@@ -1,8 +1,7 @@
-import { resolvePeriodMeterBaselines } from "./period-meter.rules.js";
 import type {
   PreviewRentalSettlementRequest,
-  RentalBillLine,
   RentalBillingPeriod,
+  RentalBillLine,
   RentalSettlementKind,
 } from "@xpense/shared";
 import { prorateBillingAmount } from "./billing-period.rules.js";
@@ -14,6 +13,7 @@ import {
   periodMeterLine,
   safePeriodTotal,
 } from "./period-charge.rules.js";
+import { resolvePeriodMeterBaselines } from "./period-meter.rules.js";
 import { billingPeriods } from "./period-schedule.rules.js";
 import type { RentalFinanceSnapshot } from "./rental-finance.types.js";
 import { financeSourceVersion } from "./rental-finance-request.rules.js";
@@ -166,6 +166,18 @@ export function buildPeriodSettlementPlan(
       );
     }
   }
+  const retainedIds = new Set(
+    periodCharges.flatMap((charge) =>
+      charge.lines.flatMap((line) =>
+        line.feeSnapshot?.kind === "extra_fee" ? [line.feeSnapshot.extraFeeId] : [],
+      ),
+    ),
+  );
+  if (
+    new Set(input.extraFees.map((fee) => fee.id)).size !== input.extraFees.length ||
+    input.extraFees.some((fee) => retainedIds.has(fee.id))
+  )
+    throw new RangeError("结算事项标识重复或与有效账单冲突");
   const extraLines = input.extraFees.map((fee, sortOrder) => {
     if (!Number.isSafeInteger(fee.amountMinor)) throw new RangeError("结算事项必须是安全整数");
     return chargeLine({

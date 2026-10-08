@@ -52,17 +52,16 @@ describe("rental finance request fingerprints", () => {
         currencyCode: "CNY",
         timezone: "Asia/Shanghai",
       },
-      contract: { id: "contract-1", billingMode: "monthly_settlement" },
+      contract: { id: "contract-1" },
       terms: { version: "1", waterUnitPrice: "3.0000" },
       readings: [{ id: "meter-1", kind: "water", readingDate: "2026-08-01", reading: "100.0" }],
-      bills: [{ id: "bill-1", modelVersion: 2, revision: 1, amountMinor: 100 }],
+      bills: [{ id: "bill-1", revision: 1, amountMinor: 100 }],
       cashEntries: [{ id: "cash-1", amountMinor: 100, revokedAt: null }],
       settlement: null,
       cancelledOn: null,
     };
     const request = {
       contractId: "contract-1",
-      billingMonth: "2026-08",
       readings: [{ kind: "water", readingDate: "2026-08-31", reading: "101" }],
     };
     const version = financeSourceVersion(source, request);

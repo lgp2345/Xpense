@@ -3,8 +3,8 @@ import { Inject, Injectable } from "@nestjs/common";
 import type {
   ListRentalBillsQuery,
   RentalBillDetail,
-  RentalBillPage,
   RentalBillLine,
+  RentalBillPage,
 } from "@xpense/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
 

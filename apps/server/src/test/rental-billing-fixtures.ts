@@ -122,5 +122,6 @@ export function rentalBillingDetail(source: BillingSource, draft: BillingDraft):
     voidedAt: null,
     voidedBy: null,
     history: [],
+    version: "fixture-version",
   };
 }

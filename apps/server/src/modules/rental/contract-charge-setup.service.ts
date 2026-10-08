@@ -82,7 +82,7 @@ export class ContractChargeSetupService {
     );
   }
 
-  /** 草稿更换空间时清除未使用底数，避免将旧表计转接到新空间。 */
+  /** 草稿或开始前更换空间仅清除未使用底数；已有所属读数的历史关系不可删除。 */
   async syncDraftSpace(
     auth: AuthContext,
     scope: FinanceScope,

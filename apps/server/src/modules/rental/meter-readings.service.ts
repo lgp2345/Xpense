@@ -84,7 +84,7 @@ export class MeterReadingsService {
         { organizationId: auth.organizationId, contractId: dto.contractId },
         tx,
       );
-        return detail(snapshot);
+      return detail(snapshot);
     });
   }
 
@@ -112,7 +112,11 @@ export class MeterReadingsService {
       await this.lockContract(auth, dto.contractId, tx);
       const snapshot = await this.sources.read(scope, tx);
       this.assertConfirmedContract(snapshot);
-      if(snapshot.bills.some(bill=>bill.type==="period"&&bill.status==="active")||snapshot.settlement)throw this.conflict("存在有效普通账单或结算，不能更正入住底数");
+      if (
+        snapshot.bills.some((bill) => bill.type === "period" && bill.status === "active") ||
+        snapshot.settlement
+      )
+        throw this.conflict("存在有效普通账单或结算，不能更正入住底数");
       if (snapshot.contract.spaces.length !== 1)
         throw this.conflict("月度结算合同必须且只能关联一个空间");
       if (financeSourceVersion(snapshot, {}) !== dto.expectedVersion)
@@ -175,7 +179,6 @@ export class MeterReadingsService {
     if (snapshot.contract.lifecycleStatus !== "confirmed")
       throw this.conflict("只有履行中的合同可以登记入住底数");
   }
-
 
   private conflict(message: string) {
     return new ConflictException({ code: apiErrorCodes.conflict, message });

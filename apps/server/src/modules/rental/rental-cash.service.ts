@@ -481,8 +481,7 @@ export class RentalCashService {
   }
 
   private assertActiveBill(bill: RentalFinanceSnapshot["bills"][number]) {
-    if (bill.status !== "active")
-      throw this.conflict("仅可对有效账单登记收退款");
+    if (bill.status !== "active") throw this.conflict("仅可对有效账单登记收退款");
   }
 
   private assertRefundableBill(bill: RentalFinanceSnapshot["bills"][number]) {
@@ -491,10 +490,7 @@ export class RentalCashService {
   }
 
   private balanceAmount(target: ResolvedTarget) {
-    if (
-      target.kind === "bill" &&
-      target.bill.status === "voided"
-    ) {
+    if (target.kind === "bill" && target.bill.status === "voided") {
       return 0;
     }
     return target.amountMinor;

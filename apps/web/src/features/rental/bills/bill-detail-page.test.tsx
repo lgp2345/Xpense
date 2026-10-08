@@ -73,7 +73,6 @@ it.each([
     getBill: vi.fn().mockResolvedValue({
       ...billFixture,
       amountMinor: 100_000,
-      modelVersion: 2,
       financial: {
         receivedMinor,
         refundedMinor: 0,
@@ -108,7 +107,6 @@ it("押金全额登记成功后刷新余额并立即隐藏登记入口", async (
     getBill: vi.fn().mockImplementation(async () => ({
       ...billFixture,
       type: "deposit",
-      modelVersion: 2,
       amountMinor: 100_000,
       financial: {
         receivedMinor: registered ? 100_000 : 0,
@@ -172,8 +170,7 @@ it.each([0, 5_000])("依据有效收款 %i 展示费用入口并保留单独读�
   const api = billsApiFixture({
     getBill: vi.fn().mockResolvedValue({
       ...billFixture,
-      modelVersion: 2,
-      type: "monthly",
+      type: "period",
       lines: [
         {
           kind: "water",
@@ -212,7 +209,6 @@ it.each([0, 5_000])("依据有效收款 %i 展示费用入口并保留单独读�
       },
     }),
   });
-  const user = userEvent.setup();
   render(
     <QueryClientProvider client={new QueryClient()}>
       <BillDetailPage
@@ -220,26 +216,21 @@ it.each([0, 5_000])("依据有效收款 %i 展示费用入口并保留单独读�
         billId="bill"
         api={api}
         financeApi={financeApiFixture()}
-        permissions={["rental_bills:read", "rental_monthly_bills:adjust"]}
+        permissions={["rental_bills:read", "rental_period_bills:void"]}
       />
     </QueryClientProvider>,
   );
-  const entry = await screen.findByRole("button", {
-    name: receivedMinor === 0 ? "编辑本期费用" : "更正账单",
-  });
-  expect(screen.getByRole("button", { name: "更正真实读数" })).toBeInTheDocument();
-  await user.click(entry);
-  expect(
-    screen.getByRole("heading", { name: receivedMinor === 0 ? "编辑本期费用" : "更正账单" }),
-  ).toBeInTheDocument();
+  await screen.findByText("账期账单");
+  expect(screen.queryByRole("button", { name: "编辑本期费用" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "更正账单" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "更正真实读数" })).not.toBeInTheDocument();
 });
 
 it("无保存计量快照时不显示真实读数更正入口，费用入口仍可用", async () => {
   const api = billsApiFixture({
     getBill: vi.fn().mockResolvedValue({
       ...billFixture,
-      modelVersion: 2,
-      type: "monthly",
+      type: "period",
       financial: {
         receivedMinor: 0,
         refundedMinor: 0,
@@ -259,11 +250,12 @@ it("无保存计量快照时不显示真实读数更正入口，费用入口仍�
         billId="bill"
         api={api}
         financeApi={financeApiFixture()}
-        permissions={["rental_bills:read", "rental_monthly_bills:adjust"]}
+        permissions={["rental_bills:read", "rental_period_bills:void"]}
       />
     </QueryClientProvider>,
   );
-  expect(await screen.findByRole("button", { name: "编辑本期费用" })).toBeInTheDocument();
+  await screen.findByText("账期账单");
+  expect(screen.queryByRole("button", { name: "编辑本期费用" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "更正真实读数" })).not.toBeInTheDocument();
 });
 
@@ -322,23 +314,21 @@ it("隐藏生成快照和批次，保留合同入口、费用和差额，不推�
   expect(screen.queryByText("生成时来源快照")).not.toBeInTheDocument();
   expect(screen.getByText("CNY -4,000.00")).toBeInTheDocument();
   expect(screen.getByText("到期日已过")).toHaveAttribute("data-slot", "badge");
-  expect(screen.getByText(/本阶段仅记录应收/)).toBeInTheDocument();
+  expect(screen.queryByText(/本阶段仅记录应收/)).not.toBeInTheDocument();
   expect(screen.getByText(/合同修正/)).toBeInTheDocument();
   expect(screen.queryByText("生成批次：batch")).not.toBeInTheDocument();
-  expect(screen.getByText("原付款账期：2026-01-01 至 2026-03-31")).toBeInTheDocument();
-  expect(screen.getByText("实际计租范围：2026-01-01 至 2026-03-31")).toBeInTheDocument();
+  expect(screen.getByText("账期：2026-01-01 至 2026-03-31")).toBeInTheDocument();
+
   expect(screen.queryByText(/欠款|未付款|已收款/)).not.toBeInTheDocument();
 });
-it("月度综合账单按账单费用覆盖期间展示水费区间，不把合同结束日说成计租终点", async () => {
+it("账期账单按账单费用覆盖期间展示水费区间，不把合同结束日说成计租终点", async () => {
   const api = billsApiFixture({
     getBill: vi.fn().mockResolvedValue({
       ...billFixture,
-      type: "monthly",
-      modelVersion: 2,
-      billingMonth: "2026-09",
-      periodStart: "2026-08-31",
+      type: "period",
+      periodStart: "2026-09-01",
       periodEnd: "2026-09-30",
-      effectiveEnd: "2026-12-31",
+      effectiveEnd: "2026-09-30",
       amountMinor: 9250,
       lines: [
         {
@@ -379,8 +369,8 @@ it("月度综合账单按账单费用覆盖期间展示水费区间，不把合�
     </QueryClientProvider>,
   );
 
-  expect(await screen.findByText("月度综合账单")).toBeInTheDocument();
-  expect(screen.getByText("账单费用覆盖期间：2026-08-31 至 2026-09-30")).toBeInTheDocument();
+  expect(await screen.findByText("账期账单")).toBeInTheDocument();
+  expect(screen.getByText("账期：2026-09-01 至 2026-09-30")).toBeInTheDocument();
   expect(screen.queryByText(/原付款账期/)).not.toBeInTheDocument();
   expect(screen.queryByText(/实际计租范围/)).not.toBeInTheDocument();
 });
@@ -414,9 +404,7 @@ it("v2综合账单显示服务端实际收款余额，不套用legacy未知收�
   const api = billsApiFixture({
     getBill: vi.fn().mockResolvedValue({
       ...billFixture,
-      type: "monthly",
-      modelVersion: 2,
-      billingMonth: "2026-01",
+      type: "period",
       lines: [
         {
           kind: "extra_fee",
@@ -434,7 +422,7 @@ it("v2综合账单显示服务端实际收款余额，不套用legacy未知收�
           feeSnapshot: {
             kind: "extra_fee",
             extraFeeId: "00000000-0000-4000-8000-000000000001",
-            origin: "monthly",
+            origin: "period",
           },
         },
         {
@@ -498,9 +486,9 @@ it("v2综合账单显示服务端实际收款余额，不套用legacy未知收�
   expect(screen.getByRole("button", { name: "登记收退款" })).toBeInTheDocument();
 });
 
-it("v2综合账单详情标示月度综合账单而非押金", async () => {
+it("v2综合账单详情标示账期账单而非押金", async () => {
   const api = billsApiFixture({
-    getBill: vi.fn().mockResolvedValue({ ...billFixture, type: "monthly", modelVersion: 2 }),
+    getBill: vi.fn().mockResolvedValue({ ...billFixture, type: "period" }),
   });
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -512,7 +500,7 @@ it("v2综合账单详情标示月度综合账单而非押金", async () => {
       />
     </QueryClientProvider>,
   );
-  expect(await screen.findByText("月度综合账单")).toBeInTheDocument();
+  expect(await screen.findByText("账期账单")).toBeInTheDocument();
   expect(screen.queryByText("押金")).not.toBeInTheDocument();
 });
 it("关联结算的有效账单保留原目标资金历史但不显示独立待收", async () => {
@@ -534,8 +522,7 @@ it("关联结算的有效账单保留原目标资金历史但不显示独立待�
   const api = billsApiFixture({
     getBill: vi.fn().mockResolvedValue({
       ...billFixture,
-      type: "monthly",
-      modelVersion: 2,
+      type: "period",
       amountMinor: 80000,
       settlementId: "settlement-a",
       financial: {
@@ -589,8 +576,7 @@ it("关联结算的作废账单保留本账单已收已退并隐藏独立可退�
   const api = billsApiFixture({
     getBill: vi.fn().mockResolvedValue({
       ...billFixture,
-      type: "monthly",
-      modelVersion: 2,
+      type: "period",
       status: "voided",
       amountMinor: 0,
       settlementId: "settlement-a",
@@ -650,7 +636,6 @@ it("已纳入结算的账单通过有权入口跳转到该合同的真实结算"
   const api = billsApiFixture({
     getBill: vi.fn().mockResolvedValue({
       ...billFixture,
-      modelVersion: 2,
       settlementId: "settlement-1",
       financial: {
         receivedMinor: 900_000,
@@ -689,7 +674,6 @@ it("没有结算查看权限时保留原账单详情且不暴露结算入口", a
   const api = billsApiFixture({
     getBill: vi.fn().mockResolvedValue({
       ...billFixture,
-      modelVersion: 2,
       settlementId: "settlement-1",
       financial: {
         receivedMinor: 900_000,

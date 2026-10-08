@@ -246,6 +246,13 @@ export class ContractsService {
           );
         }
         if (before) this.billing.assertCorrectionAllowed(authContext, before, aggregate);
+        if (correctionMode !== "metadata_only")
+          await this.chargeSetup.syncDraftSpace(
+            authContext,
+            { organizationId: authContext.organizationId, contractId: current.id },
+            aggregate.spaces.map(({ spaceId }) => spaceId),
+            transaction,
+          );
         await this.writeHeader(authContext, current, aggregate, transaction);
         if (correctionMode !== "metadata_only") {
           await this.replaceRelations(
@@ -386,9 +393,7 @@ export class ContractsService {
     executor: AppDbExecutor,
   ) {
     return toContractDetail(
-      this.policy.requireContract(
-        await this.repository.detail(organizationId, id, now, executor),
-      ),
+      this.policy.requireContract(await this.repository.detail(organizationId, id, now, executor)),
     );
   }
 }

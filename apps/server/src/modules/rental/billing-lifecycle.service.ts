@@ -1,23 +1,30 @@
 import { ConflictException, Injectable } from "@nestjs/common";
-import { apiErrorCodes } from "../../common/errors/api-error.js";
-import { BillingStartsRepository } from "./billing-starts.repository.js";
 import type { AuthContext } from "../../common/auth/auth-context.js";
+import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDbTransaction } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import { AccessService } from "../iam/access.service.js";
 import type { BillingSource } from "./billing.types.js";
 import { toBillingContractDates } from "./billing-contract-dates.rules.js";
-import { billingDraftMatches, normalBillingDrafts } from "./billing-plan.rules.js";
-import { billingDigest } from "./billing-source.rules.js";
+import { billingDigest, buildDepositDrafts } from "./billing-source.rules.js";
+import { BillingStartsRepository } from "./billing-starts.repository.js";
 import { BillsRepository } from "./bills.repository.js";
-import { finalDepositAmount } from "./contract.rules.js";
 import type { MutableContractAggregate } from "./contract-lifecycle.service.js";
-import type { PreviewTerminationDto } from "./dto/preview-termination.dto.js";
 import type { TerminateContractDto } from "./dto/terminate-contract.dto.js";
+import { buildPeriodSettlementPlan } from "./period-settlement.rules.js";
 import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
 import { SettlementWriteService } from "./settlement-write.service.js";
-import { buildPeriodSettlementPlan } from "./period-settlement.rules.js";
 
+type BillingComparable = {
+  startDate: string | null;
+  endDate: string | null;
+  rentAmountMinor: number | null;
+  billingAnchor: string | null;
+  paymentIntervalMonths: number | null;
+  propertyId: string;
+  spaces: Array<{ spaceId: string; rentAllocationMinor?: number | null }>;
+  depositTerms: unknown[];
+};
 /** 合同事务内的账单联动，不反向调用合同 service。 */
 @Injectable()
 export class BillingLifecycleService {
@@ -37,6 +44,7 @@ export class BillingLifecycleService {
     aggregate: MutableContractAggregate,
   ) {
     const projected = toBillingContractDates({ ...before.contract, ...aggregate });
+
     if (
       before.activeBills.some((bill) => bill.type === "period") &&
       this.billingChanged(before.contract, projected)
@@ -61,6 +69,47 @@ export class BillingLifecycleService {
         code: apiErrorCodes.conflict,
         message: "合同更正不能改写已出账费用",
       });
+    const current = await this.financeSources.read(
+      { organizationId: auth.organizationId, contractId: before.contract.id },
+      tx,
+    );
+    if (current.settlement && this.billingChanged(before.contract, after.contract))
+      throw new ConflictException({
+        code: apiErrorCodes.conflict,
+        message: "已确认结算不能更正计费条款",
+      });
+    const deposits = new Map(
+      buildDepositDrafts(after.contract.depositTerms, {}).map((draft) => [
+        draft.sourceKey,
+        draft.amountMinor,
+      ]),
+    );
+    const obsoleteDeposits = before.activeBills
+      .filter(
+        (bill) => bill.type === "deposit" && deposits.get(bill.sourceKey) !== bill.amountMinor,
+      )
+      .map((bill) => bill.id);
+    if (obsoleteDeposits.length) {
+      this.access.assertPermission(auth, "rental_bills:adjust");
+      await this.bills.voidBills(
+        { organizationId: auth.organizationId, userId: auth.userId, today: before.today },
+        obsoleteDeposits,
+        "合同押金来源更正",
+        tx,
+      );
+      await this.audit.appendRequired(
+        {
+          organizationId: auth.organizationId,
+          actorUserId: auth.userId,
+          action: "rental_bill.voided",
+          targetType: "rental_contract",
+          targetId: before.contract.id,
+          result: "succeeded",
+          metadata: { count: obsoleteDeposits.length, reason: "合同押金来源更正" },
+        },
+        tx,
+      );
+    }
     const boundaries = (source: BillingSource) => ({
       startDate: source.contract.startDate,
       endDate: source.contract.endDate,
@@ -86,11 +135,8 @@ export class BillingLifecycleService {
       );
     }
   }
-  private billingChanged(
-    before: BillingSource["contract"],
-    after: BillingSource["contract"],
-  ): boolean {
-    const terms = (contract: BillingSource["contract"]) => ({
+  private billingChanged(before: BillingComparable, after: BillingComparable): boolean {
+    const terms = (contract: BillingComparable) => ({
       startDate: contract.startDate,
       endDate: contract.endDate,
       rentAmountMinor: contract.rentAmountMinor,
@@ -101,7 +147,6 @@ export class BillingLifecycleService {
         spaceId: space.spaceId,
         rentAllocationMinor: space.rentAllocationMinor,
       })),
-      depositTerms: contract.depositTerms,
     });
     return billingDigest(terms(before)) !== billingDigest(terms(after));
   }

@@ -7,6 +7,12 @@ import { fileURLToPath } from "node:url";
 const firstMigration = "20260704154322_pink_sauron";
 const firstHash = "ddb4761829e97154667c6f07f4a0e2183b0194e33545a73d86949ae8234d41c0";
 const reviewedHashes: Record<string, string> = {
+  "20261008054606_rental_period_billing":
+    "4e5e998959075559c4cc7bb1ce707884c33c8c6791ec97e60aba9db1f5928aef",
+  "20261008055426_rental_period_billing_lifecycle":
+    "eafe15c8e05024097203d4f85eb70baff15b8830ae687732a64227bd0eef984d",
+  "20261008091410_rental_period_billing_constraints":
+    "8c47af5a66ee8752e65bddac6ba5081f97b56ed3cada04c5aa091a9334b3be64",
   "20261002133352_rental_charge_collection":
     "1a2a2cb8dcde660a60c2876f1eae7a1e075592c64627f1c8f433064f1e040fb2",
   "20261005104010_contract_local_datetime":
@@ -48,7 +54,7 @@ export function assertRentalTestSchema(name: string): void {
 
 /** 连接配置与 DDL 许可分开；拒绝 URL 覆盖客户端的隔离启动参数。 */
 export function rentalTestDatabaseUrl(env: NodeJS.ProcessEnv): string | null {
-  const value = env.RENTAL_MIGRATION_TEST_DATABASE_URL;
+  const value = env.RENTAL_MIGRATION_TEST_DATABASE_URL?.trim() || env.DATABASE_URL?.trim();
   if (!value || env.RENTAL_FINANCE_TEST_DDL_APPROVED !== "isolated-schema") return null;
   let parsed: URL;
   try {
@@ -57,6 +63,8 @@ export function rentalTestDatabaseUrl(env: NodeJS.ProcessEnv): string | null {
     throw new Error("测试库连接格式无效");
   }
   if (!["postgres:", "postgresql:"].includes(parsed.protocol)) throw new Error("测试库协议无效");
+  if (!["localhost", "127.0.0.1", "[::1]", "::1", "db", "postgres"].includes(parsed.hostname))
+    throw new Error("测试仅允许本地数据库目标");
   const protectedParameters = [
     "search_path",
     "options",
@@ -82,9 +90,9 @@ export async function copyRentalMigrationCorpus(
   const root = fileURLToPath(new URL("../db/migrations/", import.meta.url));
   const names = (await readdir(root)).filter((name) => /^\d{14}_/.test(name)).sort();
   if (
-    names.length !== 16 ||
+    names.length !== 19 ||
     names[0] !== firstMigration ||
-    names.at(-1) !== "20261005104010_contract_local_datetime"
+    names.at(-1) !== "20261008091410_rental_period_billing_constraints"
   ) {
     throw new Error("迁移目录已变化，须重新核对演练范围");
   }

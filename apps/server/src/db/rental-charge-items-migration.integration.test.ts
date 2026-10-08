@@ -10,13 +10,13 @@ describe.skipIf(!url)("收费代收字段兼容迁移", () => {
     if (!url) throw new Error("隔离数据库未授权");
     await withRentalPostgres(url, async ({ db, client, applyMigrations }) => {
       await applyMigrations("20261001131738_rental_monthly_permissions");
-      const fixture = await insertRentalPostgresFixture(db);
+      const fixture = await insertRentalPostgresFixture(db, true);
       const fees = [{ id: randomUUID(), name: "管理费", monthlyAmountMinor: 5000 }];
       await client`INSERT INTO rental_charge_terms (organization_id, contract_id, water_unit_price, electricity_unit_price, fixed_fees, updated_by_user_id)
-        VALUES (${fixture.auth.organizationId}, ${fixture.scope.contractId}, '3.0000', '0.5000', ${client.json(fees)}, ${fixture.auth.userId})`;
+        VALUES (${fixture.auth.organizationId}, ${fixture.scope.contractId}, '3.0000', '0.5000', ${JSON.stringify(fees)}::jsonb, ${fixture.auth.userId})`;
       await client`INSERT INTO rental_charge_term_revisions (organization_id, contract_id, version, terms_snapshot, reason, created_by_user_id)
-        VALUES (${fixture.auth.organizationId}, ${fixture.scope.contractId}, 1, ${client.json({ waterUnitPrice: "3.0000", electricityUnitPrice: "0.5000", fixedFees: fees })}, '旧标准', ${fixture.auth.userId})`;
-      await applyMigrations();
+        VALUES (${fixture.auth.organizationId}, ${fixture.scope.contractId}, 1, ${JSON.stringify({ waterUnitPrice: "3.0000", electricityUnitPrice: "0.5000", fixedFees: fees })}::jsonb, '旧标准', ${fixture.auth.userId})`;
+      await applyMigrations("20261002133352_rental_charge_collection");
       const [terms] =
         await client`SELECT * FROM rental_charge_terms WHERE contract_id = ${fixture.scope.contractId}`;
       expect(terms).toMatchObject({

@@ -85,7 +85,7 @@ export async function createRentalBillingHttpHarness(
         terminationDate: header.terminationDate,
         updatedAt: header.updatedAt,
         createdAt: header.createdAt,
-        depositTerms: state.deposits.get(id) ?? [],
+        depositTerms: structuredClone(state.deposits.get(id) ?? []),
         parties: source.contract.parties.map((party) => ({
           ...party,
           validTo:

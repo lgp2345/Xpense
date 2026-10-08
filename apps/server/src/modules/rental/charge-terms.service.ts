@@ -65,7 +65,7 @@ export class ChargeTermsService {
         { organizationId: auth.organizationId, contractId: dto.contractId },
         tx,
       );
-        return currentTerms(snapshot);
+      return currentTerms(snapshot);
     });
   }
 
@@ -177,7 +177,6 @@ export class ChargeTermsService {
     if (snapshot.contract.lifecycleStatus !== "confirmed")
       throw this.conflict("只有履行中的合同可以修改收费标准");
   }
-
 
   private conflict(message: string) {
     return new ConflictException({ code: apiErrorCodes.conflict, message });

@@ -10,6 +10,7 @@ import { terminateContractSchema } from "./terminate-contract.dto.js";
 const id = "00000000-0000-4000-8000-000000000001";
 const valid = {
   contractId: id,
+  scope: "deposits" as const,
   depositDueDates: {},
   expectedVersion: "version",
   idempotencyKey: id,
@@ -17,7 +18,9 @@ const valid = {
 
 describe("账单输入边界", () => {
   it("允许缺日期的只读预览，不允许生成提交租金或分页", () => {
-    expect(previewBillsSchema.parse({ contractId: id }).depositDueDates).toEqual({});
+    expect(previewBillsSchema.parse({ contractId: id, scope: "deposits" }).depositDueDates).toEqual(
+      {},
+    );
     expect(generateBillsSchema.safeParse(valid).success).toBe(true);
     expect(generateBillsSchema.safeParse({ ...valid, scope: "deposits" }).success).toBe(true);
     expect(generateBillsSchema.safeParse({ ...valid, scope: "rent" }).success).toBe(false);
@@ -61,37 +64,33 @@ describe("账单输入边界", () => {
     ]) {
       expect(listBillsSchema.safeParse(value).success).toBe(false);
     }
-    expect(previewBillsSchema.safeParse({ contractId: id, page: 2 }).success).toBe(false);
     expect(
-      previewBillsSchema.safeParse({ contractId: id, page: 2, expectedVersion: "version" }).success,
+      previewBillsSchema.safeParse({ contractId: id, scope: "deposits", page: 2 }).success,
+    ).toBe(false);
+    expect(
+      previewBillsSchema.safeParse({
+        contractId: id,
+        scope: "deposits",
+        page: 2,
+        expectedVersion: "version",
+      }).success,
     ).toBe(true);
   });
 
-  it("终止整期金额允许零，拒绝非安全整数、负数和空原因", () => {
+  it("合同终止严格拒绝旧金额确认字段", () => {
     const base = { id, terminationDate: "2026-09-27", reason: "终止" };
-    const confirmation = { expectedVersion: "version", finalAmountMinor: 0, reason: "  协商  " };
     expect(terminateContractSchema.parse(base)).toEqual(base);
-    expect(
-      terminateContractSchema.parse({ ...base, billingConfirmation: confirmation })
-        .billingConfirmation,
-    ).toEqual({ ...confirmation, reason: "协商" });
-    for (const amount of [-1, 0.1, Number.MAX_SAFE_INTEGER + 1, Infinity]) {
-      const input = { ...confirmation, finalAmountMinor: amount };
+    for (const finalAmountMinor of [0, 1, -1, 0.1, Number.MAX_SAFE_INTEGER + 1]) {
       expect(
-        terminateContractSchema.safeParse({ ...base, billingConfirmation: input }).success,
+        terminateContractSchema.safeParse({
+          ...base,
+          billingConfirmation: { expectedVersion: "v", finalAmountMinor, reason: "协商" },
+        }).success,
       ).toBe(false);
       expect(
         generateBillsSchema.safeParse({
           ...valid,
-          terminationConfirmation: { finalAmountMinor: amount, reason: "协商" },
-        }).success,
-      ).toBe(false);
-    }
-    for (const reason of ["  ", "x".repeat(1001)]) {
-      expect(
-        terminateContractSchema.safeParse({
-          ...base,
-          billingConfirmation: { ...confirmation, reason },
+          terminationConfirmation: { finalAmountMinor, reason: "协商" },
         }).success,
       ).toBe(false);
     }

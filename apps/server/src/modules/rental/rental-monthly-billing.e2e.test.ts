@@ -34,9 +34,9 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
     expect(meters.statusCode).toBe(200);
     expect(harness.parse<{ readings: unknown[] }>(meters).readings).toHaveLength(2);
 
-    const incomplete = await harness.request("/rental-monthly-bills/preview", {
+    const incomplete = await harness.request("/rental-period-bills/preview", {
       contractId,
-      billingMonth: "2026-08",
+      periodStart: "2026-01-01",
       extraFees: [],
     });
     expect(incomplete.statusCode).toBe(200);
@@ -44,12 +44,12 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       harness.parse<{ canConfirm: boolean; missingFields: string[] }>(incomplete),
     ).toMatchObject({
       canConfirm: false,
-      missingFields: expect.arrayContaining(["dueDate", "waterReading", "electricityReading"]),
+      missingFields: expect.arrayContaining(["waterReading", "electricityReading"]),
     });
 
-    const invalidBody = await harness.request("/rental-monthly-bills/preview", {
+    const invalidBody = await harness.request("/rental-period-bills/preview", {
       contractId,
-      billingMonth: "2026-08",
+      periodStart: "2026-01-01",
       extraFees: [],
       rentAmountMinor: 1,
     });
@@ -83,9 +83,9 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
     expect(foreign.statusCode).toBe(404);
 
     const current = await harness.currentSnapshot();
-    const stale = await harness.request("/rental-monthly-bills/generate", {
+    const stale = await harness.request("/rental-period-bills/generate", {
       contractId,
-      billingMonth: "2026-08",
+      periodStart: "2026-01-01",
       dueDate: "2026-08-31",
       readings: [
         { kind: "water", readingDate: "2026-08-31", reading: "110" },
@@ -133,7 +133,7 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
 
     const previewRequest = {
       contractId,
-      billingMonth: "2026-07",
+      periodStart: "2026-01-01",
       dueDate: "2026-07-31",
       readings: [
         { kind: "water", readingDate: "2026-07-31", reading: "110" },
@@ -141,10 +141,10 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       ],
       extraFees: [],
     };
-    const preview = await harness.request("/rental-monthly-bills/preview", previewRequest);
+    const preview = await harness.request("/rental-period-bills/preview", previewRequest);
     expect(preview.statusCode).toBe(200);
     const { version } = harness.parse<{ version: string }>(preview);
-    const generated = await harness.request("/rental-monthly-bills/generate", {
+    const generated = await harness.request("/rental-period-bills/generate", {
       ...previewRequest,
       expectedVersion: version,
       idempotencyKey: randomUUID(),
@@ -157,9 +157,7 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       lines: Array<{ kind: string; amountMinor: number }>;
     }>(generated);
     expect(generatedBill).toMatchObject({
-      type: "monthly",
-      modelVersion: 2,
-      billingMonth: "2026-07",
+      type: "period",
     });
     const rentAmountMinor = generatedBill.lines
       .filter((line) => line.kind === "rent_period")
@@ -182,9 +180,20 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       electricityReading: string,
       overrides?: { waterUnitPrice: string; reason: string },
     ) => {
+      await harness.request(`/rental-period-bills/context?contractId=${contractId}`);
       const request = {
         contractId,
-        billingMonth,
+        periodStart: `${billingMonth}-01`,
+        ...(!(await harness.currentSnapshot()).billingStart
+          ? {
+              billingStart: {
+                firstPeriodStart: `${billingMonth}-01`,
+                baselineReadings: (await harness.currentSnapshot()).readings
+                  .filter((reading) => reading.source === "contract")
+                  .map(({ kind, readingDate, reading }) => ({ kind, readingDate, reading })),
+              },
+            }
+          : {}),
         dueDate: readingDate,
         readings: [
           { kind: "water", readingDate, reading: waterReading },
@@ -193,10 +202,10 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
         extraFees: [],
         ...(overrides ? { overrides } : {}),
       };
-      const preview = await harness.request("/rental-monthly-bills/preview", request);
+      const preview = await harness.request("/rental-period-bills/preview", request);
       expect(preview.statusCode).toBe(200);
       const { version } = harness.parse<{ version: string }>(preview);
-      const response = await harness.request("/rental-monthly-bills/generate", {
+      const response = await harness.request("/rental-period-bills/generate", {
         ...request,
         expectedVersion: version,
         idempotencyKey: randomUUID(),
@@ -224,14 +233,14 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
     });
     expect(updatedTerms.statusCode).toBe(200);
 
-    const secondBill = await generateBill("2026-09", "2026-09-30", "120", "70");
+    const secondBill = await generateBill("2026-09", "2026-08-31", "120", "70");
     expect(waterFee(secondBill)).toMatchObject({ unitPrice: "4.0000" });
     const persistedFirstBill = harness.state.rental.bills.find((bill) => bill.id === firstBill.id);
     expect(
       persistedFirstBill?.lines.find((line) => line.kind === "water")?.feeSnapshot,
     ).toMatchObject({ unitPrice: "3.0000" });
 
-    const overriddenBill = await generateBill("2026-10", "2026-10-31", "130", "80", {
+    const overriddenBill = await generateBill("2026-10", "2026-08-31", "130", "80", {
       waterUnitPrice: "6.0000",
       reason: "本期临时水价",
     });
@@ -251,7 +260,7 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
   it("金额合计、递减读数和溢出都通过 HTTP 返回参数错误", async () => {
     const base = {
       contractId: harness.financeContractId,
-      billingMonth: "2026-08",
+      periodStart: "2026-01-01",
       dueDate: "2026-08-31",
       readings: [
         { kind: "water", readingDate: "2026-08-31", reading: "110" },
@@ -288,7 +297,7 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
     ];
 
     for (const request of cases) {
-      const response = await harness.request("/rental-monthly-bills/preview", request);
+      const response = await harness.request("/rental-period-bills/preview", request);
       expect(response.statusCode).toBe(400);
       expect(JSON.parse(response.payload).code).toBe("VALIDATION_FAILED");
     }
@@ -298,7 +307,7 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
     const contractId = harness.financeContractId;
     const previewRequest = {
       contractId,
-      billingMonth: "2026-08",
+      periodStart: "2026-01-01",
       dueDate: "2026-08-31",
       readings: [
         { kind: "water", readingDate: "2026-08-31", reading: "110" },
@@ -306,13 +315,13 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       ],
       extraFees: [],
     };
-    const preview = await harness.request("/rental-monthly-bills/preview", previewRequest);
+    const preview = await harness.request("/rental-period-bills/preview", previewRequest);
     const { version } = harness.parse<{ version: string }>(preview);
     const auditCount = harness.state.auditLogs.length;
     const rentalAuditCount = harness.state.rental.auditEntries.length;
     harness.state.failNextRequiredAuditAppendAfterPersist = true;
 
-    const failed = await harness.request("/rental-monthly-bills/generate", {
+    const failed = await harness.request("/rental-period-bills/generate", {
       ...previewRequest,
       expectedVersion: version,
       idempotencyKey: randomUUID(),
@@ -338,7 +347,7 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       });
     const previewRequest = {
       contractId: harness.financeContractId,
-      billingMonth: "2026-08",
+      periodStart: "2026-01-01",
       dueDate: "2026-08-31",
       readings: [
         { kind: "water", readingDate: "2026-08-31", reading: "110" },
@@ -346,12 +355,12 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       ],
       extraFees: [],
     };
-    const preview = await harness.request("/rental-monthly-bills/preview", previewRequest);
+    const preview = await harness.request("/rental-period-bills/preview", previewRequest);
     const { version } = harness.parse<{ version: string }>(preview);
     const beforeRental = cloneRentalTestState(harness.state.rental);
     const beforeAudit = structuredClone(harness.state.auditLogs);
 
-    const failed = await harness.request("/rental-monthly-bills/generate", {
+    const failed = await harness.request("/rental-period-bills/generate", {
       ...previewRequest,
       expectedVersion: version,
       idempotencyKey: randomUUID(),

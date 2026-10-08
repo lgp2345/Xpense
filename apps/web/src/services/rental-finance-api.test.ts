@@ -3,13 +3,13 @@ import type { ApiClient } from "./api-client";
 import { createRentalFinanceApi, createRentalFinanceAttempt } from "./rental-finance-api";
 
 describe("租赁财务 API 边界", () => {
-  it("将收费、读数、月度账单和修订映射到服务端动作", async () => {
+  it("将收费、读数、账期账单和作废映射到服务端动作", async () => {
     const client = { get: vi.fn().mockResolvedValue({}), post: vi.fn().mockResolvedValue({}) };
     const api = createRentalFinanceApi(client as unknown as ApiClient);
     const contractId = "contract/1";
     const preview = {
       contractId,
-      billingMonth: "2026-08",
+      periodStart: "2026-08-01",
       extraFees: [],
     };
     const update = {
@@ -22,11 +22,12 @@ describe("租赁财务 API 边界", () => {
       fixedFees: [],
     };
 
+    await api.getPeriodBillContext({ contractId, page: 2, pageSize: 50 });
     await api.getChargeTerms(contractId);
     await api.updateChargeTerms(update);
     await api.getMeterBaseline(contractId);
-    await api.previewMonthlyBill(preview);
-    await api.generateMonthlyBill({
+    await api.previewPeriodBill(preview);
+    await api.generatePeriodBill({
       ...preview,
       dueDate: "2026-08-10",
       readings: [
@@ -36,8 +37,7 @@ describe("租赁财务 API 边界", () => {
       expectedVersion: "preview-v1",
       idempotencyKey: "request-2",
     });
-    await api.previewBillRevision({ billId: "bill-1", expectedVersion: "cash-v1", reason: "更正" });
-    await api.adjustBill({
+    await api.voidPeriodBill({
       billId: "bill-1",
       expectedVersion: "cash-v1",
       idempotencyKey: "request-3",
@@ -45,15 +45,15 @@ describe("租赁财务 API 边界", () => {
     });
 
     expect(client.get.mock.calls.map(([path]) => path)).toEqual([
+      "/rental-period-bills/context?contractId=contract%2F1&page=2&pageSize=50",
       "/rental-charges/detail?id=contract%2F1",
       "/rental-meters/detail?id=contract%2F1",
     ]);
     expect(client.post.mock.calls.map(([path]) => path)).toEqual([
       "/rental-charges/update",
-      "/rental-monthly-bills/preview",
-      "/rental-monthly-bills/generate",
-      "/rental-monthly-bills/adjust-preview",
-      "/rental-monthly-bills/adjust",
+      "/rental-period-bills/preview",
+      "/rental-period-bills/generate",
+      "/rental-period-bills/void",
     ]);
     expect(client.post.mock.calls[2]?.[1]).toMatchObject({ expectedVersion: "preview-v1" });
   });

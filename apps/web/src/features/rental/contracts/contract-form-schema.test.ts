@@ -121,12 +121,9 @@ describe("contract form schema", () => {
     expect(contractFormSchema.safeParse(values).success).toBe(false);
     expect(stepSchemas.terms.safeParse(values).success).toBe(false);
   });
-  it("表单恢复服务端模式，缺失模式的历史合同按旧模式处理", () => {
-    expect(defaultContractFormValues().billingMode).toBe("monthly_settlement");
-    expect(toContractFormValues(baseContract()).billingMode).toBe("legacy_receivable");
-    expect(
-      toContractFormValues({ ...baseContract(), billingMode: "monthly_settlement" }).billingMode,
-    ).toBe("monthly_settlement");
+  it("表单和合同恢复值不再携带计费模式", () => {
+    expect(defaultContractFormValues()).not.toHaveProperty("billingMode");
+    expect(toContractFormValues(baseContract())).not.toHaveProperty("billingMode");
   });
   it("月度结算的空间步骤、条款和正式提交均拒绝多空间", () => {
     const values = {
@@ -150,18 +147,17 @@ describe("contract form schema", () => {
     expect(() => toConfirmedContractRequest(values)).toThrow();
   });
 
-  it("旧模式仍允许多空间，创建新合同始终按单空间校验", () => {
+  it("所有合同步骤均按单空间校验", () => {
     const values = {
       ...base(),
-      billingMode: "legacy_receivable" as const,
       spaces: [
         { spaceId, rentAllocationText: "3000" },
         { spaceId: propertyId, rentAllocationText: "5000" },
       ],
     };
-    expect(contractFormSchema.safeParse(values).success).toBe(true);
-    expect(toStepUpdateRequest("contract", values, 0).spaces).toHaveLength(2);
-    expect(toStepUpdateRequest("contract", values, 2).spaces).toHaveLength(2);
+    expect(contractFormSchema.safeParse(values).success).toBe(false);
+    expect(() => toStepUpdateRequest("contract", values, 0)).toThrow();
+    expect(() => toStepUpdateRequest("contract", values, 2)).toThrow();
     expect(() => toConfirmedContractRequest(values)).toThrow();
   });
 

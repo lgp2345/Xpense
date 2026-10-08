@@ -1,9 +1,11 @@
 import { ConflictException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
-import { rentalFinanceSnapshot, rentalFinanceAuth } from "../../test/rental-finance-fixtures.js";
+import { rentalFinanceAuth, rentalFinanceSnapshot } from "../../test/rental-finance-fixtures.js";
 import { PeriodBillsService } from "./period-bills.service.js";
+
 function harness() {
   const snapshot = rentalFinanceSnapshot();
+  snapshot.contract.paymentIntervalMonths = 1;
   const tx = {};
   let saved: unknown = null;
   const bill = { id: "bill", status: "active", contractId: snapshot.context.contractId };
@@ -18,13 +20,17 @@ function harness() {
       writes.push("header");
       return bill;
     }),
-    insertPeriodLines: vi.fn(async () => {
-      writes.push("lines");
-    }),
+    insertPeriodLines: vi.fn(
+      async (
+        ..._args: Parameters<import("./bills.repository.js").BillsRepository["insertPeriodLines"]>
+      ) => {
+        writes.push("lines");
+      },
+    ),
     detail: async () => bill,
   };
   const readings = {
-    appendBoundary: vi.fn(async (scope, input) => {
+    appendBoundary: vi.fn(async (scope: object, input: { kind: string }) => {
       writes.push(input.kind);
       return { ...scope, ...input, id: `real-${input.kind}` };
     }),
@@ -36,8 +42,9 @@ function harness() {
     }),
   };
   const requests = {
-    find: async () => saved,
-    complete: vi.fn(async (scope, input) => {
+    find: async (_scope: object, key: string) =>
+      (saved as { idempotencyKey: string } | null)?.idempotencyKey === key ? saved : null,
+    complete: vi.fn(async (scope: object, input: { kind: string }) => {
       saved = { ...scope, ...input };
       writes.push("request");
     }),
@@ -48,7 +55,7 @@ function harness() {
     findForUpdate: async () => ({ propertyId: "property" }),
   };
   const policy = {
-    requireContract: (value) => value,
+    requireContract: (value: unknown) => value,
     lockOrganizationContext: async () => ({ today: snapshot.context.today }),
     requireOwnedPropertyForUpdate: async () => ({ id: "property" }),
   };
@@ -67,7 +74,7 @@ function harness() {
     policy as never,
     { assertPermission: vi.fn() } as never,
     audit as never,
-    { run: (operation) => operation(tx) } as never,
+    { run: (operation: (tx: object) => Promise<unknown>) => operation(tx) } as never,
   );
   const input = {
     contractId: snapshot.context.contractId,
@@ -117,7 +124,9 @@ describe("账期生成事务", () => {
       "request",
     ]);
     const lines = h.bills.insertPeriodLines.mock.calls[0]![2];
-    expect(lines.find((line) => line.kind === "water").feeSnapshot.endReadingId).toBe("real-water");
+    expect(lines.find((line) => line.kind === "water")?.feeSnapshot).toMatchObject({
+      endReadingId: "real-water",
+    });
     h.bill.status = "voided";
     await expect(h.service.generate(rentalFinanceAuth as never, dto)).resolves.toMatchObject({
       status: "voided",

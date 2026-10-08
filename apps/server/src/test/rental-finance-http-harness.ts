@@ -47,6 +47,11 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
   const storedContract = state.contracts.get(contractId);
   if (!storedContract) throw new Error("Monthly finance HTTP fixture contract unavailable");
 
+  state.contracts.set(contractId, {
+    ...storedContract,
+    paymentIntervalMonths: 1,
+    billingAnchor: "calendar_month",
+  });
   const base = rentalFinanceSnapshot();
   const financeSpaceId = setup.source.contract.spaces[0]?.spaceId ?? rentalTestIds.childSpace;
   const now = new Date("2026-08-01T00:00:00.000Z");
@@ -94,11 +99,7 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
           (!query.dueDateFrom || bill.dueDate >= query.dueDateFrom) &&
           (!query.dueDateTo || bill.dueDate <= query.dueDateTo),
       )
-      .map(({ id, contractId, modelVersion }) => ({
-        id,
-        contractId,
-        modelVersion: modelVersion ?? 1,
-      }));
+      .map(({ id, contractId }) => ({ id, contractId }));
 
   const billsRepository: Partial<BillsRepository> = {
     matchingFinancialBills,
@@ -268,6 +269,11 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
         id: randomUUID(),
         ...scope,
         ...structuredClone(input),
+        source: "bill" as const,
+        billingStartId: null,
+        billId: null,
+        settlementId: null,
+        ...input,
         revision: 1,
         reason,
         createdByUserId: actor.userId,

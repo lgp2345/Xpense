@@ -32,11 +32,7 @@ export function BillCashBatchItems({
                 <h3 className="break-words text-sm font-medium">{bill.billNumber}</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {bill.propertyName} ·{" "}
-                  {bill.type === "deposit"
-                    ? "押金"
-                    : bill.type === "period"
-                      ? "账期账单"
-                      : "租金"}
+                  {bill.type === "deposit" ? "押金" : bill.type === "period" ? "账期账单" : "租金"}
                 </p>
               </div>
               {result ? (

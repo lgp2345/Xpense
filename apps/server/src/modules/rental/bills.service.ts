@@ -13,7 +13,7 @@ import { AuditService } from "../audit/audit.service.js";
 import { AccessService } from "../iam/access.service.js";
 import type { BillingSource, PersistableBillingDraft } from "./billing.types.js";
 import { billingDraftMatches, billingTotals } from "./billing-plan.rules.js";
-import { billingDigest, billingFingerprint, buildDepositDrafts } from "./billing-source.rules.js";
+import { billingFingerprint, buildDepositDrafts } from "./billing-source.rules.js";
 import { BillingSourceService } from "./billing-source.service.js";
 import { BillsRepository } from "./bills.repository.js";
 import type { GenerationRecord } from "./bills.repository.types.js";
@@ -160,19 +160,17 @@ export class BillsService {
         },
         tx,
       );
-      {
-        await this.financeRequests.complete(
-          { organizationId: auth.organizationId, contractId: dto.contractId },
-          {
-            idempotencyKey: dto.idempotencyKey,
-            action: "bill_deposit.generate",
-            requestHash: this.depositRequestHash(input),
-            result: { resourceId: generation.id, resourceKind: "generation" },
-          },
-          { userId: auth.userId },
-          tx,
-        );
-      }
+      await this.financeRequests.complete(
+        { organizationId: auth.organizationId, contractId: dto.contractId },
+        {
+          idempotencyKey: dto.idempotencyKey,
+          action: "bill_deposit.generate",
+          requestHash: this.depositRequestHash(input),
+          result: { resourceId: generation.id, resourceKind: "generation" },
+        },
+        { userId: auth.userId },
+        tx,
+      );
       return this.result(generation, false);
     });
   }
@@ -181,7 +179,7 @@ export class BillsService {
     return {
       contractId: dto.contractId,
       depositDueDates: dto.depositDueDates,
-      ...(dto.scope ? { scope: dto.scope } : {}),
+      scope: dto.scope,
     };
   }
 

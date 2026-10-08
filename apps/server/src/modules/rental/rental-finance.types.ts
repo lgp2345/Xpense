@@ -1,15 +1,13 @@
 import type {
   PreviewRentalSettlementRequest,
   RentalBillDetail,
-  RentalBillLine,
   RentalCashEntry,
   RentalChargeTerms,
-  RentalExtraFeeInput,
   RentalFeeSnapshot,
   RentalMeterReadingInput,
   RentalSettlementDetail,
 } from "@xpense/shared";
-import type { BillingTerms, RentalBillingContract } from "./billing.types.js";
+import type { RentalBillingContract } from "./billing.types.js";
 
 export type FinanceScope = { organizationId: string; contractId: string };
 

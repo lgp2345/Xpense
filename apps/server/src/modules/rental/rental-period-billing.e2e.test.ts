@@ -1,15 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
+  RentalBillDetail,
   RentalPeriodBillContext,
   RentalPeriodBillPreview,
-  RentalBillDetail,
 } from "@xpense/shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRentalFinanceHttpHarness } from "../../test/rental-finance-http-harness.js";
 import { cloneRentalTestState, rentalTestIds } from "../../test/rental-test-state.js";
+import { AuditService } from "../audit/audit.service.js";
 import { BillsRepository } from "./bills.repository.js";
 import { MeterReadingsRepository } from "./meter-readings.repository.js";
-import { AuditService } from "../audit/audit.service.js";
+
 describe("合同账期HTTP", () => {
   let h: Awaited<ReturnType<typeof createRentalFinanceHttpHarness>>;
   beforeEach(async () => {

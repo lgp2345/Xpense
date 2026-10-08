@@ -12,7 +12,6 @@ const deposit: CashBill = {
   id: "deposit",
   type: "deposit",
   amountMinor: 5000,
-  modelVersion: 2,
   financial: {
     receivedMinor: 0,
     refundedMinor: 0,
@@ -27,7 +26,7 @@ const deposit: CashBill = {
 const monthly: CashBill = {
   ...deposit,
   id: "monthly",
-  type: "monthly",
+  type: "period",
   billNumber: "RB-2026-000002",
   amountMinor: 8000,
   financial: { ...deposit.financial, outstandingMinor: 8000 },

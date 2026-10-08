@@ -33,6 +33,7 @@ import {
 } from "../modules/iam/menu.repository.js";
 import { OrganizationsRepository } from "../modules/organizations/organizations.repository.js";
 import { BillAdjustmentsRepository } from "../modules/rental/bill-adjustments.repository.js";
+import { BillingStartsRepository } from "../modules/rental/billing-starts.repository.js";
 import { BillsRepository } from "../modules/rental/bills.repository.js";
 import { ChargeTermsRepository } from "../modules/rental/charge-terms.repository.js";
 import { ContractRelationsRepository } from "../modules/rental/contract-relations.repository.js";
@@ -115,7 +116,8 @@ const rentalTestRolePermissions = {
     "rental_charges:update",
     "rental_meters:read",
     "rental_meters:update",
-    "rental_monthly_bills:generate",
+    "rental_period_bills:generate",
+    "rental_period_bills:void",
     "rental_properties:read",
     "rental_properties:create",
     "rental_properties:update",
@@ -267,6 +269,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
       .useValue(rentalFakes.tenantsRepository)
       .overrideProvider(ContractsRepository)
       .useValue(rentalFakes.contractsRepository)
+      .overrideProvider(BillingStartsRepository)
+      .useValue(financeFakes.billingStartsRepository)
       .overrideProvider(ChargeTermsRepository)
       .useValue(financeFakes.chargeTermsRepository)
       .overrideProvider(MeterReadingsRepository)

@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, eq, type SQL, sql } from "drizzle-orm";
+import { and, eq, notInArray, type SQL, sql } from "drizzle-orm";
 
 import type { AppDbExecutor } from "../../db/db.module.js";
 import {
@@ -150,24 +150,38 @@ export class ContractRelationsRepository {
 
   /** 以组织和合同双重边界替换草稿空间关系。 */
   async replaceDraftSpaces(input: ReplaceDraftSpacesInput, executor: AppDbExecutor): Promise<void> {
-    await executor
-      .delete(rentalContractSpaces)
-      .where(
-        and(
-          eq(rentalContractSpaces.organizationId, input.organizationId),
-          eq(rentalContractSpaces.contractId, input.contractId),
-        ),
-      );
-    if (input.spaces.length === 0) return;
-    await executor.insert(rentalContractSpaces).values(
-      input.spaces.map((space) => ({
-        organizationId: input.organizationId,
-        contractId: input.contractId,
-        propertyId: input.propertyId,
-        spaceId: space.spaceId,
-        rentAllocationMinor: space.rentAllocationMinor ?? null,
-      })),
+    await executor.delete(rentalContractSpaces).where(
+      and(
+        eq(rentalContractSpaces.organizationId, input.organizationId),
+        eq(rentalContractSpaces.contractId, input.contractId),
+        input.spaces.length
+          ? notInArray(
+              rentalContractSpaces.spaceId,
+              input.spaces.map((space) => space.spaceId),
+            )
+          : undefined,
+      ),
     );
+    if (input.spaces.length === 0) return;
+    await executor
+      .insert(rentalContractSpaces)
+      .values(
+        input.spaces.map((space) => ({
+          organizationId: input.organizationId,
+          contractId: input.contractId,
+          propertyId: input.propertyId,
+          spaceId: space.spaceId,
+          rentAllocationMinor: space.rentAllocationMinor ?? null,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [
+          rentalContractSpaces.organizationId,
+          rentalContractSpaces.contractId,
+          rentalContractSpaces.spaceId,
+        ],
+        set: { rentAllocationMinor: sql`excluded.rent_allocation_minor` },
+      });
   }
 
   /** 以组织和合同双重边界替换草稿承租方关系。 */

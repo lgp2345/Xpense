@@ -14,7 +14,6 @@ function projectionFacts(input: {
     organizationId: "org",
     contractId: input.contractId,
     contract: {
-      billingMode: "monthly_settlement",
       lifecycleStatus: "confirmed",
       startDate: "2026-01-01",
       endDate: "2026-12-31",
@@ -41,10 +40,10 @@ function bill(input: {
 }): RentalCashProjectionFacts["bills"][number] {
   return {
     id: input.id,
-    type: "monthly",
+    type: "period",
     status: input.status ?? "active",
-    modelVersion: 2,
-    billingMonth: "2026-09",
+    periodStart: "2026-09-01",
+    periodEnd: "2026-09-30",
     revision: 1,
     amountMinor: input.amountMinor,
     sourceKey: `monthly:${input.id}`,
@@ -78,8 +77,8 @@ describe("匹配账单的未结算财务对象汇总", () => {
   it("按独立对象求应收和应退，不用另一个合同的余额抵销", () => {
     const result = calculateBillFinancialTotals(
       [
-        { id: "bill-receivable", contractId: "contract-a", modelVersion: 2 },
-        { id: "bill-refundable", contractId: "contract-b", modelVersion: 2 },
+        { id: "bill-receivable", contractId: "contract-a" },
+        { id: "bill-refundable", contractId: "contract-b" },
       ],
       [
         projectionFacts({
@@ -110,23 +109,15 @@ describe("匹配账单的未结算财务对象汇总", () => {
       outstandingMinor: 100,
       refundableMinor: 70,
     });
-    expect(
-      calculateBillFinancialTotals(
-        [{ id: "legacy-bill", contractId: "legacy-contract", modelVersion: 1 }],
-        [],
-        "org",
-        "2026-10-01",
-      ),
-    ).toBeNull();
     expect(calculateBillFinancialTotals([], [], "org", "2026-10-01")).toBeNull();
   });
 
   it("匹配到结算真实关联账单时只计当前结算一次，排除关联账单自身缺口", () => {
     const result = calculateBillFinancialTotals(
       [
-        { id: "bill-a", contractId: "contract-a", modelVersion: 2 },
-        { id: "bill-b", contractId: "contract-a", modelVersion: 2 },
-        { id: "bill-c", contractId: "contract-a", modelVersion: 2 },
+        { id: "bill-a", contractId: "contract-a" },
+        { id: "bill-b", contractId: "contract-a" },
+        { id: "bill-c", contractId: "contract-a" },
       ],
       [
         projectionFacts({
@@ -182,7 +173,7 @@ describe("匹配账单的未结算财务对象汇总", () => {
 
   it("没有命中真实关联时不因合同存在结算而加入整份结算差额", () => {
     const result = calculateBillFinancialTotals(
-      [{ id: "unlinked-bill", contractId: "contract-a", modelVersion: 2 }],
+      [{ id: "unlinked-bill", contractId: "contract-a" }],
       [
         projectionFacts({
           contractId: "contract-a",
@@ -228,10 +219,7 @@ describe("匹配账单的未结算财务对象汇总", () => {
 
   it("保留作废账单的有效历史现金、忽略撤销现金并把它作为零应收对象", () => {
     const result = calculateBillFinancialTotals(
-      [
-        { id: "legacy-bill", contractId: "contract-a", modelVersion: 1 },
-        { id: "voided-bill", contractId: "contract-a", modelVersion: 2 },
-      ],
+      [{ id: "voided-bill", contractId: "contract-a" }],
       [
         projectionFacts({
           contractId: "contract-a",
@@ -282,7 +270,7 @@ describe("匹配账单的未结算财务对象汇总", () => {
   });
 
   it("拒绝不匹配的组织合同身份、缺失目标事实及超出安全整数的跨对象合计", () => {
-    const row = { id: "bill-a", contractId: "contract-a", modelVersion: 2 };
+    const row = { id: "bill-a", contractId: "contract-a" };
     const facts = projectionFacts({
       contractId: "contract-a",
       bills: [bill({ id: "bill-a", contractId: "contract-a", amountMinor: 1 })],
@@ -292,8 +280,8 @@ describe("匹配账单的未结算财务对象汇总", () => {
     expect(() =>
       calculateBillFinancialTotals(
         [
-          { id: "bill-a", contractId: "contract-a", modelVersion: 2 },
-          { id: "bill-b", contractId: "contract-b", modelVersion: 2 },
+          { id: "bill-a", contractId: "contract-a" },
+          { id: "bill-b", contractId: "contract-b" },
         ],
         [
           facts,
@@ -317,8 +305,8 @@ describe("匹配账单的未结算财务对象汇总", () => {
   it("方案 A 按 linked settlement 与匹配独立账单现金并集汇总，重叠现金只计一次", () => {
     const result = calculateBillFinancialTotals(
       [
-        { id: "linked-month", contractId: "contract-a", modelVersion: 2 },
-        { id: "independent-month", contractId: "contract-a", modelVersion: 2 },
+        { id: "linked-month", contractId: "contract-a" },
+        { id: "independent-month", contractId: "contract-a" },
       ],
       [
         projectionFacts({
@@ -382,8 +370,8 @@ describe("匹配账单的未结算财务对象汇总", () => {
     expect(() =>
       calculateBillFinancialTotals(
         [
-          { id: "bill-a", contractId: "contract-a", modelVersion: 2 },
-          { id: "bill-b", contractId: "contract-a", modelVersion: 2 },
+          { id: "bill-a", contractId: "contract-a" },
+          { id: "bill-b", contractId: "contract-a" },
         ],
         [
           projectionFacts({

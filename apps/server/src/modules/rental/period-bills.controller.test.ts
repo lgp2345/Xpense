@@ -5,11 +5,12 @@ import {
   METHOD_METADATA,
   PATH_METADATA,
 } from "@nestjs/common/constants.js";
-import { describe, expect, it, vi } from "vitest";
+import { expect, it } from "vitest";
 import { REQUIRE_PERMISSION_KEY } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import { PeriodBillsController } from "./period-bills.controller.js";
+
 it("账期 controller 有认证和独立权限，写操作固定POST200", () => {
   expect(Reflect.getMetadata(GUARDS_METADATA, PeriodBillsController)).toEqual([
     AuthGuard,

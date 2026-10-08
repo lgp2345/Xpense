@@ -2,12 +2,6 @@ import { z } from "zod";
 
 import { contractCalendarDateSchema } from "./create-contract.dto.js";
 
-/** 终止当期整张账单的金额确认；零金额合法。 */
-export const billingAmountConfirmationShape = {
-  finalAmountMinor: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
-  reason: z.string().trim().min(1).max(1000),
-};
-
 /** 仅接受必要的计费输入，正常租金由服务端计算。 */
 export const billGenerationInputShape = {
   contractId: z.string().uuid(),

@@ -105,12 +105,12 @@ export function PeriodBillSession({
       : value;
   }, [contractId, draft, context.defaults, continuation]);
   const fingerprint = request ? JSON.stringify(request) : "";
+  // biome-ignore lint/correctness/useExhaustiveDependencies: nonce 是用户刷新与冲突恢复的显式触发器。
   useEffect(() => {
     const current = ++sequence.current;
     const controller = new AbortController();
     setPreview(null);
     attempt.current = null;
-    setError(null);
     setPreviewBusy(Boolean(request));
     if (!request) return;
     const timer = setTimeout(() => {
@@ -155,7 +155,7 @@ export function PeriodBillSession({
       form.setFieldValue("dueDate", String(value));
     if (key === "baselineReadings" && !touched.has("readings"))
       form.setFieldValue("readings", value as PeriodBillDraft["readings"]);
-    form.setFieldValue(key, value);
+    form.setFieldValue(key, value as never);
     setTouched((current) => new Set(current).add(key));
   };
   submitAction.current = async () => {

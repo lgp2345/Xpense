@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import {
+  generateRentalPeriodBillSchema,
   periodBillContextSchema,
   previewRentalPeriodBillSchema,
-  generateRentalPeriodBillSchema,
   voidRentalPeriodBillSchema,
 } from "./rental-period-bills.dto.js";
+
 const id = "00000000-0000-4000-8000-000000000001";
 it("context默认分页20且上限100", () => {
   expect(periodBillContextSchema.parse({ contractId: id })).toEqual({

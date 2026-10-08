@@ -19,6 +19,7 @@ describe("账单 HTTP 全流程", () => {
     try {
       const input = {
         contractId: h.source.contract.id,
+        scope: "deposits" as const,
         depositDueDates: {} as Record<string, string>,
       };
       const blankResponse = await h.request("/rental-bills/preview", input);
@@ -26,17 +27,18 @@ describe("账单 HTTP 全流程", () => {
       const blank = h.parse<RentalBillPreview>(blankResponse);
       for (const key of blank.missingDepositSourceKeys) input.depositDueDates[key] = "2026-09-01";
       const preview = h.parse<RentalBillPreview>(await h.request("/rental-bills/preview", input));
-      expect(preview.createCount).toBe(6);
+      expect(preview.createCount).toBe(2);
       const request = { ...input, expectedVersion: preview.version, idempotencyKey: randomUUID() };
       const response = await h.request("/rental-bills/generate", request);
       expect(response.statusCode).toBe(200);
       const result = h.parse<RentalBillGenerationResult>(response);
-      expect(result.createdCount).toBe(6);
+      expect(result.createdCount).toBe(2);
       expect(
         h.parse<RentalBillGenerationResult>(await h.request("/rental-bills/generate", request)),
       ).toMatchObject({ generationId: result.generationId, replayed: true });
       const stale = await h.request("/rental-bills/preview", {
         contractId: input.contractId,
+        scope: "deposits" as const,
         depositDueDates: {},
         page: 2,
         expectedVersion: preview.version,
@@ -47,17 +49,22 @@ describe("账单 HTTP 全流程", () => {
         rentAmountMinor: 400000,
       });
       expect(correction.statusCode).toBe(200);
-      expect(h.state.rental.bills.filter((bill) => bill.status === "voided")).toHaveLength(5);
+      expect(h.state.rental.bills.filter((bill) => bill.status === "voided")).toHaveLength(1);
       const missing = h.parse<RentalBillPreview>(
-        await h.request("/rental-bills/preview", { ...input, depositDueDates: {} }),
+        await h.request("/rental-bills/preview", {
+          ...input,
+          scope: "deposits" as const,
+          depositDueDates: {},
+        }),
       );
-      expect(missing.createCount).toBe(5);
+      expect(missing.createCount).toBe(1);
       const dates = Object.fromEntries(
         missing.missingDepositSourceKeys.map((key) => [key, "2026-09-02"]),
       );
       const again = h.parse<RentalBillPreview>(
         await h.request("/rental-bills/preview", {
           contractId: input.contractId,
+          scope: "deposits" as const,
           depositDueDates: dates,
         }),
       );
@@ -65,6 +72,7 @@ describe("账单 HTTP 全流程", () => {
         (
           await h.request("/rental-bills/generate", {
             contractId: input.contractId,
+            scope: "deposits" as const,
             depositDueDates: dates,
             expectedVersion: again.version,
             idempotencyKey: randomUUID(),
@@ -74,8 +82,8 @@ describe("账单 HTTP 全流程", () => {
       const page = h.parse<RentalBillPage>(
         await h.request(`/rental-bills/list?contractId=${input.contractId}`),
       );
-      expect(page.total).toBe(6);
-      expect(page.totals).toEqual({ rentAmountMinor: 4800000, depositAmountMinor: 410000 });
+      expect(page.total).toBe(2);
+      expect(page.totals).toMatchObject({ rentAmountMinor: 0, depositAmountMinor: 410000 });
     } finally {
       await h.app.close();
     }
@@ -96,7 +104,11 @@ describe("账单 HTTP 全流程", () => {
             method: "POST",
             url: "/api/rental-bills/preview",
             headers: { authorization: `Bearer ${manager.accessToken}` },
-            payload: { contractId: h.source.contract.id, depositDueDates: {} },
+            payload: {
+              contractId: h.source.contract.id,
+              scope: "deposits" as const,
+              depositDueDates: {},
+            },
           })
         ).statusCode,
       ).toBe(403);
@@ -110,12 +122,14 @@ describe("账单 HTTP 全流程", () => {
         (
           await h.request("/rental-bills/preview", {
             contractId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbb02",
+            scope: "deposits" as const,
             depositDueDates: {},
           })
         ).statusCode,
       ).toBe(404);
       const input = {
         contractId: h.source.contract.id,
+        scope: "deposits" as const,
         depositDueDates: {} as Record<string, string>,
       };
       const blank = h.parse<RentalBillPreview>(await h.request("/rental-bills/preview", input));
@@ -133,7 +147,7 @@ describe("账单 HTTP 全流程", () => {
         (key) => key !== "rental_bills:generate",
       );
       expect((await h.request("/rental-bills/generate", request)).statusCode).toBe(403);
-      expect(h.state.rental.bills).toHaveLength(6);
+      expect(h.state.rental.bills).toHaveLength(2);
       expect(
         h.state.rental.bills.every((bill) => bill.organizationId === testIds.organization),
       ).toBe(true);

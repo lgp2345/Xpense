@@ -34,7 +34,7 @@ describe("租赁收退款 HTTP", () => {
   });
 
   it("用账单详情版本连续收款，按目标权限列历史且不写记账流水", async () => {
-    const bill = await createMonthlyBill();
+    const bill = await createPeriodBill();
     const firstRead = await getBill(bill.id);
     const receiptAmount = Math.max(
       1,
@@ -142,7 +142,7 @@ describe("租赁收退款 HTTP", () => {
   });
 
   it("来源取消并归零后仍可按原账单 ID 退还已收现金", async () => {
-    const bill = await createMonthlyBill();
+    const bill = await createPeriodBill();
     let detail = await getBill(bill.id);
     const receipt = await harness.request("/rental-receipts/create", {
       target: { kind: "bill", billId: bill.id },
@@ -181,7 +181,7 @@ describe("租赁收退款 HTTP", () => {
   });
 
   it("结算关联账单的收款刷新投影，审计失败回滚现金、结算修订、幂等和审计", async () => {
-    const bill = await createMonthlyBill();
+    const bill = await createPeriodBill();
     const state = harness.state.rental;
     const settlementId = randomUUID();
     const now = new Date("2026-08-31T12:00:00.000Z");
@@ -201,7 +201,6 @@ describe("租赁收退款 HTTP", () => {
         finalBills: [
           {
             billId: bill.id,
-            billingMonth: "2026-08",
             lines: [],
             amountMinor: bill.amountMinor,
           },
@@ -313,10 +312,10 @@ describe("租赁收退款 HTTP", () => {
     expect(harness.state.auditLogs).toEqual(beforeAudit);
   });
 
-  async function createMonthlyBill(): Promise<MonthlyBill> {
+  async function createPeriodBill(): Promise<MonthlyBill> {
     const request = {
       contractId: harness.financeContractId,
-      billingMonth: "2026-08",
+      periodStart: "2026-01-01",
       dueDate: "2026-08-31",
       readings: [
         { kind: "water", readingDate: "2026-08-31", reading: "110" },
@@ -324,9 +323,9 @@ describe("租赁收退款 HTTP", () => {
       ],
       extraFees: [],
     };
-    const preview = await harness.request("/rental-monthly-bills/preview", request);
+    const preview = await harness.request("/rental-period-bills/preview", request);
     expect(preview.statusCode).toBe(200);
-    const generated = await harness.request("/rental-monthly-bills/generate", {
+    const generated = await harness.request("/rental-period-bills/generate", {
       ...request,
       expectedVersion: harness.parse<{ version: string }>(preview).version,
       idempotencyKey: randomUUID(),

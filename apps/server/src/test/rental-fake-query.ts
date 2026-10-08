@@ -248,7 +248,7 @@ function mutationFixtureKey(method: RentalMutationMethod, input: RentalMutationI
     "relations.appendTerminationRevocation":
       "contractId,createdByUserId,organizationId,reason,terminationDateBeforeRevoke",
     "contracts.createDraft":
-      "billingAnchor,billingMode,contractNumber,createdByUserId,dueDaysBefore,endDate,externalContractNumber,note,organizationId,paymentIntervalMonths,propertyId,renewedFromContractId,rentAmountMinor,startDate,updatedByUserId",
+      "billingAnchor,contractNumber,createdByUserId,dueDaysBefore,endDate,externalContractNumber,note,organizationId,paymentIntervalMonths,propertyId,renewedFromContractId,rentAmountMinor,startDate,updatedByUserId",
     "contracts.updateHeader":
       "billingAnchor,dueDaysBefore,endDate,externalContractNumber,id,note,organizationId,paymentIntervalMonths,propertyId,rentAmountMinor,startDate,updatedByUserId",
     "contracts.setLifecycle": "id,organizationId,status,updatedByUserId",

@@ -73,7 +73,6 @@ function registerContractDetail(
       endDate: dates.endDate ?? null,
       rentAmountMinor: 10000,
       updatedAt: new Date(FIXED_RENTAL_NOW),
-      billingMode: contract?.billingMode ?? "legacy_receivable",
       propertyName: "测试房产",
       lifecycleStatus: options.lifecycleStatus ?? "draft",
       displayStatus: options.displayStatus ?? "draft",
@@ -319,7 +318,7 @@ function registerPreStartCorrectionFixture(
     startDate: "2026-09-15T00:00:00",
     endDate: "2026-12-31T23:59:59",
     rentAmountMinor: 10000,
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -349,7 +348,7 @@ function registerPreStartCorrectionFixture(
     startDate: "2026-09-15T00:00:00",
     endDate: "2026-12-31T23:59:59",
     rentAmountMinor: 10000,
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -444,7 +443,7 @@ function registerPreStartCorrectionFixture(
     endDate: "2026-12-31T23:59:59",
     rentAmountMinor: 10000,
     updatedAt: new Date(FIXED_RENTAL_NOW),
-    billingMode: "legacy_receivable",
+
     propertyName: "测试房产",
     lifecycleStatus: "confirmed",
     displayStatus: "upcoming",
@@ -609,7 +608,7 @@ function registerCorrectionConflictFixture(
     startDate,
     endDate: "2026-12-31T23:59:59",
     rentAmountMinor: 10000,
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -720,7 +719,7 @@ const CORRECTION_RESPONSE: RentalContractDetail = {
   tenantNames: ["测试租户"],
   spaceNames: ["测试空间"],
   updatedAt: "2026-08-31T04:00:00.000Z",
-  billingMode: "legacy_receivable",
+
   billingAnchor: "contract_start",
   paymentIntervalMonths: 1,
   dueDaysBefore: 0,
@@ -907,7 +906,7 @@ function expectCorrectionRetryOracle(setup: TestAppHarness, auditLogsBefore: unk
     startDate: "2026-09-15T00:00:00",
     endDate: "2026-12-31T23:59:59",
     rentAmountMinor: 10000,
-    billingMode: "legacy_receivable",
+
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
     dueDaysBefore: 0,
@@ -1775,7 +1774,7 @@ describe("Rental HTTP e2e", () => {
       startDate: "2026-09-15T00:00:00",
       endDate: "2026-12-31T23:59:59",
       rentAmountMinor: 10000,
-      billingMode: "legacy_receivable",
+
       billingAnchor: "contract_start",
       paymentIntervalMonths: 1,
       dueDaysBefore: 0,
@@ -1976,7 +1975,7 @@ describe("Rental HTTP e2e", () => {
       startDate: "2026-09-15T00:00:00",
       endDate: "2026-12-31T23:59:59",
       rentAmountMinor: 10000,
-      billingMode: "legacy_receivable",
+
       billingAnchor: "contract_start",
       paymentIntervalMonths: 1,
       dueDaysBefore: 0,

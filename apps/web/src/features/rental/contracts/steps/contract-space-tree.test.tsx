@@ -118,21 +118,20 @@ describe("contract space hierarchy", () => {
     expect(within(screen.getByRole("group", { name: "已选空间" })).getByText("201")).toBeVisible();
   });
 
-  it("旧模式仍能选择两个同级空间并设置分摊", async () => {
+  it("选择同级空间替换现有选择", async () => {
     const api = {
       listChildren: vi.fn().mockResolvedValue(result([node("201"), node("202")])),
     } as unknown as RentalApi;
     const user = setup(api, {
       ...defaultContractFormValues("property"),
-      billingMode: "legacy_receivable",
     });
     await screen.findByTestId("space-option-201");
     await user.click(option("201").getByRole("button", { name: "选择" }));
     await user.click(option("202").getByRole("button", { name: "选择" }));
     const selected = within(screen.getByRole("group", { name: "已选空间" }));
-    expect(selected.getByText("201")).toBeVisible();
+    expect(selected.queryByText("201")).not.toBeInTheDocument();
     expect(selected.getByText("202")).toBeVisible();
-    expect(screen.getByText("已选空间租金分摊（可选）")).toBeVisible();
+    expect(screen.queryByText("已选空间租金分摊（可选）")).not.toBeInTheDocument();
   });
 
   it("月度结算旧草稿的多空间不会被静默丢弃，可以重新选择纠正", async () => {
@@ -225,13 +224,12 @@ describe("contract space hierarchy", () => {
     } as unknown as RentalApi;
     const user = setup(api, {
       ...defaultContractFormValues("property"),
-      billingMode: "legacy_receivable",
     });
     await screen.findByTestId("space-option-楼层");
     await user.click(option("楼层").getByRole("button", { name: "选择" }));
     await user.click(screen.getByRole("button", { name: "展开 楼层" }));
     await screen.findByTestId("space-option-201");
-    expect(option("201").getByRole("button", { name: "选择" })).toBeDisabled();
+    expect(option("201").getByRole("button", { name: "选择" })).toBeEnabled();
     await user.click(option("楼层").getByRole("button", { name: "移除 楼层" }));
     expect(option("201").getByRole("button", { name: "选择" })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "撤销读取" }));

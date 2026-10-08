@@ -1,6 +1,6 @@
 import type { RentalBillingPeriod } from "@xpense/shared";
-import { buildRentPlan, prorateBillingAmount, sumBillingAmounts } from "./billing-period.rules.js";
 import type { BillingRentDraft, BillingTerms } from "./billing.types.js";
+import { buildRentPlan, prorateBillingAmount, sumBillingAmounts } from "./billing-period.rules.js";
 import { calendarDateToDayNumber, parseCalendarDate } from "./contract-date.rules.js";
 
 export type PeriodScheduleInput = {
