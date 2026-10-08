@@ -11,7 +11,7 @@ export const chargeTermsFixture: RentalChargeTerms = {
   waterUnitPrice: "3.0000",
   electricityUnitPrice: "4.0000",
   fixedFees: [
-    { id: "11111111-1111-4111-8111-111111111111", name: "物业费", monthlyAmountMinor: 50000 },
+    { id: "11111111-1111-4111-8111-111111111111", name: "物业费", periodAmountMinor: 50000 },
   ],
 };
 

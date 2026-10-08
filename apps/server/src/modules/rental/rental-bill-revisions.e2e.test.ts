@@ -30,7 +30,7 @@ describe("月度账单更正 HTTP", () => {
     if (!role || !terms) throw new Error("missing charge terms");
     role.permissions.push("rental_monthly_bills:adjust");
     const feeId = randomUUID();
-    terms.fixedFees = [{ id: feeId, name: "管理费", monthlyAmountMinor: 5_000 }];
+    terms.fixedFees = [{ id: feeId, name: "管理费", periodAmountMinor: 5_000 }];
     const generate = async (billingMonth: string, readingDate: string, water: string) => {
       const input = {
         contractId: harness.financeContractId,
@@ -88,12 +88,12 @@ describe("月度账单更正 HTTP", () => {
     const revised = await adjust("set_amount", 2_000);
     expect(revised.lines.find(({ kind }) => kind === "fixed_fee")).toMatchObject({
       amountMinor: 2_000,
-      feeSnapshot: { monthlyAmountMinor: 5_000, calculationMode: "manual_amount" },
+      feeSnapshot: { periodAmountMinor: 5_000, calculationMode: "manual_amount" },
     });
     expect(revised.lines.filter(({ kind }) => kind === "water" || kind === "electricity")).toEqual(
       originalMeter,
     );
-    expect(terms.fixedFees[0]?.monthlyAmountMinor).toBe(5_000);
+    expect(terms.fixedFees[0]?.periodAmountMinor).toBe(5_000);
     const zero = await adjust("set_amount", 0);
     expect(zero.lines.find(({ kind }) => kind === "fixed_fee")?.amountMinor).toBe(0);
     terms.fixedFees = [];

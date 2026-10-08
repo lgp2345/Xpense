@@ -50,7 +50,7 @@ describe("月度收费事项完整 HTTP 流程", () => {
           electricityCollectionEnabled: false,
           waterUnitPrice: "3.0000",
           electricityUnitPrice: "0.0000",
-          fixedFees: [{ id: feeId, name: "管理费", monthlyAmountMinor: 5_000 }],
+          fixedFees: [{ id: feeId, name: "管理费", periodAmountMinor: 5_000 }],
         },
         baselineReadings: [],
       },
@@ -70,7 +70,7 @@ describe("月度收费事项完整 HTTP 流程", () => {
     expect(terms).toMatchObject({
       waterCollectionEnabled: true,
       electricityCollectionEnabled: false,
-      fixedFees: [{ id: feeId, monthlyAmountMinor: 5_000 }],
+      fixedFees: [{ id: feeId, periodAmountMinor: 5_000 }],
     });
 
     const octoberInput: Omit<
@@ -130,7 +130,7 @@ describe("月度收费事项完整 HTTP 流程", () => {
       periodEnd: "2026-10-31",
       coveredDays: 16,
       referenceDays: 31,
-      feeSnapshot: { feeId, monthlyAmountMinor: 5_000, calculationMode: "full_month" },
+      feeSnapshot: { feeId, periodAmountMinor: 5_000, calculationMode: "full_month" },
     });
     expect(
       harness.state.rental.meterReadings
@@ -147,7 +147,7 @@ describe("月度收费事项完整 HTTP 流程", () => {
       electricityCollectionEnabled: false,
       waterUnitPrice: "3.0000",
       electricityUnitPrice: "0.0000",
-      fixedFees: [{ id: feeId, name: "管理费", monthlyAmountMinor: 3_000 }],
+      fixedFees: [{ id: feeId, name: "管理费", periodAmountMinor: 3_000 }],
     });
     expect(standardUpdate.statusCode, standardUpdate.payload).toBe(200);
     expect(fixedFee(await getBill(october.id))).toEqual(fixedFee(october));
@@ -161,7 +161,7 @@ describe("月度收费事项完整 HTTP 流程", () => {
     expect(november.amountMinor).toBe(13_000);
     expect(fixedFee(november)).toMatchObject({
       amountMinor: 3_000,
-      feeSnapshot: { monthlyAmountMinor: 3_000, calculationMode: "full_month" },
+      feeSnapshot: { periodAmountMinor: 3_000, calculationMode: "full_month" },
     });
 
     await adjust(november.id, "edit_unpaid", { feeId, action: "set_amount", amountMinor: 2_000 });
@@ -183,7 +183,7 @@ describe("月度收费事项完整 HTTP 流程", () => {
     expect(removed.amountMinor).toBe(10_000);
     expect(fixedFee(removed)).toBeUndefined();
     expect((await getTerms(contract.id)).fixedFees).toEqual([
-      { id: feeId, name: "管理费", monthlyAmountMinor: 3_000 },
+      { id: feeId, name: "管理费", periodAmountMinor: 3_000 },
     ]);
     expect((await getBill(october.id)).lines).toEqual(october.lines);
 
@@ -255,7 +255,7 @@ describe("月度收费事项完整 HTTP 流程", () => {
       items: [receipt],
     });
     expect((await getBill(november.id)).lines).toEqual(removed.lines);
-    expect((await getTerms(contract.id)).fixedFees[0]?.monthlyAmountMinor).toBe(3_000);
+    expect((await getTerms(contract.id)).fixedFees[0]?.periodAmountMinor).toBe(3_000);
   });
 
   async function getTerms(contractId: string): Promise<RentalChargeTerms> {

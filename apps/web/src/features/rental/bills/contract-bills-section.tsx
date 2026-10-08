@@ -107,7 +107,7 @@ function MonthlyContractBillsSection({
         {query.data && list.data ? (
           <>
             <p className="text-sm tabular-nums">
-              有效月度账单 {formatMoney(query.data.totals.monthlyAmountMinor ?? 0)}
+              有效月度账单 {formatMoney(query.data.totals.periodAmountMinor ?? 0)}
             </p>
             {list.data.items.length ? (
               <ul className="divide-y">

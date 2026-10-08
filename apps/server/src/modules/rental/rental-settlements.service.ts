@@ -534,7 +534,7 @@ export class RentalSettlementsService {
         totals: {
           rentAmountMinor,
           depositAmountMinor: 0,
-          monthlyAmountMinor: drafts.reduce((sum, draft) => sum + draft.amountMinor, 0),
+          periodAmountMinor: drafts.reduce((sum, draft) => sum + draft.amountMinor, 0),
         },
         createdByUserId: auth.userId,
       },

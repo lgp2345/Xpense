@@ -10,8 +10,8 @@ import {
 } from "./rental-bills.js";
 
 describe("租赁应收共享契约", () => {
-  it("保留 legacy 应收类型并增加月度综合账单", () => {
-    expect(rentalBillTypes).toEqual(["rent", "deposit", "monthly"]);
+  it("仅保留账期普通账单和押金", () => {
+    expect(rentalBillTypes).toEqual(["period", "deposit"]);
     expect(rentalBillLineKinds).toEqual([
       "rent_period",
       "deposit",

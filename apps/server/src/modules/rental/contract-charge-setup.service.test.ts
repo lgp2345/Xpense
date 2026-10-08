@@ -50,7 +50,7 @@ const setup = {
     electricityCollectionEnabled: false,
     waterUnitPrice: "3",
     electricityUnitPrice: "9",
-    fixedFees: [{ id: "management", name: "管理费", monthlyAmountMinor: 5000 }],
+    fixedFees: [{ id: "management", name: "管理费", periodAmountMinor: 5000 }],
   },
   baselineReadings: [],
 };

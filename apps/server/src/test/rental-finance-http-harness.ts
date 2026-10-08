@@ -186,7 +186,7 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
       totals: {
         ...page.totals,
         rentAmountMinor: page.totals.rentAmountMinor + monthlyRent,
-        monthlyAmountMinor: monthlyBills.reduce((total, bill) => total + bill.amountMinor, 0),
+        periodAmountMinor: monthlyBills.reduce((total, bill) => total + bill.amountMinor, 0),
       },
     };
   };

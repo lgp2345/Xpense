@@ -107,10 +107,10 @@ function fixedFeeLines(
     1;
   const referenceDays = daysInMonth(parseCalendarDate(first).year, parseCalendarDate(first).month);
   return source.terms.fixedFees.map((fee) => {
-    if (!Number.isSafeInteger(fee.monthlyAmountMinor) || fee.monthlyAmountMinor < 0) {
+    if (!Number.isSafeInteger(fee.periodAmountMinor) || fee.periodAmountMinor < 0) {
       throw new RangeError("固定月费必须是非负安全整数");
     }
-    const amountMinor = fee.monthlyAmountMinor;
+    const amountMinor = fee.periodAmountMinor;
     return addLine({
       kind: "fixed_fee",
       label: fee.name,
@@ -125,7 +125,7 @@ function fixedFeeLines(
         kind: "fixed_fee",
         feeId: fee.id,
         calculationMode: "full_month",
-        monthlyAmountMinor: fee.monthlyAmountMinor,
+        periodAmountMinor: fee.periodAmountMinor,
         overrideReason: null,
       },
     });
@@ -150,7 +150,7 @@ function clipFixedFee(line: RentalBillLine, effectiveEndDate: string): RentalBil
   if (!Number.isSafeInteger(referenceDays) || referenceDays <= 0 || coveredDays <= 0) {
     throw new RangeError("固定费用计费区间无效");
   }
-  const numerator = BigInt(saved.monthlyAmountMinor) * BigInt(coveredDays);
+  const numerator = BigInt(saved.periodAmountMinor) * BigInt(coveredDays);
   return {
     ...line,
     amountMinor:

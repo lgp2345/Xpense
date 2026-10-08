@@ -135,7 +135,7 @@ export async function insertRentalPostgresFixture(db: AppDb, legacy = false, fut
     origin: "manual",
     createdCount: legacy ? 2 : 3,
     existingCount: 0,
-    totals: { rentAmountMinor: 20000, depositAmountMinor: 5000, monthlyAmountMinor: 23000 },
+    totals: { rentAmountMinor: 20000, depositAmountMinor: 5000, periodAmountMinor: 23000 },
     createdByUserId: userId,
   });
   const bills = legacy

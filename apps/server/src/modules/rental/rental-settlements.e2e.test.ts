@@ -209,7 +209,7 @@ describe("合同统一结算 HTTP", () => {
       expect(harness.parse<{ totals: unknown }>(filtered).totals).toMatchObject({
         rentAmountMinor: 50_000,
         depositAmountMinor: 0,
-        monthlyAmountMinor: 50_000,
+        periodAmountMinor: 50_000,
         financial: {
           receivedMinor: 330_000,
           refundedMinor: 0,
@@ -1431,7 +1431,7 @@ describe("合同统一结算 HTTP", () => {
       reason: "固定费用历史费率",
       waterUnitPrice: "3.0000",
       electricityUnitPrice: "4.0000",
-      fixedFees: [{ id: feeId, name: "网络费", monthlyAmountMinor: 5_000 }],
+      fixedFees: [{ id: feeId, name: "网络费", periodAmountMinor: 5_000 }],
     });
     expect(updatedTerms.statusCode, updatedTerms.payload).toBe(200);
 
@@ -1440,14 +1440,14 @@ describe("合同统一结算 HTTP", () => {
       "2026-12-31",
       { water: "100", electricity: "50" },
       [],
-      { fixedFees: [{ id: feeId, monthlyAmountMinor: 5_000 }], reason: "本期固定费用约定" },
+      { fixedFees: [{ id: feeId, periodAmountMinor: 5_000 }], reason: "本期固定费用约定" },
     );
     const february = await generateMonth(
       "2027-02",
       "2027-02-28",
       { water: "100", electricity: "50" },
       [],
-      { fixedFees: [{ id: feeId, monthlyAmountMinor: 5_000 }], reason: "本期固定费用约定" },
+      { fixedFees: [{ id: feeId, periodAmountMinor: 5_000 }], reason: "本期固定费用约定" },
     );
     const originalDecember = harness.state.rental.bills.find(({ id }) => id === december.id);
     const originalFebruary = harness.state.rental.bills.find(({ id }) => id === february.id);
@@ -1488,7 +1488,7 @@ describe("合同统一结算 HTTP", () => {
       referenceDays: 31,
       feeSnapshot: {
         feeId,
-        monthlyAmountMinor: 5_000,
+        periodAmountMinor: 5_000,
         overrideReason: "本期固定费用约定",
       },
     });
@@ -1545,7 +1545,7 @@ describe("合同统一结算 HTTP", () => {
       periodEnd: "2027-02-16",
       coveredDays: 16,
       referenceDays: 28,
-      feeSnapshot: { feeId, monthlyAmountMinor: 5_000, overrideReason: "本期固定费用约定" },
+      feeSnapshot: { feeId, periodAmountMinor: 5_000, overrideReason: "本期固定费用约定" },
     });
 
     const crossMonthCorrection = await harness.request("/rental-contracts/update", {
@@ -1626,7 +1626,7 @@ describe("合同统一结算 HTTP", () => {
       reason: "建立固定费折扣裁剪回归条件",
       waterUnitPrice: "3.0000",
       electricityUnitPrice: "4.0000",
-      fixedFees: [{ id: feeId, name: "网络费", monthlyAmountMinor: 5_000 }],
+      fixedFees: [{ id: feeId, name: "网络费", periodAmountMinor: 5_000 }],
     });
     expect(updatedCharges.statusCode, updatedCharges.payload).toBe(200);
 
@@ -1635,7 +1635,7 @@ describe("合同统一结算 HTTP", () => {
       "2026-12-31",
       { water: "100", electricity: "50" },
       [{ id: extraFeeId, name: "本期优惠", amountMinor: -1_000, note: "" }],
-      { fixedFees: [{ id: feeId, monthlyAmountMinor: 5_000 }], reason: "本期固定费" },
+      { fixedFees: [{ id: feeId, periodAmountMinor: 5_000 }], reason: "本期固定费" },
     );
     expect(december.amountMinor).toBe(54_000);
     const originalBill = harness.state.rental.bills.find(({ id }) => id === december.id);
@@ -1653,7 +1653,7 @@ describe("合同统一结算 HTTP", () => {
         expect.objectContaining({
           kind: "fixed_fee",
           amountMinor: 5_000,
-          feeSnapshot: expect.objectContaining({ monthlyAmountMinor: 5_000 }),
+          feeSnapshot: expect.objectContaining({ periodAmountMinor: 5_000 }),
         }),
         expect.objectContaining({
           kind: "extra_fee",
@@ -2241,7 +2241,7 @@ describe("合同统一结算 HTTP", () => {
     overrides?: {
       waterUnitPrice?: string;
       electricityUnitPrice?: string;
-      fixedFees?: Array<{ id: string; monthlyAmountMinor: number }>;
+      fixedFees?: Array<{ id: string; periodAmountMinor: number }>;
       reason: string;
     },
   ) {

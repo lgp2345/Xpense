@@ -171,7 +171,7 @@ function baseSnapshot(
       feeSnapshot: {
         kind: "fixed_fee",
         feeId: "network",
-        monthlyAmountMinor: 10_000,
+        periodAmountMinor: 10_000,
         overrideReason: null,
       },
     },
@@ -213,7 +213,7 @@ function baseSnapshot(
       version: "terms-v1",
       waterUnitPrice: "4",
       electricityUnitPrice: "1",
-      fixedFees: [{ id: "network", name: "网费", monthlyAmountMinor: 10_000 }],
+      fixedFees: [{ id: "network", name: "网费", periodAmountMinor: 10_000 }],
     },
     readings: [waterStart, waterBilled, waterFinal, powerStart, powerBilled, powerFinal],
     bills: [monthlyBill("bill-oct", "2026-10", currentLines)],
@@ -320,7 +320,7 @@ describe("buildRentalSettlementPlan", () => {
           feeSnapshot: {
             kind: "fixed_fee",
             feeId: "management",
-            monthlyAmountMinor: 5000,
+            periodAmountMinor: 5000,
             overrideReason: null,
             calculationMode,
           },
@@ -370,7 +370,7 @@ describe("buildRentalSettlementPlan", () => {
           feeSnapshot: {
             kind: "fixed_fee",
             feeId: "network",
-            monthlyAmountMinor: 10_000,
+            periodAmountMinor: 10_000,
             overrideReason: null,
           },
         },

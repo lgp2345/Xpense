@@ -61,6 +61,7 @@ export function rentalFinanceSnapshot(
       timezone: billing.timezone,
     },
     contract,
+    billingStart: null,
     terms: {
       contractId: contract.id,
       version: "1",
@@ -69,7 +70,7 @@ export function rentalFinanceSnapshot(
       waterUnitPrice: "3.0000",
       electricityUnitPrice: "4.0000",
       fixedFees: [
-        { id: "00000000-0000-4000-8000-000000000011", name: "物业费", monthlyAmountMinor: 5000 },
+        { id: "00000000-0000-4000-8000-000000000011", name: "物业费", periodAmountMinor: 5000 },
       ],
     },
     readings: baseline.map((reading, index) => ({
@@ -79,6 +80,7 @@ export function rentalFinanceSnapshot(
       spaceId: financeSpaceId,
       revision: 1,
       predecessorId: null,
+      source: "contract", billingStartId: null, billId: null, settlementId: null,
     })),
     bills: [],
     cashEntries: [],

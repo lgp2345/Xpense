@@ -1,7 +1,3 @@
-/** 租赁账单管理模式；新旧模式由服务端持久化，不由客户端切换。 */
-export const rentalBillingModes = ["legacy_receivable", "monthly_settlement"] as const;
-export type RentalBillingMode = (typeof rentalBillingModes)[number];
-
 /** 独立空间水电表类型。 */
 export const rentalMeterKinds = ["water", "electricity"] as const;
 export type RentalMeterKind = (typeof rentalMeterKinds)[number];
@@ -10,7 +6,7 @@ export type RentalMeterKind = (typeof rentalMeterKinds)[number];
 export type RentalFixedFee = {
   id: string;
   name: string;
-  monthlyAmountMinor: number;
+  periodAmountMinor: number;
 };
 
 /** 合同当前的非租金收费标准。 */
@@ -65,3 +61,6 @@ export type RentalContractChargeSetup = {
   >;
   baselineReadings: RentalMeterReadingInput[];
 };
+
+/** 账单和结算共用的有符号额外费用。 */
+export type RentalExtraFeeInput = { id: string; name: string; amountMinor: number; note: string };

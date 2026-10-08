@@ -1,7 +1,7 @@
 import type { RentalBillLine } from "./rental-bills.js";
 import type { RentalFinancialBalance } from "./rental-cash.js";
 import type { RentalMeterReadingInput } from "./rental-charges.js";
-import type { RentalExtraFeeInput } from "./rental-monthly-bills.js";
+import type { RentalExtraFeeInput } from "./rental-charges.js";
 
 /** 合同统一结算所对应的生命周期事件。 */
 export const rentalSettlementKinds = ["termination", "expiry", "cancellation"] as const;

@@ -137,7 +137,7 @@ export function toContractChargeSetup(values: ContractChargeFormValues): RentalC
       fixedFees: value.fixedFees.map(({ id, name, amount }) => ({
         id,
         name: name.trim(),
-        monthlyAmountMinor: parseFixedFeeAmount(amount) as number,
+        periodAmountMinor: parseFixedFeeAmount(amount) as number,
       })),
     },
     baselineReadings,
@@ -154,7 +154,7 @@ export function toContractChargeValues(
     fixedFees: terms.fixedFees.map((fee) => ({
       id: fee.id,
       name: fee.name,
-      amount: fixedFeeAmountText(fee.monthlyAmountMinor),
+      amount: fixedFeeAmountText(fee.periodAmountMinor),
     })),
   };
   for (const reading of readings) {

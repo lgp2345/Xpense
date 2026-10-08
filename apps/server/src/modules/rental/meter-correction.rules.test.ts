@@ -170,7 +170,7 @@ function fixedSource() {
       feeSnapshot: {
         kind: "fixed_fee",
         feeId: "management",
-        monthlyAmountMinor: 5_000,
+        periodAmountMinor: 5_000,
         overrideReason: null,
       },
     });
@@ -193,7 +193,7 @@ describe("本张账单固定费调整", () => {
     expect(plan.bills[0]?.lines.find(({ kind }) => kind === "fixed_fee")).toMatchObject({
       amountMinor,
       feeSnapshot: {
-        monthlyAmountMinor: 5_000,
+        periodAmountMinor: 5_000,
         calculationMode: "manual_amount",
         overrideReason: input.reason,
       },
@@ -249,7 +249,7 @@ describe("本张账单固定费调整", () => {
         ...input,
         fixedFeeAdjustments: [{ feeId: "management", action: "remove" }],
         overrides: {
-          fixedFees: [{ id: "management", monthlyAmountMinor: 2_000 }],
+          fixedFees: [{ id: "management", periodAmountMinor: 2_000 }],
           reason: input.reason,
         },
       }),
@@ -275,7 +275,7 @@ describe("本张账单固定费调整", () => {
     const plan = buildMeterCorrectionPlan(source, {
       ...input,
       overrides: {
-        fixedFees: [{ id: "management", monthlyAmountMinor: 2_000 }],
+        fixedFees: [{ id: "management", periodAmountMinor: 2_000 }],
         reason: input.reason,
       },
     });

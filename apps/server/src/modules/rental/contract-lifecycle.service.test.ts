@@ -517,7 +517,7 @@ describe("ContractLifecycleService", () => {
       version: 3,
       waterUnitPrice: "3.2500",
       electricityUnitPrice: "5.0000",
-      fixedFees: [{ id: "fee-1", name: "物业费", monthlyAmountMinor: 5000 }],
+      fixedFees: [{ id: "fee-1", name: "物业费", periodAmountMinor: 5000 }],
     };
     const chargeTerms = {
       find: vi.fn().mockResolvedValue(defaultCharges),

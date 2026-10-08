@@ -521,7 +521,7 @@ describe("未收款费用编辑的收款事实检查", () => {
         feeSnapshot: {
           kind: "fixed_fee",
           feeId: "management",
-          monthlyAmountMinor: 5_000,
+          periodAmountMinor: 5_000,
           overrideReason: null,
         },
       },

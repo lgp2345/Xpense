@@ -228,7 +228,7 @@ describe("合同应收覆盖", () => {
         total: 1,
         page: 1,
         pageSize: 20,
-        totals: { rentAmountMinor: 0, depositAmountMinor: 0, monthlyAmountMinor: 100000 },
+        totals: { rentAmountMinor: 0, depositAmountMinor: 0, periodAmountMinor: 100000 },
       }),
     });
     render(

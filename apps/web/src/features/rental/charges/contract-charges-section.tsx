@@ -83,7 +83,7 @@ export function ContractChargesSection({
                 </p>
                 {terms.data.fixedFees.map((fee) => (
                   <p className="tabular-nums" key={fee.id}>
-                    {fee.name} {fixedFeeAmountText(fee.monthlyAmountMinor)} 元/月
+                    {fee.name} {fixedFeeAmountText(fee.periodAmountMinor)} 元/月
                   </p>
                 ))}
                 {terms.data.fixedFees.length === 0 ? (

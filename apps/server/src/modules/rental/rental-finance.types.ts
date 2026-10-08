@@ -27,12 +27,17 @@ export type RentalMeterReading = RentalMeterReadingInput & {
   contractId: string;
   revision: number;
   predecessorId: string | null;
+  source: "contract" | "billing_start" | "bill" | "settlement";
+  billingStartId: string | null;
+  billId: string | null;
+  settlementId: string | null;
 };
 
 export type RentalFinanceSnapshot = {
   context: FinanceContext;
   contract: RentalBillingContract;
   terms: RentalChargeTerms | null;
+  billingStart: BillingStartRecord | null;
   readings: RentalMeterReading[];
   bills: RentalBillDetail[];
   cashEntries: RentalCashEntry[];
@@ -57,7 +62,7 @@ export type MonthlyChargeInput = {
   overrides?: {
     waterUnitPrice?: string;
     electricityUnitPrice?: string;
-    fixedFees?: Array<{ id: string; monthlyAmountMinor: number }>;
+    fixedFees?: Array<{ id: string; periodAmountMinor: number }>;
     reason: string;
   };
 };
@@ -95,3 +100,10 @@ export type RequestResult = {
 };
 
 export type { PreviewRentalSettlementRequest, RentalBillRevisionInput, RentalFeeSnapshot };
+
+export type BillingStartRecord = FinanceScope & {
+  id: string;
+  firstPeriodStart: string;
+  version: number;
+  baselineReadings: RentalMeterReading[];
+};

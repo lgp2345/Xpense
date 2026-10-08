@@ -1,4 +1,3 @@
-import type { RentalBillingMode } from "@xpense/shared";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -184,7 +183,6 @@ export const rentalContracts = snakeCase.table(
     contractNumber: text().notNull(),
     externalContractNumber: text(),
     status: rentalContractStatus().notNull().default("draft"),
-    billingMode: text().$type<RentalBillingMode>().notNull().default("legacy_receivable"),
     startDate: timestamp({ precision: 0, withTimezone: false, mode: "string" }),
     endDate: timestamp({ precision: 0, withTimezone: false, mode: "string" }),
     rentAmountMinor: bigint({ mode: "number" }),
@@ -242,10 +240,6 @@ export const rentalContracts = snakeCase.table(
     check(
       "rental_contracts_payment_interval_months_check",
       sql`${table.paymentIntervalMonths} IS NULL OR ${table.paymentIntervalMonths} IN (1, 3, 6, 12)`,
-    ),
-    check(
-      "rental_contracts_billing_mode_check",
-      sql`${table.billingMode} IN ('legacy_receivable', 'monthly_settlement')`,
     ),
     check(
       "rental_contracts_due_days_before_check",

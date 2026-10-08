@@ -58,8 +58,8 @@ describe("合同事项名称唯一的 HTTP 校验", () => {
       waterUnitPrice: "0",
       electricityUnitPrice: "0",
       fixedFees: [
-        { id: randomUUID(), name: "管理费", monthlyAmountMinor: 100 },
-        { id: randomUUID(), name: " 管理费 ", monthlyAmountMinor: 200 },
+        { id: randomUUID(), name: "管理费", periodAmountMinor: 100 },
+        { id: randomUUID(), name: " 管理费 ", periodAmountMinor: 200 },
       ],
     };
     const before = cloneRentalTestState(harness.state.rental);

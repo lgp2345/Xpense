@@ -69,11 +69,11 @@ describe("合同收费请求转换", () => {
       ],
     };
     expect(toContractChargeSetup(value)).toMatchObject({
-      chargeTerms: { fixedFees: [{ name: "管理费", monthlyAmountMinor: 5001 }] },
+      chargeTerms: { fixedFees: [{ name: "管理费", periodAmountMinor: 5001 }] },
       baselineReadings: [{ kind: "water", reading: "0", readingDate: "2026-10-02" }],
     });
     expect(toContractChargeSetup(value).chargeTerms.fixedFees).toEqual([
-      { id: "123e4567-e89b-42d3-a456-426614174000", name: "管理费", monthlyAmountMinor: 5001 },
+      { id: "123e4567-e89b-42d3-a456-426614174000", name: "管理费", periodAmountMinor: 5001 },
     ]);
     expect(contractChargeFormSchema.safeParse({ ...value, waterReadingDate: "" }).success).toBe(
       false,

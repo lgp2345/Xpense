@@ -58,7 +58,7 @@ describe("租赁月度收费到最终退款的完整 HTTP 流程", () => {
       reason: "新合同收费约定",
       waterUnitPrice: "3.0000",
       electricityUnitPrice: "4.0000",
-      fixedFees: [{ id: fixedFeeId, name: "物业费", monthlyAmountMinor: 1000 }],
+      fixedFees: [{ id: fixedFeeId, name: "物业费", periodAmountMinor: 1000 }],
     });
     const meters = await ok<{ version: string }>(`/rental-meters/detail?id=${contractId}`);
     await ok("/rental-meters/update", {

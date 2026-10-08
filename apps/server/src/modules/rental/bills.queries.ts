@@ -63,13 +63,7 @@ export function toBillSummary(bill: BillRecord): RentalBillSummary {
     amountMinor: bill.amountMinor,
     dueState: null,
     createdAt: bill.createdAt.toISOString(),
-    ...(bill.modelVersion === 2
-      ? {
-          modelVersion: 2 as const,
-          billingMonth: bill.billingMonth,
-          revision: bill.revision,
-        }
-      : {}),
+    revision: bill.revision,
   };
 }
 
@@ -80,7 +74,6 @@ export function withBillFinancial<T extends RentalBillSummary>(
   today: string,
   organizationId: string,
 ): T {
-  if (bill.modelVersion !== 2) return bill;
   if (facts.contractId !== bill.contractId || facts.organizationId !== organizationId)
     throw new Error("Rental bill finance facts do not match the bill contract");
   const target = { kind: "bill", billId: bill.id } as const;
@@ -147,8 +140,7 @@ export async function queryBillPage(
     .select({
       total: count(),
       rent: sql<string>`coalesce(sum(case
-        when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'rent' then ${rentalBills.amountMinor}
-        when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'monthly' then (
+        when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'period' then (
           select coalesce(sum(${rentalBillLines.amountMinor}), 0)
           from ${rentalBillLines}
           where ${rentalBillLines.billId} = ${rentalBills.id}
@@ -159,7 +151,7 @@ export async function queryBillPage(
         else 0
       end), 0)`,
       deposit: sql<string>`coalesce(sum(case when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'deposit' then ${rentalBills.amountMinor} else 0 end), 0)`,
-      monthly: sql<string>`coalesce(sum(case when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'monthly' then ${rentalBills.amountMinor} else 0 end), 0)`,
+      monthly: sql<string>`coalesce(sum(case when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'period' then ${rentalBills.amountMinor} else 0 end), 0)`,
     })
     .from(rentalBills)
     .where(condition);
@@ -171,7 +163,7 @@ export async function queryBillPage(
     totals: {
       rentAmountMinor: safeSqlAmount(totals?.rent ?? null),
       depositAmountMinor: safeSqlAmount(totals?.deposit ?? null),
-      monthlyAmountMinor: safeSqlAmount(totals?.monthly ?? null),
+      periodAmountMinor: safeSqlAmount(totals?.monthly ?? null),
     },
     coverage: null,
   };
@@ -180,12 +172,11 @@ export async function queryBillPage(
 export function queryMatchingFinancialBills(
   condition: SQL,
   executor: AppDbExecutor,
-): Promise<Array<Pick<BillRecord, "id" | "contractId" | "modelVersion">>> {
+): Promise<Array<Pick<BillRecord, "id" | "contractId">>> {
   return executor
     .select({
       id: rentalBills.id,
       contractId: rentalBills.contractId,
-      modelVersion: rentalBills.modelVersion,
     })
     .from(rentalBills)
     .where(condition);
@@ -259,6 +250,7 @@ export async function loadBillDetails(
         voidedAt: bill.voidedAt?.toISOString() ?? null,
         voidedBy: bill.voidedBy,
         history: [],
+        version: "",
       })),
     );
   }

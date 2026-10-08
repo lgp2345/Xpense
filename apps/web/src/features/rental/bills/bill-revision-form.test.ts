@@ -61,7 +61,7 @@ const bill: RentalBillDetail = {
       feeSnapshot: {
         kind: "fixed_fee",
         feeId: "fixed-id",
-        monthlyAmountMinor: 3000,
+        periodAmountMinor: 3000,
         overrideReason: null,
       },
     },

@@ -90,7 +90,7 @@ export function buildRentPlan(terms: BillingTerms): {
     const periodStart = (lines[0] as BillingRentLine).periodStart;
     const periodEnd = (lines.at(-1) as BillingRentLine).periodEnd;
     drafts.push({
-      type: "rent",
+      type: "period",
       sourceKey: `rent:${periodStart}:${periodEnd}`,
       periodStart,
       periodEnd,

@@ -60,7 +60,7 @@ export class MeterReadingsRepository {
           eq(rentalMeterReadings.organizationId, scope.organizationId),
           eq(rentalMeterReadings.contractId, scope.contractId),
           inArray(rentalMeterReadings.id, ids),
-          isNull(rentalMeterReadings.predecessorId),
+          eq(rentalMeterReadings.source, "contract"),
         ),
       );
   }
@@ -84,7 +84,7 @@ export class MeterReadingsRepository {
             eq(rentalMeterReadings.organizationId, scope.organizationId),
             eq(rentalMeterReadings.contractId, scope.contractId),
             eq(rentalMeterReadings.kind, input.kind),
-            isNull(rentalMeterReadings.predecessorId),
+            eq(rentalMeterReadings.source, "contract"),
           ),
         );
       if (!current) {
@@ -120,7 +120,7 @@ export class MeterReadingsRepository {
             eq(rentalMeterReadings.organizationId, scope.organizationId),
             eq(rentalMeterReadings.contractId, scope.contractId),
             eq(rentalMeterReadings.id, current.id),
-            isNull(rentalMeterReadings.predecessorId),
+            eq(rentalMeterReadings.source, "contract"),
           ),
         )
         .returning();

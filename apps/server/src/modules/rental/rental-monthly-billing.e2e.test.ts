@@ -111,7 +111,7 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       waterUnitPrice: "4.0000",
       electricityUnitPrice: "5.0000",
       fixedFees: [
-        { id: "00000000-0000-4000-8000-000000000011", name: "物业费", monthlyAmountMinor: 6000 },
+        { id: "00000000-0000-4000-8000-000000000011", name: "物业费", periodAmountMinor: 6000 },
       ],
     });
     expect(updatedTerms.statusCode).toBe(200);
@@ -168,7 +168,7 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
     expect(harness.state.rental.billGenerations[0]?.totals).toMatchObject({
       rentAmountMinor,
       depositAmountMinor: 0,
-      monthlyAmountMinor: expect.any(Number),
+      periodAmountMinor: expect.any(Number),
     });
     expect(harness.state.rental.financeRequests[2]?.result.resourceKind).toBe("bill");
   });
@@ -219,7 +219,7 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       waterUnitPrice: "4.0000",
       electricityUnitPrice: "4.0000",
       fixedFees: [
-        { id: "00000000-0000-4000-8000-000000000011", name: "物业费", monthlyAmountMinor: 5000 },
+        { id: "00000000-0000-4000-8000-000000000011", name: "物业费", periodAmountMinor: 5000 },
       ],
     });
     expect(updatedTerms.statusCode).toBe(200);

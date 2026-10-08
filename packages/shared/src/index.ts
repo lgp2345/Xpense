@@ -48,3 +48,5 @@ export * from "./rental-item-names.js";
 export * from "./rental-monthly-bills.js";
 export * from "./rental-settlements.js";
 export * from "./rental-tenants.js";
+
+export * from "./rental-period-bills.js";

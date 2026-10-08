@@ -1,19 +1,15 @@
 import type { RentalBillLine } from "./rental-bills.js";
-import type { RentalChargeTerms, RentalMeterReadingInput } from "./rental-charges.js";
-
-/** 综合账单中的有符号额外费用；备注不承担金额正负语义。 */
-export type RentalExtraFeeInput = {
-  id: string;
-  name: string;
-  amountMinor: number;
-  note: string;
-};
+import type {
+  RentalChargeTerms,
+  RentalExtraFeeInput,
+  RentalMeterReadingInput,
+} from "./rental-charges.js";
 
 /** 本期非租金价格覆盖，不修改合同默认收费标准。 */
 export type RentalMonthlyChargeOverrides = {
   waterUnitPrice?: string;
   electricityUnitPrice?: string;
-  fixedFees?: Array<{ id: string; monthlyAmountMinor: number }>;
+  fixedFees?: Array<{ id: string; periodAmountMinor: number }>;
   reason: string;
 };
 

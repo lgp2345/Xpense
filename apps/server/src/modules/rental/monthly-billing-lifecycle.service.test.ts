@@ -194,7 +194,7 @@ function correctionCase() {
     feeSnapshot: {
       kind: "fixed_fee",
       feeId: "historic-fee",
-      monthlyAmountMinor: 5_000,
+      periodAmountMinor: 5_000,
       overrideReason: "历史约定",
     },
   });
@@ -417,7 +417,7 @@ describe("MonthlyBillingLifecycleService", () => {
         referenceDays: 31,
         feeSnapshot: {
           kind: "fixed_fee",
-          monthlyAmountMinor: 5_000,
+          periodAmountMinor: 5_000,
           overrideReason: "历史约定",
         },
       });
@@ -467,7 +467,7 @@ describe("MonthlyBillingLifecycleService", () => {
         feeSnapshot: {
           kind: "fixed_fee",
           feeId: "network-fee",
-          monthlyAmountMinor: 5_000,
+          periodAmountMinor: 5_000,
           overrideReason: "本期固定费",
         },
       }),

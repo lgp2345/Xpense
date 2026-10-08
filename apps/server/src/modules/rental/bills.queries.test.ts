@@ -166,7 +166,7 @@ describe("月度账单列表投影", () => {
     expect(page.totals).toMatchObject({
       rentAmountMinor: 10_200,
       depositAmountMinor: 500,
-      monthlyAmountMinor: 12_300,
+      periodAmountMinor: 12_300,
     });
     const rentExpression = new PgDialect().sqlToQuery(totalsSelection?.rent as never);
     const rentSql = rentExpression.sql.toLowerCase();

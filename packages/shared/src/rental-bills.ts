@@ -3,7 +3,7 @@ import type { RentalFinancialBalance } from "./rental-cash.js";
 import type { RentalContractSpace } from "./rental-contracts.js";
 
 /** 应收费用分类；押金不计入租金。 */
-export const rentalBillTypes = ["rent", "deposit", "monthly"] as const;
+export const rentalBillTypes = ["period", "deposit"] as const;
 export type RentalBillType = (typeof rentalBillTypes)[number];
 /** 账单费用行类型；月度明细和历史租金／押金行共用该稳定枚举。 */
 export const rentalBillLineKinds = [
@@ -39,11 +39,11 @@ export type RentalFeeSnapshot =
   | {
       kind: "fixed_fee";
       feeId: string;
-      calculationMode?: "daily_proration" | "full_month" | "manual_amount";
-      monthlyAmountMinor: number;
+      calculationMode?: "full_period";
+      periodAmountMinor: number;
       overrideReason: string | null;
     }
-  | { kind: "extra_fee"; extraFeeId: string; origin: "monthly" | "settlement" };
+  | { kind: "extra_fee"; extraFeeId: string; origin: "period" | "settlement" };
 
 export type RentalBillLine = {
   kind: RentalBillLineKind;
@@ -80,9 +80,8 @@ export type RentalBillSummary = {
   amountMinor: number;
   dueState: RentalBillDueState | null;
   createdAt: string;
-  /** 缺失表示 legacy 响应，不根据日期推断账单版本。 */
-  modelVersion?: 1 | 2;
-  billingMonth?: string | null;
+  canVoid?: boolean;
+  voidBlockedReason?: string | null;
   financial?: RentalFinancialBalance | null;
   settlementId?: string | null;
   revision?: number;
@@ -124,13 +123,14 @@ export type RentalBillDetail = RentalBillSummary & {
   voidedAt: string | null;
   voidedBy: string | null;
   history: RentalBillSummary[];
+  version: string;
 };
 
 export type RentalBillTotals = {
   rentAmountMinor: number;
   depositAmountMinor: number;
   /** 新版本综合账单金额；缺失表示 legacy 汇总响应。 */
-  monthlyAmountMinor?: number;
+  periodAmountMinor?: number;
   /** 独立统计有效收退款及待收待退，避免由账单费用总额推断资金。 */
   financial?: {
     receivedMinor: number;

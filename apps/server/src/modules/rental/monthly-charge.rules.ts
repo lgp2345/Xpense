@@ -75,7 +75,7 @@ function fixedFeeLines(input: MonthlyChargeInput, leaseEnd: string): RentalBillL
   if (periodStart > periodEnd) return [];
 
   const overrides = new Map(
-    (input.overrides?.fixedFees ?? []).map((item) => [item.id, item.monthlyAmountMinor]),
+    (input.overrides?.fixedFees ?? []).map((item) => [item.id, item.periodAmountMinor]),
   );
   const coveredDays =
     calendarDateToDayNumber(parseCalendarDate(periodEnd)) -
@@ -87,7 +87,7 @@ function fixedFeeLines(input: MonthlyChargeInput, leaseEnd: string): RentalBillL
   );
 
   return input.chargeTerms.fixedFees.map((fee) => {
-    const amount = overrides.get(fee.id) ?? fee.monthlyAmountMinor;
+    const amount = overrides.get(fee.id) ?? fee.periodAmountMinor;
     if (!Number.isSafeInteger(amount) || amount < 0)
       throw new RangeError("固定月费必须是非负安全整数");
     return line({
@@ -104,7 +104,7 @@ function fixedFeeLines(input: MonthlyChargeInput, leaseEnd: string): RentalBillL
         kind: "fixed_fee",
         feeId: fee.id,
         calculationMode: "full_month",
-        monthlyAmountMinor: amount,
+        periodAmountMinor: amount,
         overrideReason: overrides.has(fee.id) ? (input.overrides?.reason ?? null) : null,
       },
     });

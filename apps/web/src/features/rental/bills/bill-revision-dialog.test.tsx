@@ -106,7 +106,7 @@ const meteredBill = {
       feeSnapshot: {
         kind: "fixed_fee" as const,
         feeId: "00000000-0000-4000-8000-000000000012",
-        monthlyAmountMinor: 3000,
+        periodAmountMinor: 3000,
         overrideReason: null,
       },
     },

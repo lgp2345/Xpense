@@ -358,14 +358,14 @@ function reprojectFixedFeeLine(
   const periodStart = contractStartDate > referenceStart ? contractStartDate : referenceStart;
   const periodEnd = contractEndDate < referenceEnd ? contractEndDate : referenceEnd;
   if (periodStart > periodEnd) return null;
-  if (!Number.isSafeInteger(saved.monthlyAmountMinor) || saved.monthlyAmountMinor < 0) {
+  if (!Number.isSafeInteger(saved.periodAmountMinor) || saved.periodAmountMinor < 0) {
     throw new RangeError("固定月费必须是非负安全整数");
   }
   const coveredDays =
     calendarDateToDayNumber(parseCalendarDate(periodEnd)) -
     calendarDateToDayNumber(parseCalendarDate(periodStart)) +
     1;
-  const numerator = BigInt(saved.monthlyAmountMinor) * BigInt(coveredDays);
+  const numerator = BigInt(saved.periodAmountMinor) * BigInt(coveredDays);
   const amountMinor = Number(
     (numerator * 2n + BigInt(referenceDays)) / (BigInt(referenceDays) * 2n),
   );

@@ -37,7 +37,7 @@ describe("ChargeTermsRepository", () => {
       electricityCollectionEnabled: true,
       waterUnitPrice: "12.5000",
       electricityUnitPrice: "1.2500",
-      fixedFees: [{ id: "fee", name: "物业费", monthlyAmountMinor: 500 }],
+      fixedFees: [{ id: "fee", name: "物业费", periodAmountMinor: 500 }],
       updatedByUserId: actor.userId,
     };
     const writes: Array<{ table: unknown; value: unknown }> = [];
@@ -60,7 +60,7 @@ describe("ChargeTermsRepository", () => {
         electricityCollectionEnabled: true,
         waterUnitPrice: "12.5000",
         electricityUnitPrice: "1.2500",
-        fixedFees: [{ id: "fee", name: "物业费", monthlyAmountMinor: 500 }],
+        fixedFees: [{ id: "fee", name: "物业费", periodAmountMinor: 500 }],
       },
       "按新价格更新",
       actor,
@@ -78,7 +78,7 @@ describe("ChargeTermsRepository", () => {
       reason: "按新价格更新",
       createdByUserId: actor.userId,
       termsSnapshot: expect.objectContaining({
-        fixedFees: [{ id: "fee", name: "物业费", monthlyAmountMinor: 500 }],
+        fixedFees: [{ id: "fee", name: "物业费", periodAmountMinor: 500 }],
       }),
     });
   });

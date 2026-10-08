@@ -4,6 +4,7 @@ import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { organizations } from "../../db/schema.js";
 import { toBillingContractDates } from "./billing-contract-dates.rules.js";
+import { BillingStartsRepository } from "./billing-starts.repository.js";
 import { BillsRepository } from "./bills.repository.js";
 import { ChargeTermsRepository } from "./charge-terms.repository.js";
 import { organizationDate } from "./contract-date.rules.js";
@@ -29,6 +30,7 @@ export class RentalFinanceSourceService {
     private readonly readings: MeterReadingsRepository,
     private readonly cash: RentalCashRepository,
     private readonly settlements: RentalSettlementsRepository,
+    private readonly starts: BillingStartsRepository,
   ) {}
 
   async read(scope: FinanceScope, executor: AppDbExecutor): Promise<RentalFinanceSnapshot> {
@@ -54,17 +56,16 @@ export class RentalFinanceSourceService {
     ]);
     if (!detail || !header) throw this.notFound();
 
-    const contract = {
-      ...toBillingContractDates(toContractDetail(detail)),
-      billingMode: detail.billingMode ?? "legacy_receivable",
-    };
-    const [termsRecord, readingRecords, bills, cashRecords, settlementRecord] = await Promise.all([
-      this.terms.find(scope, executor),
-      this.readings.list(scope, executor),
-      this.bills.allForContract(scope.organizationId, scope.contractId, executor),
-      this.cash.allForContract(scope, executor),
-      this.settlements.findCurrent(scope, executor),
-    ]);
+    const contract = toBillingContractDates(toContractDetail(detail));
+    const [termsRecord, readingRecords, bills, cashRecords, settlementRecord, billingStart] =
+      await Promise.all([
+        this.terms.find(scope, executor),
+        this.readings.list(scope, executor),
+        this.bills.allForContract(scope.organizationId, scope.contractId, executor),
+        this.cash.allForContract(scope, executor),
+        this.settlements.findCurrent(scope, executor),
+        this.starts.find(scope, executor),
+      ]);
     const terms = termsRecord
       ? {
           contractId: termsRecord.contractId,
@@ -85,6 +86,10 @@ export class RentalFinanceSourceService {
       reading: record.reading,
       revision: record.revision,
       predecessorId: record.predecessorId,
+      source: record.source,
+      billingStartId: record.billingStartId,
+      billId: record.billId,
+      settlementId: record.settlementId,
     }));
     const cashEntries = cashRecords.map((record) => ({
       id: record.id,
@@ -119,6 +124,7 @@ export class RentalFinanceSourceService {
       },
       contract,
       terms,
+      billingStart,
       readings,
       bills,
       cashEntries,

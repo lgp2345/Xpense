@@ -41,8 +41,8 @@ function chargeInput(overrides: Partial<MonthlyChargeInput> = {}): MonthlyCharge
       waterUnitPrice: "1",
       electricityUnitPrice: "0.5",
       fixedFees: [
-        { id: "network", name: "网费", monthlyAmountMinor: 10_000 },
-        { id: "cleaning", name: "卫生费", monthlyAmountMinor: 5_000 },
+        { id: "network", name: "网费", periodAmountMinor: 10_000 },
+        { id: "cleaning", name: "卫生费", periodAmountMinor: 5_000 },
       ],
     },
     readings: {
@@ -71,7 +71,7 @@ describe("calculateMonthlyCharges", () => {
     input.billingTerms = { ...input.billingTerms, startDate, endDate };
     input.billingMonth = billingMonth;
     input.effectiveEndDate = effectiveEndDate;
-    input.chargeTerms.fixedFees = [{ id: "management", name: "管理费", monthlyAmountMinor: 5000 }];
+    input.chargeTerms.fixedFees = [{ id: "management", name: "管理费", periodAmountMinor: 5000 }];
     input.readings = { water: null, electricity: null };
     const fixed = calculateMonthlyCharges(input).lines.find(({ kind }) => kind === "fixed_fee");
     expect(fixed?.amountMinor).toBe(5000);
@@ -151,7 +151,7 @@ describe("calculateMonthlyCharges", () => {
         extraFees: [],
         chargeTerms: {
           ...chargeInput().chargeTerms,
-          fixedFees: [{ id: "network", name: "网费", monthlyAmountMinor: 10_000 }],
+          fixedFees: [{ id: "network", name: "网费", periodAmountMinor: 10_000 }],
         },
       }),
     );
@@ -177,8 +177,8 @@ describe("calculateMonthlyCharges", () => {
         chargeTerms: {
           ...chargeInput().chargeTerms,
           fixedFees: [
-            { id: "a", name: "A", monthlyAmountMinor: 1 },
-            { id: "b", name: "B", monthlyAmountMinor: 1 },
+            { id: "a", name: "A", periodAmountMinor: 1 },
+            { id: "b", name: "B", periodAmountMinor: 1 },
           ],
         },
       }),

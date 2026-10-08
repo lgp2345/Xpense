@@ -30,7 +30,7 @@ export const rentalFixedFeeSchema = z
   .object({
     id: z.string().uuid(),
     name: rentalFeeNameSchema,
-    monthlyAmountMinor: rentalSafeMinorAmountSchema.min(0),
+    periodAmountMinor: rentalSafeMinorAmountSchema.min(0),
   })
   .strict();
 
@@ -48,7 +48,7 @@ export const rentalFixedFeesSchema = z.array(rentalFixedFeeSchema).superRefine((
 export const rentalFixedFeeOverrideSchema = z
   .object({
     id: z.string().uuid(),
-    monthlyAmountMinor: rentalSafeMinorAmountSchema.min(0),
+    periodAmountMinor: rentalSafeMinorAmountSchema.min(0),
   })
   .strict();
 

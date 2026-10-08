@@ -66,7 +66,7 @@ it("在账单列表中准确标示月度综合账单", async () => {
       total: 1,
       page: 1,
       pageSize: 20,
-      totals: { rentAmountMinor: 0, depositAmountMinor: 0, monthlyAmountMinor: 12_300 },
+      totals: { rentAmountMinor: 0, depositAmountMinor: 0, periodAmountMinor: 12_300 },
       coverage: null,
     }),
   });
@@ -113,7 +113,7 @@ it("新版账单含实际收款时不再宣称收款情况尚未登记", async (
       totals: {
         rentAmountMinor: 0,
         depositAmountMinor: 0,
-        monthlyAmountMinor: 80000,
+        periodAmountMinor: 80000,
         financial: {
           receivedMinor: 30000,
           refundedMinor: 0,
@@ -152,7 +152,7 @@ it.each([1, 9])("第 %i 页保留全筛选收退款汇总，空页也不丢失�
       totals: {
         rentAmountMinor: 0,
         depositAmountMinor: 0,
-        monthlyAmountMinor: 10_000,
+        periodAmountMinor: 10_000,
         financial: {
           receivedMinor: 100_000,
           refundedMinor: 90_000,

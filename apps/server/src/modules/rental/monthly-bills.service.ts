@@ -178,7 +178,7 @@ export class MonthlyBillsService {
           totals: {
             rentAmountMinor,
             depositAmountMinor: 0,
-            monthlyAmountMinor: draft.amountMinor,
+            periodAmountMinor: draft.amountMinor,
           },
           createdByUserId: auth.userId,
         },

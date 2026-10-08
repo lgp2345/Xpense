@@ -18,6 +18,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { users } from "./identity.js";
 import { rentalBillLineKind, rentalBillLines, rentalBills } from "./rental-billing.js";
+import { rentalBillingStarts } from "./rental-billing-starts.js";
+import { rentalSettlements } from "./rental-settlements.js";
 import { rentalContractSpaces, rentalContracts } from "./rental-tenancy.js";
 
 /** 合同收费标准当前版本；固定费用作为有明确定义的 JSON 数组保存。 */
@@ -106,6 +108,13 @@ export const rentalMeterReadings = snakeCase.table(
     readingDate: date({ mode: "string" }).notNull(),
     reading: numeric({ precision: 20, scale: 4 }).notNull(),
     predecessorId: uuid(),
+    source: text()
+      .$type<"contract" | "billing_start" | "bill" | "settlement">()
+      .notNull()
+      .default("contract"),
+    billingStartId: uuid(),
+    billId: uuid(),
+    settlementId: uuid(),
     revision: integer().notNull().default(1),
     reason: text().notNull(),
     createdByUserId: uuid()
@@ -169,13 +178,42 @@ export const rentalMeterReadings = snakeCase.table(
     ),
     uniqueIndex("rental_meter_readings_baseline_unique")
       .on(table.organizationId, table.contractId, table.spaceId, table.kind)
-      .where(sql`${table.predecessorId} IS NULL`),
-    unique("rental_meter_readings_date_unique").on(
-      table.organizationId,
-      table.contractId,
-      table.spaceId,
-      table.kind,
-      table.readingDate,
+      .where(sql`${table.source} = 'contract'`),
+    uniqueIndex("rental_meter_readings_start_unique")
+      .on(table.organizationId, table.contractId, table.billingStartId, table.kind)
+      .where(sql`${table.source} = 'billing_start'`),
+    uniqueIndex("rental_meter_readings_bill_unique")
+      .on(table.organizationId, table.contractId, table.billId, table.kind)
+      .where(sql`${table.source} = 'bill'`),
+    uniqueIndex("rental_meter_readings_settlement_unique")
+      .on(table.organizationId, table.contractId, table.settlementId, table.kind)
+      .where(sql`${table.source} = 'settlement'`),
+    foreignKey({
+      name: "rental_meter_readings_start_scope_fk",
+      columns: [table.organizationId, table.contractId, table.billingStartId],
+      foreignColumns: [
+        rentalBillingStarts.organizationId,
+        rentalBillingStarts.contractId,
+        rentalBillingStarts.id,
+      ],
+    }),
+    foreignKey({
+      name: "rental_meter_readings_bill_scope_fk",
+      columns: [table.organizationId, table.contractId, table.billId],
+      foreignColumns: [rentalBills.organizationId, rentalBills.contractId, rentalBills.id],
+    }),
+    foreignKey({
+      name: "rental_meter_readings_settlement_scope_fk",
+      columns: [table.organizationId, table.contractId, table.settlementId],
+      foreignColumns: [
+        rentalSettlements.organizationId,
+        rentalSettlements.contractId,
+        rentalSettlements.id,
+      ],
+    }),
+    check(
+      "rental_meter_readings_source_check",
+      sql`(${table.source} = 'contract' AND ${table.predecessorId} IS NULL AND ${table.billingStartId} IS NULL AND ${table.billId} IS NULL AND ${table.settlementId} IS NULL) OR (${table.source} = 'billing_start' AND ${table.predecessorId} IS NULL AND ${table.billingStartId} IS NOT NULL AND ${table.billId} IS NULL AND ${table.settlementId} IS NULL) OR (${table.source} = 'bill' AND ${table.predecessorId} IS NOT NULL AND ${table.billingStartId} IS NULL AND ${table.billId} IS NOT NULL AND ${table.settlementId} IS NULL) OR (${table.source} = 'settlement' AND ${table.predecessorId} IS NOT NULL AND ${table.billingStartId} IS NULL AND ${table.billId} IS NULL AND ${table.settlementId} IS NOT NULL)`,
     ),
     index("rental_meter_readings_scope_date_idx").on(
       table.organizationId,

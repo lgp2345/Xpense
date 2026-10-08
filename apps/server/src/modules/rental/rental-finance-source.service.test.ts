@@ -54,7 +54,7 @@ describe("RentalFinanceSourceService", () => {
         version: 2,
         waterUnitPrice: "3.0000",
         electricityUnitPrice: "4.0000",
-        fixedFees: [{ id: "fee-1", name: "物业费", monthlyAmountMinor: 5000 }],
+        fixedFees: [{ id: "fee-1", name: "物业费", periodAmountMinor: 5000 }],
       }),
     };
     const readings = {

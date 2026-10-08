@@ -27,7 +27,7 @@ describe("租赁收费和计量共享契约", () => {
       electricityCollectionEnabled: true,
       waterUnitPrice: "12.5",
       electricityUnitPrice: "0",
-      fixedFees: [{ id: contractId, name: "网费", monthlyAmountMinor: 5000 }],
+      fixedFees: [{ id: contractId, name: "网费", periodAmountMinor: 5000 }],
     };
     const reading: RentalMeterReadingInput = {
       kind: "water",
@@ -41,7 +41,7 @@ describe("租赁收费和计量共享契约", () => {
       reason: "按新合同约定调整单价",
       waterUnitPrice: "12.5",
       electricityUnitPrice: "0",
-      fixedFees: [{ id: contractId, name: "网费", monthlyAmountMinor: 5000 }],
+      fixedFees: [{ id: contractId, name: "网费", periodAmountMinor: 5000 }],
     };
     const updateBaseline: UpdateRentalMeterBaselineRequest = {
       contractId,
@@ -52,7 +52,7 @@ describe("租赁收费和计量共享契约", () => {
     };
 
     expect(billingMode).toBe("monthly_settlement");
-    expect(terms.fixedFees[0]?.monthlyAmountMinor).toBe(5000);
+    expect(terms.fixedFees[0]?.periodAmountMinor).toBe(5000);
     expect(updateTerms.fixedFees[0]?.name).toBe("网费");
     expect(updateBaseline.readings.map(({ kind }) => kind)).toEqual(["water", "electricity"]);
   });

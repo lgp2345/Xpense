@@ -33,7 +33,7 @@ describe("租赁财务查询缓存", () => {
         total: 1,
         page: 1,
         pageSize: 20,
-        totals: { monthlyAmountMinor: 15000 },
+        totals: { periodAmountMinor: 15000 },
       });
     }
     queryClient.setQueryData(rentalBillsKeys.detail("org-a", "bill-a"), {

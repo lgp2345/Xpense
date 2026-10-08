@@ -54,7 +54,7 @@ describe("BillRevisionsRepository", () => {
       feeSnapshot: {
         kind: "fixed_fee" as const,
         feeId: "management",
-        monthlyAmountMinor: 5_000,
+        periodAmountMinor: 5_000,
         overrideReason: null,
       },
     };
@@ -140,7 +140,7 @@ describe("BillRevisionsRepository", () => {
       {
         kind: "fixed_fee",
         amountMinor: 2_000,
-        feeSnapshot: { monthlyAmountMinor: 5_000, calculationMode: "manual_amount" },
+        feeSnapshot: { periodAmountMinor: 5_000, calculationMode: "manual_amount" },
       },
     ]);
     expect(writes.some(({ table }) => table === rentalBillMeterIntervals)).toBe(false);

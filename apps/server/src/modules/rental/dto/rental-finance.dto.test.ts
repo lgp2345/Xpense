@@ -135,7 +135,7 @@ describe("租赁收费与结算 DTO", () => {
       reviseRentalBillSchema.safeParse({
         ...input,
         fixedFeeAdjustments: [item],
-        overrides: { fixedFees: [{ id: contractId, monthlyAmountMinor: 100 }], reason: "旧覆盖" },
+        overrides: { fixedFees: [{ id: contractId, periodAmountMinor: 100 }], reason: "旧覆盖" },
       }).success,
     ).toBe(false);
   });
@@ -149,7 +149,7 @@ describe("租赁收费与结算 DTO", () => {
         reason: "按合同补充固定费用",
         waterUnitPrice: "12.5",
         electricityUnitPrice: "0",
-        fixedFees: [{ id: billId, name: "网费", monthlyAmountMinor: 5000 }],
+        fixedFees: [{ id: billId, name: "网费", periodAmountMinor: 5000 }],
       }).success,
     ).toBe(true);
     expect(

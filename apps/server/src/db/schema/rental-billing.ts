@@ -164,8 +164,6 @@ export const rentalBills = snakeCase.table(
     currencyCode: text().notNull(),
     type: rentalBillType().notNull(),
     status: rentalBillStatus().notNull().default("active"),
-    modelVersion: integer().notNull().default(1),
-    billingMonth: text(),
     revision: integer().notNull().default(1),
     sourceKey: text().notNull(),
     periodStart: date({ mode: "string" }),
@@ -192,11 +190,9 @@ export const rentalBills = snakeCase.table(
     uniqueIndex("rental_bills_active_source_unique")
       .on(table.organizationId, table.contractId, table.type, table.sourceKey)
       .where(sql`${table.status} = 'active'`),
-    uniqueIndex("rental_bills_monthly_current_unique")
-      .on(table.organizationId, table.contractId, table.billingMonth)
-      .where(
-        sql`${table.status} = 'active' AND ${table.modelVersion} = 2 AND ${table.billingMonth} IS NOT NULL`,
-      ),
+    uniqueIndex("rental_bills_period_current_unique")
+      .on(table.organizationId, table.contractId, table.periodStart)
+      .where(sql`${table.status} = 'active' AND ${table.type} = 'period'`),
     foreignKey({
       name: "rental_bills_contract_scope_fk",
       columns: [table.organizationId, table.contractId],
@@ -226,17 +222,10 @@ export const rentalBills = snakeCase.table(
       ],
     }),
     check("rental_bills_amount_check", sql`${table.amountMinor} BETWEEN 0 AND 9007199254740991`),
-    check(
-      "rental_bills_model_version_check",
-      sql`${table.modelVersion} IN (1, 2) AND ${table.revision} >= 1`,
-    ),
-    check(
-      "rental_bills_billing_month_check",
-      sql`(${table.type}::text = 'monthly' AND ${table.modelVersion} = 2 AND ${table.billingMonth} IS NOT NULL AND ${table.billingMonth} ~ '^\\d{4}-(0[1-9]|1[0-2])$') OR (${table.type}::text <> 'monthly' AND ${table.billingMonth} IS NULL)`,
-    ),
+    check("rental_bills_revision_check", sql`${table.revision} >= 1`),
     check(
       "rental_bills_period_check",
-      sql`(${table.type}::text = 'deposit' AND ${table.periodStart} IS NULL AND ${table.periodEnd} IS NULL AND ${table.effectiveEnd} IS NULL) OR (${table.type}::text = 'rent' AND ${table.modelVersion} = 1 AND ${table.periodStart} IS NOT NULL AND ${table.periodEnd} IS NOT NULL AND ${table.effectiveEnd} IS NOT NULL AND ${table.effectiveEnd} BETWEEN ${table.periodStart} AND ${table.periodEnd}) OR (${table.type}::text = 'monthly' AND ${table.modelVersion} = 2 AND ${table.periodStart} IS NULL AND ${table.periodEnd} IS NULL AND ${table.effectiveEnd} IS NULL AND ${table.billingMonth} IS NOT NULL)`,
+      sql`(${table.type}::text = 'deposit' AND ${table.periodStart} IS NULL AND ${table.periodEnd} IS NULL AND ${table.effectiveEnd} IS NULL) OR (${table.type}::text = 'period' AND ${table.periodStart} IS NOT NULL AND ${table.periodEnd} IS NOT NULL AND ${table.periodEnd} >= ${table.periodStart} AND ${table.effectiveEnd} BETWEEN ${table.periodStart} AND ${table.periodEnd})`,
     ),
     check(
       "rental_bills_void_check",

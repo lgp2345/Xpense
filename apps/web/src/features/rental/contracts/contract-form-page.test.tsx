@@ -341,7 +341,7 @@ describe("ContractFormPage", () => {
         electricityCollectionEnabled: false,
         waterUnitPrice: "3",
         electricityUnitPrice: "0",
-        fixedFees: [{ id: "fee", name: "管理费", monthlyAmountMinor: 5000 }],
+        fixedFees: [{ id: "fee", name: "管理费", periodAmountMinor: 5000 }],
       }),
       getMeterBaseline: vi.fn().mockResolvedValue({
         contractId: draftId,
@@ -1704,7 +1704,7 @@ it("财务权限撤销后清除已回填的收费设置，不提交不可见收�
       {
         id: "123e4567-e89b-42d3-a456-426614174000",
         name: "权限撤销测试费",
-        monthlyAmountMinor: 5000,
+        periodAmountMinor: 5000,
       },
     ],
   });

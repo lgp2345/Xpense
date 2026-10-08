@@ -119,26 +119,26 @@ function reviseFixedLine(
 ): RentalBillLine {
   const saved = feeSnapshot(line);
   if (saved?.kind !== "fixed_fee" || !overrides.has(saved.feeId)) return line;
-  const monthlyAmountMinor = overrides.get(saved.feeId) as number;
-  if (!Number.isSafeInteger(monthlyAmountMinor) || monthlyAmountMinor < 0) {
+  const periodAmountMinor = overrides.get(saved.feeId) as number;
+  if (!Number.isSafeInteger(periodAmountMinor) || periodAmountMinor < 0) {
     throw new RangeError("固定月费必须是非负安全整数");
   }
   if (saved.calculationMode === "full_month")
     return {
       ...line,
-      amountMinor: monthlyAmountMinor,
-      feeSnapshot: { ...saved, monthlyAmountMinor, overrideReason: reason },
+      amountMinor: periodAmountMinor,
+      feeSnapshot: { ...saved, periodAmountMinor, overrideReason: reason },
     };
   const coveredDays = BigInt(line.coveredDays ?? 0);
   const referenceDays = BigInt(line.referenceDays ?? 0);
   if (coveredDays <= 0n || referenceDays <= 0n || coveredDays > referenceDays) {
     throw new RangeError("固定月费计费天数快照无效");
   }
-  const numerator = BigInt(monthlyAmountMinor) * coveredDays;
+  const numerator = BigInt(periodAmountMinor) * coveredDays;
   return {
     ...line,
     amountMinor: Number((numerator * 2n + referenceDays) / (referenceDays * 2n)),
-    feeSnapshot: { ...saved, monthlyAmountMinor, overrideReason: reason },
+    feeSnapshot: { ...saved, periodAmountMinor, overrideReason: reason },
   };
 }
 
@@ -257,7 +257,7 @@ export function buildMeterCorrectionPlan(
   if (input.overrides?.electricityUnitPrice !== undefined)
     priceOverrides.set("electricity", input.overrides.electricityUnitPrice);
   const fixedOverrides = new Map(
-    (input.overrides?.fixedFees ?? []).map((item) => [item.id, item.monthlyAmountMinor]),
+    (input.overrides?.fixedFees ?? []).map((item) => [item.id, item.periodAmountMinor]),
   );
   const adjustments = fixedAdjustments(
     target.lines,

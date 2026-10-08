@@ -6,3 +6,5 @@ export * from "./schema/rental-cash.js";
 export * from "./schema/rental-charges.js";
 export * from "./schema/rental-settlements.js";
 export * from "./schema/rental-tenancy.js";
+
+export * from "./schema/rental-billing-starts.js";

@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
-import type { ListRentalBillsQuery, RentalBillDetail, RentalBillPage } from "@xpense/shared";
+import type {
+  ListRentalBillsQuery,
+  RentalBillDetail,
+  RentalBillPage,
+  RentalBillLine,
+} from "@xpense/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { AppDb, AppDbExecutor } from "../../db/db.module.js";
@@ -120,9 +125,7 @@ export class BillsRepository {
             currencyCode: source.currencyCode,
             type: draft.type,
             status: "active" as const,
-            modelVersion: draft.modelVersion ?? 1,
-            billingMonth: draft.billingMonth ?? null,
-            revision: draft.revision ?? 1,
+            revision: 1,
             sourceKey: draft.sourceKey,
             periodStart: draft.periodStart,
             periodEnd: draft.periodEnd,
@@ -178,6 +181,75 @@ export class BillsRepository {
       result.push(...inserted);
     }
     return result;
+  }
+
+  /** 先写头才能保存带所属账单外键的读数；调用者随后同事务写行。 */
+  async insertPeriodHeader(
+    context: BillingWriteContext,
+    source: BillingSource,
+    generationId: string,
+    draft: PersistableBillingDraft,
+    tx: AppDbExecutor,
+  ): Promise<{ id: string }> {
+    const [record] = await this.insertBills(
+      context,
+      source,
+      generationId,
+      [{ ...draft, lines: [], amountMinor: 0 }],
+      tx,
+    );
+    if (!record) throw new Error("Failed to persist rental period header");
+    await tx
+      .update(rentalBills)
+      .set({ amountMinor: draft.amountMinor })
+      .where(
+        and(eq(rentalBills.organizationId, context.organizationId), eq(rentalBills.id, record.id)),
+      );
+    return { id: record.id };
+  }
+  async insertPeriodLines(
+    scope: { organizationId: string; contractId: string },
+    billId: string,
+    lines: RentalBillLine[],
+    tx: AppDbExecutor,
+  ): Promise<void> {
+    const values = lines.map((line) => ({
+      id: randomUUID(),
+      ...scope,
+      billId,
+      ...line,
+      note: line.note ?? null,
+      feeSnapshot: line.feeSnapshot ?? null,
+    }));
+    if (values.length) await tx.insert(rentalBillLines).values(values);
+    const { rentalContractSpaces } = await import("../../db/schema.js");
+    const spaces = await tx
+      .select({ spaceId: rentalContractSpaces.spaceId })
+      .from(rentalContractSpaces)
+      .where(
+        and(
+          eq(rentalContractSpaces.organizationId, scope.organizationId),
+          eq(rentalContractSpaces.contractId, scope.contractId),
+        ),
+      );
+    const intervals = values.flatMap((line) => {
+      const fee = line.feeSnapshot;
+      if (!fee || !("startReadingId" in fee)) return [];
+      if (spaces.length !== 1 || !spaces[0])
+        throw new Error("Meter interval requires one contract space");
+      return [
+        {
+          ...scope,
+          spaceId: spaces[0].spaceId,
+          billId,
+          billLineId: line.id,
+          kind: fee.kind,
+          startReadingId: fee.startReadingId,
+          endReadingId: fee.endReadingId,
+        },
+      ];
+    });
+    if (intervals.length) await tx.insert(rentalBillMeterIntervals).values(intervals);
   }
 
   async voidBills(

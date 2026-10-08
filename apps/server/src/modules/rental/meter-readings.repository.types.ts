@@ -5,6 +5,9 @@ import type { rentalMeterReadingRevisions, rentalMeterReadings } from "../../db/
 export type MeterReadingWriteInput = RentalMeterReadingInput & {
   spaceId: string;
   predecessorId: string | null;
+  source?: "contract" | "billing_start" | "bill" | "settlement";
+  billId?: string;
+  settlementId?: string;
 };
 export type MeterReadingRecord = typeof rentalMeterReadings.$inferSelect;
 export type MeterReadingRevisionRecord = typeof rentalMeterReadingRevisions.$inferSelect;
