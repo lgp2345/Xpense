@@ -7,6 +7,7 @@ import {
   snakeCase,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./identity.js";
@@ -19,6 +20,7 @@ export const rentalBillingStarts = snakeCase.table(
     organizationId: uuid().notNull(),
     contractId: uuid().notNull(),
     firstPeriodStart: date({ mode: "string" }).notNull(),
+    invalidatedAt: timestamp({ withTimezone: true }),
     version: integer().notNull().default(1),
     createdByUserId: uuid()
       .notNull()
@@ -26,7 +28,9 @@ export const rentalBillingStarts = snakeCase.table(
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    unique("rental_billing_starts_contract_unique").on(table.organizationId, table.contractId),
+    uniqueIndex("rental_billing_starts_contract_current_unique")
+      .on(table.organizationId, table.contractId)
+      .where(sql`${table.invalidatedAt} IS NULL`),
     unique("rental_billing_starts_scope_unique").on(
       table.organizationId,
       table.contractId,

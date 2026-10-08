@@ -95,8 +95,8 @@ export class ContractLifecycleService {
         now,
         transaction,
       );
-      if (detail.billingMode === "monthly_settlement" && detail.spaces.length !== 1)
-        throw this.policy.conflict("月度结算合同必须且只能关联一个空间");
+      if (detail.spaces.length !== 1)
+        throw this.policy.conflict("账期出账合同必须且只能关联一个空间");
       await this.policy.validateConfirmationScope(
         {
           organizationId: authContext.organizationId,
@@ -466,7 +466,6 @@ export class ContractLifecycleService {
       const draft = await this.repository.createDraft(
         {
           organizationId: authContext.organizationId,
-          billingMode: "monthly_settlement",
           propertyId: contract.propertyId,
           contractNumber,
           externalContractNumber: contract.externalContractNumber,

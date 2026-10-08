@@ -11,12 +11,18 @@ import {
   previewRentalPeriodBillSchema,
   type GenerateRentalPeriodBillDto,
   generateRentalPeriodBillSchema,
+  type VoidRentalPeriodBillDto,
+  voidRentalPeriodBillSchema,
 } from "./dto/rental-period-bills.dto.js";
+import { PeriodBillVoidService } from "./period-bill-void.service.js";
 import { PeriodBillsService } from "./period-bills.service.js";
 @Controller("rental-period-bills")
 @UseGuards(AuthGuard, RbacGuard)
 export class PeriodBillsController {
-  constructor(private readonly bills: PeriodBillsService) {}
+  constructor(
+    private readonly bills: PeriodBillsService,
+    private readonly voids: PeriodBillVoidService,
+  ) {}
   @Get("context")
   @RequirePermission(["rental_contracts:read", "rental_bills:read", "rental_period_bills:generate"])
   context(
@@ -42,5 +48,14 @@ export class PeriodBillsController {
     @Body({ schema: generateRentalPeriodBillSchema }) dto: GenerateRentalPeriodBillDto,
   ) {
     return this.bills.generate(auth, dto);
+  }
+  @Post("void")
+  @HttpCode(200)
+  @RequirePermission(["rental_contracts:read", "rental_bills:read", "rental_period_bills:void"])
+  void(
+    @CurrentAuthContext() auth: AuthContext,
+    @Body({ schema: voidRentalPeriodBillSchema }) dto: VoidRentalPeriodBillDto,
+  ) {
+    return this.voids.void(auth, dto);
   }
 }

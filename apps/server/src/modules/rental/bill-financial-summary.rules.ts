@@ -63,8 +63,6 @@ export function calculateBillFinancialTotals(
   let hasFinancialBills = false;
 
   for (const row of matchingBills) {
-    if (row.modelVersion === 1) continue;
-    if (row.modelVersion !== 2) throw new Error("Unsupported rental bill model version");
     hasFinancialBills = true;
 
     const contractFacts = factsByContract.get(row.contractId);
@@ -75,7 +73,7 @@ export function calculateBillFinancialTotals(
     matchedBillIdsByContract.set(row.contractId, matchingBillIds);
 
     const bill = billsByContract.get(row.contractId)?.get(row.id);
-    if (bill?.modelVersion !== row.modelVersion) {
+    if (!bill) {
       throw new Error("Rental bill finance facts could not be loaded");
     }
 

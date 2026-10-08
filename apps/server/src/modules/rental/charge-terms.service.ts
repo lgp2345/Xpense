@@ -82,7 +82,6 @@ export class ChargeTermsService {
           throw this.conflict("请求标识已用于其他租赁财务操作或内容");
         await this.lockContract(auth, dto.contractId, tx);
         const replayed = await this.sources.read(scope, tx);
-        this.assertMonthlyMode(replayed);
         return currentTerms(replayed);
       }
       const previousGeneration = await this.bills.findGeneration(

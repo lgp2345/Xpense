@@ -6,6 +6,7 @@ import { BookkeepingModule } from "../bookkeeping/bookkeeping.module.js";
 import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import { IamModule } from "../iam/iam.module.js";
 import { BillingStartsRepository } from "./billing-starts.repository.js";
+import { PeriodBillVoidService } from "./period-bill-void.service.js";
 import { PeriodBillsController } from "./period-bills.controller.js";
 import { PeriodBillsService } from "./period-bills.service.js";
 import { BillAdjustmentsRepository } from "./bill-adjustments.repository.js";
@@ -89,6 +90,7 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
     MeterReadingsRepository,
     MeterReadingsService,
     PeriodBillsService,
+    PeriodBillVoidService,
     BillingStartsRepository,
     RentalFinanceSourceService,
     RentalCashRepository,

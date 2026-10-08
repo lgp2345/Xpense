@@ -386,7 +386,6 @@ export function createRentalFinanceRepositoryFakes(state: RentalTestState) {
             organizationId,
             contractId,
             contract: {
-              billingMode: contract.billingMode,
               lifecycleStatus: contract.status,
               startDate: contract.startDate,
               endDate: contract.endDate,
@@ -405,8 +404,8 @@ export function createRentalFinanceRepositoryFakes(state: RentalTestState) {
                 id: bill.id,
                 type: bill.type,
                 status: bill.status,
-                modelVersion: bill.modelVersion ?? 1,
-                billingMonth: bill.billingMonth ?? null,
+                periodStart: bill.periodStart,
+                periodEnd: bill.periodEnd,
                 revision: bill.revision ?? 1,
                 amountMinor: bill.amountMinor,
                 sourceKey: bill.sourceKey,

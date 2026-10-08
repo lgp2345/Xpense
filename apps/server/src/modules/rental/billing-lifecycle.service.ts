@@ -1,4 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { ConflictException, Injectable } from "@nestjs/common";
+import { apiErrorCodes } from "../../common/errors/api-error.js";
+import { BillingStartsRepository } from "./billing-starts.repository.js";
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import type { AppDbTransaction } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
@@ -24,39 +26,25 @@ export class BillingLifecycleService {
     private readonly access: AccessService,
     private readonly audit: AuditService,
     private readonly monthly: MonthlyBillingLifecycleService,
+    private readonly starts: BillingStartsRepository,
   ) {}
 
-  /** 写入合同前按已验证的聚合判断条件权限。 */
+  /** 已出账普通账单不可变；合同更正不得自动重写费用快照。 */
   assertCorrectionAllowed(
-    auth: AuthContext,
+    _auth: AuthContext,
     before: BillingSource,
     aggregate: MutableContractAggregate,
   ) {
-    if (!before.activeBills.length) return;
-    const contract = {
-      ...before.contract,
-      ...aggregate,
-      paymentIntervalMonths:
-        aggregate.paymentIntervalMonths as BillingSource["contract"]["paymentIntervalMonths"],
-      spaces: aggregate.spaces.map((space) => ({
-        ...before.contract.spaces.find((item) => item.spaceId === space.spaceId),
-        spaceId: space.spaceId,
-        rentAllocationMinor: space.rentAllocationMinor ?? null,
-      })) as BillingSource["contract"]["spaces"],
-      parties: aggregate.parties.map((party) => ({
-        ...before.contract.parties.find((item) => item.tenantId === party.tenantId),
-        ...party,
-      })) as BillingSource["contract"]["parties"],
-      depositTerms: aggregate.depositTerms.map((term, index) => ({
-        ...term,
-        id: `preview-${index}`,
-        finalAmountMinor: finalDepositAmount(term, aggregate.rentAmountMinor as number),
-      })),
-    };
-    this.assertAffected(
-      auth,
-      this.affected(before, { ...before, contract: toBillingContractDates(contract) }),
-    );
+    const projected = toBillingContractDates({ ...before.contract, ...aggregate });
+    if (
+      before.activeBills.some((bill) => bill.type === "period") &&
+      this.billingChanged(before.contract, projected)
+    ) {
+      throw new ConflictException({
+        code: apiErrorCodes.conflict,
+        message: "存在有效普通账单，请先逐期作废后更正计费条款",
+      });
+    }
   }
   async onCorrection(
     auth: AuthContext,
@@ -64,17 +52,57 @@ export class BillingLifecycleService {
     after: BillingSource,
     tx: AppDbTransaction,
   ): Promise<void> {
-    if (before.contract.billingMode === "monthly_settlement") {
-      await this.monthly.onCorrection(auth, before, after, tx);
-      return;
+    if (
+      this.billingChanged(before.contract, after.contract) &&
+      before.activeBills.some((bill) => bill.type === "period")
+    )
+      throw new ConflictException({
+        code: apiErrorCodes.conflict,
+        message: "合同更正不能改写已出账费用",
+      });
+    const boundaries = (source: BillingSource) => ({
+      startDate: source.contract.startDate,
+      endDate: source.contract.endDate,
+      billingAnchor: source.contract.billingAnchor,
+      paymentIntervalMonths: source.contract.paymentIntervalMonths,
+    });
+    if (billingDigest(boundaries(before)) !== billingDigest(boundaries(after))) {
+      await this.starts.invalidate(
+        { organizationId: auth.organizationId, contractId: before.contract.id },
+        tx,
+      );
+      await this.audit.appendRequired(
+        {
+          organizationId: auth.organizationId,
+          actorUserId: auth.userId,
+          action: "rental_billing_start.invalidated",
+          targetType: "rental_contract",
+          targetId: before.contract.id,
+          result: "succeeded",
+          metadata: { reason: "合同账期边界已更正" },
+        },
+        tx,
+      );
     }
-    await this.void(
-      auth,
-      before,
-      this.affected(before, after),
-      "合同修正，计费依据或归属快照变化",
-      tx,
-    );
+  }
+  private billingChanged(
+    before: BillingSource["contract"],
+    after: BillingSource["contract"],
+  ): boolean {
+    const terms = (contract: BillingSource["contract"]) => ({
+      startDate: contract.startDate,
+      endDate: contract.endDate,
+      rentAmountMinor: contract.rentAmountMinor,
+      billingAnchor: contract.billingAnchor,
+      paymentIntervalMonths: contract.paymentIntervalMonths,
+      propertyId: contract.propertyId,
+      spaces: contract.spaces.map((space) => ({
+        spaceId: space.spaceId,
+        rentAllocationMinor: space.rentAllocationMinor,
+      })),
+      depositTerms: contract.depositTerms,
+    });
+    return billingDigest(terms(before)) !== billingDigest(terms(after));
   }
   async onCancel(
     auth: AuthContext,
@@ -82,7 +110,7 @@ export class BillingLifecycleService {
     after: BillingSource & { cancelledOn: string },
     tx: AppDbTransaction,
   ): Promise<void> {
-    if (source.contract.billingMode === "monthly_settlement") {
+    {
       await this.monthly.onCancel(auth, source, after, tx);
       return;
     }
@@ -97,42 +125,18 @@ export class BillingLifecycleService {
   previewTermination(auth: AuthContext, dto: PreviewTerminationDto) {
     return this.termination.previewTermination(auth, dto);
   }
-  onTerminate(
-    auth: AuthContext,
-    source: BillingSource,
-    dto: TerminateContractDto,
-    tx: AppDbTransaction,
-    recordedAt?: Date,
-  ) {
-    if (source.contract.billingMode === "monthly_settlement") {
-      const after: BillingSource = {
-        ...source,
-        contract: {
-          ...source.contract,
-          lifecycleStatus: "terminated",
-          terminationDate: dto.terminationDate,
-        },
-        terminationRecordedAt: recordedAt?.toISOString() ?? null,
-      };
-      return this.monthly.onTerminate(auth, source, after, tx);
-    }
-    return this.termination.onTerminate(auth, source, dto, tx, recordedAt);
-  }
-  onRevokeTermination(auth: AuthContext, source: BillingSource, tx: AppDbTransaction) {
-    if (source.contract.billingMode === "monthly_settlement") {
-      const after: BillingSource = {
-        ...source,
-        contract: {
-          ...source.contract,
-          lifecycleStatus: "confirmed",
-          terminationDate: null,
-        },
-        terminationRecordedAt: null,
-      };
-      return this.monthly.onRevokeTermination(auth, source, after, tx);
-    }
-    return this.termination.onRevokeTermination(auth, source, tx);
-  }
+  async onTerminate(
+    _auth: AuthContext,
+    _source: BillingSource,
+    _dto: TerminateContractDto,
+    _tx: AppDbTransaction,
+    _recordedAt?: Date,
+  ): Promise<void> {}
+  async onRevokeTermination(
+    _auth: AuthContext,
+    _source: BillingSource,
+    _tx: AppDbTransaction,
+  ): Promise<void> {}
 
   private affected(before: BillingSource, after: BillingSource): string[] {
     if (!before.activeBills.length) return [];

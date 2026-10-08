@@ -5,7 +5,6 @@ export type RentalCashProjectionFacts = {
   organizationId: string;
   contractId: string;
   contract: {
-    billingMode: string;
     lifecycleStatus: string;
     startDate: string | null;
     endDate: string | null;
@@ -20,8 +19,8 @@ export type RentalCashProjectionFacts = {
     id: string;
     type: string;
     status: string;
-    modelVersion: number;
-    billingMonth: string | null;
+    periodStart: string | null;
+    periodEnd: string | null;
     revision: number;
     amountMinor: number;
     sourceKey: string;

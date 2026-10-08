@@ -104,7 +104,6 @@ export class MeterReadingsService {
           throw this.conflict("请求标识已用于其他租赁财务操作或内容");
         await this.lockContract(auth, dto.contractId, tx);
         const replayed = await this.sources.read(scope, tx);
-        this.assertMonthlyMode(replayed);
         return detail(replayed);
       }
       if (await this.bills.findGeneration(auth.organizationId, dto.idempotencyKey, tx))
@@ -113,6 +112,7 @@ export class MeterReadingsService {
       await this.lockContract(auth, dto.contractId, tx);
       const snapshot = await this.sources.read(scope, tx);
       this.assertConfirmedContract(snapshot);
+      if(snapshot.bills.some(bill=>bill.type==="period"&&bill.status==="active")||snapshot.settlement)throw this.conflict("存在有效普通账单或结算，不能更正入住底数");
       if (snapshot.contract.spaces.length !== 1)
         throw this.conflict("月度结算合同必须且只能关联一个空间");
       if (financeSourceVersion(snapshot, {}) !== dto.expectedVersion)

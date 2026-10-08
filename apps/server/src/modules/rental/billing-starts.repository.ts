@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { RentalBillingStartInput } from "@xpense/shared";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { AppDbExecutor, AppDbTransaction } from "../../db/db.module.js";
 import { rentalBillingStarts, rentalContractSpaces, rentalMeterReadings } from "../../db/schema.js";
 import type { BillingStartRecord, FinanceScope } from "./rental-finance.types.js";
@@ -15,6 +15,7 @@ export class BillingStartsRepository {
         and(
           eq(rentalBillingStarts.organizationId, scope.organizationId),
           eq(rentalBillingStarts.contractId, scope.contractId),
+          isNull(rentalBillingStarts.invalidatedAt),
         ),
       );
     if (!record) return null;
@@ -29,6 +30,18 @@ export class BillingStartsRepository {
         ),
       );
     return { ...record, baselineReadings: readings };
+  }
+  async invalidate(scope: FinanceScope, tx: AppDbTransaction): Promise<void> {
+    await tx
+      .update(rentalBillingStarts)
+      .set({ invalidatedAt: new Date() })
+      .where(
+        and(
+          eq(rentalBillingStarts.organizationId, scope.organizationId),
+          eq(rentalBillingStarts.contractId, scope.contractId),
+          isNull(rentalBillingStarts.invalidatedAt),
+        ),
+      );
   }
   async create(
     scope: FinanceScope,

@@ -6,8 +6,9 @@ import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import { AccessService } from "../iam/access.service.js";
 import { calculateBillFinancialTotals } from "./bill-financial-summary.rules.js";
-import { billingCoverage } from "./billing-plan.rules.js";
-import { BillingSourceService } from "./billing-source.service.js";
+import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
+import { periodBillVoidBlockedReason } from "./period-bill-lifecycle.rules.js";
+import { financeSourceVersion } from "./rental-finance-request.rules.js";
 import { withBillFinancial } from "./bills.queries.js";
 import { BillsRepository } from "./bills.repository.js";
 import { ContractsPolicyService } from "./contracts-policy.service.js";
@@ -36,7 +37,7 @@ export class BillsReadService {
   constructor(
     private readonly bills: BillsRepository,
     private readonly projectionSources: RentalCashProjectionRepository,
-    private readonly sources: BillingSourceService,
+    private readonly sources: RentalFinanceSourceService,
     private readonly policy: ContractsPolicyService,
     private readonly access: AccessService,
     private readonly transactions: DatabaseTransactionService,
@@ -49,9 +50,7 @@ export class BillsReadService {
       const page = await this.bills.list(auth.organizationId, dto, tx);
       // Prepare full-filter facts; aggregate cash fields below follow policy A's selected bill and settlement scopes.
       const matchingBills = await this.bills.matchingFinancialBills(auth.organizationId, dto, tx);
-      if (matchingBills.some((bill) => bill.modelVersion !== 1 && bill.modelVersion !== 2))
-        throw new Error("Unsupported rental bill model version");
-      const financialBills = matchingBills.filter((bill) => bill.modelVersion === 2);
+      const financialBills = matchingBills;
       const contractIds = [...new Set(financialBills.map(({ contractId }) => contractId))];
       const requestedContractIds = new Set(contractIds);
       const facts: RentalCashProjectionFacts[] = [];
@@ -60,12 +59,6 @@ export class BillsReadService {
         facts.push(...(await this.projectionSources.readMany(auth.organizationId, batch, tx)));
       }
       const factsByContract = new Map(facts.map((item) => [item.contractId, item]));
-      const billVersionsByContract = new Map(
-        facts.map((item) => [
-          item.contractId,
-          new Map(item.bills.map((bill) => [bill.id, bill.modelVersion])),
-        ]),
-      );
       if (
         facts.length !== factsByContract.size ||
         facts.some(
@@ -76,39 +69,23 @@ export class BillsReadService {
       ) {
         throw new Error("Rental bill finance facts do not match the requested scope");
       }
-      for (const bill of financialBills) {
-        const modelVersion = billVersionsByContract.get(bill.contractId)?.get(bill.id);
-        if (modelVersion !== bill.modelVersion) {
-          throw new Error("Rental bill finance facts could not be loaded");
-        }
-      }
       const financialTotals = calculateBillFinancialTotals(
         matchingBills,
         facts,
         auth.organizationId,
         today,
       );
-      const source = dto.contractId
-        ? await this.sources.read(auth.organizationId, dto.contractId, tx)
-        : null;
-      const coverage =
-        source?.contract.billingMode === "monthly_settlement"
-          ? null
-          : source
-            ? billingCoverage(source)
-            : null;
       return {
         ...page,
         totals: financialTotals ? { ...page.totals, financial: financialTotals } : page.totals,
-        coverage,
+        coverage: null,
         items: page.items.map((bill) => {
           const contractFacts = factsByContract.get(bill.contractId);
-          if (bill.modelVersion === 2 && !contractFacts)
-            throw new Error("Rental bill finance facts could not be loaded");
+          if (!contractFacts) throw new Error("Rental bill finance facts could not be loaded");
           const withFinancial = contractFacts
             ? withBillFinancial(bill, contractFacts, today, auth.organizationId)
             : bill;
-          return dueState(withFinancial, today);
+          return dueState(this.withVoidState(withFinancial, contractFacts!), today);
         }),
       };
     });
@@ -121,16 +98,18 @@ export class BillsReadService {
       const bill = await this.bills.detail(auth.organizationId, dto.id, tx);
       if (!bill)
         throw new NotFoundException({ code: apiErrorCodes.notFound, message: "租赁账单不存在" });
-      const needsFinancial =
-        bill.modelVersion === 2 || bill.history.some((item) => item.modelVersion === 2);
-      const facts = needsFinancial
-        ? (await this.projectionSources.readMany(auth.organizationId, [bill.contractId], tx))[0]
-        : undefined;
-      if (needsFinancial && !facts)
-        throw new Error("Rental bill finance facts could not be loaded");
+      const facts = (
+        await this.projectionSources.readMany(auth.organizationId, [bill.contractId], tx)
+      )[0];
+      if (!facts) throw new Error("Rental bill finance facts could not be loaded");
+      const source = await this.sources.read(
+        { organizationId: auth.organizationId, contractId: bill.contractId },
+        tx,
+      );
       const mappedBill = facts ? withBillFinancial(bill, facts, today, auth.organizationId) : bill;
       return {
-        ...dueState(mappedBill, today),
+        ...dueState(this.withVoidState(mappedBill, facts), today),
+        version: financeSourceVersion(source, { billId: bill.id }),
         history: bill.history.map((item) =>
           dueState(
             facts ? withBillFinancial(item, facts, today, auth.organizationId) : item,
@@ -139,5 +118,21 @@ export class BillsReadService {
         ),
       };
     });
+  }
+  private withVoidState<T extends RentalBillSummary>(bill: T, facts: RentalCashProjectionFacts): T {
+    const reason = periodBillVoidBlockedReason(
+      {
+        bills: facts.bills,
+        cashEntries: facts.cashEntries.map((entry) => ({
+          revokedAt: entry.revokedAt,
+          target: entry.billId
+            ? { kind: "bill", billId: entry.billId }
+            : { kind: "settlement", settlementId: entry.settlementId! },
+        })),
+        settlement: facts.settlement,
+      },
+      bill.id,
+    );
+    return { ...bill, canVoid: reason === null, voidBlockedReason: reason };
   }
 }
