@@ -8,7 +8,6 @@ import type {
 } from "@xpense/shared";
 import { useEffect, useRef, useState } from "react";
 import type { z } from "zod";
-import { DatePickerInput } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "../../../services/api-client";
 import {
@@ -56,7 +55,6 @@ export function SettlementEditor({
   );
   const [preview, setPreview] = useState<RentalSettlementPreviewData | null>(null);
   const [previewRequest, setPreviewRequest] = useState<PreviewRentalSettlementRequest | null>(null);
-  const [effectiveEndDate, setEffectiveEndDate] = useState("");
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [operation, setOperation] = useState<"preview" | "confirm" | null>(null);
   const busy = operation !== null;
@@ -70,7 +68,6 @@ export function SettlementEditor({
 
   const form = useForm({
     defaultValues: {
-      readingDate: "",
       waterReading: "",
       electricityReading: "",
       extraName: "",
@@ -81,15 +78,11 @@ export function SettlementEditor({
     onSubmit: async ({ value }) => {
       if (!canConfirm || operation === "confirm") return;
       if (canReadCharges && !terms.data) return;
-      const request = createPreviewRequest(
-        contractId,
-        {
-          ...value,
-          waterReading: collected("water") ? value.waterReading : "",
-          electricityReading: collected("electricity") ? value.electricityReading : "",
-        },
-        effectiveEndDate,
-      );
+      const request = createPreviewRequest(contractId, {
+        ...value,
+        waterReading: collected("water") ? value.waterReading : "",
+        electricityReading: collected("electricity") ? value.electricityReading : "",
+      });
       if (!request) return;
       setOperation("preview");
       setError(null);
@@ -102,10 +95,8 @@ export function SettlementEditor({
       try {
         const result = await api.previewSettlement(request);
         if (!isCurrent()) return;
-        if (!value.readingDate) form.setFieldValue("readingDate", result.effectiveEndDate);
         setPreviewRequest(request);
         setPreview(result);
-        setEffectiveEndDate(result.effectiveEndDate);
         setMissingFields(result.missingFields);
         confirmationAttempt.current = null;
       } catch (cause) {
@@ -223,29 +214,6 @@ export function SettlementEditor({
               )}
             </form.Field>
           ) : null}
-          {missingFields.length ? (
-            <form.Field name="readingDate">
-              {(field) => (
-                <div className="space-y-1 text-sm">
-                  <label htmlFor="settlement-reading-date">终读数日期</label>
-                  <DatePickerInput
-                    id="settlement-reading-date"
-                    aria-label="终读数日期"
-                    value={field.state.value || effectiveEndDate}
-                    onChange={(value) => {
-                      field.handleChange(value ?? "");
-                      clearPreview();
-                    }}
-                  />
-                  {field.state.meta.isTouched && field.state.meta.errors[0] ? (
-                    <p role="alert" className="text-destructive">
-                      {fieldMessage(field.state.meta.errors[0])}
-                    </p>
-                  ) : null}
-                </div>
-              )}
-            </form.Field>
-          ) : null}
           <div className="grid gap-3 sm:grid-cols-3">
             <form.Field name="extraName">
               {(field) => (
@@ -319,18 +287,13 @@ export function SettlementEditor({
 function createPreviewRequest(
   contractId: string,
   value: z.infer<typeof settlementDraftSchema>,
-  effectiveEndDate: string,
 ): PreviewRentalSettlementRequest | null {
   const finalReadings = (
     [
       ["water", value.waterReading],
       ["electricity", value.electricityReading],
     ] as const
-  ).flatMap(([kind, meterReading]) =>
-    meterReading
-      ? [{ kind, readingDate: value.readingDate || effectiveEndDate, reading: meterReading }]
-      : [],
-  );
+  ).flatMap(([kind, meterReading]) => (meterReading ? [{ kind, reading: meterReading }] : []));
   const extraFees =
     value.extraName.trim() && value.extraAmount.trim()
       ? [

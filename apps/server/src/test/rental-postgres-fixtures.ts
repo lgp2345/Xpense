@@ -143,7 +143,6 @@ export async function insertRentalPostgresFixture(
           spaceId,
           kind,
           source: "contract",
-          readingDate: "2026-01-01",
           reading: kind === "water" ? "3500" : "50",
           reason: "合成交接",
           ...actor,
@@ -303,35 +302,30 @@ export async function insertRentalPostgresFixture(
       {
         id: randomUUID(),
         kind: "water" as const,
-        readingDate: "2026-01-01",
         reading: "100.0000",
         predecessorId: null as string | null,
       },
       {
         id: randomUUID(),
         kind: "water" as const,
-        readingDate: "2026-01-31",
         reading: "110.0000",
         predecessorId: null as string | null,
       },
       {
         id: randomUUID(),
         kind: "water" as const,
-        readingDate: "2026-02-28",
         reading: "120.0000",
         predecessorId: null as string | null,
       },
       {
         id: randomUUID(),
         kind: "electricity" as const,
-        readingDate: "2026-01-01",
         reading: "50.0000",
         predecessorId: null as string | null,
       },
       {
         id: randomUUID(),
         kind: "electricity" as const,
-        readingDate: "2026-02-28",
         reading: "50.0000",
         predecessorId: null as string | null,
       },
@@ -341,17 +335,20 @@ export async function insertRentalPostgresFixture(
     readings[1].predecessorId = readings[0].id;
     readings[2].predecessorId = futureOnly ? readings[0].id : readings[1].id;
     readings[4].predecessorId = readings[3].id;
-    for (const reading of readings.filter((_, index) => !futureOnly || index !== 1))
+    const readingsWithBillIds = readings.map((reading) => ({
+      ...reading,
+      billId: reading.predecessorId
+        ? reading.id === readings[1]?.id
+          ? ids.january
+          : ids.february
+        : null,
+    }));
+    for (const reading of readingsWithBillIds.filter((_, index) => !futureOnly || index !== 1))
       await db.insert(tables.rentalMeterReadings).values({
         ...scope,
         spaceId,
         ...reading,
         source: reading.predecessorId ? "bill" : "contract",
-        billId: reading.predecessorId
-          ? reading.id === readings[1].id
-            ? ids.january
-            : ids.february
-          : null,
         reason: "测试抄表",
         ...actor,
       });
@@ -369,16 +366,12 @@ export async function insertRentalPostgresFixture(
       const billLineId = await insertLine(billId, {
         ...line(end.kind, amount),
         sortOrder: end.kind === "water" ? 1 : 2,
-        periodStart: start.readingDate,
-        periodEnd: end.readingDate,
         feeSnapshot: {
           kind: end.kind,
           startReadingId: start.id,
           endReadingId: end.id,
           startReading: start.reading,
           endReading: end.reading,
-          startDate: start.readingDate,
-          endDate: end.readingDate,
           unitPrice: price,
           overrideReason: null,
         },
@@ -411,7 +404,7 @@ export async function insertRentalPostgresFixture(
       organizationId,
       propertyId,
       spaceId,
-      readings,
+      readings: readingsWithBillIds,
       auth: fixtureAuth(userId, organizationId),
     };
   }

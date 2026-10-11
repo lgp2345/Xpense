@@ -129,7 +129,6 @@ describe("RentalCashProjectionRepository", () => {
             contractId: contractIds[0],
             id: "reading-1",
             kind: "water",
-            readingDate: "2026-08-31",
             reading: "12.5000",
             revision: 2,
             predecessorId: "reading-0",

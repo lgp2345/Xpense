@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
-import { ContractChargeFields } from "./contract-charge-fields";
+import { ContractChargeFields, ContractChargeSummary } from "./contract-charge-fields";
 import { type ContractChargeFormValues, defaultContractChargeValues } from "./contract-charge-form";
 
 function Harness({
@@ -14,6 +14,33 @@ function Harness({
   return <ContractChargeFields value={value} onChange={onChange} />;
 }
 describe("共用月度收费字段", () => {
+  it("复核显示单价和入住底数", () => {
+    render(
+      <ContractChargeSummary
+        value={{
+          ...defaultContractChargeValues(),
+          waterUnitPrice: "5",
+          electricityUnitPrice: "1",
+          waterReading: "192",
+          electricityReading: "4356",
+        }}
+      />,
+    );
+    expect(screen.getByText("水费：5 元 · 入住底数 192")).toBeInTheDocument();
+    expect(screen.getByText("电费：1 元 · 入住底数 4356")).toBeInTheDocument();
+  });
+
+  it("入住底数可直接录入，无需填写抄表日期", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.type(screen.getByLabelText("水表入住底数"), "0");
+    await user.type(screen.getByLabelText("电表入住底数"), "4356");
+    expect(screen.getByLabelText("水表入住底数")).toHaveValue("0");
+    expect(screen.getByLabelText("电表入住底数")).toHaveValue("4356");
+    expect(screen.queryByLabelText("水表抄表日期")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("电表抄表日期")).not.toBeInTheDocument();
+  });
+
   it("默认事项添加后禁用，再移除后可重新添加", async () => {
     const user = userEvent.setup();
     render(<Harness />);

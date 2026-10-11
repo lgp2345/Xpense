@@ -80,9 +80,8 @@ function harness() {
     contractId: snapshot.context.contractId,
     periodStart: "2026-01-01",
     dueDate: "2026-01-01",
-    readings: snapshot.readings.map(({ kind, readingDate, reading }) => ({
+    readings: snapshot.readings.map(({ kind, reading }) => ({
       kind,
-      readingDate,
       reading,
     })),
     extraFees: [],

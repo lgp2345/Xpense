@@ -82,7 +82,6 @@ export class RentalFinanceSourceService {
       contractId: record.contractId,
       spaceId: record.spaceId,
       kind: record.kind,
-      readingDate: record.readingDate,
       reading: record.reading,
       revision: record.revision,
       predecessorId: record.predecessorId,

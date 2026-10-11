@@ -318,8 +318,8 @@ describe("租赁收退款 HTTP", () => {
       periodStart: "2026-01-01",
       dueDate: "2026-08-31",
       readings: [
-        { kind: "water", readingDate: "2026-08-31", reading: "110" },
-        { kind: "electricity", readingDate: "2026-08-31", reading: "60" },
+        { kind: "water", reading: "110" },
+        { kind: "electricity", reading: "60" },
       ],
       extraFees: [],
     };

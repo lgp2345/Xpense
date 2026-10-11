@@ -36,11 +36,7 @@ function harness() {
   );
   const input = {
     contractId: source.context.contractId,
-    finalReadings: source.readings.map(({ kind, reading }) => ({
-      kind,
-      reading,
-      readingDate: "2026-12-31",
-    })),
+    finalReadings: source.readings.map(({ kind, reading }) => ({ kind, reading })),
     extraFees: [],
   };
   return { source, requests, writer, read, run, access, service, input };
@@ -64,6 +60,14 @@ it("预览只读、不触发任何写入或审计，缺终读数不可确认", a
     extraFees: [],
   });
   expect(missing.missingFields).toEqual(["waterReading", "electricityReading"]);
+});
+it("有效结束日仍在未来时阻止结算确认", async () => {
+  const h = harness();
+  h.source.context.today = "2026-10-08";
+  h.source.contract.endDate = "2026-12-31";
+  const preview = await h.service.preview(rentalFinanceAuth as never, h.input);
+  expect(preview.canConfirm).toBe(false);
+  expect(preview.effectiveEndDate).toBe("2026-12-31");
 });
 it("确认绑定预览版本，过期或已结算拒绝，幂等重放返回当前结算", async () => {
   const h = harness();

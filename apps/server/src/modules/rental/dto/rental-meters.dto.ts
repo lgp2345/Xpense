@@ -1,7 +1,6 @@
 import { rentalMeterKinds } from "@xpense/shared";
 import { z } from "zod";
 
-import { contractCalendarDateSchema } from "./rental-calendar-date.schema.js";
 import {
   rentalDecimalFourSchema,
   rentalExpectedVersionSchema,
@@ -9,11 +8,10 @@ import {
   rentalReasonSchema,
 } from "./rental-charges.dto.js";
 
-/** 一次实际水电表计读数；服务端根据合同及空间定位前驱边界。 */
+/** 一次实际水电表计读数；无需提交抄表日期，前驱边界由服务端按账单链定位。 */
 export const rentalMeterReadingInputSchema = z
   .object({
     kind: z.enum(rentalMeterKinds),
-    readingDate: contractCalendarDateSchema,
     reading: rentalDecimalFourSchema,
   })
   .strict();

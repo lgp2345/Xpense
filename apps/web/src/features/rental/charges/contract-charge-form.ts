@@ -12,9 +12,7 @@ export type ContractChargeFormValues = {
   waterUnitPrice: string;
   electricityUnitPrice: string;
   waterReading: string;
-  waterReadingDate: string;
   electricityReading: string;
-  electricityReadingDate: string;
   fixedFees: { id: string; name: string; amount: string; nameLocked?: boolean }[];
 };
 
@@ -30,20 +28,8 @@ export function fixedFeeAmountText(amount: number): string {
 }
 
 const decimal = /^(?:0|[1-9]\d{0,15})(?:\.\d{1,4})?$/;
-function calendarDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year = 0, month = 0, day = 0] = value.split("-").map(Number);
-  const date = new Date(0);
-  date.setUTCFullYear(year, month - 1, day);
-  return (
-    year > 0 &&
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-}
 
-/** 单价启用时必填，底数和日期成对可选，所有金额使用精确整数转换。 */
+/** 单价启用时必填，底数可选，所有金额使用精确整数转换。 */
 export const contractChargeFormSchema = z
   .object({
     waterCollectionEnabled: z.boolean(),
@@ -51,9 +37,7 @@ export const contractChargeFormSchema = z
     waterUnitPrice: z.string(),
     electricityUnitPrice: z.string(),
     waterReading: z.string(),
-    waterReadingDate: z.string(),
     electricityReading: z.string(),
-    electricityReadingDate: z.string(),
     fixedFees: z.array(
       z.object({
         id: z.string().uuid(),
@@ -77,18 +61,11 @@ export const contractChargeFormSchema = z
           message: "请输入最多四位小数的非负单价",
         });
       const reading = value[`${kind}Reading`].trim();
-      const date = value[`${kind}ReadingDate`];
       if (reading && !decimal.test(reading))
         context.addIssue({
           code: "custom",
           path: [`${kind}Reading`],
           message: "请输入最多四位小数的非负底数",
-        });
-      if (Boolean(reading) !== Boolean(date) || (date && !calendarDate(date)))
-        context.addIssue({
-          code: "custom",
-          path: [`${kind}ReadingDate`],
-          message: "入住底数和有效抄表日期必须同时填写",
         });
     }
     if (new Set(value.fixedFees.map(({ id }) => id)).size !== value.fixedFees.length)
@@ -108,9 +85,7 @@ export function defaultContractChargeValues(): ContractChargeFormValues {
     waterUnitPrice: "",
     electricityUnitPrice: "",
     waterReading: "",
-    waterReadingDate: "",
     electricityReading: "",
-    electricityReadingDate: "",
     fixedFees: [],
   };
 }
@@ -123,7 +98,6 @@ export function toContractChargeSetup(values: ContractChargeFormValues): RentalC
       baselineReadings.push({
         kind,
         reading: value[`${kind}Reading`].trim(),
-        readingDate: value[`${kind}ReadingDate`],
       });
   }
   return {
@@ -159,7 +133,6 @@ export function toContractChargeValues(
   };
   for (const reading of readings) {
     value[`${reading.kind}Reading`] = reading.reading;
-    value[`${reading.kind}ReadingDate`] = reading.readingDate;
   }
   return value;
 }

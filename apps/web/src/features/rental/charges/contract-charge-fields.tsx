@@ -1,6 +1,5 @@
 import { duplicateRentalItemNameIndexes } from "@xpense/shared";
 import { useId, useState } from "react";
-import { DatePickerInput } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -76,7 +75,6 @@ export function ContractChargeFields({
             const enabled = value[`${kind}CollectionEnabled`];
             const priceKey = `${kind}UnitPrice` as const;
             const readingKey = `${kind}Reading` as const;
-            const dateKey = `${kind}ReadingDate` as const;
             return (
               <div key={kind} className="min-w-0 space-y-4 rounded-md border p-4">
                 <div className="flex items-center gap-2 border-b pb-3">
@@ -104,30 +102,18 @@ export function ContractChargeFields({
                       {message(priceKey)}
                     </div>
                     {showBaselines ? (
-                      <>
-                        <div className="space-y-2">
-                          <Label htmlFor={`${prefix}-${readingKey}`}>{label}表入住底数</Label>
-                          <Input
-                            id={`${prefix}-${readingKey}`}
-                            {...feedback(readingKey)}
-                            inputMode="decimal"
-                            className="text-base tabular-nums md:text-sm"
-                            value={value[readingKey]}
-                            onChange={(event) => change(readingKey, event.target.value)}
-                          />
-                          {message(readingKey)}
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor={`${prefix}-${dateKey}`}>{label}表抄表日期</Label>
-                          <DatePickerInput
-                            id={`${prefix}-${dateKey}`}
-                            {...feedback(dateKey)}
-                            value={value[dateKey]}
-                            onChange={(next) => change(dateKey, next ?? "")}
-                          />
-                          {message(dateKey)}
-                        </div>
-                      </>
+                      <div className="space-y-2">
+                        <Label htmlFor={`${prefix}-${readingKey}`}>{label}表入住底数</Label>
+                        <Input
+                          id={`${prefix}-${readingKey}`}
+                          {...feedback(readingKey)}
+                          inputMode="decimal"
+                          className="text-base tabular-nums md:text-sm"
+                          value={value[readingKey]}
+                          onChange={(event) => change(readingKey, event.target.value)}
+                        />
+                        {message(readingKey)}
+                      </div>
                     ) : null}
                   </>
                 ) : (
@@ -260,7 +246,7 @@ export function ContractChargeSummary({ value }: { value: ContractChargeFormValu
         <p key={kind}>
           {kind === "water" ? "水费" : "电费"}：
           {value[`${kind}CollectionEnabled`]
-            ? `${value[`${kind}UnitPrice`]} 元 · ${value[`${kind}Reading`] ? `入住底数 ${value[`${kind}Reading`]}（${value[`${kind}ReadingDate`]}）` : "底数待补"}`
+            ? `${value[`${kind}UnitPrice`]} 元 · ${value[`${kind}Reading`] ? `入住底数 ${value[`${kind}Reading`]}` : "底数待补"}`
             : "不代收"}
         </p>
       ))}

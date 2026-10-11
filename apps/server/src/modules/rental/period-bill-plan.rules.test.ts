@@ -17,8 +17,8 @@ describe("下一账期预览", () => {
   it("接续从10月并只收起算后的60用量", () => {
     const source = rentalFinanceSnapshot();
     const readings = [
-      { kind: "water" as const, readingDate: "2026-08-31", reading: "4200" },
-      { kind: "electricity" as const, readingDate: "2026-08-31", reading: "50" },
+      { kind: "water" as const, reading: "4200" },
+      { kind: "electricity" as const, reading: "50" },
     ];
     const plan = buildPeriodBillPlan(source, {
       ...request,
@@ -57,23 +57,54 @@ describe("下一账期预览", () => {
     source.terms!.waterUnitPrice = "4";
     expect(buildPeriodBillPlan(source, request).version).not.toBe(version);
   });
-  it("未来账期可以今日抄表，但不能伪造未来抄表日", () => {
+  it("首期和后续账期只需读数，金额继续按有效前驱差额计算", () => {
     const source = rentalFinanceSnapshot();
+    source.contract.paymentIntervalMonths = 1;
     const input = {
       ...request,
-      readings: source.readings.map(({ kind, readingDate, reading }) => ({
+      readings: source.readings.map(({ kind, reading }) => ({
         kind,
-        readingDate,
         reading,
       })),
     };
-    expect(buildPeriodBillPlan(source, input).missingFields).toEqual([]);
-    expect(() =>
-      buildPeriodBillPlan(source, {
-        ...input,
-        readings: input.readings.map((item) => ({ ...item, readingDate: "2026-09-01" })),
-      }),
-    ).toThrow(/抄表日期/);
+    const first = buildPeriodBillPlan(source, input);
+    expect(first.missingFields).toEqual([]);
+    expect(first.lines.find((line) => line.kind === "water")?.amountMinor).toBe(0);
+    const persistedReadings = Object.values(first.intervals).flatMap((interval) =>
+      interval
+        ? [{ ...interval.current, id: `saved-${interval.current.kind}`, billId: "jan" }]
+        : [],
+    );
+    source.readings.push(...persistedReadings);
+    const persistedLines = first.lines.map((line) =>
+      line.feeSnapshot?.kind === "water" || line.feeSnapshot?.kind === "electricity"
+        ? {
+            ...line,
+            feeSnapshot: {
+              ...line.feeSnapshot,
+              endReadingId: `saved-${line.kind}`,
+            },
+          }
+        : line,
+    );
+    source.bills.push({
+      id: "jan",
+      type: "period",
+      status: "active",
+      periodStart: first.period.periodStart,
+      periodEnd: first.period.periodEnd,
+      lines: persistedLines,
+      amountMinor: first.amountMinor,
+    } as never);
+    const later = buildPeriodBillPlan(source, {
+      ...input,
+      periodStart: "2026-02-01",
+      readings: input.readings.map((item) => ({
+        ...item,
+        reading: item.kind === "water" ? "125" : "55",
+      })),
+    });
+    expect(later.lines.find((line) => line.kind === "water")?.amountMinor).toBe(7500);
   });
   it("已保存接续后不接受再次设置，已结算拒绝出账", () => {
     const source = rentalFinanceSnapshot();
@@ -105,7 +136,6 @@ it("未来合同用今天真实底数提前生成首期，以基准日期限制�
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
   });
-  source.readings = source.readings.map((reading) => ({ ...reading, readingDate: "2026-10-08" }));
   const context = buildPeriodBillContext(source, { page: 1, pageSize: 20 });
   const input = {
     contractId: source.context.contractId,
@@ -121,18 +151,6 @@ it("未来合同用今天真实底数提前生成首期，以基准日期限制�
       .filter((line) => line.kind === "water" || line.kind === "electricity")
       .map((line) => line.amountMinor),
   ).toEqual([0, 0]);
-  expect(() =>
-    buildPeriodBillPlan(source, {
-      ...input,
-      readings: input.readings.map((reading) => ({ ...reading, readingDate: "2026-10-07" })),
-    }),
-  ).toThrow(/基准/);
-  expect(() =>
-    buildPeriodBillPlan(source, {
-      ...input,
-      readings: input.readings.map((reading) => ({ ...reading, readingDate: "2026-10-09" })),
-    }),
-  ).toThrow(/抄表日期/);
   expect(() =>
     buildPeriodBillPlan(source, {
       ...input,

@@ -157,7 +157,7 @@ export function ContractFormPage({
   const updateValues = useCallback(
     (next: ContractFormValues) => {
       if (next.chargeSetup && valuesRef.current.spaces.map(({ spaceId }) => spaceId).join(',') !== next.spaces.map(({ spaceId }) => spaceId).join(',')) {
-        next = { ...next, chargeSetup: { ...next.chargeSetup, waterReading: '', waterReadingDate: '', electricityReading: '', electricityReadingDate: '' } }
+        next = { ...next, chargeSetup: { ...next.chargeSetup, waterReading: '', electricityReading: '' } }
       }
       setValues(next)
       draft.revalidate(next)

@@ -45,7 +45,6 @@ export function PeriodBillFields({
       (["water", "electricity"] as const).map((kind) => [
         kind,
         {
-          readingDate: errors.get(`${name}.${kind}.readingDate`),
           reading: errors.get(`${name}.${kind}.reading`),
         },
       ]),
@@ -162,8 +161,7 @@ export function PeriodBillFields({
         ))}
         {context.baselineReadings.map((reading) => (
           <p key={reading.kind}>
-            上期{reading.kind === "water" ? "水表" : "电表"}读数 {reading.reading} ·{" "}
-            {reading.readingDate}
+            上期{reading.kind === "water" ? "水表" : "电表"}读数 {reading.reading}
           </p>
         ))}
       </section>

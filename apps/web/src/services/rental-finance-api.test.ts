@@ -31,8 +31,8 @@ describe("租赁财务 API 边界", () => {
       ...preview,
       dueDate: "2026-08-10",
       readings: [
-        { kind: "water", readingDate: "2026-08-31", reading: "10" },
-        { kind: "electricity", readingDate: "2026-08-31", reading: "20" },
+        { kind: "water", reading: "10" },
+        { kind: "electricity", reading: "20" },
       ],
       expectedVersion: "preview-v1",
       idempotencyKey: "request-2",

@@ -35,7 +35,7 @@ export class MeterReadingsRepository {
           eq(rentalMeterReadings.contractId, scope.contractId),
         ),
       )
-      .orderBy(rentalMeterReadings.kind, rentalMeterReadings.readingDate, rentalMeterReadings.id);
+      .orderBy(rentalMeterReadings.kind, rentalMeterReadings.id);
   }
 
   /** 只清除外层已核对未使用的草稿空间底数及其修订。 */
@@ -108,7 +108,6 @@ export class MeterReadingsRepository {
         .update(rentalMeterReadings)
         .set({
           spaceId: input.spaceId,
-          readingDate: input.readingDate,
           reading: input.reading,
           reason,
           revision: sql`${rentalMeterReadings.revision} + 1`,
@@ -179,7 +178,6 @@ export class MeterReadingsRepository {
       .set({
         spaceId: input.spaceId,
         kind: input.kind,
-        readingDate: input.readingDate,
         reading: input.reading,
         predecessorId: input.predecessorId,
         reason,

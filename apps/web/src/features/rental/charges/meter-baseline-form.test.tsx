@@ -11,7 +11,7 @@ import {
 import { MeterBaselineForm } from "./meter-baseline-form";
 
 describe("入住水电底数", () => {
-  it("只提交本次修改的底数和原因，并携带服务端版本", async () => {
+  it("不填写抄表日期也能提交本次读数和原因，并携带服务端版本", async () => {
     const user = userEvent.setup();
     const api = financeApiFixture();
     render(
@@ -23,6 +23,7 @@ describe("入住水电底数", () => {
         onSaved={vi.fn()}
       />,
     );
+    expect(screen.queryByLabelText("水表底数日期")).not.toBeInTheDocument();
     await user.clear(screen.getByLabelText("水表底数"));
     await user.type(screen.getByLabelText("水表底数"), "101.5");
     await user.type(screen.getByLabelText("底数变更原因"), "交接复核");
@@ -33,7 +34,7 @@ describe("入住水电底数", () => {
         contractId: "contract",
         expectedVersion: "meters-v1",
         reason: "交接复核",
-        readings: [{ kind: "water", readingDate: "2026-01-01", reading: "101.5" }],
+        readings: [{ kind: "water", reading: "101.5" }],
       }),
     );
   });
@@ -193,12 +194,11 @@ it.each([
     />,
   );
   const label = kind === "water" ? "水表" : "电表";
-  await user.type(screen.getByLabelText(`${label}底数日期`), "2026-01-01");
   await user.type(screen.getByLabelText(`${label}底数`), "0");
   await user.type(screen.getByLabelText("底数变更原因"), "首次补录");
   await user.click(screen.getByRole("button", { name: "保存入住底数" }));
   expect(api.updateMeterBaseline).toHaveBeenCalledWith(
-    expect.objectContaining({ readings: [{ kind, readingDate: "2026-01-01", reading: "0" }] }),
+    expect.objectContaining({ readings: [{ kind, reading: "0" }] }),
   );
   await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
 });

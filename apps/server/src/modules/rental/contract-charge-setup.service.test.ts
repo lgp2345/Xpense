@@ -82,7 +82,7 @@ describe("合同收费初始化", () => {
   });
   it("零底数保留真实读数，非代收读数被拒绝", async () => {
     const h = await harness();
-    const baseline = { kind: "water" as const, readingDate: "2026-09-01", reading: "0" };
+    const baseline = { kind: "water" as const, reading: "0" };
     await h.service.save(
       { ...rentalFinanceAuth, permissions: [...rentalFinanceAuth.permissions] },
       h.snapshot.context,
@@ -128,7 +128,7 @@ describe("合同收费初始化", () => {
         h.snapshot.context,
         {
           ...setup,
-          baselineReadings: [{ kind: "water", readingDate: "2026-09-01", reading: "0" }],
+          baselineReadings: [{ kind: "water", reading: "0" }],
         },
         {} as never,
       ),

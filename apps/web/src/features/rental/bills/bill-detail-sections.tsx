@@ -68,10 +68,7 @@ export function BillDetailSections({ bill }: { bill: RentalBillDetail }) {
                             {line.feeSnapshot.kind === "water" ? "水表" : "电表"}{" "}
                             {line.feeSnapshot.startReading} → {line.feeSnapshot.endReading}
                           </p>
-                          <p>
-                            读数区间：{line.feeSnapshot.startDate} 至 {line.feeSnapshot.endDate} ·
-                            单价 {line.feeSnapshot.unitPrice}
-                          </p>
+                          <p>单价 {line.feeSnapshot.unitPrice}</p>
                           {line.feeSnapshot.overrideReason ? (
                             <p>本期改价原因：{line.feeSnapshot.overrideReason}</p>
                           ) : null}

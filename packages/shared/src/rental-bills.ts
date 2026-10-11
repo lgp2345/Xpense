@@ -29,8 +29,6 @@ export type RentalFeeSnapshot =
       kind: "water" | "electricity";
       startReadingId: string;
       endReadingId: string;
-      startDate: string;
-      endDate: string;
       startReading: string;
       endReading: string;
       unitPrice: string;

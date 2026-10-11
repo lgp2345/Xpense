@@ -27,7 +27,6 @@ export async function createPeriodHttpScenario() {
     fixedFees: [{ id: randomUUID(), name: "管理费", periodAmountMinor: 10000 }],
   });
   for (const reading of h.state.rental.meterReadings) {
-    reading.readingDate = "2026-10-05";
     reading.reading = reading.kind === "water" ? "3500" : "50";
   }
   async function ok<T>(url: string, input?: unknown, method: "GET" | "POST" = "POST"): Promise<T> {
@@ -52,7 +51,6 @@ export async function createPeriodHttpScenario() {
       dueDate: context.defaultDueDate!,
       readings: context.defaultReadings.map((reading) => ({
         ...reading,
-        readingDate: "2026-10-08",
         reading: reading.kind === "water" ? water : reading.reading,
       })),
       extraFees,
@@ -84,8 +82,8 @@ export async function createPeriodHttpScenario() {
     contractId: id,
     extraFees,
     finalReadings: [
-      { kind: "water" as const, readingDate: "2026-12-04", reading: "3700" },
-      { kind: "electricity" as const, readingDate: "2026-12-04", reading: "50" },
+      { kind: "water" as const, reading: "3700" },
+      { kind: "electricity" as const, reading: "50" },
     ],
   });
   const previewSettlement = (input = settlementInput()) =>

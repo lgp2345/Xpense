@@ -37,10 +37,10 @@ describe("真实租赁演练的纯隔离预检", () => {
       ).toThrow("连接参数覆盖");
     }
   });
-  it("复制完整19段和旧11段，唯一改写可逆且保留真实 runner 排序", async () => {
+  it("复制完整20段和旧11段，唯一改写可逆且保留真实 runner 排序", async () => {
     const schema = `rental_finance_test_${"b".repeat(32)}`;
     const corpus = await copyRentalMigrationCorpus(schema);
-    expect(corpus.entries).toHaveLength(19);
+    expect(corpus.entries).toHaveLength(20);
     expect(corpus.entries.at(14)?.name).toBe("20261002133352_rental_charge_collection");
     expect(corpus.entries.at(15)?.name).toBe("20261005104010_contract_local_datetime");
     expect(

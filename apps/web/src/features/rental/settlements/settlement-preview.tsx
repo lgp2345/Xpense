@@ -24,7 +24,6 @@ const reading = z
   );
 export const settlementDraftSchema = z
   .object({
-    readingDate: z.string(),
     waterReading: reading,
     electricityReading: reading,
     extraName: z.string(),
@@ -32,9 +31,6 @@ export const settlementDraftSchema = z
     extraNote: z.string(),
   })
   .superRefine((value, context) => {
-    const hasReading = Boolean(value.waterReading || value.electricityReading);
-    if (hasReading && !/^\d{4}-\d{2}-\d{2}$/.test(value.readingDate))
-      context.addIssue({ code: "custom", path: ["readingDate"], message: "请选择读数日期。" });
     const hasExtraName = Boolean(value.extraName.trim());
     const hasExtraAmount = Boolean(value.extraAmount.trim());
     if (hasExtraName !== hasExtraAmount)

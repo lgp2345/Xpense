@@ -21,8 +21,8 @@ describe("合同收费与入住底数", () => {
 
     expect(await screen.findByText("水费单价 CNY 3.0000 / 立方米")).toBeInTheDocument();
     expect(screen.getByText("电费单价 CNY 4.0000 / 度")).toBeInTheDocument();
-    expect(screen.getByText("入住水表底数 100 · 2026/01/01")).toBeInTheDocument();
-    expect(screen.getByText("入住电表底数 250 · 2026/01/01")).toBeInTheDocument();
+    expect(screen.getByText("入住水表底数 100")).toBeInTheDocument();
+    expect(screen.getByText("入住电表底数 250")).toBeInTheDocument();
   });
 
   it("没有读取权限时不请求财务数据", () => {

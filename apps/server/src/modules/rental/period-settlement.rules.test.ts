@@ -18,7 +18,6 @@ function source() {
   value.context.today = "2026-12-04";
   value.readings = value.readings.map((reading) => ({
     ...reading,
-    readingDate: "2026-10-05",
     reading: reading.kind === "water" ? "3500" : "50",
   }));
   value.terms!.fixedFees = [{ id: "fee", name: "管理费", periodAmountMinor: 10000 }];
@@ -29,9 +28,8 @@ it("尾期只收最后有效账单之后20水量，不改普通账单", () => {
   const plan = buildPeriodBillPlan(value, {
     contractId: value.context.contractId,
     periodStart: "2026-10-05",
-    readings: value.readings.map(({ kind, readingDate, reading }) => ({
+    readings: value.readings.map(({ kind, reading }) => ({
       kind,
-      readingDate,
       reading: kind === "water" ? "3680" : reading,
     })),
     extraFees: [],
@@ -57,8 +55,8 @@ it("尾期只收最后有效账单之后20水量，不改普通账单", () => {
   const final = buildPeriodSettlementPlan(value, {
     contractId: value.context.contractId,
     finalReadings: [
-      { kind: "water", readingDate: "2026-12-04", reading: "3700" },
-      { kind: "electricity", readingDate: "2026-12-04", reading: "50" },
+      { kind: "water", reading: "3700" },
+      { kind: "electricity", reading: "50" },
     ],
     extraFees: [],
   });
@@ -82,9 +80,8 @@ it("接续不补历史月份，每期固定费保留，手动退款只影响成�
   };
   const request = {
     contractId: value.context.contractId,
-    finalReadings: value.readings.map(({ kind, readingDate, reading }) => ({
+    finalReadings: value.readings.map(({ kind, reading }) => ({
       kind,
-      readingDate: "2026-12-04",
       reading,
     })),
     extraFees: [],
@@ -136,7 +133,6 @@ it("同值终读数零收费，低于有效基准拒绝", () => {
     contractId: value.context.contractId,
     finalReadings: value.readings.map(({ kind, reading }) => ({
       kind,
-      readingDate: "2026-12-04",
       reading,
     })),
     extraFees: [],
@@ -147,7 +143,7 @@ it("同值终读数零收费，低于有效基准拒绝", () => {
   expect(() =>
     buildPeriodSettlementPlan(value, {
       ...dto,
-      finalReadings: [{ kind: "water", readingDate: "2026-12-04", reading: "3499" }],
+      finalReadings: [{ kind: "water", reading: "3499" }],
     }),
   ).toThrow(/读数/);
 });

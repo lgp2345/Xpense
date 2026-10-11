@@ -130,7 +130,6 @@ export class RentalCashProjectionRepository {
           contractId: rentalMeterReadings.contractId,
           id: rentalMeterReadings.id,
           kind: rentalMeterReadings.kind,
-          readingDate: rentalMeterReadings.readingDate,
           reading: rentalMeterReadings.reading,
           revision: rentalMeterReadings.revision,
           predecessorId: rentalMeterReadings.predecessorId,
@@ -145,7 +144,6 @@ export class RentalCashProjectionRepository {
         .orderBy(
           asc(rentalMeterReadings.contractId),
           asc(rentalMeterReadings.kind),
-          asc(rentalMeterReadings.readingDate),
           asc(rentalMeterReadings.id),
         ),
     ]);

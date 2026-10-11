@@ -3,7 +3,6 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
-  date,
   foreignKey,
   index,
   integer,
@@ -105,7 +104,6 @@ export const rentalMeterReadings = snakeCase.table(
     contractId: uuid().notNull(),
     spaceId: uuid().notNull(),
     kind: rentalBillLineKind().$type<RentalMeterKind>().notNull(),
-    readingDate: date({ mode: "string" }).notNull(),
     reading: numeric({ precision: 20, scale: 4 }).notNull(),
     predecessorId: uuid(),
     source: text()
@@ -215,11 +213,10 @@ export const rentalMeterReadings = snakeCase.table(
       "rental_meter_readings_source_check",
       sql`(${table.source} = 'contract' AND ${table.predecessorId} IS NULL AND ${table.billingStartId} IS NULL AND ${table.billId} IS NULL AND ${table.settlementId} IS NULL) OR (${table.source} = 'billing_start' AND ${table.predecessorId} IS NULL AND ${table.billingStartId} IS NOT NULL AND ${table.billId} IS NULL AND ${table.settlementId} IS NULL) OR (${table.source} = 'bill' AND ${table.predecessorId} IS NOT NULL AND ${table.billingStartId} IS NULL AND ${table.billId} IS NOT NULL AND ${table.settlementId} IS NULL) OR (${table.source} = 'settlement' AND ${table.predecessorId} IS NOT NULL AND ${table.billingStartId} IS NULL AND ${table.billId} IS NULL AND ${table.settlementId} IS NOT NULL)`,
     ),
-    index("rental_meter_readings_scope_date_idx").on(
+    index("rental_meter_readings_scope_kind_idx").on(
       table.organizationId,
       table.contractId,
       table.kind,
-      table.readingDate,
     ),
   ],
 );

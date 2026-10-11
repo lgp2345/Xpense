@@ -34,7 +34,7 @@ function detail(snapshot: RentalFinanceSnapshot): RentalMeterBaselineDetail {
     version: financeSourceVersion(snapshot, {}),
     readings: snapshot.readings
       .filter(({ predecessorId }) => predecessorId === null)
-      .map(({ kind, readingDate, reading }) => ({ kind, readingDate, reading }))
+      .map(({ kind, reading }) => ({ kind, reading }))
       .sort((a, b) => a.kind.localeCompare(b.kind)),
   };
 }

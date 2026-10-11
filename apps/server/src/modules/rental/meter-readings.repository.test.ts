@@ -48,7 +48,6 @@ describe("MeterReadingsRepository", () => {
       scope,
       {
         kind: "water",
-        readingDate: "2026-09-01",
         reading: "12.5000",
         spaceId: "server-space",
         predecessorId: "server-predecessor",

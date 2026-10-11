@@ -49,8 +49,8 @@ export function rentalFinanceSnapshot(
     actualEndDate: "2026-12-31",
   };
   const baseline: RentalMeterReadingInput[] = [
-    { kind: "water", readingDate: "2026-01-01", reading: "100" },
-    { kind: "electricity", readingDate: "2026-01-01", reading: "50" },
+    { kind: "water", reading: "100" },
+    { kind: "electricity", reading: "50" },
   ];
   return {
     context: {
@@ -156,9 +156,7 @@ export function createRentalFinanceRepositoryFakes(state: RentalTestState) {
               record.contractId === scope.contractId,
           )
           .toSorted((a, b) =>
-            a.kind === b.kind
-              ? a.readingDate.localeCompare(b.readingDate) || a.id.localeCompare(b.id)
-              : a.kind.localeCompare(b.kind),
+            a.kind === b.kind ? a.id.localeCompare(b.id) : a.kind.localeCompare(b.kind),
           ),
       ),
     saveBaseline: async (scope, inputs, reason, actor) => {
@@ -482,10 +480,9 @@ export function createRentalFinanceRepositoryFakes(state: RentalTestState) {
                 (reading) =>
                   reading.organizationId === organizationId && reading.contractId === contractId,
               )
-              .map(({ id, kind, readingDate, reading, revision, predecessorId }) => ({
+              .map(({ id, kind, reading, revision, predecessorId }) => ({
                 id,
                 kind,
-                readingDate,
                 reading,
                 revision,
                 predecessorId,

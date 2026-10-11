@@ -63,7 +63,6 @@ describe("RentalFinanceSourceService", () => {
           contractId: source.contract.id,
           spaceId: source.contract.spaces[0]?.spaceId,
           kind: "water",
-          readingDate: "2026-08-01",
           reading: "120.0000",
           revision: 1,
           predecessorId: null,

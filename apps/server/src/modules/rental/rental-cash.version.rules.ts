@@ -44,7 +44,6 @@ export type RentalCashVersionFacts = {
   readings: Array<{
     id: string;
     kind: string;
-    readingDate: string;
     reading: string;
     revision: number;
     predecessorId: string | null;
@@ -106,19 +105,14 @@ export function rentalCashSourceVersion(
       : null,
     settlementBillIds: [...facts.settlementBillIds].sort(),
     readings: [...facts.readings]
-      .map(({ id, kind, readingDate, reading, revision, predecessorId }) => ({
+      .map(({ id, kind, reading, revision, predecessorId }) => ({
         id,
         kind,
-        readingDate,
         reading,
         revision,
         predecessorId,
       }))
-      .sort((left, right) =>
-        `${left.kind}:${left.readingDate}:${left.id}`.localeCompare(
-          `${right.kind}:${right.readingDate}:${right.id}`,
-        ),
-      ),
+      .sort((left, right) => `${left.kind}:${left.id}`.localeCompare(`${right.kind}:${right.id}`)),
     target,
   };
   return financeSourceVersion(persistentSource, {});

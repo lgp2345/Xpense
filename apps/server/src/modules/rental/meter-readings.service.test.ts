@@ -63,7 +63,7 @@ describe("MeterReadingsService", () => {
         expectedVersion: current.version,
         idempotencyKey: "00000000-0000-4000-8000-000000000039",
         reason: "补水底数",
-        readings: [{ kind: "water", readingDate: "2026-01-01", reading: "0" }],
+        readings: [{ kind: "water", reading: "0" }],
       }),
     ).resolves.toBeDefined();
     expect(h.readings.saveBaseline).toHaveBeenCalledWith(
@@ -99,8 +99,8 @@ describe("MeterReadingsService", () => {
         idempotencyKey: "00000000-0000-4000-8000-000000000033",
         reason: "终止后不可重写入住底数",
         readings: [
-          { kind: "water", readingDate: "2026-01-01", reading: "101" },
-          { kind: "electricity", readingDate: "2026-01-01", reading: "51" },
+          { kind: "water", reading: "101" },
+          { kind: "electricity", reading: "51" },
         ],
       }),
     ).rejects.toThrow("只有履行中的合同可以登记入住底数");
@@ -116,8 +116,8 @@ describe("MeterReadingsService", () => {
     const request = {
       contractId: financeContractId,
       readings: [
-        { kind: "water", readingDate: "2026-01-01", reading: "101" },
-        { kind: "electricity", readingDate: "2026-01-01", reading: "52" },
+        { kind: "water", reading: "101" },
+        { kind: "electricity", reading: "52" },
       ],
       expectedVersion: current.version,
       idempotencyKey: "00000000-0000-4000-8000-000000000030",
@@ -168,8 +168,8 @@ describe("MeterReadingsService", () => {
         {
           contractId: financeContractId,
           readings: [
-            { kind: "water", readingDate: "2026-01-01", reading: "101" },
-            { kind: "electricity", readingDate: "2026-01-01", reading: "52" },
+            { kind: "water", reading: "101" },
+            { kind: "electricity", reading: "52" },
           ],
           expectedVersion: current.version,
           idempotencyKey: "00000000-0000-4000-8000-000000000031",
@@ -188,8 +188,8 @@ describe("MeterReadingsService", () => {
     const input = {
       contractId: financeContractId,
       readings: [
-        { kind: "water", readingDate: "2026-01-01", reading: "101" },
-        { kind: "electricity", readingDate: "2026-01-01", reading: "52" },
+        { kind: "water", reading: "101" },
+        { kind: "electricity", reading: "52" },
       ],
       expectedVersion: current.version,
       idempotencyKey: "00000000-0000-4000-8000-000000000032",

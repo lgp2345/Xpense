@@ -13,7 +13,6 @@ it("先写结算头再写有所属终读数，快照替换真实ID且不改普�
     finalReadings: source.readings.map(({ kind, reading }) => ({
       kind,
       reading,
-      readingDate: "2026-12-31",
     })),
   };
   const plan = buildPeriodSettlementPlan(source, input);

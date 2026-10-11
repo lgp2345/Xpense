@@ -92,7 +92,7 @@ describe("真实账期并发", () => {
               extraFees: [],
               finalReadings: source.readings
                 .filter((r) => r.source === "contract")
-                .map(({ kind, reading }) => ({ kind, reading, readingDate: "2026-02-28" })),
+                .map(({ kind, reading }) => ({ kind, reading })),
             };
             const preview = await a.get(RentalSettlementsService).preview(fixture.auth, input);
             expect(preview.canConfirm).toBe(true);

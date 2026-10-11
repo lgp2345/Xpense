@@ -134,8 +134,7 @@ export function ContractChargesSection({
                   const reading = baseline.data.readings.find((item) => item.kind === kind);
                   return reading ? (
                     <p key={kind}>
-                      入住{kind === "water" ? "水表" : "电表"}底数 {reading.reading} ·{" "}
-                      {reading.readingDate.replaceAll("-", "/")}
+                      入住{kind === "water" ? "水表" : "电表"}底数 {reading.reading}
                     </p>
                   ) : (
                     <p key={kind} className="text-muted-foreground">

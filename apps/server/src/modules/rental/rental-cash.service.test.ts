@@ -72,16 +72,13 @@ function projectionFacts(snapshot: RentalFinanceSnapshot) {
         }
       : null,
     settlementBillIds: [],
-    readings: snapshot.readings.map(
-      ({ id, kind, readingDate, reading, revision, predecessorId }) => ({
-        id,
-        kind,
-        readingDate,
-        reading,
-        revision,
-        predecessorId,
-      }),
-    ),
+    readings: snapshot.readings.map(({ id, kind, reading, revision, predecessorId }) => ({
+      id,
+      kind,
+      reading,
+      revision,
+      predecessorId,
+    })),
   };
 }
 

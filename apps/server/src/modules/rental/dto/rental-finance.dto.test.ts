@@ -25,8 +25,8 @@ const settlementId = "323e4567-e89b-42d3-a456-426614174000";
 const idempotencyKey = "423e4567-e89b-42d3-a456-426614174000";
 
 const validReadings = [
-  { kind: "water", readingDate: "2026-09-01", reading: "100.0001" },
-  { kind: "electricity", readingDate: "2026-09-01", reading: "50" },
+  { kind: "water", reading: "100.0001" },
+  { kind: "electricity", reading: "50" },
 ] as const;
 
 const validExtraFee = {
@@ -83,7 +83,7 @@ describe("租赁收费与结算 DTO", () => {
     ).toBe(true);
   });
 
-  it("创建收费事项允许空底数和单独代收，禁止不完整底数", () => {
+  it("创建收费事项允许空底数和单独代收，禁止重复底数", () => {
     const chargeSetup = {
       chargeTerms: {
         waterCollectionEnabled: true,
@@ -100,7 +100,13 @@ describe("租赁收费与结算 DTO", () => {
     expect(
       createContractSchema.safeParse({
         propertyId: contractId,
-        chargeSetup: { ...chargeSetup, baselineReadings: [{ kind: "water", reading: "0" }] },
+        chargeSetup: {
+          ...chargeSetup,
+          baselineReadings: [
+            { kind: "water", reading: "0" },
+            { kind: "water", reading: "1" },
+          ],
+        },
       }).success,
     ).toBe(false);
   });
@@ -254,21 +260,13 @@ describe("租赁收费与结算 DTO", () => {
     ).toBe(true);
   });
 
-  it("拒绝非法年月、日期、重复读数类型及预览缺项用于正式确认", () => {
+  it("拒绝非法年月、重复读数类型及预览缺项用于正式确认", () => {
     for (const billingMonth of ["2026-00", "2026-13", "2026-9", "2026-09-01"]) {
       expect(
         previewRentalPeriodBillSchema.safeParse({
           contractId,
           billingMonth,
           extraFees: [],
-        }).success,
-      ).toBe(false);
-    }
-    for (const date of ["2026-02-29", "2026-04-31", "2026-9-01"]) {
-      expect(
-        generateRentalPeriodBillSchema.safeParse({
-          ...validMonthlyInput,
-          readings: [{ ...validReadings[0], readingDate: date }, validReadings[1]],
         }).success,
       ).toBe(false);
     }
@@ -305,7 +303,7 @@ describe("租赁收费与结算 DTO", () => {
     expect(
       previewRentalSettlementSchema.safeParse({
         contractId,
-        finalReadings: [validReadings[0], { ...validReadings[0], readingDate: "2026-09-02" }],
+        finalReadings: [validReadings[0], { ...validReadings[0], kind: "water" }],
         extraFees: [],
       }).success,
     ).toBe(false);

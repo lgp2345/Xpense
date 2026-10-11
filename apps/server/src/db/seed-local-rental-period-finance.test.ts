@@ -13,7 +13,7 @@ import { rentalFinanceAuth, rentalFinanceSnapshot } from "../test/rental-finance
 import { DB } from "./db.tokens.js";
 import { seedPeriodFinance } from "./seed-local-rental-period-finance.js";
 
-it("跨日恢复使用持久合同的抄表日期且不重复已完成账单", async () => {
+it("跨日恢复沿用有效账单读数且不重复已完成账单", async () => {
   const source = rentalFinanceSnapshot();
   source.context.today = "2026-10-09";
   Object.assign(source.contract, {
@@ -25,7 +25,6 @@ it("跨日恢复使用持久合同的抄表日期且不重复已完成账单", a
   });
   source.readings = source.readings.map((r) => ({
     ...r,
-    readingDate: "2026-08-05",
     reading: r.kind === "water" ? "3500" : "50",
   }));
   const first = buildPeriodBillPlan(source, {
@@ -33,7 +32,6 @@ it("跨日恢复使用持久合同的抄表日期且不重复已完成账单", a
     periodStart: "2026-08-05",
     readings: source.readings.map(({ kind, reading }) => ({
       kind,
-      readingDate: "2026-10-07",
       reading: kind === "water" ? "3600" : reading,
     })),
     extraFees: [],
@@ -109,8 +107,8 @@ it("跨日恢复使用持久合同的抄表日期且不重复已完成账单", a
     expect.objectContaining({
       periodStart: "2026-09-05",
       readings: [
-        { kind: "water", readingDate: "2026-10-07", reading: "3680" },
-        { kind: "electricity", readingDate: "2026-10-07", reading: "50" },
+        { kind: "water", reading: "3680" },
+        { kind: "electricity", reading: "50" },
       ],
     }),
   );

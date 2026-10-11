@@ -21,14 +21,14 @@ describe("rental finance request fingerprints", () => {
       expectedVersion: "preview-version-1",
       idempotencyKey: "key-1",
       readings: [
-        { kind: "electricity", readingDate: "2026-08-31", reading: "1.200" },
-        { kind: "water", readingDate: "2026-08-30", reading: "0" },
+        { kind: "electricity", reading: "1.200" },
+        { kind: "water", reading: "0" },
       ],
     };
     const retried = {
       readings: [
-        { reading: "0.0000", readingDate: "2026-08-30", kind: "water" },
-        { reading: "1.2", readingDate: "2026-08-31", kind: "electricity" },
+        { reading: "0.0000", kind: "water" },
+        { reading: "1.2", kind: "electricity" },
       ],
       idempotencyKey: "key-2",
       expectedVersion: "a-newer-preview-version",
@@ -54,7 +54,7 @@ describe("rental finance request fingerprints", () => {
       },
       contract: { id: "contract-1" },
       terms: { version: "1", waterUnitPrice: "3.0000" },
-      readings: [{ id: "meter-1", kind: "water", readingDate: "2026-08-01", reading: "100.0" }],
+      readings: [{ id: "meter-1", kind: "water", reading: "100.0" }],
       bills: [{ id: "bill-1", revision: 1, amountMinor: 100 }],
       cashEntries: [{ id: "cash-1", amountMinor: 100, revokedAt: null }],
       settlement: null,
@@ -62,7 +62,7 @@ describe("rental finance request fingerprints", () => {
     };
     const request = {
       contractId: "contract-1",
-      readings: [{ kind: "water", readingDate: "2026-08-31", reading: "101" }],
+      readings: [{ kind: "water", reading: "101" }],
     };
     const version = financeSourceVersion(source, request);
 
@@ -100,7 +100,7 @@ describe("rental finance request fingerprints", () => {
     expect(version).not.toBe(
       financeSourceVersion(source, {
         ...request,
-        readings: [{ kind: "water", readingDate: "2026-08-31", reading: "102" }],
+        readings: [{ kind: "water", reading: "102" }],
       }),
     );
   });

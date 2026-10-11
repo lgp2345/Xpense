@@ -34,7 +34,7 @@ export function chargeLine(
     ...fields,
   };
 }
-/** 同日登记合法，前驱按有效账单决定，保留整数金额和四位小数快照。 */
+/** 前驱按有效账单决定，保留整数金额和四位小数快照。 */
 export function periodMeterLine(
   kind: RentalMeterKind,
   interval: { previous: RentalMeterReading; current: RentalMeterReading },
@@ -51,19 +51,14 @@ export function periodMeterLine(
     previous.id === current.id
   )
     throw new RangeError("水电计费读数边界无效");
-  if (previous.readingDate > current.readingDate) throw new RangeError("水电抄表日期不能早于基准");
   return chargeLine({
     kind,
     label: kind === "water" ? "水费" : "电费",
     amountMinor: calculateMeterCharge(previous.reading, current.reading, unitPrice),
-    periodStart: previous.readingDate,
-    periodEnd: current.readingDate,
     feeSnapshot: {
       kind,
       startReadingId: previous.id,
       endReadingId: current.id,
-      startDate: previous.readingDate,
-      endDate: current.readingDate,
       startReading: previous.reading,
       endReading: current.reading,
       unitPrice,

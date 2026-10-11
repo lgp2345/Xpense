@@ -286,8 +286,8 @@ describe("真实 PostgreSQL 租赁财务事务与竞争（需专用库和明确 
           contractId: fixture.scope.contractId,
           extraFees: [],
           finalReadings: fixture.readings
-            .filter((reading) => reading.readingDate === "2026-02-28")
-            .map(({ kind, readingDate, reading }) => ({ kind, readingDate, reading })),
+            .filter((reading) => reading.billId === fixture.ids.february)
+            .map(({ kind, reading }) => ({ kind, reading })),
         };
         const service = a.get(RentalSettlementsService);
         const preview = await service.preview(fixture.auth, input);
@@ -350,8 +350,8 @@ describe("真实 PostgreSQL 租赁财务事务与竞争（需专用库和明确 
           contractId: fixture.scope.contractId,
           extraFees: [],
           finalReadings: fixture.readings
-            .filter((reading) => reading.readingDate === "2026-02-28")
-            .map(({ kind, readingDate, reading }) => ({ kind, readingDate, reading })),
+            .filter((reading) => reading.billId === fixture.ids.february)
+            .map(({ kind, reading }) => ({ kind, reading })),
         };
         const preview = await a.get(RentalSettlementsService).preview(fixture.auth, input);
         expect(preview.canConfirm).toBe(true);
@@ -399,8 +399,8 @@ describe("真实 PostgreSQL 租赁财务事务与竞争（需专用库和明确 
           contractId: fixture.scope.contractId,
           extraFees: [],
           finalReadings: fixture.readings
-            .filter((reading) => reading.readingDate === "2026-02-28")
-            .map(({ kind, readingDate, reading }) => ({ kind, readingDate, reading })),
+            .filter((reading) => reading.billId === fixture.ids.february)
+            .map(({ kind, reading }) => ({ kind, reading })),
         };
         const target = { kind: "bill" as const, billId: fixture.ids.january };
         const preview = await a.get(RentalSettlementsService).preview(fixture.auth, input);
@@ -444,8 +444,8 @@ describe("真实 PostgreSQL 租赁财务事务与竞争（需专用库和明确 
           contractId: fixture.scope.contractId,
           extraFees: [],
           finalReadings: fixture.readings
-            .filter((reading) => reading.readingDate === "2026-02-28")
-            .map(({ kind, readingDate, reading }) => ({ kind, readingDate, reading })),
+            .filter((reading) => reading.billId === fixture.ids.february)
+            .map(({ kind, reading }) => ({ kind, reading })),
         };
         const settlementVersion = (
           await a.get(RentalSettlementsService).preview(fixture.auth, input)

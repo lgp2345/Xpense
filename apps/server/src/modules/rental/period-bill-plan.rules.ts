@@ -140,13 +140,7 @@ export function buildPeriodBillPlan(
     predecessorId: null,
   }));
   for (const reading of candidates) {
-    parseCalendarDate(reading.readingDate);
     parseDecimal4(reading.reading);
-    if (
-      reading.readingDate > source.context.today ||
-      reading.readingDate > (source.contract.terminationDate ?? terms.endDate)
-    )
-      throw new RangeError("接续抄表日期不在有效范围内");
   }
   const baselines =
     first !== terms.startDate && !source.billingStart
@@ -161,27 +155,13 @@ export function buildPeriodBillPlan(
     if (!defaults[`${kind}CollectionEnabled`]) continue;
     const previous = baselines.find((reading) => reading.kind === kind);
     if (!previous) missingFields.push(`${kind}Baseline`);
-    if (previous)
-      defaultReadings.push({
-        kind,
-        readingDate:
-          source.context.today < (source.contract.terminationDate ?? terms.endDate)
-            ? source.context.today
-            : (source.contract.terminationDate ?? terms.endDate),
-        reading: previous.reading,
-      });
+    if (previous) defaultReadings.push({ kind, reading: previous.reading });
     const input = dto.readings?.find((reading) => reading.kind === kind);
     if (!input) {
       missingFields.push(`${kind}Reading`);
       continue;
     }
-    parseCalendarDate(input.readingDate);
     parseDecimal4(input.reading);
-    if (
-      input.readingDate > source.context.today ||
-      input.readingDate > (source.contract.terminationDate ?? terms.endDate)
-    )
-      throw new RangeError("抄表日期不在有效范围内");
     if (!previous) continue;
     const current: RentalMeterReading = {
       ...previous,
@@ -209,11 +189,7 @@ export function buildPeriodBillPlan(
     period: { periodStart: rent.periodStart, periodEnd: rent.periodEnd },
     rent,
     defaults,
-    baselineReadings: baselines.map(({ kind, readingDate, reading }) => ({
-      kind,
-      readingDate,
-      reading,
-    })),
+    baselineReadings: baselines.map(({ kind, reading }) => ({ kind, reading })),
     defaultReadings,
     intervals,
     missingFields,
@@ -234,7 +210,6 @@ export function buildPeriodBillContext(
   const all = selectableBillingPeriods(source);
   const defaults = defaultPeriodChargeTerms(source);
   const baselines = resolvePeriodMeterBaselines({ ...source, terms: defaults });
-  const end = source.contract.terminationDate ?? source.contract.endDate!;
   const canSelectBillingStart =
     source.billingStart === null &&
     !source.bills.some((bill) => bill.type === "period" && bill.status === "active");
@@ -243,25 +218,18 @@ export function buildPeriodBillContext(
     billingStart: source.billingStart
       ? {
           firstPeriodStart: source.billingStart.firstPeriodStart,
-          baselineReadings: source.billingStart.baselineReadings.map(
-            ({ kind, readingDate, reading }) => ({ kind, readingDate, reading }),
-          ),
+          baselineReadings: source.billingStart.baselineReadings.map(({ kind, reading }) => ({
+            kind,
+            reading,
+          })),
         }
       : null,
     canSelectBillingStart,
     nextPeriod: period ? { periodStart: period.periodStart, periodEnd: period.periodEnd } : null,
     defaultDueDate: period?.periodStart ?? null,
     defaults,
-    baselineReadings: baselines.map(({ kind, readingDate, reading }) => ({
-      kind,
-      readingDate,
-      reading,
-    })),
-    defaultReadings: baselines.map(({ kind, reading }) => ({
-      kind,
-      readingDate: source.context.today < end ? source.context.today : end,
-      reading,
-    })),
+    baselineReadings: baselines.map(({ kind, reading }) => ({ kind, reading })),
+    defaultReadings: baselines.map(({ kind, reading }) => ({ kind, reading })),
     selectablePeriods: {
       items: canSelectBillingStart
         ? all.slice((input.page - 1) * input.pageSize, input.page * input.pageSize)

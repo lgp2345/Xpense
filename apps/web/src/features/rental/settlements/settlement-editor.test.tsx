@@ -63,6 +63,7 @@ it("服务器预览缺少终读数时阻止确认，补齐后使用同一版本�
   });
   renderEditor(api);
 
+  expect(screen.queryByLabelText("终读数日期")).not.toBeInTheDocument();
   await userEvent.click(await screen.findByRole("button", { name: "预览结算" }));
   expect(await screen.findByText("水表终读数尚未填写。")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "确认结算" })).toBeDisabled();
@@ -75,7 +76,7 @@ it("服务器预览缺少终读数时阻止确认，补齐后使用同一版本�
   expect(api.confirmSettlement).toHaveBeenCalledExactlyOnceWith(
     expect.objectContaining({
       contractId: "contract-a",
-      finalReadings: [{ kind: "water", readingDate: "2026-09-30", reading: "125.5" }],
+      finalReadings: [{ kind: "water", reading: "125.5" }],
       extraFees: [],
       expectedVersion: "preview-v2",
     }),

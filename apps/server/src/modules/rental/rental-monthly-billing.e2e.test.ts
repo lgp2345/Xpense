@@ -88,8 +88,8 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       periodStart: "2026-01-01",
       dueDate: "2026-08-31",
       readings: [
-        { kind: "water", readingDate: "2026-08-31", reading: "110" },
-        { kind: "electricity", readingDate: "2026-08-31", reading: "60" },
+        { kind: "water", reading: "110" },
+        { kind: "electricity", reading: "60" },
       ],
       extraFees: [],
       expectedVersion: `stale-${current.context.contractId}`,
@@ -121,8 +121,8 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
     const updatedMeters = await harness.request("/rental-meters/update", {
       contractId,
       readings: [
-        { kind: "water", readingDate: "2026-01-01", reading: "101" },
-        { kind: "electricity", readingDate: "2026-01-01", reading: "51" },
+        { kind: "water", reading: "101" },
+        { kind: "electricity", reading: "51" },
       ],
       expectedVersion: harness.parse<{ version: string }>(currentMeters).version,
       idempotencyKey: randomUUID(),
@@ -136,8 +136,8 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       periodStart: "2026-01-01",
       dueDate: "2026-07-31",
       readings: [
-        { kind: "water", readingDate: "2026-07-31", reading: "110" },
-        { kind: "electricity", readingDate: "2026-07-31", reading: "60" },
+        { kind: "water", reading: "110" },
+        { kind: "electricity", reading: "60" },
       ],
       extraFees: [],
     };
@@ -175,7 +175,7 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
     const contractId = harness.financeContractId;
     const generateBill = async (
       billingMonth: string,
-      readingDate: string,
+      dueDate: string,
       waterReading: string,
       electricityReading: string,
       overrides?: { waterUnitPrice: string; reason: string },
@@ -190,14 +190,14 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
                 firstPeriodStart: `${billingMonth}-01`,
                 baselineReadings: (await harness.currentSnapshot()).readings
                   .filter((reading) => reading.source === "contract")
-                  .map(({ kind, readingDate, reading }) => ({ kind, readingDate, reading })),
+                  .map(({ kind, reading }) => ({ kind, reading })),
               },
             }
           : {}),
-        dueDate: readingDate,
+        dueDate,
         readings: [
-          { kind: "water", readingDate, reading: waterReading },
-          { kind: "electricity", readingDate, reading: electricityReading },
+          { kind: "water", reading: waterReading },
+          { kind: "electricity", reading: electricityReading },
         ],
         extraFees: [],
         ...(overrides ? { overrides } : {}),
@@ -263,8 +263,8 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       periodStart: "2026-01-01",
       dueDate: "2026-08-31",
       readings: [
-        { kind: "water", readingDate: "2026-08-31", reading: "110" },
-        { kind: "electricity", readingDate: "2026-08-31", reading: "60" },
+        { kind: "water", reading: "110" },
+        { kind: "electricity", reading: "60" },
       ],
       extraFees: [],
     };
@@ -283,15 +283,15 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       {
         ...base,
         readings: [
-          { kind: "water", readingDate: "2026-08-31", reading: "99" },
-          { kind: "electricity", readingDate: "2026-08-31", reading: "60" },
+          { kind: "water", reading: "99" },
+          { kind: "electricity", reading: "60" },
         ],
       },
       {
         ...base,
         readings: [
-          { kind: "water", readingDate: "2026-08-31", reading: "9999999999999999" },
-          { kind: "electricity", readingDate: "2026-08-31", reading: "60" },
+          { kind: "water", reading: "9999999999999999" },
+          { kind: "electricity", reading: "60" },
         ],
       },
     ];
@@ -310,8 +310,8 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       periodStart: "2026-01-01",
       dueDate: "2026-08-31",
       readings: [
-        { kind: "water", readingDate: "2026-08-31", reading: "110" },
-        { kind: "electricity", readingDate: "2026-08-31", reading: "60" },
+        { kind: "water", reading: "110" },
+        { kind: "electricity", reading: "60" },
       ],
       extraFees: [],
     };
@@ -350,8 +350,8 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       periodStart: "2026-01-01",
       dueDate: "2026-08-31",
       readings: [
-        { kind: "water", readingDate: "2026-08-31", reading: "110" },
-        { kind: "electricity", readingDate: "2026-08-31", reading: "60" },
+        { kind: "water", reading: "110" },
+        { kind: "electricity", reading: "60" },
       ],
       extraFees: [],
     };

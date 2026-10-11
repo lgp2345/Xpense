@@ -33,9 +33,7 @@ function canonicalize(value: unknown, field?: string): unknown {
       return items.sort((left, right) => {
         const first = left as Record<string, unknown>;
         const second = right as Record<string, unknown>;
-        return `${first.kind}:${first.readingDate}:${first.id ?? ""}`.localeCompare(
-          `${second.kind}:${second.readingDate}:${second.id ?? ""}`,
-        );
+        return `${first.kind}:${first.id ?? ""}`.localeCompare(`${second.kind}:${second.id ?? ""}`);
       });
     }
     if (field === "bills" || field === "cashEntries") {

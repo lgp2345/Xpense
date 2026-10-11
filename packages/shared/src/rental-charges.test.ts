@@ -29,7 +29,6 @@ describe("租赁收费和计量共享契约", () => {
     };
     const reading: RentalMeterReadingInput = {
       kind: "water",
-      readingDate: "2026-09-27",
       reading: "102.3456",
     };
     const updateTerms: UpdateRentalChargeTermsRequest = {

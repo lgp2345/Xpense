@@ -346,7 +346,7 @@ describe("ContractFormPage", () => {
       getMeterBaseline: vi.fn().mockResolvedValue({
         contractId: draftId,
         version: "v1",
-        readings: [{ kind: "water", readingDate: "2026-09-01", reading: "0" }],
+        readings: [{ kind: "water", reading: "0" }],
       }),
     };
     renderPage(

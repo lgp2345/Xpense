@@ -38,7 +38,6 @@ it("收费标准变化、单期覆盖、零值、作废重开和手动退款均�
       dueDate: context.defaultDueDate!,
       readings: context.defaultReadings.map((r) => ({
         ...r,
-        readingDate: "2026-10-08",
         reading: r.kind === "water" ? "3680" : r.reading,
       })),
       extraFees: [],
@@ -53,7 +52,14 @@ it("收费标准变化、单期覆盖、零值、作废重开和手动退款均�
       expectedVersion: preview.version,
       idempotencyKey: randomUUID(),
     });
-    expect(second.lines.find((l) => l.kind === "water")?.amountMinor).toBe(32000);
+    expect(second.lines.find((l) => l.kind === "water")).toMatchObject({
+      amountMinor: 32000,
+      periodStart: null,
+      periodEnd: null,
+    });
+    expect(second.lines.find((l) => l.kind === "water")?.feeSnapshot).not.toHaveProperty(
+      "startDate",
+    );
     expect(second.lines.find((l) => l.kind === "fixed_fee")?.feeSnapshot).toMatchObject({
       periodAmountMinor: 0,
       overrideReason: "本期管理费减免",

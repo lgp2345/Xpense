@@ -10,7 +10,6 @@ export type PeriodBillExtraFeeDraft = {
 };
 
 export type PeriodBillReadingDraft = {
-  readingDate: string;
   reading: string;
 };
 
@@ -58,12 +57,12 @@ export function createPeriodBillDraftSchema(terms: MeterCollection, continuation
       periodStart: z.string().refine(isCalendarDate, "请选择有效账期。"),
       dueDate: z.string().refine(isCalendarDate, "请选择有效账单到期日。"),
       readings: z.object({
-        water: z.object({ readingDate: z.string(), reading: z.string() }),
-        electricity: z.object({ readingDate: z.string(), reading: z.string() }),
+        water: z.object({ reading: z.string() }),
+        electricity: z.object({ reading: z.string() }),
       }),
       baselineReadings: z.object({
-        water: z.object({ readingDate: z.string(), reading: z.string() }),
-        electricity: z.object({ readingDate: z.string(), reading: z.string() }),
+        water: z.object({ reading: z.string() }),
+        electricity: z.object({ reading: z.string() }),
       }),
       overrideWaterUnitPrice: z
         .string()
@@ -134,12 +133,6 @@ export function createPeriodBillDraftSchema(terms: MeterCollection, continuation
         if (!terms[`${kind}CollectionEnabled`]) continue;
         if (continuation) {
           const baseline = value.baselineReadings[kind];
-          if (!isCalendarDate(baseline.readingDate))
-            context.addIssue({
-              code: "custom",
-              path: ["baselineReadings", kind, "readingDate"],
-              message: "请选择接续起算读数日期。",
-            });
           if (!isReading(baseline.reading))
             context.addIssue({
               code: "custom",
@@ -148,13 +141,7 @@ export function createPeriodBillDraftSchema(terms: MeterCollection, continuation
             });
         }
         const reading = value.readings[kind];
-        if (!reading.reading && !reading.readingDate) continue;
-        if (!isCalendarDate(reading.readingDate))
-          context.addIssue({
-            code: "custom",
-            path: ["readings", kind, "readingDate"],
-            message: "请选择有效抄表日期。",
-          });
+        if (!reading.reading) continue;
         if (!isReading(reading.reading))
           context.addIssue({
             code: "custom",
@@ -226,19 +213,18 @@ export function createPeriodBillDraft(
   context: import("@xpense/shared").RentalPeriodBillContext,
 ): PeriodBillDraft {
   const empty = {
-    water: { readingDate: "", reading: "" },
-    electricity: { readingDate: "", reading: "" },
+    water: { reading: "" },
+    electricity: { reading: "" },
   };
   const readings = structuredClone(empty);
-  for (const item of context.defaultReadings)
-    readings[item.kind] = { readingDate: item.readingDate, reading: item.reading };
+  for (const item of context.defaultReadings) readings[item.kind] = { reading: item.reading };
   return {
     periodStart: context.nextPeriod?.periodStart ?? "",
     dueDate: context.defaultDueDate ?? "",
     readings,
     baselineReadings: {
-      water: { readingDate: readings.water.readingDate, reading: "" },
-      electricity: { readingDate: readings.electricity.readingDate, reading: "" },
+      water: { reading: "" },
+      electricity: { reading: "" },
     },
     extraFees: [],
     overrideWaterUnitPrice: "",

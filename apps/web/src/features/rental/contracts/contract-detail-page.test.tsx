@@ -245,7 +245,7 @@ describe("ContractDetailPage", () => {
     );
 
     expect(await screen.findByText("水费单价 CNY 3.0000 / 立方米")).toBeInTheDocument();
-    expect(screen.getByText("入住水表底数 100 · 2026/01/01")).toBeInTheDocument();
+    expect(screen.getByText("入住水表底数 100")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "生成下一张账单" })).toBeInTheDocument();
     expect(screen.queryByText("本阶段仅记录应收，收款情况尚未登记")).not.toBeInTheDocument();
   });
@@ -283,7 +283,7 @@ describe("ContractDetailPage", () => {
     );
 
     expect(await screen.findByText("水费单价 CNY 3.0000 / 立方米")).toBeInTheDocument();
-    expect(screen.getByText("入住水表底数 100 · 2026/01/01")).toBeInTheDocument();
+    expect(screen.getByText("入住水表底数 100")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "编辑收费标准" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "登记底数" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "调整合同默认收费标准" })).not.toBeInTheDocument();

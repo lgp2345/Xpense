@@ -54,6 +54,25 @@ describe("每账期收费快照", () => {
       calculatePeriodCharges(value).lines.find((line) => line.kind === "water")?.amountMinor,
     ).toBe(amount);
   });
+  it("水电费用行和快照不再记录抄表起止日期", () => {
+    const value = input();
+    const previous = source.readings[0]!;
+    value.readings.water = {
+      previous,
+      current: {
+        ...previous,
+        id: "next",
+        predecessorId: previous.id,
+        reading: "101",
+        source: "bill",
+        billId: "bill",
+      },
+    };
+    const line = calculatePeriodCharges(value).lines.find((item) => item.kind === "water");
+    expect(line).toMatchObject({ periodStart: null, periodEnd: null, amountMinor: 300 });
+    expect(line?.feeSnapshot).not.toHaveProperty("startDate");
+    expect(line?.feeSnapshot).not.toHaveProperty("endDate");
+  });
   it("递减读数拒绝", () => {
     const value = input();
     const previous = source.readings[0]!;

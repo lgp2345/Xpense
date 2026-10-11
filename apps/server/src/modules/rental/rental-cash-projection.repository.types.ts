@@ -51,7 +51,6 @@ export type RentalCashProjectionFacts = {
   readings: Array<{
     id: string;
     kind: string;
-    readingDate: string;
     reading: string;
     revision: number;
     predecessorId: string | null;

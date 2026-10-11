@@ -434,9 +434,7 @@ export function useContractDraft(options: Options) {
                       chargeSetup: {
                         ...canonical.chargeSetup,
                         waterReading: "",
-                        waterReadingDate: "",
                         electricityReading: "",
-                        electricityReadingDate: "",
                       },
                     },
               ),

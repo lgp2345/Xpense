@@ -19,8 +19,8 @@ export const meterBaselineFixture: RentalMeterBaseline = {
   contractId: "contract",
   version: "meters-v1",
   readings: [
-    { kind: "water", readingDate: "2026-01-01", reading: "100" },
-    { kind: "electricity", readingDate: "2026-01-01", reading: "250" },
+    { kind: "water", reading: "100" },
+    { kind: "electricity", reading: "250" },
   ],
 };
 
@@ -162,12 +162,12 @@ export const periodContextFixture: import("@xpense/shared").RentalPeriodBillCont
   defaultDueDate: "2026-10-05",
   defaults: chargeTermsFixture,
   baselineReadings: [
-    { kind: "water", readingDate: "2026-10-05", reading: "3500" },
-    { kind: "electricity", readingDate: "2026-10-05", reading: "50" },
+    { kind: "water", reading: "3500" },
+    { kind: "electricity", reading: "50" },
   ],
   defaultReadings: [
-    { kind: "water", readingDate: "2026-10-08", reading: "3500" },
-    { kind: "electricity", readingDate: "2026-10-08", reading: "50" },
+    { kind: "water", reading: "3500" },
+    { kind: "electricity", reading: "50" },
   ],
   selectablePeriods: {
     items: [

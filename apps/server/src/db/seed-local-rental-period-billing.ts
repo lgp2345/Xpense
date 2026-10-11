@@ -250,8 +250,8 @@ export async function seedLocalRentalPeriodBilling(url: string, options: PeriodS
                   fixedFees: [{ id: randomUUID(), name: "管理费", periodAmountMinor: 10000 }],
                 },
                 baselineReadings: [
-                  { kind: "water", readingDate: scenario.start, reading: "3500" },
-                  { kind: "electricity", readingDate: scenario.start, reading: "50" },
+                  { kind: "water", reading: "3500" },
+                  { kind: "electricity", reading: "50" },
                 ],
               },
             }),

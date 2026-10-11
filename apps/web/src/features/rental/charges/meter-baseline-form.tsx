@@ -2,7 +2,6 @@ import { useForm, useStore } from "@tanstack/react-form";
 import type { RentalChargeTerms, RentalMeterReadingInput } from "@xpense/shared";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { DatePickerInput } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ApiError } from "../../../services/api-client";
@@ -11,12 +10,9 @@ import {
   type RentalFinanceApi,
   type RentalMeterBaseline,
 } from "../../../services/rental-finance-api";
-import { isCalendarDate } from "../contracts/contract-action-model";
 
 type Values = {
-  waterDate: string;
   waterReading: string;
-  electricityDate: string;
   electricityReading: string;
   reason: string;
 };
@@ -35,7 +31,6 @@ function changedReadingKinds(
     const previous = baseline.readings.find((reading) => reading.kind === kind);
     return (
       !previous ||
-      previous.readingDate !== value[`${kind}Date`] ||
       normalizedReading(previous.reading) !== normalizedReading(value[`${kind}Reading`])
     );
   });
@@ -44,24 +39,15 @@ function changedReadingKinds(
 function meterBaselineSchema(baseline: RentalMeterBaseline, terms?: RentalChargeTerms) {
   return z
     .object({
-      waterDate: z.string(),
       waterReading: z.string(),
-      electricityDate: z.string(),
       electricityReading: z.string(),
       reason: z.string().trim().min(1, "请填写底数变更原因。"),
     })
     .superRefine((value, context) => {
       for (const kind of ["water", "electricity"] as const) {
         if (terms && !terms[`${kind}CollectionEnabled`]) continue;
-        const date = value[`${kind}Date`],
-          reading = value[`${kind}Reading`];
-        if (!date && !reading) continue;
-        if (!isCalendarDate(date))
-          context.addIssue({
-            code: "custom",
-            path: [`${kind}Date`],
-            message: `请输入有效${kind === "water" ? "水表" : "电表"}读数日期。`,
-          });
+        const reading = value[`${kind}Reading`];
+        if (!reading) continue;
         if (!/^\d+(?:\.\d{1,4})?$/.test(reading))
           context.addIssue({
             code: "custom",
@@ -118,9 +104,7 @@ function MeterBaselineSession({
   const schema = meterBaselineSchema(baseline, terms);
   const form = useForm({
     defaultValues: {
-      waterDate: reading("water")?.readingDate ?? "",
       waterReading: reading("water")?.reading ?? "",
-      electricityDate: reading("electricity")?.readingDate ?? "",
       electricityReading: reading("electricity")?.reading ?? "",
       reason: "",
     } satisfies Values,
@@ -135,7 +119,6 @@ function MeterBaselineSession({
         reason: value.reason.trim(),
         readings: changedReadingKinds(value, baseline, terms).map((kind) => ({
           kind,
-          readingDate: value[`${kind}Date`],
           reading: value[`${kind}Reading`].trim(),
         })),
       };
@@ -187,34 +170,11 @@ function MeterBaselineSession({
       <div className="grid gap-3 sm:grid-cols-2">
         {(["water", "electricity"] as const).map((kind) => {
           if (terms && !terms[`${kind}CollectionEnabled`]) return null;
-          const prefix = kind === "water" ? "water" : "electricity";
           const label = kind === "water" ? "水表" : "电表";
-          const dateKey = `${prefix}Date` as "waterDate" | "electricityDate";
-          const readingKey = `${prefix}Reading` as "waterReading" | "electricityReading";
-          const dateError = fieldError(dateKey, values[dateKey]);
+          const readingKey = `${kind}Reading` as "waterReading" | "electricityReading";
           const readingError = fieldError(readingKey, values[readingKey]);
           return (
             <div className="space-y-2" key={kind}>
-              <div className="space-y-1 text-sm">
-                <span className="block">{label}底数日期</span>
-                <DatePickerInput
-                  aria-label={`${label}底数日期`}
-                  value={values[dateKey]}
-                  aria-invalid={Boolean(dateError)}
-                  aria-describedby={dateError ? `${dateKey}-error` : undefined}
-                  disabled={busy}
-                  onBlur={() => setTouched((current) => new Set(current).add(dateKey))}
-                  onChange={(date) => {
-                    setTouched((current) => new Set(current).add(dateKey));
-                    change(dateKey, date ?? "");
-                  }}
-                />
-                {dateError ? (
-                  <p id={`${dateKey}-error`} role="alert">
-                    {dateError}
-                  </p>
-                ) : null}
-              </div>
               <label className="block space-y-1 text-sm" htmlFor={`meter-${kind}-reading`}>
                 <span>{label}底数</span>
                 <Input

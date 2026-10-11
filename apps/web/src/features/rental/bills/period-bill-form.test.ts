@@ -16,6 +16,23 @@ it("默认截止日与读数完全来自服务端上下文，不计算账期", (
     toPeriodBillPreviewRequest("contract", draft, periodContextFixture.defaults)?.periodStart,
   ).toBe("2026-10-05");
 });
+it("无抄表日期时仍能预览读数，空读数省略且真实零值保留", () => {
+  const draft = createPeriodBillDraft(periodContextFixture);
+  draft.readings.water.reading = "0";
+  draft.readings.electricity.reading = "";
+  draft.baselineReadings.water.reading = "0";
+  draft.baselineReadings.electricity.reading = "50";
+
+  expect(createPeriodBillDraftSchema(periodContextFixture.defaults).safeParse(draft).success).toBe(
+    true,
+  );
+  expect(
+    toPeriodBillPreviewRequest("contract", draft, periodContextFixture.defaults)?.readings,
+  ).toEqual([{ kind: "water", reading: "0" }]);
+  expect(
+    createPeriodBillDraftSchema(periodContextFixture.defaults, true).safeParse(draft).success,
+  ).toBe(true);
+});
 it("金额按整数分解析，支持负费用与安全范围", () => {
   expect(parseSignedMoneyMinor("-20.00")).toBe(-2000);
   expect(parseSignedMoneyMinor("0.01")).toBe(1);

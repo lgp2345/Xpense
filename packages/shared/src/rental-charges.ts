@@ -36,7 +36,6 @@ export type UpdateRentalChargeTermsRequest = {
 /** 水电表计读数；读数和单价最多四位小数。 */
 export type RentalMeterReadingInput = {
   kind: RentalMeterKind;
-  readingDate: string;
   reading: string;
 };
 
