@@ -24,6 +24,50 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
     if (harness) await harness.app.close();
   });
 
+  it("残月预览、生成及账单详情均使用舍入日单价乘天数", async () => {
+    const contractId = harness.financeContractId;
+    const header = harness.state.rental.contracts.get(contractId);
+    if (!header) throw new Error("测试合同不存在");
+    harness.state.rental.contracts.set(contractId, {
+      ...header,
+      startDate: "2026-10-11T00:00:00",
+      endDate: "2027-01-10T23:59:59",
+      rentAmountMinor: 50000,
+    });
+    const request = {
+      contractId,
+      periodStart: "2026-10-11",
+      dueDate: "2026-10-11",
+      readings: [
+        { kind: "water", reading: "100" },
+        { kind: "electricity", reading: "50" },
+      ],
+      extraFees: [],
+    };
+    const response = await harness.request("/rental-period-bills/preview", request);
+    expect(response.statusCode).toBe(200);
+    const preview = harness.parse<{
+      version: string;
+      lines: Array<{ kind: string; amountMinor: number }>;
+    }>(response);
+    expect(preview.lines.find((line) => line.kind === "rent_period")?.amountMinor).toBe(33873);
+    const generated = await harness.request("/rental-period-bills/generate", {
+      ...request,
+      expectedVersion: preview.version,
+      idempotencyKey: randomUUID(),
+    });
+    expect(generated.statusCode).toBe(200);
+    const bill = harness.parse<{ id: string; lines: typeof preview.lines }>(generated);
+    expect(bill.lines.find((line) => line.kind === "rent_period")?.amountMinor).toBe(33873);
+    const detail = await harness.request(`/rental-bills/detail?id=${bill.id}`);
+    expect(detail.statusCode).toBe(200);
+    expect(
+      harness
+        .parse<{ lines: typeof preview.lines }>(detail)
+        .lines.find((line) => line.kind === "rent_period")?.amountMinor,
+    ).toBe(33873);
+  });
+
   it("绑定严格请求 schema，并通过 HTTP 返回预览、401、403、404 和 409", async () => {
     const contractId = harness.financeContractId;
     const terms = await harness.request(`/rental-charges/detail?id=${contractId}`);
@@ -140,6 +184,7 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
         { kind: "electricity", reading: "60" },
       ],
       extraFees: [],
+      note: "  本期整体备注  ",
     };
     const preview = await harness.request("/rental-period-bills/preview", previewRequest);
     expect(preview.statusCode).toBe(200);
@@ -155,9 +200,11 @@ describe("收费配置、入住底数与月度账单 HTTP", () => {
       modelVersion: number;
       billingMonth: string;
       lines: Array<{ kind: string; amountMinor: number }>;
+      snapshot: { note?: string };
     }>(generated);
     expect(generatedBill).toMatchObject({
       type: "period",
+      snapshot: { note: "本期整体备注" },
     });
     const rentAmountMinor = generatedBill.lines
       .filter((line) => line.kind === "rent_period")

@@ -71,5 +71,7 @@ type PersistableBillingDraftBase = BillingDraft & {
   dueDate: string;
   adjustmentId: string | null;
 };
-export type PersistableBillingDraft = PersistableBillingDraftBase;
+export type PersistableBillingDraft = PersistableBillingDraftBase & {
+  note?: string;
+};
 export type BillingWriteContext = { organizationId: string; userId: string; today: string };

@@ -15,7 +15,7 @@ describe("原付款账期的终止参考", () => {
       periodStart: "2026-04-01",
       periodEnd: "2026-06-30",
       originalAmountMinor: 900000,
-      referenceAmountMinor: 445161,
+      referenceAmountMinor: 445155,
     });
   });
   it("终止期首日和期末按包含首尾日处理", () => {

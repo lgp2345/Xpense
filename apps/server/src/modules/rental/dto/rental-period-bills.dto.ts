@@ -41,12 +41,20 @@ const shape = {
   overrides: rentalPeriodOverridesSchema.optional(),
   extraFees: z.array(rentalExtraFeeInputSchema),
 };
+/** 整张账单备注去除首尾空格，最多1000字符；空备注按未填写处理。 */
+const rentalPeriodBillNoteSchema = z
+  .string()
+  .trim()
+  .max(1000)
+  .transform((note) => note || undefined)
+  .optional();
+const periodBillShape = { ...shape, note: rentalPeriodBillNoteSchema };
 /** 预览可以缺少读数，由服务端返回可补齐的业务缺项。 */
-export const previewRentalPeriodBillSchema = z.object(shape).strict();
+export const previewRentalPeriodBillSchema = z.object(periodBillShape).strict();
 /** 正式生成绑定服务端预览版本与期初，同日不同账单仍保存独立快照。 */
 export const generateRentalPeriodBillSchema = z
   .object({
-    ...shape,
+    ...periodBillShape,
     dueDate: contractCalendarDateSchema,
     readings: optionalRentalMeterReadingsSchema,
     expectedVersion: rentalExpectedVersionSchema,

@@ -22,11 +22,12 @@ export function sumBillingAmounts(amounts: number[]): number {
   return Number(sum);
 }
 
-/** 整数比例在月度片段末舍入，恰好一半时向上取整。 */
+/** 完整参考月按合同月租收费；残月先将日单价四舍五入到分，再乘覆盖天数。 */
 export function prorateBillingAmount(amount: number, coveredDays: number, referenceDays: number) {
-  const numerator = BigInt(amount) * BigInt(coveredDays);
+  if (coveredDays === referenceDays) return amount;
   const denominator = BigInt(referenceDays);
-  return Number((numerator * 2n + denominator) / (denominator * 2n));
+  const dailyMinor = (BigInt(amount) * 2n + denominator) / (denominator * 2n);
+  return Number(dailyMinor * BigInt(coveredDays));
 }
 
 function monthBoundary(start: ReturnType<typeof parseCalendarDate>, offset: number, day: number) {

@@ -4,7 +4,7 @@ import type { RentalBillGenerationInput, RentalContractDepositTerm } from "@xpen
 
 import type { BillingDraft, BillingSource, BillingTerms } from "./billing.types.js";
 
-const billingRuleVersion = "rental-billing-v1";
+const billingRuleVersion = "rental-billing-v2-rounded-daily-rent";
 
 /** 规范化输入对象键，排除调用方对象插入顺序的影响。 */
 export function billingDigest(value: unknown): string {

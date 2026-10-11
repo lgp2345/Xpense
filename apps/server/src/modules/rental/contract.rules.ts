@@ -6,6 +6,7 @@ import type {
   RentalPaymentIntervalMonths,
 } from "@xpense/shared";
 
+import { prorateBillingAmount } from "./billing-period.rules.js";
 import {
   addCalendarDays,
   assertCalendarDate,
@@ -220,7 +221,7 @@ export function finalDepositAmount(term: DepositCalculationValue, rentAmountMino
   return Number(rounded);
 }
 
-/** 按起止日所在公历月的实际天数计算含首尾日租金，并以整数四舍五入。 */
+/** 公历残月先舍入日单价到分再乘含首尾天数；完整月收合同月租。 */
 export function prorateCalendarMonthRent(amountMinor: number, from: string, to: string): number {
   assertPositiveMoney(amountMinor, "月租金");
   if (from.slice(0, 7) !== to.slice(0, 7) || compareCalendarDates(from, to) > 0) {
@@ -228,10 +229,8 @@ export function prorateCalendarMonthRent(amountMinor: number, from: string, to: 
   }
   const year = Number(from.slice(0, 4));
   const month = Number(from.slice(5, 7));
-  const occupiedDays = BigInt(Number(to.slice(8, 10)) - Number(from.slice(8, 10)) + 1);
-  const divisor = BigInt(calendarMonthDays(year, month));
-  const rounded = (BigInt(amountMinor) * occupiedDays + divisor / 2n) / divisor;
-  return Number(rounded);
+  const occupiedDays = Number(to.slice(8, 10)) - Number(from.slice(8, 10)) + 1;
+  return prorateBillingAmount(amountMinor, occupiedDays, calendarMonthDays(year, month));
 }
 
 /** 校验合同聚合在当前生命周期下的核心字段与关联集合。 */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BillingTerms } from "./billing.types.js";
-import { buildRentPlan } from "./billing-period.rules.js";
+import { buildRentPlan, prorateBillingAmount } from "./billing-period.rules.js";
 
 const terms: BillingTerms = {
   startDate: "2026-09-15",
@@ -12,9 +12,9 @@ const terms: BillingTerms = {
 };
 
 describe("整租期计费", () => {
-  it("按起租日参考月折算尾期，片段合计不重复舍入", () => {
+  it("按起租日参考月先舍入每日单价，再乘尾期天数", () => {
     const plan = buildRentPlan(terms);
-    expect(plan.drafts.map((x) => x.amountMinor)).toEqual([300000, 58065]);
+    expect(plan.drafts.map((x) => x.amountMinor)).toEqual([300000, 58062]);
     expect(plan.drafts[1]?.lines[0]).toMatchObject({
       periodStart: "2026-10-15",
       periodEnd: "2026-10-20",
@@ -22,7 +22,18 @@ describe("整租期计费", () => {
       coveredDays: 6,
       referenceDays: 31,
     });
-    expect(plan.totals).toEqual({ rentAmountMinor: 358065, depositAmountMinor: 0 });
+    expect(plan.totals).toEqual({ rentAmountMinor: 358062, depositAmountMinor: 0 });
+  });
+  it.each([
+    [50000, 21, 31, 33873],
+    [50000, 31, 31, 50000],
+    [50000, 10, 29, 17240],
+    [50000, 10, 28, 17860],
+    [14, 14, 28, 14],
+    [1, 14, 28, 0],
+    [Number.MAX_SAFE_INTEGER, 30, 31, 8716644440071920],
+  ])("月租 %i 分、覆盖 %i/%i 天应收 %i 分", (amount, covered, reference, expected) => {
+    expect(prorateBillingAmount(amount, covered, reference)).toBe(expected);
   });
   it("自然月季付首残月归入第一期", () => {
     const plan = buildRentPlan({
@@ -73,9 +84,9 @@ describe("整租期计费", () => {
         ...terms,
         startDate: "2026-02-01",
         endDate: "2026-02-14",
-        rentAmountMinor: 1,
+        rentAmountMinor: 14,
       }).drafts[0]?.amountMinor,
-    ).toBe(1);
+    ).toBe(14);
   });
   it("到期日跨年且不采用生成当天", () => {
     expect(

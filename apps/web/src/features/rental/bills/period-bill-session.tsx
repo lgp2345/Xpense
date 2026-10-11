@@ -22,15 +22,14 @@ import {
   type RentalFinanceApi,
 } from "../../../services/rental-finance-api";
 import { rentalFinanceKeys } from "../../../services/rental-finance-query";
-import { formatBillAmount } from "./bill-format";
 import { PeriodBillFields } from "./period-bill-fields";
 import {
   createPeriodBillDraft,
   createPeriodBillDraftSchema,
   type PeriodBillDraft,
-  periodMissingFieldLabel,
   toPeriodBillPreviewRequest,
 } from "./period-bill-form";
+import { PeriodBillPreview } from "./period-bill-preview";
 export type PeriodBillDialogProps = {
   organizationId: string;
   contractId: string;
@@ -87,7 +86,15 @@ export function PeriodBillSession({
   if (!validation.success)
     for (const issue of validation.error.issues) {
       const path = issue.path.join(".");
-      if (attempted || touched.has(String(issue.path[0]))) errors.set(path, issue.message);
+      if (
+        attempted ||
+        touched.has(String(issue.path[0])) ||
+        (issue.path[0] === "overrideReason" &&
+          ["overrideWaterUnitPrice", "overrideElectricityUnitPrice", "overrideFixedFees"].some(
+            (key) => touched.has(key),
+          ))
+      )
+        errors.set(path, issue.message);
     }
   const request = useMemo(() => {
     const value = toPeriodBillPreviewRequest(contractId, draft, context.defaults, continuation);
@@ -206,66 +213,42 @@ export function PeriodBillSession({
         if (!busy) onOpenChange(open);
       }}
     >
-      <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <DialogHeader className="shrink-0 border-b px-5 py-4 sm:px-6">
           <DialogTitle>生成下一张账单</DialogTitle>
           <DialogDescription>确认后保存本期收费及读数快照。</DialogDescription>
         </DialogHeader>
         <form
-          className="min-w-0 space-y-4"
+          className="flex min-h-0 min-w-0 flex-1 flex-col"
           onSubmit={(event) => {
             event.preventDefault();
             setAttempted(true);
             void form.handleSubmit();
           }}
         >
-          <PeriodBillFields
-            draft={draft}
-            context={displayedContext}
-            errors={errors}
-            disabled={busy}
-            page={page}
-            onPage={setPage}
-            onChange={update}
-          />
-          {periods.isFetching ? <p role="status">正在读取候选账期…</p> : null}
-          {periods.isError ? <p role="alert">候选账期读取失败，请重试。</p> : null}
-          {previewBusy ? <p role="status">正在计算账单预览…</p> : null}
-          {currentPreview ? (
-            <section aria-label="服务端账单预览" className="space-y-2 rounded-md border p-3">
-              <h3 className="text-sm font-medium">
-                账单预览 · {currentPreview.period.periodStart} 至 {currentPreview.period.periodEnd}
-              </h3>
-              <ul className="divide-y text-sm">
-                {currentPreview.lines.map((line) => (
-                  <li
-                    key={`${line.sortOrder}:${line.kind}`}
-                    className="flex flex-wrap justify-between gap-2 py-2"
-                  >
-                    <span>
-                      {line.label}
-                      {line.note ? ` · ${line.note}` : ""}
-                    </span>
-                    <span className="tabular-nums">{formatBillAmount(line.amountMinor)}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="text-right font-semibold tabular-nums">
-                应收 CNY {formatBillAmount(currentPreview.amountMinor)}
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 sm:px-6">
+            <PeriodBillFields
+              draft={draft}
+              context={displayedContext}
+              preview={currentPreview}
+              previewBusy={previewBusy}
+              errors={errors}
+              disabled={busy}
+              page={page}
+              onPage={setPage}
+              onChange={update}
+            />
+            {periods.isFetching ? <p role="status">正在读取候选账期…</p> : null}
+            {periods.isError ? <p role="alert">候选账期读取失败，请重试。</p> : null}
+            {previewBusy ? <p role="status">正在计算账单预览…</p> : null}
+            {currentPreview ? <PeriodBillPreview preview={currentPreview} /> : null}
+            {error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
               </p>
-              {currentPreview.missingFields.length ? (
-                <p role="alert" className="text-sm text-destructive">
-                  尚缺：{currentPreview.missingFields.map(periodMissingFieldLabel).join("、")}
-                </p>
-              ) : null}
-            </section>
-          ) : null}
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
-          <DialogFooter>
+            ) : null}
+          </div>
+          <DialogFooter className="shrink-0 border-t px-5 py-4 sm:px-6">
             <Button
               type="button"
               variant="outline"

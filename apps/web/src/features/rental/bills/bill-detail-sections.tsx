@@ -19,6 +19,12 @@ export function BillDetailSections({ bill }: { bill: RentalBillDetail }) {
   const showReference = bill.lines.some((line) => line.referenceDays !== null);
   return (
     <div className="space-y-5">
+      {bill.snapshot.note ? (
+        <section className="space-y-2 rounded-lg border p-4 text-sm">
+          <h2 className="font-semibold">账单备注</h2>
+          <p className="whitespace-pre-wrap break-words">{bill.snapshot.note}</p>
+        </section>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle className="text-base leading-6">

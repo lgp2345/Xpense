@@ -84,7 +84,11 @@ export function financeRequestHash(action: string, request: unknown): string {
   return digest({ action, request: normalizeRequest(request) });
 }
 
-/** 版本取持久化来源和规范化请求；不接受调用方生成的计划或临时读数 ID。 */
+/** 版本包含租金计算规则、持久化来源和规范化请求；规则变化使旧预览失效。 */
 export function financeSourceVersion(source: unknown, request: unknown): string {
-  return digest({ source: canonicalize(source), request: normalizeRequest(request) });
+  return digest({
+    ruleVersion: "rental-finance-v2-rounded-daily-rent",
+    source: canonicalize(source),
+    request: normalizeRequest(request),
+  });
 }

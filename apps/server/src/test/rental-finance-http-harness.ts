@@ -107,6 +107,7 @@ export async function createRentalFinanceHttpHarness(): Promise<RentalFinanceHtt
       state.billCounter += drafts.length;
       const inserted = drafts.map((draft, index) => {
         const detail = rentalBillingDetail(billingSource, draft);
+        if (draft.note) detail.snapshot = { ...detail.snapshot, note: draft.note };
         const billNumber = `RB-2026-${state.billCounter - drafts.length + index + 1}`;
         const createdAt = new Date("2026-08-31T04:00:00.000Z");
         const revision = 1;

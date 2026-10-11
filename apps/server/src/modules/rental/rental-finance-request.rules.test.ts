@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   financeRequestHash,
@@ -8,6 +9,16 @@ import {
 const loadRules = () => import("./rental-finance-request.rules.js").catch(() => null);
 
 describe("rental finance request fingerprints", () => {
+  it("使日单价舍入规则上线前的预览版本失效，幂等请求摘要保持兼容", () => {
+    const previousVersion = createHash("sha256")
+      .update(JSON.stringify({ request: {}, source: {} }))
+      .digest("hex");
+    expect(financeSourceVersion({}, {})).not.toBe(previousVersion);
+    const previousRequest = createHash("sha256")
+      .update(JSON.stringify({ action: "period_bill", request: {} }))
+      .digest("hex");
+    expect(financeRequestHash("period_bill", {})).toBe(previousRequest);
+  });
   it("exposes one deterministic request and source fingerprint boundary", async () => {
     const rules = await loadRules();
     expect(rules?.financeRequestHash).toBeTypeOf("function");

@@ -134,7 +134,8 @@ export class BillsRepository {
             amountMinor: draft.amountMinor,
             generationId,
             adjustmentId: draft.adjustmentId,
-            snapshot,
+            snapshot:
+              draft.type === "period" && draft.note ? { ...snapshot, note: draft.note } : snapshot,
             depositSourceId: draft.depositSourceId,
             depositSnapshot: draft.depositSnapshot,
             createdByUserId: context.userId,

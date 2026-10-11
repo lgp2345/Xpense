@@ -23,6 +23,37 @@ function source() {
   value.terms!.fixedFees = [{ id: "fee", name: "管理费", periodAmountMinor: 10000 }];
   return value;
 }
+it("提前退租按舍入日单价计算结算租金，普通账单原金额保留", () => {
+  const value = source();
+  const original = buildPeriodBillPlan(value, {
+    contractId: value.context.contractId,
+    periodStart: "2026-10-05",
+    extraFees: [],
+  });
+  value.bills = [
+    {
+      id: "bill",
+      type: "period",
+      status: "active",
+      ...original.period,
+      lines: original.lines,
+      amountMinor: original.amountMinor,
+    },
+  ] as never;
+  value.contract.terminationDate = "2026-10-20";
+  const before = structuredClone(value.bills);
+  const final = buildPeriodSettlementPlan(value, {
+    contractId: value.context.contractId,
+    finalReadings: [],
+    extraFees: [],
+  });
+  expect(final.periodCharges[0]?.lines.find((line) => line.kind === "rent_period")).toMatchObject({
+    amountMinor: 154832,
+    coveredDays: 16,
+    referenceDays: 31,
+  });
+  expect(value.bills).toEqual(before);
+});
 it("尾期只收最后有效账单之后20水量，不改普通账单", () => {
   const value = source();
   const plan = buildPeriodBillPlan(value, {

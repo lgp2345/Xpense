@@ -299,6 +299,7 @@ describe("账单仓储作用域及原子编号", () => {
       generationId: "generation",
       snapshot: { parties: [{ tenantId: "tenant", name: "租户", isPrimaryPayer: true }] },
     });
+    expect(billRows[0]).not.toHaveProperty("snapshot.note");
     expect(JSON.stringify(billRows)).not.toContain("sensitive-fixture");
     expect(JSON.stringify(billRows)).not.toContain("private-fixture");
     expect(lineRows[0]).toMatchObject({
@@ -318,6 +319,71 @@ describe("账单仓储作用域及原子编号", () => {
           executor as never,
         ),
     ).rejects.toThrow("lines do not match");
+    await module.close();
+  });
+
+  it("账期账单整体备注合并保存到账单快照", async () => {
+    const source = {
+      currencyCode: "CNY",
+      contract: {
+        id: "contract",
+        propertyId: "property",
+        propertyName: "房产",
+        contractNumber: "RC",
+        spaces: [],
+        parties: [],
+      },
+    } as unknown as BillingSource;
+    const draft: PersistableBillingDraft = {
+      type: "period",
+      sourceKey: "period:2026-01-01:2026-01-31",
+      periodStart: "2026-01-01",
+      periodEnd: "2026-01-31",
+      effectiveEnd: null,
+      dueDate: "2026-01-01",
+      amountMinor: 100,
+      lines: [],
+      depositSourceId: null,
+      depositSnapshot: null,
+      adjustmentId: null,
+      note: "本期整体说明",
+    };
+    const billRows: unknown[] = [];
+    const updates: unknown[] = [];
+    const executor = {
+      execute: vi.fn().mockResolvedValue([{ lastValue: 1 }]),
+      insert: (table: unknown) => ({
+        values: (rows: unknown[]) => {
+          if (table !== rentalBills) throw new Error("unexpected table");
+          billRows.push(...rows);
+          return { returning: async () => rows };
+        },
+      }),
+      update: () => ({
+        set: (value: unknown) => {
+          updates.push(value);
+          return { where: async () => undefined };
+        },
+      }),
+    };
+    const module = await Test.createTestingModule({
+      providers: [BillsRepository, { provide: DB, useValue: {} }],
+    }).compile();
+
+    await module
+      .get(BillsRepository)
+      .insertPeriodHeader(
+        { organizationId: "org", userId: "user", today: "2026-01-01" },
+        source,
+        "generation",
+        draft,
+        executor as never,
+      );
+
+    expect(billRows[0]).toMatchObject({
+      snapshot: { note: "本期整体说明" },
+    });
+    expect(updates).toEqual([{ amountMinor: 100 }]);
     await module.close();
   });
 

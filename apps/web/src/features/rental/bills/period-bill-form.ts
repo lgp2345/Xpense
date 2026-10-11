@@ -50,8 +50,41 @@ export type MeterCollection = Pick<
   RentalChargeTerms,
   "waterCollectionEnabled" | "electricityCollectionEnabled"
 >;
+type PeriodBillTerms = MeterCollection &
+  Partial<Pick<RentalChargeTerms, "waterUnitPrice" | "electricityUnitPrice" | "fixedFees">>;
 
-export function createPeriodBillDraftSchema(terms: MeterCollection, continuation = false) {
+function normalizedPrice(value: string): string {
+  const [whole = "", fraction = ""] = value.trim().split(".");
+  return `${whole.replace(/^0+(?=\d)/, "")}.${fraction.replace(/0+$/, "")}`;
+}
+
+/** 只提交与合同默认值不同的单价和固定费，等价小数不视为改价。 */
+function changedCharges(draft: PeriodBillDraft, terms: PeriodBillTerms) {
+  const water = draft.overrideWaterUnitPrice.trim();
+  const electricity = draft.overrideElectricityUnitPrice.trim();
+  const fixedFees = draft.overrideFixedFees.flatMap((fee) => {
+    const amount = parseSignedMoneyMinor(fee.amount);
+    const original = terms.fixedFees?.find((item) => item.id === fee.id);
+    return amount !== null && amount !== original?.periodAmountMinor
+      ? [{ id: fee.id, periodAmountMinor: amount }]
+      : [];
+  });
+  const waterChanged =
+    terms.waterCollectionEnabled &&
+    water &&
+    normalizedPrice(water) !== normalizedPrice(terms.waterUnitPrice ?? "");
+  const electricityChanged =
+    terms.electricityCollectionEnabled &&
+    electricity &&
+    normalizedPrice(electricity) !== normalizedPrice(terms.electricityUnitPrice ?? "");
+  return {
+    ...(waterChanged ? { waterUnitPrice: water } : {}),
+    ...(electricityChanged ? { electricityUnitPrice: electricity } : {}),
+    fixedFees,
+  };
+}
+
+export function createPeriodBillDraftSchema(terms: PeriodBillTerms, continuation = false) {
   return z
     .object({
       periodStart: z.string().refine(isCalendarDate, "请选择有效账期。"),
@@ -73,17 +106,13 @@ export function createPeriodBillDraftSchema(terms: MeterCollection, continuation
       overrideFixedFees: z.array(
         z.object({
           id: z.string(),
-          amount: z
-            .string()
-            .refine(
-              (value) =>
-                !value ||
-                (parseSignedMoneyMinor(value) !== null && parseSignedMoneyMinor(value)! >= 0),
-              "请输入非负每期金额。",
-            ),
+          amount: z.string().refine((value) => {
+            const amount = parseSignedMoneyMinor(value);
+            return amount !== null && amount >= 0;
+          }, "请输入非负每期金额。"),
         }),
       ),
-      overrideReason: z.string(),
+      overrideReason: z.string().max(1000, "备注最多1000字。"),
       extraFees: z
         .array(
           z.object({
@@ -108,29 +137,32 @@ export function createPeriodBillDraftSchema(terms: MeterCollection, continuation
                 path: [index, "amount"],
                 message: "请输入有效费用金额。",
               });
-            if (!fee.note.trim())
+            if (fee.note.length > 1000)
               context.addIssue({
                 code: "custom",
                 path: [index, "note"],
-                message: "请输入额外费用备注。",
+                message: "备注最多1000字。",
               });
           });
         }),
     })
     .superRefine((value, context) => {
+      const changes = changedCharges(value, terms);
       if (
-        (value.overrideWaterUnitPrice ||
-          value.overrideElectricityUnitPrice ||
-          value.overrideFixedFees.some((fee) => fee.amount)) &&
+        (changes.waterUnitPrice || changes.electricityUnitPrice || changes.fixedFees.length) &&
         !value.overrideReason.trim()
       )
         context.addIssue({
           code: "custom",
           path: ["overrideReason"],
-          message: "请输入本期收费调整原因。",
+          message: "调整本期金额或单价时，请在备注中说明原因。",
         });
       for (const kind of ["water", "electricity"] as const) {
         if (!terms[`${kind}CollectionEnabled`]) continue;
+        const priceKey =
+          kind === "water" ? "overrideWaterUnitPrice" : "overrideElectricityUnitPrice";
+        if (!value[priceKey].trim())
+          context.addIssue({ code: "custom", path: [priceKey], message: "请输入本期单价。" });
         if (continuation) {
           const baseline = value.baselineReadings[kind];
           if (!isReading(baseline.reading))
@@ -160,7 +192,7 @@ export const periodBillDraftSchema = createPeriodBillDraftSchema({
 export function toPeriodBillPreviewRequest(
   contractId: string,
   draft: PeriodBillDraft,
-  terms: MeterCollection,
+  terms: PeriodBillTerms,
   continuation = false,
 ): PreviewRentalPeriodBillRequest | null {
   if (!createPeriodBillDraftSchema(terms, continuation).safeParse(draft).success) return null;
@@ -175,34 +207,24 @@ export function toPeriodBillPreviewRequest(
     const note = fee.note.trim();
     if (!name && !amountText && !note) continue;
     const amountMinor = parseSignedMoneyMinor(amountText);
-    if (!name || amountMinor === null || !note) return null;
+    if (!name || amountMinor === null) return null;
     extraFees.push({ id: fee.id, name, amountMinor, note });
   }
 
+  const changes = changedCharges(draft, terms);
+  const note = draft.overrideReason.trim();
   return {
     contractId,
     periodStart: draft.periodStart,
     dueDate: draft.dueDate,
     readings,
     extraFees,
-    ...(draft.overrideWaterUnitPrice ||
-    draft.overrideElectricityUnitPrice ||
-    draft.overrideFixedFees.some((fee) => fee.amount)
+    ...(note ? { note } : {}),
+    ...(changes.waterUnitPrice || changes.electricityUnitPrice || changes.fixedFees.length
       ? {
           overrides: {
-            ...(draft.overrideWaterUnitPrice
-              ? { waterUnitPrice: draft.overrideWaterUnitPrice }
-              : {}),
-            ...(draft.overrideElectricityUnitPrice
-              ? { electricityUnitPrice: draft.overrideElectricityUnitPrice }
-              : {}),
-            fixedFees: draft.overrideFixedFees
-              .filter((fee) => fee.amount)
-              .map((fee) => ({
-                id: fee.id,
-                periodAmountMinor: parseSignedMoneyMinor(fee.amount)!,
-              })),
-            reason: draft.overrideReason.trim(),
+            ...changes,
+            reason: note,
           },
         }
       : {}),
@@ -227,9 +249,12 @@ export function createPeriodBillDraft(
       electricity: { reading: "" },
     },
     extraFees: [],
-    overrideWaterUnitPrice: "",
-    overrideElectricityUnitPrice: "",
-    overrideFixedFees: context.defaults.fixedFees.map((fee) => ({ id: fee.id, amount: "" })),
+    overrideWaterUnitPrice: context.defaults.waterUnitPrice,
+    overrideElectricityUnitPrice: context.defaults.electricityUnitPrice,
+    overrideFixedFees: context.defaults.fixedFees.map((fee) => {
+      const amount = BigInt(fee.periodAmountMinor);
+      return { id: fee.id, amount: `${amount / 100n}.${String(amount % 100n).padStart(2, "0")}` };
+    }),
     overrideReason: "",
   };
 }

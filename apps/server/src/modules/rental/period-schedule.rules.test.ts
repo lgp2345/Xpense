@@ -114,7 +114,7 @@ describe("合同下一账期", () => {
     expect(next).toMatchObject({
       periodStart: "2026-10-05",
       periodEnd: "2026-10-20",
-      amountMinor: 154839,
+      amountMinor: 154832,
     });
     expect(next?.lines[0]).toMatchObject({
       coveredDays: 16,

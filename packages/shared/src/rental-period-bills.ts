@@ -20,6 +20,7 @@ export type RentalPeriodChargeOverrides = {
 export type PreviewRentalPeriodBillRequest = {
   contractId: string;
   periodStart: string;
+  note?: string;
   billingStart?: RentalBillingStartInput;
   dueDate?: string;
   readings?: RentalMeterReadingInput[];

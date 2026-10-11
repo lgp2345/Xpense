@@ -18,6 +18,8 @@ describe("contract rent and aggregate rules", () => {
     expect(prorateCalendarMonthRent(310_000, "2026-03-20", "2026-03-31")).toBe(120_000);
     expect(prorateCalendarMonthRent(290_000, "2024-02-01", "2024-02-29")).toBe(290_000);
     expect(prorateCalendarMonthRent(100, "2026-04-01", "2026-04-01")).toBe(3);
+    expect(prorateCalendarMonthRent(50000, "2026-10-11", "2026-10-31")).toBe(33873);
+    expect(prorateCalendarMonthRent(50000, "2026-10-01", "2026-10-31")).toBe(50000);
     expect(() => prorateCalendarMonthRent(100, "2026-03-31", "2026-04-01")).toThrow();
     expect(() =>
       prorateCalendarMonthRent(Number.MAX_SAFE_INTEGER, "2026-01-01", "2026-01-31"),

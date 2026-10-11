@@ -103,6 +103,8 @@ export type RentalBillAdjustment = {
 
 /** 账单生成时安全快照，不复制证件、联系方式等个人敏感字段。 */
 export type RentalBillSnapshot = {
+  /** 整张账单备注；旧账单快照可能没有此字段。 */
+  note?: string;
   propertyId: string;
   propertyName: string;
   contractNumber: string;

@@ -16,10 +16,14 @@ function harness() {
       writes.push("generation");
       return { id: "generation" };
     }),
-    insertPeriodHeader: vi.fn(async () => {
-      writes.push("header");
-      return bill;
-    }),
+    insertPeriodHeader: vi.fn(
+      async (
+        ..._args: Parameters<import("./bills.repository.js").BillsRepository["insertPeriodHeader"]>
+      ) => {
+        writes.push("header");
+        return bill;
+      },
+    ),
     insertPeriodLines: vi.fn(
       async (
         ..._args: Parameters<import("./bills.repository.js").BillsRepository["insertPeriodLines"]>
@@ -131,6 +135,47 @@ describe("账期生成事务", () => {
       status: "voided",
     });
     expect(h.writes).toHaveLength(8);
+  });
+  it("整体备注改变预览版本并传入账单头草案", async () => {
+    const h = harness();
+    const withNote = { ...h.input, note: "本期整体说明" };
+    const preview = await h.service.preview(rentalFinanceAuth as never, withNote as never);
+    const withoutNote = await h.service.preview(rentalFinanceAuth as never, h.input);
+    expect(preview.version).not.toBe(withoutNote.version);
+
+    await h.service.generate(
+      rentalFinanceAuth as never,
+      {
+        ...withNote,
+        expectedVersion: preview.version,
+        idempotencyKey: "note-key",
+      } as never,
+    );
+    expect(h.bills.insertPeriodHeader.mock.calls[0]?.[3]).toMatchObject({ note: "本期整体说明" });
+  });
+  it("相同幂等键使用不同整体备注会冲突", async () => {
+    const h = harness();
+    const first = { ...h.input, note: "第一份备注" };
+    const preview = await h.service.preview(rentalFinanceAuth as never, first as never);
+    await h.service.generate(
+      rentalFinanceAuth as never,
+      {
+        ...first,
+        expectedVersion: preview.version,
+        idempotencyKey: "note-replay-key",
+      } as never,
+    );
+    await expect(
+      h.service.generate(
+        rentalFinanceAuth as never,
+        {
+          ...first,
+          note: "不同备注",
+          expectedVersion: preview.version,
+          idempotencyKey: "note-replay-key",
+        } as never,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
   it("相同键不同内容和来源版本变化拒绝", async () => {
     const h = harness();

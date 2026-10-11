@@ -3,6 +3,50 @@ import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import type { RentalBillCashBatchResult } from "../../../services/rental-bill-cash-batch";
 import { formatBillAmount } from "./bill-format";
+import { parseSignedMoneyMinor } from "./period-bill-form";
+
+export function BillCashBatchReview({
+  bills,
+  amounts,
+}: {
+  bills: readonly RentalBillSummary[];
+  amounts: Record<string, string>;
+}) {
+  const rows = bills.map((bill) => ({
+    bill,
+    amountMinor:
+      bill.type === "deposit"
+        ? (bill.financial?.outstandingMinor ?? 0)
+        : (parseSignedMoneyMinor(amounts[bill.id] ?? "") ?? 0),
+  }));
+  const totals = new Map<string, bigint>();
+  for (const { bill, amountMinor } of rows) {
+    totals.set(bill.currencyCode, (totals.get(bill.currencyCode) ?? 0n) + BigInt(amountMinor));
+  }
+  return (
+    <>
+      <div className="max-h-60 space-y-2 overflow-y-auto text-sm">
+        {rows.map(({ bill, amountMinor }) => (
+          <p key={bill.id} className="flex flex-wrap justify-between gap-2">
+            <span>{bill.billNumber}</span>
+            <span className="tabular-nums">{formatBillAmount(amountMinor, bill.currencyCode)}</span>
+          </p>
+        ))}
+      </div>
+      <section
+        aria-label="总共收费"
+        className="flex flex-wrap items-start justify-between gap-2 border-t pt-3 text-sm font-semibold"
+      >
+        <span>总共收费</span>
+        <div className="space-y-1 text-right tabular-nums">
+          {[...totals].map(([currencyCode, total]) => (
+            <p key={currencyCode}>{formatBillAmount(total, currencyCode)}</p>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
 
 export function BillCashBatchItems({
   bills,

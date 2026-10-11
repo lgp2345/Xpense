@@ -21,7 +21,11 @@ import {
 import type { RentalBillsApi } from "../../../services/rental-bills-api";
 import type { RentalFinanceApi } from "../../../services/rental-finance-api";
 import { invalidateRentalFinance } from "../../../services/rental-finance-query";
-import { BillCashBatchItems, BillCashBatchSummary } from "./bill-cash-batch-items";
+import {
+  BillCashBatchItems,
+  BillCashBatchReview,
+  BillCashBatchSummary,
+} from "./bill-cash-batch-items";
 import { BillCashDialogFrame, BillCashFormFields } from "./bill-cash-dialog";
 import { billCashBatchSchema, canRegisterBillReceipt, cashAmountText } from "./bill-cash-model";
 import { formatBillAmount } from "./bill-format";
@@ -250,21 +254,7 @@ export function BillCashBatchSession({
               {form.state.values.occurredOn.replaceAll("-", "/")}。请确认款项已实际收取。
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="max-h-60 space-y-2 overflow-y-auto text-sm">
-            {bills.map((bill) => (
-              <p key={bill.id} className="flex flex-wrap justify-between gap-2">
-                <span>{bill.billNumber}</span>
-                <span className="tabular-nums">
-                  {formatBillAmount(
-                    bill.type === "deposit"
-                      ? (bill.financial?.outstandingMinor ?? 0)
-                      : (parseSignedMoneyMinor(form.state.values.amounts[bill.id] ?? "") ?? 0),
-                    bill.currencyCode,
-                  )}
-                </span>
-              </p>
-            ))}
-          </div>
+          <BillCashBatchReview bills={bills} amounts={form.state.values.amounts} />
           <AlertDialogFooter>
             <AlertDialogCancel>返回核对</AlertDialogCancel>
             <AlertDialogAction disabled={busy || !authorized} onClick={() => void execute()}>

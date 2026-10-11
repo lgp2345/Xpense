@@ -154,6 +154,7 @@ export class PeriodBillsService {
         lines: plan.lines,
         amountMinor: plan.amountMinor,
         adjustmentId: null,
+        ...(dto.note ? { note: dto.note } : {}),
       };
       const bill = await this.bills.insertPeriodHeader(
         { organizationId: auth.organizationId, userId: auth.userId, today },
