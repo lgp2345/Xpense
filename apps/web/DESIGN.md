@@ -50,8 +50,8 @@
   [shadcn Studio](https://shadcnstudio.com/components) 的 Radix 变体，按本规范适配后复用。
   优先复用现有基础组件，保持 New York 风格、Slate 基底、主题 Token 与可访问性要求；
   涉及新增依赖、其他 UI 原语或样式框架时须先确认。
-- 日期输入必须使用日期选择器（输入框 + 日历弹层）：显示 `yyyy/MM/dd`，
-  搜索参数保持 `yyyy/MM/dd`；键盘可输入，非法输入不生效，失焦还原。
+- 日期输入必须使用日期选择器（输入框 + 日历弹层）：显示 `yyyy-MM-dd`，
+  搜索参数保持 `yyyy-MM-dd`；键盘可输入，非法输入不生效，失焦还原。
 - 表单统一 TanStack Form + Zod schema 校验，错误提示就近显示在字段下方。
 - 表格、筛选、表单、弹窗、日期范围、金额输入等控件沉淀为可复用组件。
 

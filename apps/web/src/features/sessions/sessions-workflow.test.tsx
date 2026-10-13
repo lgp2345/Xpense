@@ -52,6 +52,20 @@ function renderSessionsPage(
 }
 
 describe("SessionsPage", () => {
+  it("使用横线日期显示本地最近使用时间并保留空值提示", async () => {
+    const api = createSessionsApi({
+      listSessions: vi
+        .fn()
+        .mockResolvedValue([
+          currentSession,
+          { ...otherSession, lastUsedAt: new Date(2026, 0, 2, 3, 4).toISOString() },
+        ]),
+    });
+    render(<SessionsPage api={api} permissions={["sessions:read"]} />);
+    expect(await screen.findByText("2026-01-02 03:04")).toBeInTheDocument();
+    expect(screen.getByText("暂无记录")).toBeInTheDocument();
+  });
+
   it("marks the current session", () => {
     render(
       <SessionsPage

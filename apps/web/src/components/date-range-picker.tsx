@@ -73,7 +73,7 @@ export function DateRangePicker({
     invalidRange && invalidRange.from === value?.from && invalidRange.to === value?.to,
   );
   const valueFormat = withTime ? dateTimeFormat : dateFormat;
-  const displayFormat = withTime ? "yyyy/MM/dd HH:mm:ss" : "yyyy/MM/dd";
+  const displayFormat = withTime ? "yyyy-MM-dd HH:mm:ss" : "yyyy-MM-dd";
 
   function commit(start: Date | undefined, end: Date | undefined) {
     if (withTime && start && end && start > end) {

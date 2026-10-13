@@ -81,7 +81,7 @@ function renderBatch(fixture = batchFixture(), bills = [deposit, monthly]) {
 }
 async function review() {
   const date = screen.getByLabelText("收款日期");
-  fireEvent.change(date, { target: { value: "2026/10/06" } });
+  fireEvent.change(date, { target: { value: "2026-10-06" } });
   fireEvent.blur(date);
   await userEvent.click(screen.getByRole("button", { name: "核对并登记" }));
 }

@@ -250,8 +250,8 @@ export function BillCashBatchSession({
           <AlertDialogHeader>
             <AlertDialogTitle>确认批量收款</AlertDialogTitle>
             <AlertDialogDescription>
-              将为 {bills.length} 张账单分别登记收款，发生日期为{" "}
-              {form.state.values.occurredOn.replaceAll("-", "/")}。请确认款项已实际收取。
+              将为 {bills.length} 张账单分别登记收款，发生日期为 {form.state.values.occurredOn}
+              。请确认款项已实际收取。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <BillCashBatchReview bills={bills} amounts={form.state.values.amounts} />

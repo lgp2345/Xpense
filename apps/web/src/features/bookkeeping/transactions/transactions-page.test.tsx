@@ -302,7 +302,7 @@ describe("TransactionsPage", () => {
       pageSize: 20,
     });
     expect(screen.getByRole("button", { name: "日期范围" })).toHaveTextContent(
-      "2026/08/01 - 2026/08/31",
+      "2026-08-01 - 2026-08-31",
     );
 
     const keyword = screen.getByRole("textbox", { name: "关键词" });
@@ -596,9 +596,7 @@ describe("TransactionsPage", () => {
     ).padStart(2, "0")}-${String(localOccurredAt.getDate()).padStart(2, "0")}T${String(
       localOccurredAt.getHours(),
     ).padStart(2, "0")}:${String(localOccurredAt.getMinutes()).padStart(2, "0")}`;
-    expect(screen.getByLabelText("发生时间")).toHaveValue(
-      expectedLocalDateTime.replaceAll("-", "/").replace("T", " "),
-    );
+    expect(screen.getByLabelText("发生时间")).toHaveValue(expectedLocalDateTime.replace("T", " "));
     const note = screen.getByRole("textbox", { name: "备注" });
     await user.clear(note);
     await user.type(note, "修改后");

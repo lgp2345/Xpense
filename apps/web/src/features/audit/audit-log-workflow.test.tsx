@@ -56,6 +56,13 @@ function renderAuditLogsPage(
 }
 
 describe("AuditLogsPage", () => {
+  it("使用横线日期显示本地审计时间", () => {
+    renderAuditLogsPage(["audit_logs:read"], {
+      logs: [{ ...auditLog, createdAt: new Date(2026, 0, 2, 3, 4).toISOString() }],
+    });
+    expect(screen.getByText("2026-01-02 03:04")).toBeInTheDocument();
+  });
+
   it("keeps pagination disabled while retrying a failed page request", async () => {
     const user = userEvent.setup();
     let resolveRetry!: (rows: AuditLogRecord[]) => void;
@@ -243,7 +250,7 @@ describe("AuditLogsPage", () => {
     render(<SearchHarness />);
 
     const trigger = screen.getByRole("button", { name: "日期范围" });
-    expect(trigger).toHaveTextContent("2026/08/01 -");
+    expect(trigger).toHaveTextContent("2026-08-01 -");
     await user.click(trigger);
     await screen.findByRole("grid");
     const endDay = screen
@@ -286,7 +293,7 @@ describe("AuditLogsPage", () => {
     render(<SearchHarness />);
 
     expect(screen.getByRole("button", { name: "日期范围" })).toHaveTextContent(
-      "2026/07/04 - 2026/07/31",
+      "2026-07-04 - 2026-07-31",
     );
     await user.click(screen.getByRole("button", { name: "清除日期范围" }));
 

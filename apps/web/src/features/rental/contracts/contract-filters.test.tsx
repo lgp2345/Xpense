@@ -31,9 +31,9 @@ describe("contract date filters", () => {
       />,
     );
     expect(screen.getByRole("button", { name: "开始日期范围" })).toHaveTextContent(
-      "2026/08/01 - 2026/08/31",
+      "2026-08-01 - 2026-08-31",
     );
-    expect(screen.getByRole("button", { name: "结束日期范围" })).toHaveTextContent("2027/07/01 -");
+    expect(screen.getByRole("button", { name: "结束日期范围" })).toHaveTextContent("2027-07-01 -");
     await user.click(screen.getByRole("button", { name: "应用筛选" }));
     expect(onApply).toHaveBeenLastCalledWith({
       startDateFrom: "2026-08-01",
@@ -51,7 +51,7 @@ describe("contract date filters", () => {
     const { rerender } = render(
       <ContractFilters search={{ endDateTo: "2026-12-31" }} onApply={onApply} />,
     );
-    expect(screen.getByRole("button", { name: "结束日期范围" })).toHaveTextContent("- 2026/12/31");
+    expect(screen.getByRole("button", { name: "结束日期范围" })).toHaveTextContent("- 2026-12-31");
     rerender(<ContractFilters search={{}} onApply={onApply} />);
     expect(screen.getByRole("button", { name: "结束日期范围" })).toHaveTextContent(
       "选择结束日期范围",

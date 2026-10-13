@@ -216,7 +216,7 @@ describe("contract form step domains", () => {
     render(<ContractTermsStep values={values} onChange={onChange} />);
 
     const trigger = screen.getByRole("button", { name: "租期范围" });
-    expect(trigger).toHaveTextContent("2026/09/01 00:00:00 -");
+    expect(trigger).toHaveTextContent("2026-09-01 00:00:00 -");
     await user.click(trigger);
     await screen.findByRole("grid");
     const endDay = screen

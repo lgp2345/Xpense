@@ -40,7 +40,7 @@ it("终止仅提交合同事件，不提交财务金额", async () => {
   );
   await userEvent.click(screen.getByRole("button", { name: "提前终止" }));
   const date = screen.getByLabelText("终止日期");
-  fireEvent.change(date, { target: { value: "2026/09/15" } });
+  fireEvent.change(date, { target: { value: "2026-09-15" } });
   fireEvent.blur(date);
   await userEvent.type(screen.getByLabelText("原因"), "协商终止");
   await userEvent.click(screen.getByRole("button", { name: "确认提前终止" }));
@@ -71,7 +71,7 @@ it("月度结算合同仅预约终止，不要求旧账单整期金额确认", a
     </QueryClientProvider>,
   );
   await userEvent.click(screen.getByRole("button", { name: "提前终止" }));
-  fireEvent.change(screen.getByLabelText("终止日期"), { target: { value: "2026/09/15" } });
+  fireEvent.change(screen.getByLabelText("终止日期"), { target: { value: "2026-09-15" } });
   await userEvent.type(screen.getByLabelText("原因"), "协商终止");
 
   expect(screen.queryByLabelText("终止当期财务确认")).not.toBeInTheDocument();

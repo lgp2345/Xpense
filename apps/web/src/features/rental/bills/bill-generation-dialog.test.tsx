@@ -7,7 +7,7 @@ import { billsApiFixture, previewFixture } from "./bill-test-fixtures";
 
 async function dates(autoPreview = true) {
   const input = await screen.findByLabelText("统一押金到期日");
-  fireEvent.change(input, { target: { value: "2026/01/01" } });
+  fireEvent.change(input, { target: { value: "2026-01-01" } });
   fireEvent.blur(input);
   await userEvent.click(
     screen.getByRole("button", { name: autoPreview ? "填入全部待生成账单" : "应用到新增押金" }),
@@ -44,7 +44,7 @@ describe("完整计划确认", () => {
     await dates();
     expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled();
     const utilityDate = screen.getByRole("textbox", { name: /水电押金.*到期日/ });
-    fireEvent.change(utilityDate, { target: { value: "2026/02/01" } });
+    fireEvent.change(utilityDate, { target: { value: "2026-02-01" } });
     fireEvent.blur(utilityDate);
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "确认生成" }));

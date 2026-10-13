@@ -1,4 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
+import { format } from "date-fns";
 import type { AuditLogRecord } from "../../services/iam-api";
 import type { auditTableFeatures } from "./audit-log-table";
 
@@ -11,7 +12,7 @@ export function createAuditLogColumns(): AuditLogColumnDef[] {
       header: () => <span>发生时间</span>,
       cell: ({ row }) => (
         <span className="font-medium">
-          {dateTimeFormatter.format(new Date(row.original.createdAt))}
+          {format(new Date(row.original.createdAt), "yyyy-MM-dd HH:mm")}
         </span>
       ),
     },
@@ -45,11 +46,6 @@ export function createAuditLogColumns(): AuditLogColumnDef[] {
     },
   ];
 }
-
-const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 function getMetadataSummary(metadata: Record<string, unknown>): string {
   const safeEntries = Object.entries(metadata).filter(([key]) => !isSensitiveKey(key));

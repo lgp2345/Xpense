@@ -39,7 +39,7 @@ export function DatePickerInput({
   className,
   ...inputProps
 }: DatePickerInputProps) {
-  const displayFormat = withTime ? "yyyy/MM/dd HH:mm" : "yyyy/MM/dd";
+  const displayFormat = withTime ? "yyyy-MM-dd HH:mm" : "yyyy-MM-dd";
   const valueFormat = withTime ? "yyyy-MM-dd'T'HH:mm" : "yyyy-MM-dd";
   const selectedDate = parseStrictDate(value ?? "", valueFormat);
   const displayValue = selectedDate ? format(selectedDate, displayFormat) : "";

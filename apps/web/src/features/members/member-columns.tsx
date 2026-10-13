@@ -1,4 +1,5 @@
 import type { PermissionKey } from "@xpense/shared";
+import { format } from "date-fns";
 import { DataTableColumnHeader } from "@/components/data-table";
 import type { ClientColumnDef } from "@/components/data-table/use-client-table";
 import type { IamMember, IamRole } from "../../services/iam-api";
@@ -48,7 +49,7 @@ export function createMemberColumns({
     {
       accessorKey: "joinedAt",
       header: ({ column }) => <DataTableColumnHeader column={column} title="加入时间" />,
-      cell: ({ row }) => dateTimeFormatter.format(new Date(row.original.joinedAt)),
+      cell: ({ row }) => format(new Date(row.original.joinedAt), "yyyy-MM-dd HH:mm"),
     },
     {
       id: "actions",
@@ -69,8 +70,3 @@ export function createMemberColumns({
     },
   ];
 }
-
-const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});

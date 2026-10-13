@@ -37,10 +37,10 @@ describe("DatePickerInput", () => {
     const onChange = vi.fn();
     render(<DatePickerInput aria-label="日期" value="2024-02-29" onChange={onChange} />);
     const input = screen.getByLabelText("日期");
-    fireEvent.change(input, { target: { value: "2025/02/29" } });
+    fireEvent.change(input, { target: { value: "2025-02-29" } });
     expect(onChange).not.toHaveBeenCalled();
     fireEvent.blur(input);
-    expect(input).toHaveValue("2024/02/29");
+    expect(input).toHaveValue("2024-02-29");
     await user.clear(input);
     expect(onChange).toHaveBeenLastCalledWith(undefined);
   });
@@ -60,21 +60,21 @@ describe("DatePickerInput", () => {
       .getAllByRole("button")
       .find((button) => button.dataset.day === new Date(2023, 1, 15).toLocaleDateString());
     await user.click(day as HTMLButtonElement);
-    expect(input).toHaveValue("2023/02/15");
+    expect(input).toHaveValue("2023-02-15");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("preserves local time when selecting a different date", async () => {
     const user = userEvent.setup();
     render(<Harness initial="2024-02-29T16:30" withTime />);
-    expect(screen.getByLabelText("日期")).toHaveValue("2024/02/29 16:30");
+    expect(screen.getByLabelText("日期")).toHaveValue("2024-02-29 16:30");
     await user.click(screen.getByRole("button", { name: "选择日期" }));
     await screen.findByRole("grid");
     const day = screen
       .getAllByRole("button")
       .find((button) => button.dataset.day === new Date(2024, 1, 15).toLocaleDateString());
     await user.click(day as HTMLButtonElement);
-    expect(screen.getByLabelText("日期")).toHaveValue("2024/02/15 16:30");
+    expect(screen.getByLabelText("日期")).toHaveValue("2024-02-15 16:30");
   });
 
   it("respects disabled state and forwards field blur", async () => {
@@ -91,9 +91,9 @@ describe("DatePickerInput", () => {
     await user.click(screen.getByRole("button", { name: "选择日期" }));
     await screen.findByRole("grid");
     fireEvent.change(screen.getByLabelText("时间"), { target: { value: "00:15" } });
-    expect(screen.getByLabelText("日期")).toHaveValue("2024/02/29 00:15");
+    expect(screen.getByLabelText("日期")).toHaveValue("2024-02-29 00:15");
     rerender(<DatePickerInput aria-label="日期" value="2030-01-01" />);
-    expect(screen.getByLabelText("日期")).toHaveValue("2030/01/01");
+    expect(screen.getByLabelText("日期")).toHaveValue("2030-01-01");
     rerender(<DatePickerInput aria-label="日期" value="" />);
     expect(screen.getByLabelText("日期")).toHaveValue("");
   });
@@ -119,7 +119,7 @@ describe("DateRangePicker", () => {
     await screen.findByRole("grid");
     await user.click(screen.getByRole("button", { name: label }));
 
-    expect(trigger).toHaveTextContent(`2026/10/05 - ${end.replaceAll("-", "/")}`);
+    expect(trigger).toHaveTextContent(`2026-10-05 - ${end}`);
     const selects = screen.getAllByRole("combobox");
     expect(selects.map((select) => (select as HTMLSelectElement).value)).toEqual(
       expect.arrayContaining(["9", "2026"]),
@@ -155,12 +155,12 @@ describe("DateRangePicker", () => {
     await screen.findByRole("grid");
     vi.setSystemTime(new Date(2026, 9, 5, 0, 1));
     await user.click(screen.getByRole("button", { name: "一个月" }));
-    expect(trigger).toHaveTextContent("2026/10/05 - 2026/11/04");
+    expect(trigger).toHaveTextContent("2026-10-05 - 2026-11-04");
     const endDay = screen
       .getAllByRole("button")
       .find((button) => button.dataset.day === new Date(2026, 9, 15).toLocaleDateString());
     await user.click(endDay as HTMLButtonElement);
-    expect(trigger).toHaveTextContent("2026/10/05 - 2026/10/15");
+    expect(trigger).toHaveTextContent("2026-10-05 - 2026-10-15");
   });
 
   it("leaves presets hidden unless enabled", async () => {
@@ -176,7 +176,7 @@ describe("DateRangePicker", () => {
     render(<RangeHarness />);
 
     const trigger = screen.getByRole("button", { name: "账期范围" });
-    expect(trigger).toHaveTextContent("2024/02/01 -");
+    expect(trigger).toHaveTextContent("2024-02-01 -");
     await user.click(trigger);
     await screen.findByRole("grid");
     const endDay = screen
@@ -184,7 +184,7 @@ describe("DateRangePicker", () => {
       .find((button) => button.dataset.day === new Date(2024, 1, 15).toLocaleDateString());
     await user.click(endDay as HTMLButtonElement);
 
-    expect(trigger).toHaveTextContent("2024/02/01 - 2024/02/15");
+    expect(trigger).toHaveTextContent("2024-02-01 - 2024-02-15");
   });
 
   it("shows both open range bounds and follows external resets", () => {
@@ -197,7 +197,7 @@ describe("DateRangePicker", () => {
         placeholder="选择账期"
       />,
     );
-    expect(screen.getByRole("button", { name: "账期范围" })).toHaveTextContent("- 2026/12/31");
+    expect(screen.getByRole("button", { name: "账期范围" })).toHaveTextContent("- 2026-12-31");
 
     rerender(
       <DateRangePicker

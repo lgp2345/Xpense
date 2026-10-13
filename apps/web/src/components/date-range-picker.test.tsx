@@ -28,12 +28,12 @@ describe("DateRangePicker time selection", () => {
   afterEach(() => vi.useRealTimers());
 
   it.each([
-    ["一个月", "2026/11/04"],
-    ["三个月", "2027/01/04"],
-    ["半年", "2027/04/04"],
-    ["一年", "2027/10/04"],
-    ["两年", "2028/10/04"],
-    ["三年", "2029/10/04"],
+    ["一个月", "2026-11-04"],
+    ["三个月", "2027-01-04"],
+    ["半年", "2027-04-04"],
+    ["一年", "2027-10-04"],
+    ["两年", "2028-10-04"],
+    ["三年", "2029-10-04"],
   ] as const)("selects %s with inclusive second precision and resets custom times", async (label, end) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 9, 5, 23, 30, 45));
@@ -43,7 +43,7 @@ describe("DateRangePicker time selection", () => {
     await user.click(trigger);
     await user.click(screen.getByRole("button", { name: label }));
 
-    expect(trigger).toHaveTextContent(`2026/10/05 00:00:00 - ${end} 23:59:59`);
+    expect(trigger).toHaveTextContent(`2026-10-05 00:00:00 - ${end} 23:59:59`);
     expect(screen.getByLabelText("开始时间")).toHaveValue("00:00:00");
     expect(screen.getByLabelText("结束时间")).toHaveValue("23:59:59");
   });
@@ -56,9 +56,9 @@ describe("DateRangePicker time selection", () => {
     expect(screen.getByLabelText("开始时间")).toHaveAttribute("step", "1");
     expect(screen.getByLabelText("结束时间")).toHaveAttribute("step", "1");
     fireEvent.change(screen.getByLabelText("开始时间"), { target: { value: "01:02:03" } });
-    expect(trigger).toHaveTextContent("2026/10/05 01:02:03 - 2026/11/04 18:56:07");
+    expect(trigger).toHaveTextContent("2026-10-05 01:02:03 - 2026-11-04 18:56:07");
     fireEvent.change(screen.getByLabelText("结束时间"), { target: { value: "22:23:24" } });
-    expect(trigger).toHaveTextContent("2026/10/05 01:02:03 - 2026/11/04 22:23:24");
+    expect(trigger).toHaveTextContent("2026-10-05 01:02:03 - 2026-11-04 22:23:24");
   });
 
   it("preserves edited times when the calendar end date changes", async () => {
@@ -71,7 +71,7 @@ describe("DateRangePicker time selection", () => {
       .find((button) => button.dataset.day === new Date(2026, 9, 15).toLocaleDateString());
     await user.click(endDay as HTMLButtonElement);
     expect(screen.getByRole("button", { name: "日期时间范围" })).toHaveTextContent(
-      "2026/10/05 09:12:34 - 2026/10/15 18:56:07",
+      "2026-10-05 09:12:34 - 2026-10-15 18:56:07",
     );
   });
 

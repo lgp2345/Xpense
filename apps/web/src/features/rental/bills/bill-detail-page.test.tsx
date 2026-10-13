@@ -154,7 +154,7 @@ it("押金全额登记成功后刷新余额并立即隐藏登记入口", async (
   );
   await userEvent.click(await screen.findByRole("button", { name: "登记收退款" }));
   const date = screen.getByLabelText("收款日期");
-  fireEvent.change(date, { target: { value: "2026/10/06" } });
+  fireEvent.change(date, { target: { value: "2026-10-06" } });
   fireEvent.blur(date);
   await userEvent.click(screen.getByRole("button", { name: "确认押金全额收款" }));
   await waitFor(() =>

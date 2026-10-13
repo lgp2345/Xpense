@@ -82,17 +82,17 @@ describe("押金账单核对与日期填写", () => {
     const api = openDialog();
     const unified = await screen.findByLabelText("统一押金到期日");
     expect(screen.getByText(/会覆盖下方已填写的到期日/)).toBeInTheDocument();
-    fireEvent.change(unified, { target: { value: "2026/10/15" } });
+    fireEvent.change(unified, { target: { value: "2026-10-15" } });
     fireEvent.blur(unified);
     await userEvent.click(screen.getByRole("button", { name: "填入全部待生成账单" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
     for (const deposit of deposits) {
       expect(
         screen.getByRole("textbox", { name: new RegExp(`${deposit.label}.*到期日`) }),
-      ).toHaveValue("2026/10/15");
+      ).toHaveValue("2026-10-15");
     }
     const accessDate = screen.getByRole("textbox", { name: /门禁押金.*到期日/ });
-    fireEvent.change(accessDate, { target: { value: "2026/10/20" } });
+    fireEvent.change(accessDate, { target: { value: "2026-10-20" } });
     fireEvent.blur(accessDate);
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "确认生成" }));
@@ -129,10 +129,10 @@ describe("押金账单核对与日期填写", () => {
     await userEvent.click(screen.getByText("查看已生成账单（1）"));
     const existing = screen.getByRole("region", { name: "已生成的押金账单" });
     expect(within(existing).getByText("60.00")).toBeInTheDocument();
-    expect(within(existing).getByText("2026/10/01")).toBeInTheDocument();
+    expect(within(existing).getByText("2026-10-01")).toBeInTheDocument();
     expect(within(existing).queryByRole("textbox")).not.toBeInTheDocument();
     const unified = screen.getByLabelText("统一押金到期日");
-    fireEvent.change(unified, { target: { value: "2026/10/15" } });
+    fireEvent.change(unified, { target: { value: "2026-10-15" } });
     fireEvent.blur(unified);
     await userEvent.click(screen.getByRole("button", { name: "填入全部待生成账单" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
@@ -215,13 +215,13 @@ describe("押金账单核对与日期填写", () => {
     expect(screen.getByRole("button", { name: "下一页" })).toBeEnabled();
     expect(screen.getByText("金额需翻页核对")).toBeInTheDocument();
     expect(screen.getAllByRole("textbox")).toHaveLength(4);
-    fireEvent.change(unified, { target: { value: "2026/10/15" } });
+    fireEvent.change(unified, { target: { value: "2026-10-15" } });
     fireEvent.blur(unified);
     await userEvent.click(screen.getByRole("button", { name: "填入全部待生成账单" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "下一页" }));
     expect(await screen.findByRole("group", { name: "水电押金" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /水电押金.*到期日/ })).toHaveValue("2026/10/15");
+    expect(screen.getByRole("textbox", { name: /水电押金.*到期日/ })).toHaveValue("2026-10-15");
     expect(screen.getByText("300.00")).toBeInTheDocument();
     expect(api.previewBills).toHaveBeenLastCalledWith(
       expect.objectContaining({ page: 2, expectedVersion: "v1" }),

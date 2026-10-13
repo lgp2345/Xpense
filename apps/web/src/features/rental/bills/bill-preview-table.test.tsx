@@ -30,6 +30,6 @@ it("确认前可展开原付款账期的每月片段及完整参考分母", asyn
     />,
   );
   await userEvent.click(screen.getByText("查看计算依据"));
-  expect(screen.getByText("2026/02/01 至 2026/02/28")).toBeInTheDocument();
+  expect(screen.getByText("2026-02-01 至 2026-02-28")).toBeInTheDocument();
   expect(screen.getByText(/覆盖 28 天.*参考 28 天/)).toBeInTheDocument();
 });

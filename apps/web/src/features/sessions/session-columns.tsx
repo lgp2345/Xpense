@@ -1,4 +1,5 @@
 import type { ClientType } from "@xpense/shared";
+import { format } from "date-fns";
 import { DataTableColumnHeader } from "@/components/data-table";
 import type { ClientColumnDef } from "@/components/data-table/use-client-table";
 import {
@@ -108,13 +109,8 @@ export function createSessionColumns({
   ];
 }
 
-const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
 function formatLastUsedAt(lastUsedAt: string | null): string {
-  return lastUsedAt ? dateTimeFormatter.format(new Date(lastUsedAt)) : "暂无记录";
+  return lastUsedAt ? format(new Date(lastUsedAt), "yyyy-MM-dd HH:mm") : "暂无记录";
 }
 
 function getClientTypeLabel(clientType: ClientType): string {

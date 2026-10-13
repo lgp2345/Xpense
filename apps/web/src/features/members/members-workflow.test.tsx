@@ -79,6 +79,13 @@ function renderMembersPage(
 }
 
 describe("MembersPage", () => {
+  it("使用横线日期显示本地加入时间", () => {
+    renderMembersPage(["members:read"], {
+      members: [{ ...member, joinedAt: new Date(2026, 0, 2, 3, 4).toISOString() }],
+    });
+    expect(screen.getByText("2026-01-02 03:04")).toBeInTheDocument();
+  });
+
   it("filters all members before paging and resets the page when page size changes", async () => {
     const user = userEvent.setup();
     const members = Array.from({ length: 25 }, (_, index) => ({

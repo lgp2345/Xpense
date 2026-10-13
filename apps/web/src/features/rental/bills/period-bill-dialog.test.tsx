@@ -52,7 +52,7 @@ it("打开自动填下一期截止日与默认读数，零用量仍能生成", a
 it("修改截止日后刷新预览不覆盖输入", async () => {
   const h = setup();
   await screen.findByLabelText("付款截止日");
-  fireEvent.change(screen.getByLabelText("付款截止日"), { target: { value: "2026/10/20" } });
+  fireEvent.change(screen.getByLabelText("付款截止日"), { target: { value: "2026-10-20" } });
   fireEvent.blur(screen.getByLabelText("付款截止日"));
   await waitFor(() =>
     expect(h.api.previewPeriodBill).toHaveBeenCalledWith(
@@ -61,7 +61,7 @@ it("修改截止日后刷新预览不覆盖输入", async () => {
     ),
   );
   await userEvent.click(screen.getByRole("button", { name: "重新预览" }));
-  await waitFor(() => expect(screen.getByLabelText("付款截止日")).toHaveValue("2026/10/20"));
+  await waitFor(() => expect(screen.getByLabelText("付款截止日")).toHaveValue("2026-10-20"));
 });
 it("接续选择要求起算读数并提示线下已结清", async () => {
   const h = setup();

@@ -49,10 +49,9 @@ export function BillPreviewTable({
                   ) : null}
                 </TableCell>
                 <TableCell className="whitespace-nowrap">
-                  {item.periodStart?.replaceAll("-", "/") ?? "—"}{" "}
-                  {item.periodEnd ? `至 ${item.periodEnd.replaceAll("-", "/")}` : ""}
+                  {item.periodStart ?? "—"} {item.periodEnd ? `至 ${item.periodEnd}` : ""}
                 </TableCell>
-                <TableCell>{item.dueDate?.replaceAll("-", "/") ?? "待填写"}</TableCell>
+                <TableCell>{item.dueDate ?? "待填写"}</TableCell>
                 <TableCell className="tabular-nums">{formatMoney(item.amountMinor)}</TableCell>
                 <TableCell>
                   {item.disposition === "existing" ? "已存在，保持原值" : "将新增"}

@@ -66,13 +66,13 @@ describe("押金账单自动预览", () => {
     const api = billsApiFixture();
     openDialog(api);
     const unified = await screen.findByLabelText("统一押金到期日");
-    fireEvent.change(unified, { target: { value: "2026/01/01" } });
+    fireEvent.change(unified, { target: { value: "2026-01-01" } });
     fireEvent.blur(unified);
     await userEvent.click(screen.getByRole("button", { name: "填入全部待生成账单" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
 
     const secondDate = screen.getByLabelText("押金（2）到期日");
-    fireEvent.change(secondDate, { target: { value: "2026/02/01" } });
+    fireEvent.change(secondDate, { target: { value: "2026-02-01" } });
     fireEvent.blur(secondDate);
     expect(screen.getByRole("button", { name: "处理中…" })).toBeDisabled();
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
@@ -108,7 +108,7 @@ describe("押金账单自动预览", () => {
     });
     openDialog(api);
     const unified = await screen.findByLabelText("统一押金到期日");
-    fireEvent.change(unified, { target: { value: "2026/01/01" } });
+    fireEvent.change(unified, { target: { value: "2026-01-01" } });
     fireEvent.blur(unified);
     await userEvent.click(screen.getByRole("button", { name: "填入全部待生成账单" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
@@ -117,6 +117,6 @@ describe("押金账单自动预览", () => {
     expect(screen.getByRole("button", { name: "确认生成" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "重试预览" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
-    expect(screen.getByLabelText("押金（2）到期日")).toHaveValue("2026/01/01");
+    expect(screen.getByLabelText("押金（2）到期日")).toHaveValue("2026-01-01");
   });
 });

@@ -20,13 +20,12 @@ export function BillCalculationLines({
           </p>
           {line.periodStart ? (
             <p>
-              {line.periodStart.replaceAll("-", "/")} 至 {line.periodEnd?.replaceAll("-", "/")}
+              {line.periodStart} 至 {line.periodEnd}
             </p>
           ) : null}
           {line.referenceStart ? (
             <p className="text-xs text-muted-foreground">
-              完整参考区间：{line.referenceStart.replaceAll("-", "/")} 至{" "}
-              {line.referenceEnd?.replaceAll("-", "/") ?? "参考期超出展示年份"}
+              完整参考区间：{line.referenceStart} 至 {line.referenceEnd ?? "参考期超出展示年份"}
             </p>
           ) : null}
           {line.coveredDays !== null ? (

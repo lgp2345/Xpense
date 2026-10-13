@@ -234,7 +234,7 @@ export function DepositBillPreview({
                   <p className="text-muted-foreground">
                     到期日{' '}
                     <span>
-                      {item.dueDate?.replaceAll('-', '/') ?? '未设置'}
+                      {item.dueDate ?? '未设置'}
                     </span>
                   </p>
                 </div>
