@@ -433,7 +433,7 @@ export class SpacesService {
     });
   }
 
-  /** 仅在没有未删除直属子空间时软删除选中空间。 */
+  /** 仅在没有未删除直属子空间及当前/未来合同引用时软删除选中空间。 */
   delete(authContext: AuthContext, dto: DeleteSpaceDto): Promise<void> {
     return this.transactions.run(async (transaction) => {
       await this.policy.lockWriteScope(authContext.organizationId, transaction);
@@ -443,6 +443,12 @@ export class SpacesService {
         transaction,
       );
       await this.policy.assertNoActiveChildren(current, transaction);
+      await this.contractReference.assertSpaceCanDelete(
+        authContext.organizationId,
+        current.propertyId,
+        current.id,
+        transaction,
+      );
       await this.repository.softDelete(
         {
           id: current.id,

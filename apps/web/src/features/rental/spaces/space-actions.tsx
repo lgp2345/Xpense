@@ -149,7 +149,12 @@ export function SpaceActions({
         />
       ) : null}
       {canDelete ? (
-        <DeleteSpaceButton disabled={deleting} space={space} onDelete={onDelete} />
+        <DeleteSpaceButton
+          disabled={deleting || contractBlocked}
+          restrictionId={contractBlocked ? restrictionId : undefined}
+          space={space}
+          onDelete={onDelete}
+        />
       ) : null}
     </div>
   );
@@ -220,10 +225,12 @@ function SetSpaceStatusButton({
 
 function DeleteSpaceButton({
   disabled,
+  restrictionId,
   space,
   onDelete,
 }: {
   disabled: boolean;
+  restrictionId?: string;
   space: RentalSpaceNode;
   onDelete: (space: RentalSpaceNode) => Promise<void>;
 }) {
@@ -232,6 +239,7 @@ function DeleteSpaceButton({
       <AlertDialogTrigger asChild>
         <Button
           aria-label={`删除 ${space.name}`}
+          aria-describedby={restrictionId}
           disabled={disabled}
           size="sm"
           variant="destructive"

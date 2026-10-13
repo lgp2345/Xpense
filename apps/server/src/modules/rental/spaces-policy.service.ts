@@ -236,6 +236,13 @@ export class SpacesPolicyService {
     }
   }
 
+  /** 拒绝自身、祖先或后代存在当前/未来合同的空间删除。 */
+  assertCanDelete(summary: ContractReferenceSummary): void {
+    if (summary.own || summary.oldAncestor || summary.descendant) {
+      throw this.conflict("租赁空间存在当前或未来合同，不能删除");
+    }
+  }
+
   /** 拒绝移动影响集合中存在当前/未来合同的空间移动。 */
   assertCanMove(summary: ContractReferenceSummary): void {
     if (summary.own || summary.descendant || summary.oldAncestor || summary.newAncestor) {

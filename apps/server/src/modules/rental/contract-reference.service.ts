@@ -87,6 +87,37 @@ export class ContractReferenceService {
     spaceId: string,
     executor: AppDbExecutor,
   ): Promise<void> {
+    const summary = await this.findSpaceReferenceSummary(
+      organizationId,
+      propertyId,
+      spaceId,
+      executor,
+    );
+    this.spacesPolicy.assertCanDeactivate(summary);
+  }
+
+  /** 删除和停用使用相同的当前/未来合同引用范围。 */
+  async assertSpaceCanDelete(
+    organizationId: string,
+    propertyId: string,
+    spaceId: string,
+    executor: AppDbExecutor,
+  ): Promise<void> {
+    const summary = await this.findSpaceReferenceSummary(
+      organizationId,
+      propertyId,
+      spaceId,
+      executor,
+    );
+    this.spacesPolicy.assertCanDelete(summary);
+  }
+
+  private async findSpaceReferenceSummary(
+    organizationId: string,
+    propertyId: string,
+    spaceId: string,
+    executor: AppDbExecutor,
+  ): Promise<ContractReferenceSummary> {
     const today = await this.organizationNow(organizationId, executor);
     const ancestors = await this.spacesRepository.listAncestors(
       organizationId,
@@ -100,7 +131,7 @@ export class ContractReferenceService {
       spaceId,
       executor,
     );
-    const summary = await this.contractsRepository.findContractReferenceSummary(
+    return this.contractsRepository.findContractReferenceSummary(
       {
         organizationId,
         propertyId,
@@ -111,9 +142,6 @@ export class ContractReferenceService {
       },
       executor,
     );
-    if (summary.own || summary.descendant || summary.oldAncestor) {
-      this.spacesPolicy.assertCanDeactivate(summary);
-    }
   }
 
   /** 断言移动影响集合：目标、全部后代、旧路径祖先、新路径祖先。 */

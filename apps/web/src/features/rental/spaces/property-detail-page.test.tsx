@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { RentalContractPage, RentalPropertyDetail } from "@xpense/shared";
+import type { RentalContractPage, RentalPropertyDetail, RentalSpaceNode } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../../services/api-client";
@@ -198,6 +198,38 @@ describe("PropertyDetailPage", () => {
         pageSize: 10,
       }),
     );
+  });
+
+  it.each<Partial<RentalSpaceNode>>([
+    { leaseStatus: "active" },
+    { leaseStatus: "expiring_soon" },
+    { leaseStatus: "upcoming" },
+    { hasUpcomingContract: true },
+    { leaseBlockedReason: "ancestor_contract" },
+    { leaseBlockedReason: "descendant_contract" },
+  ])("blocks deletion for unfinished contract state %j", async (leaseState) => {
+    const user = userEvent.setup();
+    const deleteSpace = vi.fn();
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(detail),
+        listChildren: vi.fn().mockResolvedValue({
+          items: [{ ...building, hasChildren: false, ...leaseState }],
+          total: 1,
+          page: 1,
+          pageSize: 50,
+        }),
+        deleteSpace,
+      },
+      ["rental_spaces:read", "rental_spaces:delete"],
+    );
+
+    const button = await screen.findByRole("button", { name: "删除 A 座" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(/暂不能进行此操作/);
+    await user.click(button);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(deleteSpace).not.toHaveBeenCalled();
   });
 
   it("keeps own lease, upcoming, and blocking states distinct and explains disabled actions", async () => {

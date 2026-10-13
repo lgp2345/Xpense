@@ -466,6 +466,48 @@ describe("Rental HTTP e2e", () => {
     return harness;
   }
 
+  it.each([
+    "own",
+    "oldAncestor",
+    "descendant",
+  ] as const)("rejects space deletion with unfinished %s contracts without changing state", async (relation) => {
+    const setup = await createHarness();
+    const headers = await authorization(setup.app, TEST_PHONES.owner);
+    setup.state.rentalQuery.registerRead(
+      "spaces.descendants",
+      [testIds.organization, rentalTestIds.property, rentalTestIds.childSpace],
+      [],
+    );
+    setup.state.rentalQuery.registerRead(
+      "contracts.referenceSummary",
+      [
+        {
+          organizationId: testIds.organization,
+          propertyId: rentalTestIds.property,
+          today: fixedOrganizationNow,
+          ownSpaceIds: [rentalTestIds.childSpace],
+          descendantSpaceIds: [],
+          oldAncestorSpaceIds: [rentalTestIds.parentSpace],
+        },
+      ],
+      { own: false, descendant: false, oldAncestor: false, newAncestor: false, [relation]: true },
+    );
+    const before = structuredClone(setup.state.rental.spaces);
+    const auditCount = setup.state.rental.auditEntries.length;
+
+    const response = await setup.app.inject({
+      method: "POST",
+      url: "/api/rental-spaces/delete",
+      headers,
+      payload: { id: rentalTestIds.childSpace },
+    });
+
+    expectApiError(response, 409, "CONFLICT");
+    expect(response.payload).toContain("不能删除");
+    expect(setup.state.rental.spaces).toEqual(before);
+    expect(setup.state.rental.auditEntries).toHaveLength(auditCount);
+  });
+
   it("fails closed for unknown rental database select capabilities", async () => {
     const db = createRentalDatabaseFake(createRentalTestState()) as unknown as {
       select(fields: unknown): unknown;
@@ -1391,6 +1433,32 @@ describe("Rental HTTP e2e", () => {
       409,
       "CONFLICT",
     );
+    for (const [spaceId, parentId] of [
+      [child.id, right.id],
+      [left.id, undefined],
+      [right.id, undefined],
+    ] as const) {
+      registerSpaceAncestors(harness as TestAppHarness, spaceId, parentId, property.id);
+      (harness as TestAppHarness).state.rentalQuery.registerRead(
+        "spaces.descendants",
+        [testIds.organization, property.id, spaceId],
+        [],
+      );
+      (harness as TestAppHarness).state.rentalQuery.registerRead(
+        "contracts.referenceSummary",
+        [
+          {
+            organizationId: testIds.organization,
+            propertyId: property.id,
+            today: fixedOrganizationNow,
+            ownSpaceIds: [spaceId],
+            descendantSpaceIds: [],
+            oldAncestorSpaceIds: parentId ? [parentId] : [],
+          },
+        ],
+        { own: false, descendant: false, oldAncestor: false, newAncestor: false },
+      );
+    }
     expectEmptyOk(
       await app.inject({
         method: "POST",

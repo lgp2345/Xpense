@@ -153,6 +153,7 @@ function createHarness() {
         ),
     ),
     assertSpaceCanDeactivate: vi.fn().mockResolvedValue(undefined),
+    assertSpaceCanDelete: vi.fn().mockResolvedValue(undefined),
     assertSpaceCanMove: vi.fn().mockResolvedValue(undefined),
   };
   const transactions = {
@@ -884,6 +885,33 @@ describe("SpacesService", () => {
         items: [expect.objectContaining({ isActive: true, isEffectivelyActive: false })],
       }),
     );
+  });
+
+  it("does not delete or audit when an unfinished contract blocks deletion", async () => {
+    const {
+      auditService,
+      contractReference,
+      repository,
+      service,
+      transaction,
+      writeLockRepository,
+    } = createHarness();
+    contractReference.assertSpaceCanDelete.mockRejectedValueOnce(new ConflictException());
+
+    await expect(service.delete(authContext, { id: "space-1" })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(contractReference.assertSpaceCanDelete).toHaveBeenCalledWith(
+      "organization-1",
+      "property-1",
+      "space-1",
+      transaction,
+    );
+    expect(writeLockRepository.lockOrganization.mock.invocationCallOrder[0]).toBeLessThan(
+      contractReference.assertSpaceCanDelete.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(repository.softDelete).not.toHaveBeenCalled();
+    expect(auditService.appendRequired).not.toHaveBeenCalled();
   });
 
   it("rejects active children but allows historical deleted children when deleting", async () => {
