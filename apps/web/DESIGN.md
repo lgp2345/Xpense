@@ -43,7 +43,7 @@
 
 ## 6. 组件规范
 
-- 组件基于 shadcn/ui（New York）与 Radix 原语，样式值统一读取 `theme.css` Token。
+- 组件基于 shadcn/ui（New York）与 Base UI 原语（迁移期间兼容既有 Radix 组件），样式值统一读取 `theme.css` Token。
 - 图标统一使用 lucide-react，不引入 Phosphor 等其他图标库。
 - 高频控件优先复用 `src/components/ui` 与业务组件，不重复封装已有稳定组件。
 - 基础组件统一使用 shadcn/ui；现有组件及官方组合无法满足需求时，可参考

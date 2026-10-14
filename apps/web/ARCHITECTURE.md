@@ -16,7 +16,7 @@ WEB 端是个人记账系统的后台管理界面。
 - TanStack Form + Zod（表单与校验）
 - Zustand
 - Tailwind CSS 4
-- shadcn/ui（New York 风格，Slate 基底）与 Radix 原语
+- shadcn/ui（New York 风格，Slate 基底）与 Base UI 原语（迁移期间兼容既有 Radix 组件）
 - lucide-react（图标）
 - recharts（数据可视化）
 - date-fns / react-day-picker（日期处理与日期选择器）
@@ -58,7 +58,7 @@ WEB 端是个人记账系统的后台管理界面。
 ## UI 组件策略
 
 - shadcn/ui 是主要 UI 组件库，遵循 New York 风格与 `DESIGN.md` 规范。
-- 组件基于 Radix 原语与 Tailwind CSS 4 Token，样式值统一读取 `src/styles/theme.css`。
+- 组件基于 Base UI 原语（迁移期间兼容既有 Radix 组件）与 Tailwind CSS 4 Token，样式值统一读取 `src/styles/theme.css`。
 - 表单统一使用 TanStack Form + Zod schema 校验。
 - 图标统一使用 lucide-react，不引入其他图标库。
 - TailwindCSS 用于布局、间距和定制样式；复杂组件局部样式确有必要时使用同目录 `*.module.css`。
