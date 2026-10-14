@@ -713,7 +713,7 @@ describe("AuthenticatedLayout", () => {
     );
 
     await user.click(await screen.findByRole("button", { name: /owner@example.com/ }));
-    await user.click(screen.getByRole("menuitem", { name: "退出登录" }));
+    await user.click(await screen.findByRole("menuitem", { name: "退出登录" }));
 
     expect(await screen.findByText("已退出")).toBeInTheDocument();
 

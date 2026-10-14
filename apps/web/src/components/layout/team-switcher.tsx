@@ -68,18 +68,20 @@ export function TeamSwitcher({ session }: { session: WebSessionDependency }) {
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton size="lg">
-              <div className="flex size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-                <Landmark className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{organizationName}</span>
-                <span className="truncate text-xs">当前组织</span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton size="lg">
+                <div className="flex size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+                  <Landmark className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">{organizationName}</span>
+                  <span className="truncate text-xs">当前组织</span>
+                </div>
+                <ChevronsUpDown className="ml-auto size-4" />
+              </SidebarMenuButton>
+            }
+          />
           <DropdownMenuContent
             align="start"
             side={isMobile ? "bottom" : "right"}
@@ -92,7 +94,7 @@ export function TeamSwitcher({ session }: { session: WebSessionDependency }) {
               <DropdownMenuItem
                 key={organization.id}
                 disabled={isSwitching || organization.id === currentOrganizationId}
-                onSelect={() => void handleSwitch(organization.id)}
+                onClick={() => void handleSwitch(organization.id)}
               >
                 {organization.name}
               </DropdownMenuItem>

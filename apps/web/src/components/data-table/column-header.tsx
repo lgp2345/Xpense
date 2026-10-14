@@ -24,18 +24,20 @@ export function DataTableColumnHeader({ column, title, className }: DataTableCol
   return (
     <div className={cn("flex items-center space-x-2", className)}>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button className="h-8 pl-0! data-[state=open]:bg-accent" size="sm" variant="ghost">
-            <span>{title}</span>
-            {column.getIsSorted() === "desc" ? (
-              <ArrowDownIcon className="ml-2 size-4" />
-            ) : column.getIsSorted() === "asc" ? (
-              <ArrowUpIcon className="ml-2 size-4" />
-            ) : (
-              <ArrowDownUp className="ml-2 size-4" />
-            )}
-          </Button>
-        </DropdownMenuTrigger>
+        <DropdownMenuTrigger
+          render={
+            <Button className="h-8 pl-0! data-popup-open:bg-accent" size="sm" variant="ghost">
+              <span>{title}</span>
+              {column.getIsSorted() === "desc" ? (
+                <ArrowDownIcon className="ml-2 size-4" />
+              ) : column.getIsSorted() === "asc" ? (
+                <ArrowUpIcon className="ml-2 size-4" />
+              ) : (
+                <ArrowDownUp className="ml-2 size-4" />
+              )}
+            </Button>
+          }
+        />
         <DropdownMenuContent align="start">
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
             <ArrowUpIcon className="text-muted-foreground/70 size-3.5" />

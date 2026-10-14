@@ -60,18 +60,20 @@ export function NavUser({ session }: { session: WebSessionDependency }) {
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton size="lg">
-              <Avatar>
-                <AvatarFallback>{initials(email)}</AvatarFallback>
-              </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{email}</span>
-                <span className="truncate text-xs">当前账号</span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton size="lg">
+                <Avatar>
+                  <AvatarFallback>{initials(email)}</AvatarFallback>
+                </Avatar>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">{email}</span>
+                  <span className="truncate text-xs">当前账号</span>
+                </div>
+                <ChevronsUpDown className="ml-auto size-4" />
+              </SidebarMenuButton>
+            }
+          />
           <DropdownMenuContent
             side={isMobile ? "bottom" : "right"}
             align="end"
@@ -82,7 +84,7 @@ export function NavUser({ session }: { session: WebSessionDependency }) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               disabled={isRefreshing}
-              onSelect={() => void handleRefreshPermissions()}
+              onClick={() => void handleRefreshPermissions()}
             >
               <RefreshCw className={isRefreshing ? "animate-spin" : ""} />
               {isRefreshing ? "正在刷新..." : "刷新权限"}
@@ -91,7 +93,7 @@ export function NavUser({ session }: { session: WebSessionDependency }) {
             <DropdownMenuItem
               disabled={isLoggingOut}
               variant="destructive"
-              onSelect={() => void handleLogout()}
+              onClick={() => void handleLogout()}
             >
               <LogOut />
               {isLoggingOut ? "正在退出..." : "退出登录"}

@@ -18,12 +18,14 @@ type DataTableViewOptionsProps = {
 export function DataTableViewOptions({ table }: DataTableViewOptionsProps) {
   return (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <Button className="ml-auto hidden h-8 lg:flex" size="sm" variant="outline">
-          <Settings2Icon className="size-4" />
-          列显隐
-        </Button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <Button className="ml-auto hidden h-8 lg:flex" size="sm" variant="outline">
+            <Settings2Icon className="size-4" />
+            列显隐
+          </Button>
+        }
+      />
       <DropdownMenuContent align="end" className="w-[150px]">
         <DropdownMenuLabel>切换列</DropdownMenuLabel>
         <DropdownMenuSeparator />
