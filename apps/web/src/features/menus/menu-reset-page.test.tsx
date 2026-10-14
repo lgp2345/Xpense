@@ -180,7 +180,9 @@ describe("MenuResetPage", () => {
     await user.click(confirmButton);
 
     expect(confirmButton).toBeDisabled();
-    await user.click(confirmButton);
+    const resetButton = await screen.findByRole("button", { name: "恢复默认菜单" });
+    expect(resetButton).toBeDisabled();
+    await user.click(resetButton);
     expect(session.iamApi.resetOrganizationMenus).toHaveBeenCalledTimes(1);
 
     resetRequest.resolve();

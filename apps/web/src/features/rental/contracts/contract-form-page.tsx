@@ -409,16 +409,16 @@ export function ContractFormPage({
       {blocker.status === 'blocked' ? (
         <AlertDialog open>
           <AlertDialogContent
-            onOpenAutoFocus={(event) => {
+            initialFocus={() => {
               if (!blockedFocusRef.current && document.activeElement instanceof HTMLElement) {
                 blockedFocusRef.current = document.activeElement
               }
-              event.preventDefault()
+              return false
             }}
-            onCloseAutoFocus={(event) => {
-              event.preventDefault()
-              blockedFocusRef.current?.focus()
+            finalFocus={() => {
+              const target = blockedFocusRef.current
               blockedFocusRef.current = null
+              return target ?? false
             }}
           >
             <AlertDialogHeader>

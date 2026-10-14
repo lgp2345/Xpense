@@ -72,9 +72,7 @@ export function MemberActions({
       {canDisable ? (
         isActive ? (
           <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline">禁用 {member.email}</Button>
-            </AlertDialogTrigger>
+            <AlertDialogTrigger render={<Button variant="outline">禁用 {member.email}</Button>} />
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>确认禁用成员</AlertDialogTitle>

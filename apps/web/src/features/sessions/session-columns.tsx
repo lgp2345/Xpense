@@ -79,9 +79,7 @@ export function createSessionColumns({
           <div className="text-right">
             {canRevokeSession ? (
               <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline">撤销 {session.id}</Button>
-                </AlertDialogTrigger>
+                <AlertDialogTrigger render={<Button variant="outline">撤销 {session.id}</Button>} />
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>确认撤销会话</AlertDialogTitle>

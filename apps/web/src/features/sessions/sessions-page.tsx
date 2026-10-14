@@ -163,9 +163,7 @@ export function SessionsPage({
         </div>
         {canRevoke ? (
           <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button>撤销全部会话</Button>
-            </AlertDialogTrigger>
+            <AlertDialogTrigger render={<Button>撤销全部会话</Button>} />
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>确认撤销全部会话</AlertDialogTitle>

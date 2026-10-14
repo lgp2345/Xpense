@@ -138,14 +138,16 @@ export function MenuResetPage({ session }: { session: WebSessionDependency }) {
           </Field>
 
           <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                disabled={!selectedOrganization || isLoading || isResetting}
-                variant="destructive"
-              >
-                恢复默认菜单
-              </Button>
-            </AlertDialogTrigger>
+            <AlertDialogTrigger
+              render={
+                <Button
+                  disabled={!selectedOrganization || isLoading || isResetting}
+                  variant="destructive"
+                >
+                  恢复默认菜单
+                </Button>
+              }
+            />
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>确认恢复默认菜单</AlertDialogTitle>

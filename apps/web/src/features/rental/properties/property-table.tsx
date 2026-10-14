@@ -164,16 +164,18 @@ export function DeletePropertyButton({
 }) {
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button
-          aria-label={`删除 ${property.name}`}
-          disabled={disabled}
-          size="sm"
-          variant="destructive"
-        >
-          删除
-        </Button>
-      </AlertDialogTrigger>
+      <AlertDialogTrigger
+        render={
+          <Button
+            aria-label={`删除 ${property.name}`}
+            disabled={disabled}
+            size="sm"
+            variant="destructive"
+          >
+            删除
+          </Button>
+        }
+      />
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>删除房产</AlertDialogTitle>

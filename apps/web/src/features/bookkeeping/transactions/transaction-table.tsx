@@ -152,11 +152,13 @@ function DeleteTransactionButton({
 }) {
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button aria-label={`删除 ${label}`} disabled={disabled} size="sm" variant="destructive">
-          删除
-        </Button>
-      </AlertDialogTrigger>
+      <AlertDialogTrigger
+        render={
+          <Button aria-label={`删除 ${label}`} disabled={disabled} size="sm" variant="destructive">
+            删除
+          </Button>
+        }
+      />
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>删除交易</AlertDialogTitle>

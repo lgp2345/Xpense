@@ -157,11 +157,13 @@ export function TenantDetailPage({
           ) : null}
           {canDelete ? (
             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" disabled={deleteMutation.isPending}>
-                  删除
-                </Button>
-              </AlertDialogTrigger>
+              <AlertDialogTrigger
+                render={
+                  <Button variant="destructive" disabled={deleteMutation.isPending}>
+                    删除
+                  </Button>
+                }
+              />
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>删除租客</AlertDialogTitle>

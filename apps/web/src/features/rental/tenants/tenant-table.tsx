@@ -140,16 +140,18 @@ export function DeleteTenantButton({
 }) {
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button
-          size="sm"
-          variant="destructive"
-          disabled={disabled}
-          aria-label={`删除 ${tenant.name}`}
-        >
-          删除
-        </Button>
-      </AlertDialogTrigger>
+      <AlertDialogTrigger
+        render={
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={disabled}
+            aria-label={`删除 ${tenant.name}`}
+          >
+            删除
+          </Button>
+        }
+      />
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>删除租客</AlertDialogTitle>

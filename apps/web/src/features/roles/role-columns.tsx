@@ -94,9 +94,9 @@ export function createRoleColumns({
             ) : null}
             {role.isEditable && canDelete ? (
               <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">删除 {role.name}</Button>
-                </AlertDialogTrigger>
+                <AlertDialogTrigger
+                  render={<Button variant="destructive">删除 {role.name}</Button>}
+                />
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>确认删除角色</AlertDialogTitle>

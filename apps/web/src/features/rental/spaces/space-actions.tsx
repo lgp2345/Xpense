@@ -207,17 +207,19 @@ function SetSpaceStatusButton({
         label={`${isActivating ? "启用" : "停用"} ${space.name}`}
         message={blocked ? restrictionMessage : null}
       >
-        <AlertDialogTrigger asChild>
-          <Button
-            aria-label={`${isActivating ? "启用" : "停用"} ${space.name}`}
-            aria-describedby={blocked ? restrictionId : undefined}
-            size="sm"
-            variant="outline"
-            disabled={blocked}
-          >
-            {isActivating ? "启用" : "停用"}
-          </Button>
-        </AlertDialogTrigger>
+        <AlertDialogTrigger
+          render={
+            <Button
+              aria-label={`${isActivating ? "启用" : "停用"} ${space.name}`}
+              aria-describedby={blocked ? restrictionId : undefined}
+              size="sm"
+              variant="outline"
+              disabled={blocked}
+            >
+              {isActivating ? "启用" : "停用"}
+            </Button>
+          }
+        />
       </ContractRestrictionTooltip>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -255,17 +257,19 @@ function DeleteSpaceButton({
   return (
     <AlertDialog>
       <ContractRestrictionTooltip label={`删除 ${space.name}`} message={restrictionMessage}>
-        <AlertDialogTrigger asChild>
-          <Button
-            aria-label={`删除 ${space.name}`}
-            aria-describedby={restrictionId}
-            disabled={disabled}
-            size="sm"
-            variant="destructive"
-          >
-            删除
-          </Button>
-        </AlertDialogTrigger>
+        <AlertDialogTrigger
+          render={
+            <Button
+              aria-label={`删除 ${space.name}`}
+              aria-describedby={restrictionId}
+              disabled={disabled}
+              size="sm"
+              variant="destructive"
+            >
+              删除
+            </Button>
+          }
+        />
       </ContractRestrictionTooltip>
       <AlertDialogContent>
         <AlertDialogHeader>

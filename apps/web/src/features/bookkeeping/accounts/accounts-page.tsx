@@ -196,16 +196,18 @@ function DeleteAccountButton({
 }) {
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button
-          aria-label={`删除 ${account.name}`}
-          disabled={disabled}
-          size="sm"
-          variant="destructive"
-        >
-          删除
-        </Button>
-      </AlertDialogTrigger>
+      <AlertDialogTrigger
+        render={
+          <Button
+            aria-label={`删除 ${account.name}`}
+            disabled={disabled}
+            size="sm"
+            variant="destructive"
+          >
+            删除
+          </Button>
+        }
+      />
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>删除账户</AlertDialogTitle>

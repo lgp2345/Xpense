@@ -198,17 +198,19 @@ function renderRows(
             ) : null}
             {options.canDelete ? (
               <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    aria-label={`删除 ${node.name}`}
-                    disabled={options.isMutating || hasChildren}
-                    size="icon"
-                    title={hasChildren ? "包含子节点，不能删除" : "删除"}
-                    variant="ghost"
-                  >
-                    <Trash2 />
-                  </Button>
-                </AlertDialogTrigger>
+                <AlertDialogTrigger
+                  render={
+                    <Button
+                      aria-label={`删除 ${node.name}`}
+                      disabled={options.isMutating || hasChildren}
+                      size="icon"
+                      title={hasChildren ? "包含子节点，不能删除" : "删除"}
+                      variant="ghost"
+                    >
+                      <Trash2 />
+                    </Button>
+                  }
+                />
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>确认删除菜单节点</AlertDialogTitle>
