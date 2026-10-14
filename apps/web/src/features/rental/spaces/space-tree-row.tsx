@@ -90,11 +90,13 @@ export function SpaceTreeRow({
 function MobileSpaceDetails({ node }: { node: RentalSpaceNode }) {
   return (
     <Sheet>
-      <SheetTrigger asChild>
-        <Button className="sm:hidden" size="sm" type="button" variant="outline">
-          详情
-        </Button>
-      </SheetTrigger>
+      <SheetTrigger
+        render={
+          <Button className="sm:hidden" size="sm" type="button" variant="outline">
+            详情
+          </Button>
+        }
+      />
       <SheetContent>
         <SheetHeader>
           <SheetTitle>{node.name}</SheetTitle>
