@@ -95,13 +95,15 @@ export function MemberActions({
           </AlertDialog>
         ) : (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <Button variant="outline" disabled>
-                  禁用 {member.email}
-                </Button>
-              </span>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <span>
+                  <Button variant="outline" disabled>
+                    禁用 {member.email}
+                  </Button>
+                </span>
+              }
+            />
             <TooltipContent>该成员已被禁用</TooltipContent>
           </Tooltip>
         )
@@ -110,13 +112,15 @@ export function MemberActions({
       {canEnable ? (
         isActive ? (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <Button variant="outline" disabled>
-                  启用 {member.email}
-                </Button>
-              </span>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <span>
+                  <Button variant="outline" disabled>
+                    启用 {member.email}
+                  </Button>
+                </span>
+              }
+            />
             <TooltipContent>该成员已是活跃状态</TooltipContent>
           </Tooltip>
         ) : (

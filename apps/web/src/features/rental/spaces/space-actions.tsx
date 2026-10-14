@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import type { RentalApi } from "../../../services/rental-api";
+import { ContractRestrictionTooltip } from "./contract-restriction-tooltip";
 import { SpaceBatchDialog } from "./space-batch-dialog";
 import { SpaceFormDialog } from "./space-form-dialog";
 import { SpaceMoveDialog } from "./space-move-dialog";
@@ -66,42 +67,48 @@ export function SpaceActions({
   return (
     <div className="flex flex-wrap justify-end gap-2">
       {contractBlocked ? (
-        <span
-          id={restrictionId}
-          role="status"
-          className="self-center text-xs text-muted-foreground"
-        >
+        <span id={restrictionId} className="sr-only">
           {restrictionMessage}
         </span>
       ) : null}
       {canCreate ? (
         contractBlocked ? (
-          <Button
-            aria-describedby={restrictionId}
-            aria-label={`在 ${space.name} 下批量新增`}
-            disabled
-            size="sm"
-            type="button"
-            variant="outline"
+          <ContractRestrictionTooltip
+            label={`在 ${space.name} 下批量新增`}
+            message={restrictionMessage}
           >
-            批量新增
-          </Button>
+            <Button
+              aria-describedby={restrictionId}
+              aria-label={`在 ${space.name} 下批量新增`}
+              disabled
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              批量新增
+            </Button>
+          </ContractRestrictionTooltip>
         ) : (
           <SpaceBatchDialog propertyId={propertyId} parentId={space.id} onCreate={onBatchCreate} />
         )
       ) : null}
       {canCreate ? (
         contractBlocked ? (
-          <Button
-            aria-describedby={restrictionId}
-            aria-label={`在 ${space.name} 下新增`}
-            disabled
-            size="sm"
-            type="button"
-            variant="outline"
+          <ContractRestrictionTooltip
+            label={`在 ${space.name} 下新增`}
+            message={restrictionMessage}
           >
-            新增子空间
-          </Button>
+            <Button
+              aria-describedby={restrictionId}
+              aria-label={`在 ${space.name} 下新增`}
+              disabled
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              新增子空间
+            </Button>
+          </ContractRestrictionTooltip>
         ) : (
           <SpaceFormDialog
             parentId={space.id}
@@ -120,16 +127,18 @@ export function SpaceActions({
       ) : null}
       {canUpdate && propertyActive ? (
         contractBlocked ? (
-          <Button
-            aria-describedby={restrictionId}
-            aria-label={`移动 ${space.name}`}
-            disabled
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            移动
-          </Button>
+          <ContractRestrictionTooltip label={`移动 ${space.name}`} message={restrictionMessage}>
+            <Button
+              aria-describedby={restrictionId}
+              aria-label={`移动 ${space.name}`}
+              disabled
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              移动
+            </Button>
+          </ContractRestrictionTooltip>
         ) : (
           <SpaceMoveDialog
             api={api}
@@ -142,7 +151,7 @@ export function SpaceActions({
       ) : null}
       {canUpdate ? (
         <SetSpaceStatusButton
-          blocked={contractBlocked}
+          restrictionMessage={restrictionMessage}
           restrictionId={restrictionId}
           space={space}
           onSetStatus={onSetStatus}
@@ -151,6 +160,7 @@ export function SpaceActions({
       {canDelete ? (
         <DeleteSpaceButton
           disabled={deleting || contractBlocked}
+          restrictionMessage={restrictionMessage}
           restrictionId={contractBlocked ? restrictionId : undefined}
           space={space}
           onDelete={onDelete}
@@ -179,30 +189,36 @@ export function contractRestrictionReason(
 }
 
 function SetSpaceStatusButton({
-  blocked,
+  restrictionMessage,
   restrictionId,
   space,
   onSetStatus,
 }: {
-  blocked: boolean;
+  restrictionMessage: string | null;
   restrictionId: string;
   space: RentalSpaceNode;
   onSetStatus: (space: RentalSpaceNode, isActive: boolean) => Promise<void>;
 }) {
   const isActivating = !space.isActive;
+  const blocked = restrictionMessage !== null && !isActivating;
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button
-          aria-label={`${isActivating ? "启用" : "停用"} ${space.name}`}
-          aria-describedby={blocked ? restrictionId : undefined}
-          size="sm"
-          variant="outline"
-          disabled={blocked && !isActivating}
-        >
-          {isActivating ? "启用" : "停用"}
-        </Button>
-      </AlertDialogTrigger>
+      <ContractRestrictionTooltip
+        label={`${isActivating ? "启用" : "停用"} ${space.name}`}
+        message={blocked ? restrictionMessage : null}
+      >
+        <AlertDialogTrigger asChild>
+          <Button
+            aria-label={`${isActivating ? "启用" : "停用"} ${space.name}`}
+            aria-describedby={blocked ? restrictionId : undefined}
+            size="sm"
+            variant="outline"
+            disabled={blocked}
+          >
+            {isActivating ? "启用" : "停用"}
+          </Button>
+        </AlertDialogTrigger>
+      </ContractRestrictionTooltip>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{isActivating ? "确认启用空间" : "确认停用空间"}</AlertDialogTitle>
@@ -225,28 +241,32 @@ function SetSpaceStatusButton({
 
 function DeleteSpaceButton({
   disabled,
+  restrictionMessage,
   restrictionId,
   space,
   onDelete,
 }: {
   disabled: boolean;
+  restrictionMessage: string | null;
   restrictionId?: string;
   space: RentalSpaceNode;
   onDelete: (space: RentalSpaceNode) => Promise<void>;
 }) {
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button
-          aria-label={`删除 ${space.name}`}
-          aria-describedby={restrictionId}
-          disabled={disabled}
-          size="sm"
-          variant="destructive"
-        >
-          删除
-        </Button>
-      </AlertDialogTrigger>
+      <ContractRestrictionTooltip label={`删除 ${space.name}`} message={restrictionMessage}>
+        <AlertDialogTrigger asChild>
+          <Button
+            aria-label={`删除 ${space.name}`}
+            aria-describedby={restrictionId}
+            disabled={disabled}
+            size="sm"
+            variant="destructive"
+          >
+            删除
+          </Button>
+        </AlertDialogTrigger>
+      </ContractRestrictionTooltip>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>删除空间</AlertDialogTitle>

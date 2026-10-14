@@ -20,17 +20,19 @@ export function BillSourceHistory({
           <h2>统一计费项的历史账单</h2>
         </CardTitle>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7 text-muted-foreground"
-              aria-label="历史账单说明"
-            >
-              <CircleHelp aria-hidden="true" />
-            </Button>
-          </TooltipTrigger>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground"
+                aria-label="历史账单说明"
+              >
+                <CircleHelp aria-hidden="true" />
+              </Button>
+            }
+          />
           <TooltipContent className="max-w-72 leading-relaxed" sideOffset={4}>
             展示同一合同、同一计费项产生的其他账单，用于追溯作废后重新生成等历史。
             例如同一个押金项目，或同一个计费月份。最多展示最近 20 张，不含当前账单和收退款记录。
