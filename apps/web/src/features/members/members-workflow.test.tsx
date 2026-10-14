@@ -102,7 +102,7 @@ describe("MembersPage", () => {
     await user.clear(screen.getByPlaceholderText("搜索邮箱..."));
     await user.click(screen.getByRole("button", { name: "下一页" }));
     await user.click(screen.getByRole("combobox", { name: "每页行数" }));
-    await user.click(screen.getByRole("option", { name: "20" }));
+    await user.click(await screen.findByRole("option", { name: "20" }));
     expect(screen.getByText("第 1 页，共 2 页")).toBeInTheDocument();
   });
 
@@ -276,7 +276,7 @@ describe("MembersPage", () => {
     await user.click(screen.getByRole("button", { name: "新增成员" }));
     await user.type(screen.getByRole("textbox", { name: "用户 ID" }), validUserId);
     await user.click(screen.getByRole("combobox", { name: "角色" }));
-    await user.click(screen.getByRole("option", { name: "普通成员" }));
+    await user.click(await screen.findByRole("option", { name: "普通成员" }));
     await user.click(screen.getByRole("button", { name: "添加成员" }));
 
     expect(await screen.findByText("new-member@example.com")).toBeInTheDocument();
@@ -297,7 +297,7 @@ describe("MembersPage", () => {
     await user.click(screen.getByRole("button", { name: "新增成员" }));
     await user.type(screen.getByRole("textbox", { name: "用户 ID" }), validUserId);
     await user.click(screen.getByRole("combobox", { name: "角色" }));
-    await user.click(screen.getByRole("option", { name: "普通成员" }));
+    await user.click(await screen.findByRole("option", { name: "普通成员" }));
     await user.click(screen.getByRole("button", { name: "添加成员" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("添加成员失败，请稍后重试。");
@@ -312,7 +312,7 @@ describe("MembersPage", () => {
     renderMembersPage(["members:read", "members:update"], { api });
 
     await user.click(screen.getByRole("combobox", { name: /变更 member@example\.com 的角色/ }));
-    await user.click(screen.getByRole("option", { name: "所有者" }));
+    await user.click(await screen.findByRole("option", { name: "所有者" }));
 
     await waitFor(() =>
       expect(api.updateMember).toHaveBeenCalledWith("member-1", { roleId: "role-owner" }),

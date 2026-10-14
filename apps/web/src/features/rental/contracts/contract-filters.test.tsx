@@ -11,7 +11,7 @@ describe("contract date filters", () => {
 
     await user.click(screen.getByRole("combobox", { name: "合同状态" }));
     expect(await screen.findByRole("listbox")).toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "进行中" }));
+    await user.click(await screen.findByRole("option", { name: "进行中" }));
     await user.click(screen.getByRole("button", { name: "应用筛选" }));
 
     expect(onApply).toHaveBeenLastCalledWith({ status: "active", page: 1, pageSize: 20 });

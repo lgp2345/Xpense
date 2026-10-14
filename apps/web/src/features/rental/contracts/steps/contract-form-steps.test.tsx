@@ -294,7 +294,7 @@ describe("contract form step domains", () => {
 
     await user.click(screen.getByRole("combobox", { name: "付款周期" }));
     expect(await screen.findByRole("listbox")).toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "每季" }));
+    await user.click(await screen.findByRole("option", { name: "每季" }));
     expect(onChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ paymentIntervalMonths: "3" }),
     );
@@ -563,7 +563,7 @@ describe("contract form step domains", () => {
     const propertySelect = await screen.findByRole("combobox", { name: "房产" });
     await user.click(propertySelect);
     expect(await screen.findByRole("listbox")).toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "种子房产" }));
+    await user.click(await screen.findByRole("option", { name: "种子房产" }));
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ propertyId, spaces: [] }));
     expect(api.listProperties).toHaveBeenCalledWith(expect.objectContaining({ isActive: true }));
   });

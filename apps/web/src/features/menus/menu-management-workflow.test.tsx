@@ -375,26 +375,26 @@ describe("MenuManagementPage", () => {
     expect(screen.getByRole("checkbox", { name: "自身可见" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("combobox", { name: "节点类型" }));
-    await user.click(screen.getByRole("option", { name: "菜单" }));
+    await user.click(await screen.findByRole("option", { name: "菜单" }));
 
-    expect(screen.getByRole("combobox", { name: "菜单模式" })).toBeInTheDocument();
+    expect(await screen.findByRole("combobox", { name: "菜单模式" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "注册路由" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "权限" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "页面保活" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("combobox", { name: "注册路由" }));
-    const routeOption = screen.getByRole("option", { name: /成员管理.*\/members.*Members/ });
+    const routeOption = await screen.findByRole("option", { name: /成员管理.*\/members.*Members/ });
     expect(routeOption).toBeInTheDocument();
     await user.keyboard("{Escape}");
 
     await user.click(screen.getByRole("combobox", { name: "菜单模式" }));
-    await user.click(screen.getByRole("option", { name: "外链菜单" }));
-    expect(screen.getByRole("textbox", { name: "外链 URL" })).toBeInTheDocument();
+    await user.click(await screen.findByRole("option", { name: "外链菜单" }));
+    expect(await screen.findByRole("textbox", { name: "外链 URL" })).toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: "页面保活" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("combobox", { name: "节点类型" }));
-    await user.click(screen.getByRole("option", { name: "按钮" }));
-    expect(screen.getByRole("combobox", { name: "所属菜单" })).toBeInTheDocument();
+    await user.click(await screen.findByRole("option", { name: "按钮" }));
+    expect(await screen.findByRole("combobox", { name: "所属菜单" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "图标" })).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: "自身可见" })).not.toBeInTheDocument();
   });

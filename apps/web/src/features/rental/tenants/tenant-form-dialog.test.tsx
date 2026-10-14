@@ -30,7 +30,7 @@ describe("TenantFormDialog", () => {
     await user.click(screen.getByRole("button", { name: "新增租客" }));
     expect(screen.getByLabelText("证件号码")).toBeInTheDocument();
     await user.click(screen.getByRole("combobox", { name: "租客类型" }));
-    await user.click(screen.getByRole("option", { name: "企业" }));
+    await user.click(await screen.findByRole("option", { name: "企业" }));
     expect(screen.queryByLabelText("证件号码")).not.toBeInTheDocument();
     expect(screen.getByLabelText("主要联系人")).toBeInTheDocument();
   });
@@ -41,7 +41,7 @@ describe("TenantFormDialog", () => {
     await user.click(screen.getByRole("button", { name: "新增租客" }));
     const contact = screen.getByLabelText("主要联系人");
     await user.click(screen.getByRole("combobox", { name: "租客类型" }));
-    await user.click(screen.getByRole("option", { name: "企业" }));
+    await user.click(await screen.findByRole("option", { name: "企业" }));
     await user.click(screen.getByRole("button", { name: "创建租客" }));
     expect(contact.closest('[data-slot="field"]')).toHaveTextContent("企业租户必须填写联系人姓名");
     expect(contact).toHaveAttribute("aria-invalid", "true");

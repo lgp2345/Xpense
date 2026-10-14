@@ -96,7 +96,7 @@ describe("AuditLogsPage", () => {
     });
     expect(screen.queryByPlaceholderText("搜索操作...")).not.toBeInTheDocument();
     await user.click(screen.getByRole("combobox", { name: "每页行数" }));
-    await user.click(screen.getByRole("option", { name: "20" }));
+    await user.click(await screen.findByRole("option", { name: "20" }));
     expect(onSearchChange).toHaveBeenLastCalledWith({
       page: 1,
       pageSize: 20,

@@ -140,7 +140,7 @@ describe("TenantsPage", () => {
 
     await user.click(tenantType);
     expect(await screen.findByRole("listbox")).toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "企业" }));
+    await user.click(await screen.findByRole("option", { name: "企业" }));
     await user.click(screen.getByRole("button", { name: "应用筛选" }));
 
     expect(onSearchChange).toHaveBeenLastCalledWith(

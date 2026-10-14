@@ -138,7 +138,7 @@ describe("AccountsPage", () => {
     await user.click(screen.getByRole("button", { name: "新增账户" }));
     await user.type(screen.getByRole("textbox", { name: "账户名称" }), "现金账户");
     await user.click(screen.getByRole("combobox", { name: "账户类型" }));
-    await user.click(screen.getByRole("option", { name: "现金" }));
+    await user.click(await screen.findByRole("option", { name: "现金" }));
     await user.type(screen.getByRole("textbox", { name: "期初余额" }), "12.34");
     await user.click(screen.getByRole("button", { name: "创建账户" }));
 

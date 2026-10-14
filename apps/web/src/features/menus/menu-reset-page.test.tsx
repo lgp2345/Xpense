@@ -90,7 +90,7 @@ function createHarness() {
 
 async function selectOrganization(user: ReturnType<typeof userEvent.setup>, name: string) {
   await user.click(await screen.findByRole("combobox", { name: "目标组织" }));
-  await user.click(screen.getByRole("option", { name }));
+  await user.click(await screen.findByRole("option", { name }));
 }
 
 describe("MenuResetPage", () => {

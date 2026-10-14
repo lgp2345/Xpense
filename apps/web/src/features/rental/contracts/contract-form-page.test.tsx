@@ -317,7 +317,7 @@ async function fillNewContractToReview(user: ReturnType<typeof userEvent.setup>)
   await user.keyboard("{Escape}");
   await user.click(screen.getByRole("radio", { name: "合同起始日" }));
   await user.click(screen.getByRole("combobox", { name: "付款周期" }));
-  await user.click(screen.getByRole("option", { name: "每月" }));
+  await user.click(await screen.findByRole("option", { name: "每月" }));
   await user.click(screen.getByRole("button", { name: "下一步" }));
   await screen.findByRole("heading", { name: "复核并创建" });
 }

@@ -46,9 +46,9 @@ describe("合同应收覆盖", () => {
     expect(await screen.findByText(/有效普通账单 9,000.00/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("combobox", { name: "合同账单费用" }));
     expect(await screen.findByRole("listbox")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("option", { name: "押金" }));
+    await userEvent.click(await screen.findByRole("option", { name: "押金" }));
     await userEvent.click(screen.getByRole("combobox", { name: "合同账单状态" }));
-    await userEvent.click(screen.getByRole("option", { name: "作废历史" }));
+    await userEvent.click(await screen.findByRole("option", { name: "作废历史" }));
     await waitFor(() =>
       expect(api.listBills).toHaveBeenLastCalledWith(
         expect.objectContaining({ contractId: "contract", type: "deposit", status: "voided" }),
@@ -110,19 +110,30 @@ describe("合同应收覆盖", () => {
     await screen.findByText(billFixture.billNumber);
     await user.tab();
     expect(screen.getByRole("combobox", { name: "合同账单费用" })).toHaveFocus();
-    await user.keyboard("{Enter}{ArrowDown}{ArrowDown}{Enter}");
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(screen.getByRole("option", { name: "全部费用" })).toHaveFocus());
+    await user.keyboard("{ArrowDown}");
+    await waitFor(() => expect(screen.getByRole("option", { name: "账期账单" })).toHaveFocus());
+    await user.keyboard("{ArrowDown}");
+    await waitFor(() => expect(screen.getByRole("option", { name: "押金" })).toHaveFocus());
+    await user.keyboard("{Enter}");
     await waitFor(() =>
       expect(api.listBills).toHaveBeenLastCalledWith(
         expect.objectContaining({ type: "deposit", status: "active" }),
       ),
     );
     expect(screen.getByRole("combobox", { name: "合同账单费用" })).toHaveTextContent("押金");
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "合同账单费用" })).toHaveFocus(),
+    );
     await user.tab();
     await user.keyboard("{Enter}");
     expect(await screen.findByRole("listbox")).toBeInTheDocument();
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "合同账单状态" })).toHaveFocus();
+    await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "合同账单状态" })).toHaveFocus(),
+    );
   });
 
   it("空结果保留概览，合同禁止生成时不提示出账操作", async () => {
@@ -246,9 +257,9 @@ describe("合同应收覆盖", () => {
     expect(screen.queryByText(/收款情况尚未登记/)).not.toBeInTheDocument();
     await user.click(screen.getByRole("combobox", { name: "合同账单费用" }));
     expect(screen.queryByRole("option", { name: "租金" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "账期账单" }));
+    await user.click(await screen.findByRole("option", { name: "账期账单" }));
     await user.click(screen.getByRole("combobox", { name: "合同账单状态" }));
-    await user.click(screen.getByRole("option", { name: "作废历史" }));
+    await user.click(await screen.findByRole("option", { name: "作废历史" }));
     await waitFor(() =>
       expect(api.listBills).toHaveBeenLastCalledWith(
         expect.objectContaining({ contractId: "contract", type: "period", status: "voided" }),

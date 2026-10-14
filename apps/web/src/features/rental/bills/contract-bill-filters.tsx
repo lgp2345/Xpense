@@ -42,7 +42,7 @@ export function ContractBillFilters({
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="min-w-(--radix-select-trigger-width)">
+          <SelectContent className="min-w-(--anchor-width)">
             <SelectItem value="all">全部费用</SelectItem>
             <SelectItem value="period">账期账单</SelectItem>
             <SelectItem value="deposit">押金</SelectItem>
@@ -64,7 +64,7 @@ export function ContractBillFilters({
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="min-w-(--radix-select-trigger-width)">
+          <SelectContent className="min-w-(--anchor-width)">
             <SelectItem value="active">有效</SelectItem>
             <SelectItem value="voided">作废历史</SelectItem>
           </SelectContent>

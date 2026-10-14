@@ -168,9 +168,9 @@ describe("CategoriesPage", () => {
     );
     await screen.findByText("餐饮");
     await user.click(screen.getByRole("combobox", { name: "账本" }));
-    await user.click(screen.getByRole("option", { name: "家庭账本" }));
+    await user.click(await screen.findByRole("option", { name: "家庭账本" }));
     await user.click(screen.getByRole("combobox", { name: "账本" }));
-    await user.click(screen.getByRole("option", { name: "个人账本" }));
+    await user.click(await screen.findByRole("option", { name: "个人账本" }));
 
     requestA.resolve(latestA);
     expect(await screen.findByText("最新个人分类")).toBeInTheDocument();
@@ -234,7 +234,7 @@ describe("CategoriesPage", () => {
     await user.type(screen.getByRole("textbox", { name: "分类名称" }), "重复分类");
     await user.click(screen.getByRole("combobox", { name: "上级分类" }));
 
-    const listbox = screen.getByRole("listbox");
+    const listbox = await screen.findByRole("listbox");
     expect(within(listbox).getByRole("option", { name: "餐饮" })).toBeInTheDocument();
     expect(within(listbox).queryByRole("option", { name: "早餐" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");

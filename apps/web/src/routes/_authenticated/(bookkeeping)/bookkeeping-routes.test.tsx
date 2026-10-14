@@ -260,7 +260,7 @@ describe("bookkeeping file routes", () => {
     expect(screen.getByLabelText("关键词")).toHaveValue("房租");
     expect(listTransactions).toHaveBeenLastCalledWith({ keyword: "房租", page: 2, pageSize: 20 });
     await user.click(screen.getByRole("combobox", { name: "每页行数" }));
-    await user.click(screen.getByRole("option", { name: "10" }));
+    await user.click(await screen.findByRole("option", { name: "10" }));
     await waitFor(() => {
       expect(router.state.location.search).toEqual({ keyword: "房租", page: 1, pageSize: 10 });
       expect(screen.getByText("第 1 页，共 4 页")).toBeInTheDocument();

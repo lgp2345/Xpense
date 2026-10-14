@@ -88,7 +88,7 @@ describe("Pagination", () => {
       />,
     );
     await user.click(screen.getByRole("combobox", { name: "每页行数" }));
-    await user.click(screen.getByRole("option", { name: "20" }));
+    await user.click(await screen.findByRole("option", { name: "20" }));
     expect(onPageSizeChange).toHaveBeenCalledWith(20);
   });
 });
@@ -137,7 +137,7 @@ describe("DataTablePagination", () => {
     await user.click(screen.getByRole("button", { name: "末页" }));
     expect(table.setPageIndex).toHaveBeenLastCalledWith(3);
     await user.click(screen.getByRole("combobox", { name: "每页行数" }));
-    await user.click(screen.getByRole("option", { name: "30" }));
+    await user.click(await screen.findByRole("option", { name: "30" }));
     expect(table.setPageSize).toHaveBeenCalledWith(30);
   });
 });

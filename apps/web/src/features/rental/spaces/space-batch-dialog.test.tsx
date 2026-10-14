@@ -14,7 +14,7 @@ describe("SpaceBatchDialog feedback", () => {
     expect(lines.closest('[data-slot="field"]')).toHaveTextContent("第 2 行");
     expect(lines).toHaveAttribute("aria-invalid", "true");
     await user.click(screen.getByRole("combobox", { name: "批量空间类型" }));
-    await user.click(screen.getByRole("option", { name: "其他" }));
+    await user.click(await screen.findByRole("option", { name: "其他" }));
     const custom = screen.getByLabelText("自定义类型");
     expect(custom.parentElement?.lastElementChild).toHaveTextContent("请输入自定义类型");
     await user.type(custom, "工作室");

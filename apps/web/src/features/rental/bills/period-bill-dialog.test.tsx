@@ -67,7 +67,7 @@ it("接续选择要求起算读数并提示线下已结清", async () => {
   const h = setup();
   await screen.findByLabelText("出账账期");
   await userEvent.click(screen.getByRole("combobox", { name: "出账账期" }));
-  await userEvent.click(screen.getByRole("option", { name: "2026-11-05 至 2026-12-04" }));
+  await userEvent.click(await screen.findByRole("option", { name: "2026-11-05 至 2026-12-04" }));
   expect(screen.getByText(/视为已在线下结清/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "确认生成" })).toBeDisabled();
   fireEvent.change(screen.getByLabelText("起算水表读数"), { target: { value: "4200" } });

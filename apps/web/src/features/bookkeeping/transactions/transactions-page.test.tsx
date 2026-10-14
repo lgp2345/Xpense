@@ -361,11 +361,11 @@ describe("TransactionsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "新增交易" }));
     await user.click(screen.getByRole("combobox", { name: "交易类型" }));
-    await user.click(screen.getByRole("option", { name: "支出" }));
+    await user.click(await screen.findByRole("option", { name: "支出" }));
     await user.click(screen.getByRole("combobox", { name: "账户" }));
-    await user.click(screen.getByRole("option", { name: "工资卡" }));
+    await user.click(await screen.findByRole("option", { name: "工资卡" }));
     await user.click(screen.getByRole("combobox", { name: "分类" }));
-    await user.click(screen.getByRole("option", { name: "餐饮" }));
+    await user.click(await screen.findByRole("option", { name: "餐饮" }));
     await user.type(screen.getByRole("textbox", { name: "金额" }), "12.34");
     const occurredAt = screen.getByLabelText("发生时间");
     await user.clear(occurredAt);
@@ -404,9 +404,9 @@ describe("TransactionsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "新增交易" }));
     await user.click(screen.getByRole("combobox", { name: "账本" }));
-    await user.click(screen.getByRole("option", { name: "家庭账本" }));
+    await user.click(await screen.findByRole("option", { name: "家庭账本" }));
     await user.click(screen.getByRole("combobox", { name: "账户" }));
-    await user.click(screen.getByRole("option", { name: "工资卡" }));
+    await user.click(await screen.findByRole("option", { name: "工资卡" }));
     await user.click(screen.getByRole("combobox", { name: "分类" }));
     await user.click(await screen.findByRole("option", { name: "房租" }));
     await user.type(screen.getByRole("textbox", { name: "金额" }), "12.34");
@@ -431,18 +431,18 @@ describe("TransactionsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "新增交易" }));
     await user.click(screen.getByRole("combobox", { name: "账户" }));
-    await user.click(screen.getByRole("option", { name: "工资卡" }));
+    await user.click(await screen.findByRole("option", { name: "工资卡" }));
     await user.click(screen.getByRole("combobox", { name: "分类" }));
-    await user.click(screen.getByRole("option", { name: "餐饮" }));
+    await user.click(await screen.findByRole("option", { name: "餐饮" }));
     await user.type(screen.getByRole("textbox", { name: "金额" }), "88.00");
     await user.click(screen.getByRole("combobox", { name: "交易类型" }));
-    await user.click(screen.getByRole("option", { name: "收入" }));
+    await user.click(await screen.findByRole("option", { name: "收入" }));
     await user.click(screen.getByRole("button", { name: "创建交易" }));
 
     expect(await screen.findByText("请选择分类")).toBeInTheDocument();
     expect(api.createTransaction).not.toHaveBeenCalled();
     await user.click(screen.getByRole("combobox", { name: "分类" }));
-    await user.click(screen.getByRole("option", { name: "工资" }));
+    await user.click(await screen.findByRole("option", { name: "工资" }));
     await user.click(screen.getByRole("button", { name: "创建交易" }));
     await waitFor(() =>
       expect(api.createTransaction).toHaveBeenCalledWith(
@@ -497,7 +497,7 @@ describe("TransactionsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "编辑 午餐" }));
     await user.click(screen.getByRole("combobox", { name: "账本" }));
-    await user.click(screen.getByRole("option", { name: "家庭账本" }));
+    await user.click(await screen.findByRole("option", { name: "家庭账本" }));
     await user.click(screen.getByRole("combobox", { name: "分类" }));
     await user.click(await screen.findByRole("option", { name: "房租" }));
     await user.click(screen.getByRole("button", { name: "保存交易" }));
@@ -507,7 +507,7 @@ describe("TransactionsPage", () => {
     expect(screen.getByRole("combobox", { name: "账本" })).toHaveTextContent("家庭账本");
     expect(screen.getByRole("combobox", { name: "分类" })).toHaveTextContent("房租");
     await user.click(screen.getByRole("combobox", { name: "分类" }));
-    await user.click(screen.getByRole("option", { name: "房租" }));
+    await user.click(await screen.findByRole("option", { name: "房租" }));
     await user.click(screen.getByRole("button", { name: "保存交易" }));
 
     await waitFor(() => expect(api.updateTransaction).toHaveBeenCalledTimes(2));
@@ -542,18 +542,18 @@ describe("TransactionsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "新增交易" }));
     await user.click(screen.getByRole("combobox", { name: "交易类型" }));
-    await user.click(screen.getByRole("option", { name: "转账" }));
+    await user.click(await screen.findByRole("option", { name: "转账" }));
     await user.click(screen.getByRole("combobox", { name: "账户" }));
-    await user.click(screen.getByRole("option", { name: "工资卡" }));
+    await user.click(await screen.findByRole("option", { name: "工资卡" }));
     await user.click(screen.getByRole("combobox", { name: "目标账户" }));
-    await user.click(screen.getByRole("option", { name: "工资卡" }));
+    await user.click(await screen.findByRole("option", { name: "工资卡" }));
     await user.type(screen.getByRole("textbox", { name: "金额" }), "12.34");
     await user.click(screen.getByRole("button", { name: "创建交易" }));
     expect(await screen.findByText("转账账户必须不同")).toBeInTheDocument();
     expect(api.createTransaction).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("combobox", { name: "目标账户" }));
-    await user.click(screen.getByRole("option", { name: "现金" }));
+    await user.click(await screen.findByRole("option", { name: "现金" }));
     await user.click(screen.getByRole("button", { name: "创建交易" }));
     await waitFor(() =>
       expect(api.createTransaction).toHaveBeenCalledWith(
