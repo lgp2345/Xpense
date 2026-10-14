@@ -33,39 +33,41 @@ export function DataTableFacetedFilter({ column, title, options }: DataTableFace
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button className="h-8 border-dashed" size="sm" variant="outline">
-          <PlusCircleIcon className="size-4" />
-          {title}
-          {selectedValues.size > 0 ? (
-            <>
-              <Separator className="mx-2 h-4" orientation="vertical" />
-              <Badge className="rounded-sm px-1 font-normal lg:hidden" variant="secondary">
-                {selectedValues.size}
-              </Badge>
-              <div className="hidden space-x-1 lg:flex">
-                {selectedValues.size > 2 ? (
-                  <Badge className="rounded-sm px-1 font-normal" variant="secondary">
-                    {selectedValues.size} 项已选
-                  </Badge>
-                ) : (
-                  options
-                    .filter((option) => selectedValues.has(option.value))
-                    .map((option) => (
-                      <Badge
-                        className="rounded-sm px-1 font-normal"
-                        key={option.value}
-                        variant="secondary"
-                      >
-                        {option.label}
-                      </Badge>
-                    ))
-                )}
-              </div>
-            </>
-          ) : null}
-        </Button>
-      </PopoverTrigger>
+      <PopoverTrigger
+        render={
+          <Button className="h-8 border-dashed" size="sm" variant="outline">
+            <PlusCircleIcon className="size-4" />
+            {title}
+            {selectedValues.size > 0 ? (
+              <>
+                <Separator className="mx-2 h-4" orientation="vertical" />
+                <Badge className="rounded-sm px-1 font-normal lg:hidden" variant="secondary">
+                  {selectedValues.size}
+                </Badge>
+                <div className="hidden space-x-1 lg:flex">
+                  {selectedValues.size > 2 ? (
+                    <Badge className="rounded-sm px-1 font-normal" variant="secondary">
+                      {selectedValues.size} 项已选
+                    </Badge>
+                  ) : (
+                    options
+                      .filter((option) => selectedValues.has(option.value))
+                      .map((option) => (
+                        <Badge
+                          className="rounded-sm px-1 font-normal"
+                          key={option.value}
+                          variant="secondary"
+                        >
+                          {option.label}
+                        </Badge>
+                      ))
+                  )}
+                </div>
+              </>
+            ) : null}
+          </Button>
+        }
+      />
       <PopoverContent align="start" className="w-[200px] p-0">
         <Command>
           <CommandInput placeholder={title} />

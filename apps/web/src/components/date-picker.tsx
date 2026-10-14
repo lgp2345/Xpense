@@ -99,17 +99,19 @@ export function DatePickerInput({
         className={cn("bg-background pr-10", className)}
       />
       <Popover open={open} onOpenChange={changeOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={disabled || readOnly}
-            aria-label={buttonLabel}
-            className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
-          >
-            <CalendarIcon className="size-3.5" />
-          </Button>
-        </PopoverTrigger>
+        <PopoverTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={disabled || readOnly}
+              aria-label={buttonLabel}
+              className="absolute top-1/2 right-2 size-6 -translate-y-1/2"
+            >
+              <CalendarIcon className="size-3.5" />
+            </Button>
+          }
+        />
         <PopoverContent
           className="w-auto overflow-hidden p-0"
           align="end"

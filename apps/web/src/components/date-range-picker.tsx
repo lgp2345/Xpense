@@ -103,40 +103,42 @@ export function DateRangePicker({
         if (open) setMonth(from ?? to ?? new Date());
       }}
     >
-      <PopoverTrigger asChild>
-        <Button
-          id={id}
-          type="button"
-          variant="outline"
-          aria-label={ariaLabel}
-          aria-invalid={ariaInvalid}
-          aria-describedby={ariaDescribedBy}
-          aria-required={ariaRequired}
-          disabled={disabled}
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !from && !to && "text-muted-foreground",
-            withTime && "h-auto min-h-9 py-2",
-            className,
-          )}
-        >
-          <CalendarIcon />
-          {from || to ? (
-            <span className={cn("min-w-0", withTime ? "flex flex-wrap gap-x-1" : "truncate")}>
-              {from ? <span>{format(from, displayFormat)}</span> : null}
-              <span>{" - "}</span>
-              {to ? <span>{format(to, displayFormat)}</span> : null}
-            </span>
-          ) : (
-            <span className="truncate">{placeholder}</span>
-          )}
-        </Button>
-      </PopoverTrigger>
+      <PopoverTrigger
+        render={
+          <Button
+            id={id}
+            type="button"
+            variant="outline"
+            aria-label={ariaLabel}
+            aria-invalid={ariaInvalid}
+            aria-describedby={ariaDescribedBy}
+            aria-required={ariaRequired}
+            disabled={disabled}
+            className={cn(
+              "w-full justify-start text-left font-normal",
+              !from && !to && "text-muted-foreground",
+              withTime && "h-auto min-h-9 py-2",
+              className,
+            )}
+          >
+            <CalendarIcon />
+            {from || to ? (
+              <span className={cn("min-w-0", withTime ? "flex flex-wrap gap-x-1" : "truncate")}>
+                {from ? <span>{format(from, displayFormat)}</span> : null}
+                <span>{" - "}</span>
+                {to ? <span>{format(to, displayFormat)}</span> : null}
+              </span>
+            ) : (
+              <span className="truncate">{placeholder}</span>
+            )}
+          </Button>
+        }
+      />
       <PopoverContent
         className={cn(
-          "max-h-(--radix-popover-content-available-height) w-auto overflow-y-auto p-0",
+          "max-h-(--available-height) w-auto overflow-y-auto p-0",
           withTime &&
-            "grid w-80 max-w-(--radix-popover-content-available-width) sm:w-auto sm:grid-cols-[auto_11.5rem] sm:grid-rows-[auto_1fr]",
+            "grid w-80 max-w-(--available-width) sm:w-auto sm:grid-cols-[auto_11.5rem] sm:grid-rows-[auto_1fr]",
         )}
         align="start"
         collisionPadding={8}
