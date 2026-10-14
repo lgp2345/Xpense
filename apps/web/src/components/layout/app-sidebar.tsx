@@ -76,37 +76,39 @@ export function AppSidebar({ session }: { session: WebSessionDependency }) {
                 ) : (
                   <Collapsible
                     key={entry.id}
-                    asChild
                     className="group/collapsible"
                     defaultOpen={entry.items.some((item) => item.id === highlightedMenuId)}
-                  >
-                    <SidebarMenuItem>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton tooltip={entry.title}>
-                          <entry.icon />
-                          <span>{entry.title}</span>
-                          <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          {entry.items.map((item) => (
-                            <SidebarMenuSubItem key={item.id}>
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={highlightedMenuId === item.id}
-                              >
-                                <NavigationAnchor
-                                  item={item}
-                                  onNavigate={() => setOpenMobile(false)}
-                                />
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    </SidebarMenuItem>
-                  </Collapsible>
+                    render={
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger
+                          render={
+                            <SidebarMenuButton tooltip={entry.title}>
+                              <entry.icon />
+                              <span>{entry.title}</span>
+                              <ChevronRight className="ml-auto transition-transform group-data-open/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                          }
+                        />
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {entry.items.map((item) => (
+                              <SidebarMenuSubItem key={item.id}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={highlightedMenuId === item.id}
+                                >
+                                  <NavigationAnchor
+                                    item={item}
+                                    onNavigate={() => setOpenMobile(false)}
+                                  />
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    }
+                  />
                 ),
               )}
             </SidebarMenu>

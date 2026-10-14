@@ -61,61 +61,69 @@ function PermissionTreeItem({
   const hasChildren = node.children.length > 0;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} asChild>
-      <li>
-        <div className="flex min-h-10 items-center gap-3 px-3 py-2">
-          {hasChildren ? (
-            <CollapsibleTrigger asChild>
-              <button
-                aria-label={`${isOpen ? "折叠" : "展开"} ${node.name}`}
-                className="group/permission-toggle flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-                type="button"
-              >
-                <ChevronRight className="size-4 transition-transform duration-200 ease-out motion-reduce:transition-none group-data-[state=open]/permission-toggle:rotate-90" />
-              </button>
-            </CollapsibleTrigger>
-          ) : null}
-          <Checkbox
-            aria-label={node.name}
-            aria-checked={ariaChecked}
-            checked={checked === true}
-            indeterminate={checked === "indeterminate"}
-            className="relative data-indeterminate:bg-primary data-indeterminate:border-primary data-indeterminate:text-primary-foreground [&[data-indeterminate]_svg]:hidden data-indeterminate:before:absolute data-indeterminate:before:h-0.5 data-indeterminate:before:w-2.5 data-indeterminate:before:rounded-full data-indeterminate:before:bg-current"
-            disabled={disabled}
-            onCheckedChange={(nextChecked) =>
-              onChange(togglePermissionNode(roots, node, selected, nextChecked === true))
-            }
-          />
-          <div className="min-w-0 flex-1">
-            <p className={node.type === "directory" ? "text-sm font-medium" : "text-sm"}>
-              {node.name}
-            </p>
-            {node.permissionCode !== null ? (
-              <p className="text-xs text-muted-foreground">{node.permissionCode}</p>
+    <Collapsible
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      render={
+        <li>
+          <div className="flex min-h-10 items-center gap-3 px-3 py-2">
+            {hasChildren ? (
+              <CollapsibleTrigger
+                render={
+                  <button
+                    aria-label={`${isOpen ? "折叠" : "展开"} ${node.name}`}
+                    className="group/permission-toggle flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                    type="button"
+                  >
+                    <ChevronRight className="size-4 transition-transform duration-200 ease-out motion-reduce:transition-none group-data-open/permission-toggle:rotate-90" />
+                  </button>
+                }
+              />
+            ) : null}
+            <Checkbox
+              aria-label={node.name}
+              aria-checked={ariaChecked}
+              checked={checked === true}
+              indeterminate={checked === "indeterminate"}
+              className="relative data-indeterminate:bg-primary data-indeterminate:border-primary data-indeterminate:text-primary-foreground [&[data-indeterminate]_svg]:hidden data-indeterminate:before:absolute data-indeterminate:before:h-0.5 data-indeterminate:before:w-2.5 data-indeterminate:before:rounded-full data-indeterminate:before:bg-current"
+              disabled={disabled}
+              onCheckedChange={(nextChecked) =>
+                onChange(togglePermissionNode(roots, node, selected, nextChecked === true))
+              }
+            />
+            <div className="min-w-0 flex-1">
+              <p className={node.type === "directory" ? "text-sm font-medium" : "text-sm"}>
+                {node.name}
+              </p>
+              {node.permissionCode !== null ? (
+                <p className="text-xs text-muted-foreground">{node.permissionCode}</p>
+              ) : null}
+            </div>
+            {node.type === "button" ? (
+              <span className="text-xs text-muted-foreground">按钮</span>
             ) : null}
           </div>
-          {node.type === "button" ? (
-            <span className="text-xs text-muted-foreground">按钮</span>
+          {hasChildren ? (
+            <CollapsibleContent
+              render={
+                <ul aria-label={`${node.name}的子权限`} className="ml-5 border-l pl-3">
+                  {node.children.map((child) => (
+                    <PermissionTreeItem
+                      disabled={disabled}
+                      key={getNodeKey(child)}
+                      node={child}
+                      roots={roots}
+                      selected={selected}
+                      onChange={onChange}
+                    />
+                  ))}
+                </ul>
+              }
+            />
           ) : null}
-        </div>
-        {hasChildren ? (
-          <CollapsibleContent asChild>
-            <ul aria-label={`${node.name}的子权限`} className="ml-5 border-l pl-3">
-              {node.children.map((child) => (
-                <PermissionTreeItem
-                  disabled={disabled}
-                  key={getNodeKey(child)}
-                  node={child}
-                  roots={roots}
-                  selected={selected}
-                  onChange={onChange}
-                />
-              ))}
-            </ul>
-          </CollapsibleContent>
-        ) : null}
-      </li>
-    </Collapsible>
+        </li>
+      }
+    />
   );
 }
 

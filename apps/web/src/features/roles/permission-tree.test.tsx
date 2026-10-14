@@ -34,7 +34,7 @@ describe("PermissionTree", () => {
     const collapseButton = screen.getByRole("button", { name: "折叠 系统管理" });
     expect(collapseButton).toHaveAttribute("aria-expanded", "true");
     expect(collapseButton.querySelector("svg")).toHaveClass(
-      "group-data-[state=open]/permission-toggle:rotate-90",
+      "group-data-open/permission-toggle:rotate-90",
       "duration-200",
       "ease-out",
     );

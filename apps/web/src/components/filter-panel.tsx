@@ -13,15 +13,17 @@ export function FilterPanel({ children, actions }: { children: ReactNode; action
         <span className="text-sm font-medium">筛选条件</span>
         <div className="flex items-center gap-2">
           {actions}
-          <CollapsibleTrigger asChild>
-            <Button type="button" size="sm" variant="outline">
-              {open ? "收起筛选" : "展开筛选"}
-              <ChevronDown aria-hidden="true" className={open ? "size-4 rotate-180" : "size-4"} />
-            </Button>
-          </CollapsibleTrigger>
+          <CollapsibleTrigger
+            render={
+              <Button type="button" size="sm" variant="outline">
+                {open ? "收起筛选" : "展开筛选"}
+                <ChevronDown aria-hidden="true" className={open ? "size-4 rotate-180" : "size-4"} />
+              </Button>
+            }
+          />
         </div>
       </div>
-      <CollapsibleContent forceMount hidden={!open}>
+      <CollapsibleContent keepMounted hidden={!open}>
         {children}
       </CollapsibleContent>
     </Collapsible>
