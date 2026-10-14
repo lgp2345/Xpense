@@ -86,9 +86,7 @@ export function SpaceBatchDialog({ propertyId, parentId, onCreate }: SpaceBatchD
         if (!next) setSubmitError(null);
       }}
     >
-      <DialogTrigger asChild>
-        <Button variant="outline">批量新增</Button>
-      </DialogTrigger>
+      <DialogTrigger render={<Button variant="outline">批量新增</Button>} />
       <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>批量新增空间</DialogTitle>

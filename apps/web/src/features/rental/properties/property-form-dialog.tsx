@@ -117,15 +117,17 @@ export function PropertyFormDialog({
         }
       }}
     >
-      <DialogTrigger asChild>
-        <Button
-          aria-label={isEditing ? `编辑 ${property.name}` : undefined}
-          size={isEditing ? "sm" : "default"}
-          variant={isEditing ? "outline" : "default"}
-        >
-          {isEditing ? "编辑" : "新增房产"}
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button
+            aria-label={isEditing ? `编辑 ${property.name}` : undefined}
+            size={isEditing ? "sm" : "default"}
+            variant={isEditing ? "outline" : "default"}
+          >
+            {isEditing ? "编辑" : "新增房产"}
+          </Button>
+        }
+      />
       <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{isEditing ? "编辑房产" : "新增房产"}</DialogTitle>

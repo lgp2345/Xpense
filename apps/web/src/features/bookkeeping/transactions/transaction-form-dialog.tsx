@@ -81,17 +81,19 @@ export function TransactionFormDialog(props: TransactionFormDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button
-          aria-label={
-            isEditing ? `编辑 ${transaction.note ?? transaction.payee ?? "交易"}` : undefined
-          }
-          size={isEditing ? "sm" : "default"}
-          variant={isEditing ? "outline" : "default"}
-        >
-          {isEditing ? "编辑" : "新增交易"}
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button
+            aria-label={
+              isEditing ? `编辑 ${transaction.note ?? transaction.payee ?? "交易"}` : undefined
+            }
+            size={isEditing ? "sm" : "default"}
+            variant={isEditing ? "outline" : "default"}
+          >
+            {isEditing ? "编辑" : "新增交易"}
+          </Button>
+        }
+      />
       <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{isEditing ? "编辑交易" : "新增交易"}</DialogTitle>

@@ -131,9 +131,9 @@ export function RoleEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant={isEditing ? "outline" : "default"}>{triggerLabel}</Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={<Button variant={isEditing ? "outline" : "default"}>{triggerLabel}</Button>}
+      />
       <DialogContent showCloseButton={false} className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{isEditing ? "编辑角色" : "新增角色"}</DialogTitle>

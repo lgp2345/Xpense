@@ -160,14 +160,16 @@ export function TenantFormDialog({
       }}
     >
       {!hideTrigger ? (
-        <DialogTrigger asChild>
-          <Button
-            aria-label={isEditing && tenant ? `编辑 ${tenant.name}` : undefined}
-            variant={isEditing ? "outline" : "default"}
-          >
-            {isEditing ? "编辑" : "新增租客"}
-          </Button>
-        </DialogTrigger>
+        <DialogTrigger
+          render={
+            <Button
+              aria-label={isEditing && tenant ? `编辑 ${tenant.name}` : undefined}
+              variant={isEditing ? "outline" : "default"}
+            >
+              {isEditing ? "编辑" : "新增租客"}
+            </Button>
+          }
+        />
       ) : null}
       <DialogContent className="flex max-h-[90dvh] flex-col">
         <DialogHeader>

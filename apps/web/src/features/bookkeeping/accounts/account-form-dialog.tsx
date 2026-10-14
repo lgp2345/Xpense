@@ -61,15 +61,17 @@ export function AccountFormDialog({ account, onCreate, onUpdate }: AccountFormDi
         }
       }}
     >
-      <DialogTrigger asChild>
-        <Button
-          size={isEditing ? "sm" : "default"}
-          variant={isEditing ? "outline" : "default"}
-          aria-label={isEditing ? `编辑 ${account.name}` : undefined}
-        >
-          {isEditing ? "编辑" : "新增账户"}
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button
+            size={isEditing ? "sm" : "default"}
+            variant={isEditing ? "outline" : "default"}
+            aria-label={isEditing ? `编辑 ${account.name}` : undefined}
+          >
+            {isEditing ? "编辑" : "新增账户"}
+          </Button>
+        }
+      />
       <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{isEditing ? "编辑账户" : "新增账户"}</DialogTitle>

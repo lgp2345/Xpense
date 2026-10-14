@@ -83,9 +83,7 @@ export function MemberFormDialog({ roles, onSubmit }: MemberFormDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>新增成员</Button>
-      </DialogTrigger>
+      <DialogTrigger render={<Button>新增成员</Button>} />
       <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>新增成员</DialogTitle>

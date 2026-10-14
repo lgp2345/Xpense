@@ -79,21 +79,23 @@ export function CategoryFormDialog({
         }
       }}
     >
-      <DialogTrigger asChild>
-        <Button
-          size={isEditing || isFixedChild ? "sm" : "default"}
-          variant={isEditing || isFixedChild ? "outline" : "default"}
-          aria-label={
-            isEditing
-              ? `编辑 ${category.name}`
-              : isFixedChild
-                ? `在 ${initialParent.name} 下新增子分类`
-                : undefined
-          }
-        >
-          {isEditing ? "编辑" : isFixedChild ? "新增子分类" : "新增分类"}
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button
+            size={isEditing || isFixedChild ? "sm" : "default"}
+            variant={isEditing || isFixedChild ? "outline" : "default"}
+            aria-label={
+              isEditing
+                ? `编辑 ${category.name}`
+                : isFixedChild
+                  ? `在 ${initialParent.name} 下新增子分类`
+                  : undefined
+            }
+          >
+            {isEditing ? "编辑" : isFixedChild ? "新增子分类" : "新增分类"}
+          </Button>
+        }
+      />
       <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{isEditing ? "编辑分类" : "新增分类"}</DialogTitle>

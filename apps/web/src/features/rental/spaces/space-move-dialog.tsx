@@ -266,11 +266,13 @@ export function SpaceMoveDialog({
         if (!next) setSubmitError(null);
       }}
     >
-      <DialogTrigger asChild>
-        <Button aria-label={`移动 ${space.name}`} size="sm" variant="outline">
-          移动
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button aria-label={`移动 ${space.name}`} size="sm" variant="outline">
+            移动
+          </Button>
+        }
+      />
       <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>移动空间</DialogTitle>

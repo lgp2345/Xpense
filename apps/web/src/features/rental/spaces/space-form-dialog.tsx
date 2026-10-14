@@ -38,7 +38,7 @@ type SpaceFormDialogProps = {
   parentId?: string;
   propertyId: string;
   space?: RentalSpaceNode;
-  trigger?: React.ReactNode;
+  trigger?: React.ReactElement;
   onCreate?: (input: CreateRentalSpaceRequest) => Promise<void>;
   onUpdate?: (input: UpdateRentalSpaceRequest) => Promise<void>;
 };
@@ -77,16 +77,18 @@ export function SpaceFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button
-            aria-label={isEditing ? `编辑 ${space.name}` : undefined}
-            size={isEditing ? "sm" : "default"}
-          >
-            {isEditing ? "编辑" : "新增空间"}
-          </Button>
-        )}
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          trigger ?? (
+            <Button
+              aria-label={isEditing ? `编辑 ${space.name}` : undefined}
+              size={isEditing ? "sm" : "default"}
+            >
+              {isEditing ? "编辑" : "新增空间"}
+            </Button>
+          )
+        }
+      />
       <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{isEditing ? "编辑空间" : "新增空间"}</DialogTitle>
