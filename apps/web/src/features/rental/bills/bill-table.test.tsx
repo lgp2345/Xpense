@@ -57,7 +57,12 @@ it("按当前页可操作账单多选，已结清账单不能再选中登记", a
       }}
     />,
   );
-  expect(screen.getByRole("checkbox", { name: `选择账单 ${paid.billNumber}` })).toBeDisabled();
+  expect(screen.getByRole("checkbox", { name: `选择账单 ${paid.billNumber}` })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await userEvent.click(screen.getByRole("checkbox", { name: `选择账单 ${paid.billNumber}` }));
+  expect(onSelectionChange).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("checkbox", { name: "选择当前页可登记账单" }));
   expect(onSelectionChange).toHaveBeenLastCalledWith(["pending"]);
   await userEvent.click(screen.getByRole("checkbox", { name: `选择账单 ${pending.billNumber}` }));

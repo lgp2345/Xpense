@@ -46,7 +46,12 @@ it("多选仅登记收款，共用详情弹框且有可退余额的账单不参�
   );
   expect(screen.getByRole("button", { name: "收款（0）" })).toBeDisabled();
   expect(screen.queryByRole("button", { name: /退款（/ })).not.toBeInTheDocument();
-  expect(screen.getByRole("checkbox", { name: `选择账单 ${refund.billNumber}` })).toBeDisabled();
+  expect(screen.getByRole("checkbox", { name: `选择账单 ${refund.billNumber}` })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await userEvent.click(screen.getByRole("checkbox", { name: `选择账单 ${refund.billNumber}` }));
+  expect(screen.getByRole("button", { name: "收款（0）" })).toBeDisabled();
   await userEvent.click(screen.getByRole("checkbox", { name: "选择当前页可登记账单" }));
   expect(screen.getByText("已选 1 张")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "收款（1）" }));

@@ -45,13 +45,8 @@ export function BillTable({
               <Checkbox
                 aria-label="选择当前页可登记账单"
                 disabled={selection.selectableIds.length === 0}
-                checked={
-                  checkedCount === 0
-                    ? false
-                    : checkedCount === selection.selectableIds.length
-                      ? true
-                      : "indeterminate"
-                }
+                checked={checkedCount > 0 && checkedCount === selection.selectableIds.length}
+                indeterminate={checkedCount > 0 && checkedCount < selection.selectableIds.length}
                 onCheckedChange={(checked) =>
                   selection.onChange(checked === true ? [...selection.selectableIds] : [])
                 }

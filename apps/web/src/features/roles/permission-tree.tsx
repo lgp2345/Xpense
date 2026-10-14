@@ -78,8 +78,9 @@ function PermissionTreeItem({
           <Checkbox
             aria-label={node.name}
             aria-checked={ariaChecked}
-            checked={checked}
-            className="relative data-[state=indeterminate]:bg-primary data-[state=indeterminate]:border-primary data-[state=indeterminate]:text-primary-foreground [&[data-state=indeterminate]_svg]:hidden data-[state=indeterminate]:before:absolute data-[state=indeterminate]:before:h-0.5 data-[state=indeterminate]:before:w-2.5 data-[state=indeterminate]:before:rounded-full data-[state=indeterminate]:before:bg-current"
+            checked={checked === true}
+            indeterminate={checked === "indeterminate"}
+            className="relative data-indeterminate:bg-primary data-indeterminate:border-primary data-indeterminate:text-primary-foreground [&[data-indeterminate]_svg]:hidden data-indeterminate:before:absolute data-indeterminate:before:h-0.5 data-indeterminate:before:w-2.5 data-indeterminate:before:rounded-full data-indeterminate:before:bg-current"
             disabled={disabled}
             onCheckedChange={(nextChecked) =>
               onChange(togglePermissionNode(roots, node, selected, nextChecked === true))
