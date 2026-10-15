@@ -114,7 +114,7 @@ describe("共用月度收费字段", () => {
     const user = userEvent.setup();
     render(<Harness />);
     expect(screen.getByLabelText("水费单价（元）")).toBeInTheDocument();
-    await user.click(screen.getByLabelText("房东代收水费"));
+    await user.click(screen.getByRole("checkbox", { name: "房东代收水费" }));
     expect(screen.queryByLabelText("水费单价（元）")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "管理费" }));
     expect(screen.getByLabelText("事项名称 1")).toHaveValue("管理费");
