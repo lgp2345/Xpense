@@ -20,12 +20,16 @@ export function NavGroup({ title, items }: NavigationGroupProps) {
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.to}>
-            <SidebarMenuButton asChild isActive={pathname === item.to} tooltip={item.title}>
-              <Link to={item.to} onClick={() => setOpenMobile(false)}>
-                <item.icon />
-                <span>{item.title}</span>
-              </Link>
-            </SidebarMenuButton>
+            <SidebarMenuButton
+              isActive={pathname === item.to}
+              tooltip={item.title}
+              render={
+                <Link to={item.to} onClick={() => setOpenMobile(false)}>
+                  <item.icon />
+                  <span>{item.title}</span>
+                </Link>
+              }
+            />
           </SidebarMenuItem>
         ))}
       </SidebarMenu>

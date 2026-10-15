@@ -1,4 +1,4 @@
-import { Slot } from '@radix-ui/react-slot'
+import { useRender } from '@base-ui/react/use-render'
 import { PanelLeftIcon } from 'lucide-react'
 import * as React from 'react'
 
@@ -348,23 +348,15 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<'div'>) {
     />
   )
 }
-function SidebarGroupLabel({
-  className,
-  asChild = false,
-  ...props
-}: React.ComponentProps<'div'> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot : 'div'
-  return (
-    <Comp
-      data-slot="sidebar-group-label"
-      data-sidebar="group-label"
-      className={cn(
-        'flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0',
-        className,
-      )}
-      {...props}
-    />
-  )
+function SidebarGroupLabel({ className, render, ref, ...props }: useRender.ComponentProps<'div'>) {
+  return useRender({
+    defaultTagName: 'div', render, ref,
+    props: {
+      'data-slot': 'sidebar-group-label', 'data-sidebar': 'group-label',
+      className: cn('flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0', className),
+      ...props,
+    },
+  })
 }
 function SidebarGroupContent({
   className,
@@ -399,66 +391,40 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
     />
   )
 }
-function SidebarMenuButton({
-  asChild = false,
-  isActive = false,
-  size = 'default',
-  tooltip,
-  className,
-  ...props
-}: React.ComponentProps<'button'> & {
-  asChild?: boolean
+function SidebarMenuButton({ render, ref, isActive = false, size = 'default', tooltip, className, ...props }: useRender.ComponentProps<'button'> & {
   isActive?: boolean
   size?: 'sm' | 'default' | 'lg'
   tooltip?: string
 }) {
-  const Comp = asChild ? Slot : 'button'
   const { isMobile, state } = useSidebar()
-  const button = (
-    <Comp
-      data-slot="sidebar-menu-button"
-      data-sidebar="menu-button"
-      data-size={size}
-      data-active={isActive}
-      className={cn(
+  const button = useRender({
+    defaultTagName: 'button', render, ref,
+    props: {
+      'data-slot': 'sidebar-menu-button', 'data-sidebar': 'menu-button', 'data-size': size, 'data-active': isActive,
+      className: cn(
         'flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none hover:bg-sidebar-accent focus-visible:ring-2 data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate',
-        size === 'sm' ? 'h-7' : size === 'lg' ? 'h-12' : 'h-8',
-        className,
-      )}
-      {...props}
-    />
-  )
+        size === 'sm' ? 'h-7' : size === 'lg' ? 'h-12' : 'h-8', className,
+      ),
+      ...props,
+    },
+  })
   if (!tooltip) return button
   return (
     <Tooltip>
-      <TooltipTrigger  render={button} />
-      <TooltipContent
-        side="right"
-        align="center"
-        hidden={state !== 'collapsed' || isMobile}
-      >
-        {tooltip}
-      </TooltipContent>
+      <TooltipTrigger render={button} />
+      <TooltipContent side="right" align="center" hidden={state !== 'collapsed' || isMobile}>{tooltip}</TooltipContent>
     </Tooltip>
   )
 }
-function SidebarMenuAction({
-  className,
-  asChild = false,
-  ...props
-}: React.ComponentProps<'button'> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot : 'button'
-  return (
-    <Comp
-      data-slot="sidebar-menu-action"
-      data-sidebar="menu-action"
-      className={cn(
-        'absolute right-1 top-1.5 flex size-5 items-center justify-center rounded-md',
-        className,
-      )}
-      {...props}
-    />
-  )
+function SidebarMenuAction({ className, render, ref, ...props }: useRender.ComponentProps<'button'>) {
+  return useRender({
+    defaultTagName: 'button', render, ref,
+    props: {
+      'data-slot': 'sidebar-menu-action', 'data-sidebar': 'menu-action',
+      className: cn('absolute right-1 top-1.5 flex size-5 items-center justify-center rounded-md', className),
+      ...props,
+    },
+  })
 }
 function SidebarMenuBadge({
   className,
@@ -519,32 +485,21 @@ function SidebarMenuSubItem({
     />
   )
 }
-function SidebarMenuSubButton({
-  asChild = false,
-  size = 'md',
-  isActive = false,
-  className,
-  ...props
-}: React.ComponentProps<'a'> & {
-  asChild?: boolean
+function SidebarMenuSubButton({ render, ref, size = 'md', isActive = false, className, ...props }: useRender.ComponentProps<'a'> & {
   size?: 'sm' | 'md'
   isActive?: boolean
 }) {
-  const Comp = asChild ? Slot : 'a'
-  return (
-    <Comp
-      data-slot="sidebar-menu-sub-button"
-      data-sidebar="menu-sub-button"
-      data-size={size}
-      data-active={isActive}
-      className={cn(
+  return useRender({
+    defaultTagName: 'a', render, ref,
+    props: {
+      'data-slot': 'sidebar-menu-sub-button', 'data-sidebar': 'menu-sub-button', 'data-size': size, 'data-active': isActive,
+      className: cn(
         'flex h-7 min-w-0 items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground outline-none hover:bg-sidebar-accent focus-visible:ring-2 data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:hidden',
-        size === 'sm' ? 'text-xs' : 'text-sm',
-        className,
-      )}
-      {...props}
-    />
-  )
+        size === 'sm' ? 'text-xs' : 'text-sm', className,
+      ),
+      ...props,
+    },
+  })
 }
 
 export {

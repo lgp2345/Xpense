@@ -66,12 +66,12 @@ export function AppSidebar({ session }: { session: WebSessionDependency }) {
                 entry.kind === "menu" ? (
                   <SidebarMenuItem key={entry.id}>
                     <SidebarMenuButton
-                      asChild
                       isActive={highlightedMenuId === entry.id}
                       tooltip={entry.title}
-                    >
-                      <NavigationAnchor item={entry} onNavigate={() => setOpenMobile(false)} />
-                    </SidebarMenuButton>
+                      render={
+                        <NavigationAnchor item={entry} onNavigate={() => setOpenMobile(false)} />
+                      }
+                    />
                   </SidebarMenuItem>
                 ) : (
                   <Collapsible
@@ -94,14 +94,14 @@ export function AppSidebar({ session }: { session: WebSessionDependency }) {
                             {entry.items.map((item) => (
                               <SidebarMenuSubItem key={item.id}>
                                 <SidebarMenuSubButton
-                                  asChild
                                   isActive={highlightedMenuId === item.id}
-                                >
-                                  <NavigationAnchor
-                                    item={item}
-                                    onNavigate={() => setOpenMobile(false)}
-                                  />
-                                </SidebarMenuSubButton>
+                                  render={
+                                    <NavigationAnchor
+                                      item={item}
+                                      onNavigate={() => setOpenMobile(false)}
+                                    />
+                                  }
+                                />
                               </SidebarMenuSubItem>
                             ))}
                           </SidebarMenuSub>
