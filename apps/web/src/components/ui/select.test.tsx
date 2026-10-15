@@ -21,7 +21,7 @@ function Example({ initial = "a" }: { initial?: string }) {
 
 it("displays the selected item's label before opening the popup", () => {
   render(<Example />);
-  expect(screen.getByRole("combobox", { name: "状态" })).toHaveTextContent("有效");
+  expect(screen.getByRole("combobox", { name: "状态" })).toHaveTextContent(/^有效$/);
   expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
 });
 
