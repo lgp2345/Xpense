@@ -687,6 +687,48 @@ describe("contract form step domains", () => {
     );
   });
 
+  it("keeps the primary payer checked when tenants are added and removed", async () => {
+    const secondTenantId = "66666666-6666-4666-8666-666666666666";
+    const user = userEvent.setup();
+    const api = {
+      listTenants: vi.fn().mockResolvedValue({
+        items: [tenant(tenantId), tenant(secondTenantId)],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      }),
+    } as unknown as RentalApi;
+    function Harness() {
+      const [values, setValues] = useState(defaultContractFormValues(propertyId));
+      return (
+        <ContractPartiesStep
+          api={api}
+          organizationId="org-a"
+          permissions={["rental_tenants:read"]}
+          values={values}
+          onChange={setValues}
+        />
+      );
+    }
+    renderWithQuery(<Harness />);
+    const search = screen.getByRole("combobox", { name: "搜索租户" });
+    await user.click(search);
+    await user.click(await screen.findByRole("option", { name: /张三/ }));
+    const group = screen.getByRole("radiogroup", { name: "主付款人" });
+    expect(within(group).getByRole("radio", { name: "张三" })).toBeChecked();
+    await user.click(search);
+    await user.click(await screen.findByRole("option", { name: /李四/ }));
+    await user.click(within(group).getByRole("radio", { name: "李四" }));
+    expect(within(group).getByRole("radio", { name: "李四" })).toBeChecked();
+    await user.click(
+      within(screen.getByText("李四", { selector: "div", exact: true })).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+    expect(within(group).queryByRole("radio", { name: "李四" })).not.toBeInTheDocument();
+    expect(within(group).getByRole("radio", { name: "张三" })).toBeChecked();
+  });
+
   it("selects tenants with the multi-select and debounces remote queries", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

@@ -53,7 +53,7 @@ export function ContractPaymentFields({
           <FieldGroup className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Field
               orientation="horizontal"
-              className="rounded-md border bg-muted/20 px-3 py-2.5 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+              className="rounded-md border bg-muted/20 px-3 py-2.5 has-[[data-checked]]:border-primary has-[[data-checked]]:bg-primary/5"
             >
               <RadioGroupItem
                 id="billing-contract-start"
@@ -64,7 +64,7 @@ export function ContractPaymentFields({
             </Field>
             <Field
               orientation="horizontal"
-              className="rounded-md border bg-muted/20 px-3 py-2.5 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+              className="rounded-md border bg-muted/20 px-3 py-2.5 has-[[data-checked]]:border-primary has-[[data-checked]]:bg-primary/5"
             >
               <RadioGroupItem
                 id="billing-calendar-month"

@@ -239,7 +239,7 @@ export function ContractPartiesStep({
         <RadioGroup
           aria-labelledby="primary-payer-label"
           name="primary-payer"
-          value={values.parties.find((party) => party.isPrimaryPayer)?.tenantId}
+          value={values.parties.find((party) => party.isPrimaryPayer)?.tenantId ?? null}
           onValueChange={(tenantId) =>
             onChange({
               ...values,
