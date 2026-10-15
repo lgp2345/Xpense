@@ -1,31 +1,28 @@
-import type { ReactNode } from "react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { ComponentProps } from 'react'
+import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 export function ContractRestrictionTooltip({
   label,
   message,
-  children,
-}: {
-  label: string;
-  message: string | null;
-  children: ReactNode;
+  ...buttonProps
+}: ComponentProps<typeof Button> & {
+  label: string
+  message: string | null
 }) {
-  if (!message) return children;
+  if (!message) return <Button aria-label={label} {...buttonProps} />
   return (
     <Tooltip>
       <TooltipTrigger
         render={
-          <fieldset
-            aria-label={label}
-            // biome-ignore lint/a11y/noNoninteractiveTabindex: 禁用按钮由外层接收键盘焦点以展示限制原因。
-            tabIndex={0}
-            className="rounded-md outline-none inline-flex focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          >
-            {children}
-          </fieldset>
+          <Button aria-label={label} {...buttonProps} focusableWhenDisabled />
         }
       />
       <TooltipContent sideOffset={4}>{message}</TooltipContent>
     </Tooltip>
-  );
+  )
 }

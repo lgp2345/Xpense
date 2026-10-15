@@ -225,15 +225,16 @@ describe("PropertyDetailPage", () => {
     );
 
     const button = await screen.findByRole("button", { name: "删除 A 座" });
-    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("aria-disabled", "true");
     expect(button).toHaveAccessibleDescription(/暂不能进行此操作/);
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-    const trigger = screen.getByRole("group", { name: "删除 A 座" });
-    act(() => trigger.focus());
+    act(() => button.focus());
+    expect(button).toHaveFocus();
     expect(await screen.findByRole("tooltip")).toHaveTextContent("暂不能进行此操作");
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     await user.click(button);
+    await user.keyboard("{Enter} ");
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(deleteSpace).not.toHaveBeenCalled();
   });
@@ -264,17 +265,29 @@ describe("PropertyDetailPage", () => {
     expect(screen.getByText("即将有合同")).toBeInTheDocument();
     expect(screen.getByText("上级已有合同")).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "停用 A 座" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "移动 A 座" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "在 A 座 下新增" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "在 A 座 下批量新增" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "停用 A 座" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "移动 A 座" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "在 A 座 下新增" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "在 A 座 下批量新增" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
     expect(screen.queryByRole("button", { name: "启用 A 座" })).not.toBeInTheDocument();
     for (const name of ["停用 A 座", "移动 A 座", "在 A 座 下新增", "在 A 座 下批量新增"]) {
-      await user.hover(screen.getByRole("group", { name }));
+      await user.hover(screen.getByRole("button", { name }));
       expect(await screen.findByRole("tooltip")).toHaveTextContent(
         "上级空间已有合同，暂不能进行此操作。",
       );
-      await user.unhover(screen.getByRole("group", { name }));
+      await user.unhover(screen.getByRole("button", { name }));
       await user.keyboard("{Escape}");
       await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
     }
