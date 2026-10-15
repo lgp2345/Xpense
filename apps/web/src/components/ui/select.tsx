@@ -97,7 +97,7 @@ function SelectContent({
           {...props}
         >
           <SelectScrollUpButton />
-          <SelectPrimitive.List className="max-h-(--available-height) overflow-y-auto p-1">
+          <SelectPrimitive.List className="max-h-(--available-height) scroll-py-6 overflow-y-auto p-1">
             {children}
           </SelectPrimitive.List>
           <SelectScrollDownButton />
@@ -160,7 +160,10 @@ function SelectScrollUpButton({
   return (
     <SelectPrimitive.ScrollUpArrow
       data-slot="select-scroll-up-button"
-      className={cn("flex cursor-default items-center justify-center py-1", className)}
+      className={cn(
+        "inset-x-0 top-0 z-10 flex cursor-default items-center justify-center bg-popover py-1",
+        className,
+      )}
       {...props}
     >
       <ChevronUpIcon className="size-4" />
@@ -174,7 +177,10 @@ function SelectScrollDownButton({
   return (
     <SelectPrimitive.ScrollDownArrow
       data-slot="select-scroll-down-button"
-      className={cn("flex cursor-default items-center justify-center py-1", className)}
+      className={cn(
+        "inset-x-0 bottom-0 z-10 flex cursor-default items-center justify-center bg-popover py-1",
+        className,
+      )}
       {...props}
     >
       <ChevronDownIcon className="size-4" />
