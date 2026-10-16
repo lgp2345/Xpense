@@ -31,8 +31,11 @@ import {
   rentalKeys,
   rentalQueryOptions,
 } from "../../../services/rental-query";
+import { FilteredSpaceTable } from "./filtered-space-table";
 import { SpaceActions } from "./space-actions";
 import { SpaceBatchDialog } from "./space-batch-dialog";
+import { SpaceContractsSheet } from "./space-contracts-sheet";
+import { SpaceFilters, type SpaceFiltersValue } from "./space-filters";
 import { SpaceFormDialog } from "./space-form-dialog";
 import { SpaceSearchResults } from "./space-search-results";
 import { SpaceTreeRow } from "./space-tree-row";
@@ -57,21 +60,50 @@ export function SpaceTreeTable({
   permissions,
   propertyActive,
   propertyId,
+  onNavigateContract,
+  filters,
+  onFiltersChange,
 }: {
+  filters?: SpaceFiltersValue;
+  onFiltersChange?: (filters: SpaceFiltersValue) => void;
   api: RentalApi;
   organizationId: string;
   permissions: readonly PermissionKey[];
   propertyActive: boolean;
   propertyId: string;
+  onNavigateContract?: (id: string) => void;
 }) {
+  const [contractSpace, setContractSpace] = useState<RentalSpaceNode | null>(null);
   const queryClient = useQueryClient();
   const [tree, setTree] = useState(createSpaceTreeState);
   const treeRef = useRef(tree);
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const [focusId, setFocusId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
-  const [draftKeyword, setDraftKeyword] = useState("");
-  const [keyword, setKeyword] = useState("");
+  const [draftKeyword, setDraftKeyword] = useState(filters?.keyword ?? "");
+  const [localFilters, setLocalFilters] = useState<SpaceFiltersValue>({});
+  const activeFilters = filters ?? localFilters;
+  const effectiveStatus = activeFilters.effectiveStatus;
+  const leaseStatus = activeFilters.leaseStatus;
+  const hasStatusFilters = Boolean(effectiveStatus || leaseStatus);
+  const changeFilters = useCallback(
+    (next: SpaceFiltersValue) => {
+      if (onFiltersChange) onFiltersChange(next);
+      else setLocalFilters(next);
+    },
+    [onFiltersChange],
+  );
+  const externalKeyword = filters ? (filters.keyword ?? "") : undefined;
+  const lastExternalKeyword = useRef(externalKeyword);
+  useEffect(() => {
+    if (lastExternalKeyword.current === externalKeyword) return;
+    lastExternalKeyword.current = externalKeyword;
+    if (externalKeyword !== undefined) {
+      setDraftKeyword(externalKeyword);
+      setKeyword(externalKeyword);
+    }
+  }, [externalKeyword]);
+  const [keyword, setKeyword] = useState(filters?.keyword ?? "");
   const [searchItems, setSearchItems] = useState<RentalSpaceSearchResult[]>([]);
   const [searchPage, setSearchPage] = useState(1);
   const [searchLoadingMore, setSearchLoadingMore] = useState(false);
@@ -92,14 +124,19 @@ export function SpaceTreeTable({
     enabled: canRead && Boolean(organizationId && propertyId),
     retry: false,
   });
+  const searchScope = JSON.stringify([keyword, effectiveStatus, leaseStatus]);
+  const searchScopeRef = useRef(searchScope);
+  searchScopeRef.current = searchScope;
   const searchQuery = useQuery({
     ...rentalQueryOptions.search(api as RentalApi, organizationId, {
       propertyId,
       keyword,
+      ...(effectiveStatus ? { isEffectivelyActive: effectiveStatus === "active" } : {}),
+      ...(leaseStatus ? { leaseStatus } : {}),
       page: 1,
       pageSize: 20,
     }),
-    enabled: canRead && keyword.length > 0,
+    enabled: canRead && (keyword.length > 0 || hasStatusFilters),
     retry: false,
   });
   useEffect(() => {
@@ -121,7 +158,7 @@ export function SpaceTreeTable({
     });
   }, [canRead, organizationId, propertyId, queryClient]);
   useEffect(() => {
-    if (!canRead || !keyword || !searchQuery.data) {
+    if (!canRead || (!keyword && !hasStatusFilters) || !searchQuery.data) {
       setSearchItems([]);
       setSearchPage(1);
       setSearchLoadMoreError(false);
@@ -130,11 +167,18 @@ export function SpaceTreeTable({
     setSearchItems(searchQuery.data.items);
     setSearchPage(searchQuery.data.page);
     setSearchLoadMoreError(false);
-  }, [canRead, keyword, searchQuery.data]);
+  }, [canRead, keyword, hasStatusFilters, searchQuery.data]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a changed search scope invalidates pagination indicators
+  useEffect(() => {
+    setSearchLoadingMore(false);
+    setSearchLoadMoreError(false);
+  }, [searchScope]);
 
   async function loadMoreSearchResults() {
     if (!searchQuery.data || searchLoadingMore || searchItems.length >= searchQuery.data.total)
       return;
+    const requestScope = searchScope;
     setSearchLoadingMore(true);
     try {
       const nextPage = searchPage + 1;
@@ -142,11 +186,14 @@ export function SpaceTreeTable({
         ...rentalQueryOptions.search(api, organizationId, {
           propertyId,
           keyword,
+          ...(effectiveStatus ? { isEffectivelyActive: effectiveStatus === "active" } : {}),
+          ...(leaseStatus ? { leaseStatus } : {}),
           page: nextPage,
           pageSize: 20,
         }),
         retry: false,
       });
+      if (requestScope !== searchScopeRef.current) return;
       setSearchItems((current) => {
         const byId = new Map(current.map((item) => [item.id, item]));
         for (const item of page.items) byId.set(item.id, item);
@@ -155,9 +202,9 @@ export function SpaceTreeTable({
       setSearchPage(nextPage);
       setSearchLoadMoreError(false);
     } catch {
-      setSearchLoadMoreError(true);
+      if (requestScope === searchScopeRef.current) setSearchLoadMoreError(true);
     } finally {
-      setSearchLoadingMore(false);
+      if (requestScope === searchScopeRef.current) setSearchLoadingMore(false);
     }
   }
   const createMutation = useMutation({
@@ -206,9 +253,14 @@ export function SpaceTreeTable({
   }, [canRead, rootQuery.data, updateTree]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setKeyword(draftKeyword.trim()), 250);
+    const next = draftKeyword.trim();
+    if (next === keyword) return;
+    const timer = window.setTimeout(() => {
+      setKeyword(next);
+      changeFilters({ effectiveStatus, leaseStatus, keyword: next });
+    }, 250);
     return () => window.clearTimeout(timer);
-  }, [draftKeyword]);
+  }, [draftKeyword, keyword, effectiveStatus, leaseStatus, changeFilters]);
 
   useEffect(() => {
     if (!focusId) return;
@@ -283,6 +335,24 @@ export function SpaceTreeTable({
     permissions.some((permission) =>
       ["rental_spaces:create", "rental_spaces:update", "rental_spaces:delete"].includes(permission),
     );
+  const renderActions = (node: RentalSpaceNode, depth: number) => (
+    <SpaceActions
+      api={api}
+      deleting={deleteMutation.isPending}
+      organizationId={organizationId}
+      permissions={permissions}
+      propertyActive={propertyActive}
+      propertyId={propertyId}
+      space={node}
+      depth={depth}
+      onCreate={handleCreate}
+      onBatchCreate={handleBatchCreate}
+      onDelete={handleDelete}
+      onMove={handleMove}
+      onSetStatus={handleStatus}
+      onUpdate={handleUpdate}
+    />
+  );
   const actionError = (error: unknown, action: string) => {
     const message =
       action === "删除" && error instanceof ApiError && error.status === 409
@@ -400,7 +470,7 @@ export function SpaceTreeTable({
     return (
       <section aria-labelledby="space-tree-heading" className="space-y-3">
         <div>
-          <h2 id="space-tree-heading" className="text-lg font-medium">
+          <h2 id="space-tree-heading" className="font-medium text-lg">
             空间管理
           </h2>
         </div>
@@ -417,7 +487,7 @@ export function SpaceTreeTable({
             />
           </FilterPanel>
         </div>
-        <p className="rounded-lg border bg-muted p-3 text-sm text-muted-foreground">
+        <p className="bg-muted border rounded-lg text-sm text-muted-foreground p-3">
           你没有查看空间的权限。
         </p>
       </section>
@@ -425,12 +495,11 @@ export function SpaceTreeTable({
   }
   return (
     <section aria-labelledby="space-tree-heading" className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap gap-3 items-end justify-between">
         <div>
-          <h2 id="space-tree-heading" className="text-lg font-medium">
+          <h2 id="space-tree-heading" className="font-medium text-lg">
             空间管理
           </h2>
-          <p className="text-sm text-muted-foreground">展开节点后才加载直属子空间。</p>
         </div>
         {canCreate ? (
           <div className="flex flex-wrap gap-2">
@@ -442,35 +511,38 @@ export function SpaceTreeTable({
       {mutationError ? (
         <div
           role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+          className="border rounded-lg bg-destructive/10 border-destructive/30 text-sm text-destructive p-3"
         >
           {mutationError}
         </div>
       ) : null}
       <div className="space-y-2">
-        <FilterPanel>
-          <FieldLabel className="sr-only" htmlFor="space-search">
-            搜索空间
-          </FieldLabel>
-          <Input
-            id="space-search"
-            placeholder="按名称或编码搜索空间"
-            value={draftKeyword}
-            onChange={(event) => setDraftKeyword(event.target.value)}
-          />
-        </FilterPanel>
-        <SpaceSearchResults
-          error={searchQuery.isError}
-          loadMoreError={searchLoadMoreError}
-          isPending={searchQuery.isFetching}
-          hasMore={Boolean(searchQuery.data && searchItems.length < searchQuery.data.total)}
-          isLoadingMore={searchLoadingMore}
-          items={searchItems}
-          keyword={keyword}
-          onLoadMore={() => void loadMoreSearchResults()}
-          onRetryLoadMore={() => void loadMoreSearchResults()}
-          onSelect={(result) => void selectSearchResult(result)}
+        <SpaceFilters
+          keyword={draftKeyword}
+          effectiveStatus={effectiveStatus}
+          leaseStatus={leaseStatus}
+          onKeywordChange={setDraftKeyword}
+          onChange={(next) => {
+            setDraftKeyword(next.keyword ?? "");
+            setKeyword(next.keyword?.trim() ?? "");
+            changeFilters(next);
+            setLocationStatus("idle");
+          }}
         />
+        {!hasStatusFilters ? (
+          <SpaceSearchResults
+            error={searchQuery.isError}
+            loadMoreError={searchLoadMoreError}
+            isPending={searchQuery.isFetching}
+            hasMore={Boolean(searchQuery.data && searchItems.length < searchQuery.data.total)}
+            isLoadingMore={searchLoadingMore}
+            items={searchItems}
+            keyword={keyword}
+            onLoadMore={() => void loadMoreSearchResults()}
+            onRetryLoadMore={() => void loadMoreSearchResults()}
+            onSelect={(result) => void selectSearchResult(result)}
+          />
+        ) : null}
         {locationStatus !== "idle" && locationResult ? (
           <div aria-live="polite" className="text-sm text-muted-foreground" role="status">
             {locationStatus === "loading" ? `正在定位空间 ${locationResult.name}...` : null}
@@ -493,7 +565,24 @@ export function SpaceTreeTable({
           </div>
         ) : null}
       </div>
-      {rootQuery.isPending ? (
+      {hasStatusFilters ? (
+        <FilteredSpaceTable
+          items={searchItems}
+          total={searchQuery.data?.total ?? 0}
+          pending={searchQuery.isFetching && !searchQuery.data}
+          error={searchQuery.isError}
+          hasMore={Boolean(searchQuery.data && searchItems.length < searchQuery.data.total)}
+          loadingMore={searchLoadingMore}
+          loadMoreError={searchLoadMoreError}
+          canActions={canActions}
+          renderActions={renderActions}
+          onViewContracts={
+            permissions.includes("rental_contracts:read") ? setContractSpace : undefined
+          }
+          onLoadMore={() => void loadMoreSearchResults()}
+          onRetry={() => void searchQuery.refetch()}
+        />
+      ) : rootQuery.isPending ? (
         <Card>
           <CardContent className="space-y-2 p-4" aria-live="polite">
             <Skeleton className="h-8 w-full" />
@@ -503,7 +592,7 @@ export function SpaceTreeTable({
       ) : rootQuery.isError ? (
         <div
           role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+          className="border rounded-lg bg-destructive/10 border-destructive/30 text-sm text-destructive p-3"
         >
           加载空间失败，请稍后重试。
           <Button
@@ -517,7 +606,7 @@ export function SpaceTreeTable({
           </Button>
         </div>
       ) : (root?.items.length ?? 0) === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">当前房产没有空间。</p>
+        <p className="text-center text-sm text-muted-foreground py-8">当前房产没有空间。</p>
       ) : (
         <Card>
           <CardContent className="p-0">
@@ -527,12 +616,14 @@ export function SpaceTreeTable({
                   <TableHead>空间</TableHead>
                   <TableHead className="hidden sm:table-cell">类型</TableHead>
                   <TableHead className="hidden sm:table-cell">有效状态</TableHead>
-                  <TableHead className="hidden sm:table-cell">出租</TableHead>
+                  <TableHead className="hidden sm:table-cell">租赁状态</TableHead>
+                  <TableHead className="hidden sm:table-cell">出租属性</TableHead>
                   {canActions ? <TableHead className="text-right">操作</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TreeRows
+                  columnCount={5 + Number(canActions)}
                   errors={errors}
                   onLoadMore={(parentId) => {
                     const page = childPage(treeRef.current, parentId);
@@ -540,30 +631,16 @@ export function SpaceTreeTable({
                   }}
                   onRetry={(parentId) => void loadPage(parentId, 1)}
                   onToggle={(nodeId) => void toggle(nodeId)}
-                  renderActions={(node, depth) => (
-                    <SpaceActions
-                      api={api}
-                      deleting={deleteMutation.isPending}
-                      organizationId={organizationId}
-                      permissions={permissions}
-                      propertyActive={propertyActive}
-                      propertyId={propertyId}
-                      space={node}
-                      depth={depth}
-                      onCreate={handleCreate}
-                      onBatchCreate={handleBatchCreate}
-                      onDelete={handleDelete}
-                      onMove={handleMove}
-                      onSetStatus={handleStatus}
-                      onUpdate={handleUpdate}
-                    />
-                  )}
+                  renderActions={renderActions}
+                  onViewContracts={
+                    permissions.includes("rental_contracts:read") ? setContractSpace : undefined
+                  }
                   rowRefs={rowRefs}
                   state={tree}
                 />
                 {errors.root ? (
                   <TableRow>
-                    <TableCell className="text-destructive" colSpan={5}>
+                    <TableCell className="text-destructive" colSpan={5 + Number(canActions)}>
                       加载更多根空间失败
                       <Button
                         aria-label="重试加载更多根空间"
@@ -583,7 +660,7 @@ export function SpaceTreeTable({
                 ) : null}
                 {hasMoreChildren(tree, null) ? (
                   <TableRow>
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={5 + Number(canActions)}>
                       <LoadMoreButton
                         aria-label="加载更多根空间"
                         size="sm"
@@ -602,23 +679,38 @@ export function SpaceTreeTable({
           </CardContent>
         </Card>
       )}
+      {contractSpace && permissions.includes("rental_contracts:read") ? (
+        <SpaceContractsSheet
+          key={`${organizationId}:${propertyId}:${contractSpace.id}`}
+          api={api}
+          organizationId={organizationId}
+          propertyId={propertyId}
+          space={contractSpace}
+          onClose={() => setContractSpace(null)}
+          onNavigateContract={onNavigateContract}
+        />
+      ) : null}
     </section>
   );
 }
 
 function TreeRows({
+  columnCount,
   errors,
   onLoadMore,
   onRetry,
   onToggle,
   renderActions,
+  onViewContracts,
   rowRefs,
   state,
 }: {
+  columnCount: number;
   errors: Record<string, boolean>;
   onLoadMore: (parentId: string | null) => void;
   onRetry: (parentId: string) => void;
   onToggle: (nodeId: string) => void;
+  onViewContracts?: (node: RentalSpaceNode) => void;
   renderActions: (node: RentalSpaceNode, depth: number) => React.ReactNode;
   rowRefs: React.MutableRefObject<Record<string, HTMLTableRowElement | null>>;
   state: SpaceTreeState;
@@ -633,7 +725,7 @@ function TreeRows({
       const failure = errors[id]
         ? [
             <TableRow key={`${id}-error`}>
-              <TableCell className="text-destructive" colSpan={5}>
+              <TableCell className="text-destructive" colSpan={columnCount}>
                 加载子空间失败
                 <Button
                   aria-label={`重试加载 ${node.name} 的子空间`}
@@ -653,7 +745,7 @@ function TreeRows({
         expanded && hasMoreChildren(state, id)
           ? [
               <TableRow key={`${id}-more`}>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={columnCount}>
                   <LoadMoreButton size="sm" onClick={() => onLoadMore(id)}>
                     加载更多
                   </LoadMoreButton>
@@ -668,6 +760,7 @@ function TreeRows({
           expanded={expanded}
           node={node}
           actions={renderActions(node, depth)}
+          onViewContracts={onViewContracts ? () => onViewContracts(node) : undefined}
           onToggle={() => onToggle(id)}
           rowRef={(element) => {
             rowRefs.current[id] = element;

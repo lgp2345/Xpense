@@ -590,3 +590,22 @@ describe("SpacesRepository", () => {
     }
   });
 });
+
+describe("space status search filters", () => {
+  it("applies effective and own lease status before paging and in the count", () => {
+    for (const build of [buildSpaceSearchQuery, buildSpaceSearchCountQuery]) {
+      const query = build(new QueryBuilder() as never, "org-a", "property-a", {
+        keyword: "",
+        isEffectivelyActive: false,
+        leaseFilter: { status: "active", now: "2026-10-17T00:12:00" },
+        page: 2,
+        pageSize: 20,
+      }).toSQL();
+      expect(query.params).toContain(false);
+      expect(query.params).toContain("active");
+      expect(query.params).toContain("2026-10-17T00:12:00");
+      expect(query.sql).toContain('"tree"."is_effectively_active"');
+      expect(query.sql).toContain('"rental_contract_spaces"."space_id" = "tree"."id"');
+    }
+  });
+});

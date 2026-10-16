@@ -77,8 +77,18 @@ export class SpacesService {
   /** 返回当前组织指定房产内可定位路径的空间搜索分页。 */
   async search(authContext: AuthContext, dto: SearchSpacesDto): Promise<RentalSpaceSearchPage> {
     await this.policy.requireReadableProperty(authContext.organizationId, dto.propertyId);
+    const leaseFilter = dto.leaseStatus
+      ? {
+          status: dto.leaseStatus,
+          now: await this.contractReference.organizationNow(authContext.organizationId),
+        }
+      : undefined;
     const page = await this.repository.search(authContext.organizationId, dto.propertyId, {
       keyword: dto.keyword,
+      ...(dto.isEffectivelyActive !== undefined
+        ? { isEffectivelyActive: dto.isEffectivelyActive }
+        : {}),
+      ...(leaseFilter ? { leaseFilter } : {}),
       page: dto.page,
       pageSize: dto.pageSize,
     });
@@ -87,6 +97,7 @@ export class SpacesService {
       dto.propertyId,
       page,
       toSearchPage,
+      leaseFilter?.now,
     ) as Promise<RentalSpaceSearchPage>;
   }
 
@@ -528,9 +539,11 @@ export class SpacesService {
     propertyId: string,
     page: T,
     mapPage: (page: T) => RentalSpaceChildrenPage | RentalSpaceSearchPage,
+    capturedNow?: string,
   ): Promise<RentalSpaceChildrenPage | RentalSpaceSearchPage> {
     if (page.items.length === 0) return mapPage(page);
-    const today = await this.contractReference.organizationNow(authContext.organizationId);
+    const today =
+      capturedNow ?? (await this.contractReference.organizationNow(authContext.organizationId));
     const facts = await this.contractReference.listSpaceLeaseStates(
       authContext.organizationId,
       propertyId,

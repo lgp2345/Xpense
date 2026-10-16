@@ -30,6 +30,55 @@ function normalizeSql(value: string): string {
 function compileSql(value: Parameters<PgDialect["sqlToQuery"]>[0]) {
   return new PgDialect().sqlToQuery(value);
 }
+describe("space contract list filters", () => {
+  it("filters both the page and count to currently active and expiring contracts", () => {
+    for (const builder of [buildContractListQuery, buildContractCountQuery]) {
+      const query = builder(new QueryBuilder() as never, "organization-1", "2026-10-16T12:00:00", {
+        spaceId: "room-1",
+        currentOnly: true,
+        page: 1,
+        pageSize: 10,
+      }).toSQL();
+      expect(normalizeSql(query.sql)).toContain("end in ('active', 'expiring_soon')");
+      expect(query.params).toContain("2026-10-16T12:00:00");
+    }
+  });
+
+  it.each([
+    undefined,
+    "related",
+  ] as const)("scopes space filtering and count consistently (%s)", (spaceScope) => {
+    const input = {
+      propertyId: "property-1",
+      spaceId: "room-1",
+      spaceScope,
+      page: 2,
+      pageSize: 10,
+    };
+    for (const builder of [buildContractListQuery, buildContractCountQuery]) {
+      const query = builder(
+        new QueryBuilder() as never,
+        "organization-1",
+        "2026-10-16",
+        input,
+      ).toSQL();
+      const sql = normalizeSql(query.sql);
+      expect(query.params).toContain("room-1");
+      expect(sql).toContain(
+        '"filter_space"."organization_id" = "rental_contracts"."organization_id"',
+      );
+      expect(sql).toContain('"filter_space"."property_id" = "rental_contracts"."property_id"');
+      expect(sql).toContain('"filter_space"."contract_id" = "rental_contracts"."id"');
+      if (spaceScope) {
+        expect(sql).toContain("with recursive");
+        expect(sql).toContain('"parent_id"');
+        expect(sql).toContain('"depth" < 3');
+        expect(sql).toContain('"filter_space"."space_id" <>');
+      }
+    }
+  });
+});
+
 describe("ContractsRepository queries", () => {
   it("renders organization-scoped stable pagination and the same derived display filter in list and count", () => {
     const input = {

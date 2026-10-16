@@ -3,6 +3,7 @@ import { and, asc, count, desc, eq, inArray, isNull, ne, or, type SQL, sql } fro
 
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { rentalProperties, rentalSpaces } from "../../db/schema.js";
+import { buildSpaceSearchFilters } from "./space-search-filters.queries.js";
 import { spaceRecordFields } from "./spaces.repository.select-fields.js";
 import type {
   FindSpaceSiblingConflictsInput,
@@ -446,8 +447,7 @@ export function buildSpaceSearchQuery(
             AND "child"."deleted_at" IS NULL
         ) AS "has_children"
       FROM "space_tree" AS "tree"
-      WHERE "tree"."name" ILIKE ${keyword} ESCAPE '\\'
-        OR "tree"."code" ILIKE ${keyword} ESCAPE '\\'
+      WHERE ${buildSpaceSearchFilters(organizationId, propertyId, input, keyword)}
       ORDER BY "tree"."path_order" ASC, "tree"."id" ASC
       LIMIT ${input.pageSize}
       OFFSET ${offset}
@@ -473,8 +473,7 @@ export function buildSpaceSearchCountQuery(
       ${buildSpaceTreeCte(organizationId, propertyId)}
       SELECT COUNT(*) AS "total"
       FROM "space_tree" AS "tree"
-      WHERE "tree"."name" ILIKE ${keyword} ESCAPE '\\'
-        OR "tree"."code" ILIKE ${keyword} ESCAPE '\\'
+      WHERE ${buildSpaceSearchFilters(organizationId, propertyId, input, keyword)}
     ) AS "space_search_count_rows"
   `;
 

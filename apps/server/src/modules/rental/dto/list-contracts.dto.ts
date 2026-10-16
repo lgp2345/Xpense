@@ -15,6 +15,11 @@ export const listContractsSchema = z
     keyword: optionalQueryText(200),
     propertyId: z.string().uuid().optional(),
     tenantId: z.string().uuid().optional(),
+    spaceId: z.string().uuid().optional(),
+    spaceScope: z.literal("related").optional(),
+    currentOnly: z
+      .union([z.boolean(), z.enum(["true", "false"]).transform((value) => value === "true")])
+      .optional(),
     status: z.enum(rentalContractDisplayStatuses).optional(),
     startDateFrom: contractTimeInputSchema("start").optional(),
     startDateTo: contractTimeInputSchema("end").optional(),
@@ -25,6 +30,13 @@ export const listContractsSchema = z
   })
   .strict()
   .superRefine((value, context) => {
+    if (value.spaceScope && !value.spaceId) {
+      context.addIssue({
+        code: "custom",
+        path: ["spaceId"],
+        message: "查询上下级空间合同需要指定空间",
+      });
+    }
     if (value.startDateFrom && value.startDateTo && value.startDateFrom > value.startDateTo) {
       context.addIssue({ code: "custom", message: "合同开始日期筛选区间无效" });
     }

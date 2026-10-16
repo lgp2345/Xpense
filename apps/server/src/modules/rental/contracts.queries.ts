@@ -20,6 +20,7 @@ import type {
   ContractListInput,
   ContractReferenceQueryInput,
 } from "./contracts.repository.types.js";
+import { buildSpaceContractCondition } from "./space-contracts.queries.js";
 
 type ContractSelectExecutor = Pick<AppDbExecutor, "select">;
 
@@ -46,6 +47,8 @@ export function buildContractListConditions(
   ];
   if (input.propertyId !== undefined)
     conditions.push(eq(rentalContracts.propertyId, input.propertyId));
+  if (input.spaceId !== undefined)
+    conditions.push(buildSpaceContractCondition(organizationId, input.spaceId, input.spaceScope));
   if (input.tenantId !== undefined) {
     conditions.push(sql`EXISTS (
       SELECT 1 FROM ${rentalContractPartyPeriods}
@@ -53,6 +56,9 @@ export function buildContractListConditions(
         AND ${rentalContractPartyPeriods.contractId} = ${rentalContracts.id}
         AND ${rentalContractPartyPeriods.tenantId} = ${input.tenantId}
     )`);
+  }
+  if (input.currentOnly) {
+    conditions.push(sql`${contractDisplayStatusExpression(today)} IN ('active', 'expiring_soon')`);
   }
   if (input.status !== undefined) {
     conditions.push(sql`${contractDisplayStatusExpression(today)} = ${input.status}`);

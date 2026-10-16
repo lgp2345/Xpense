@@ -3,6 +3,42 @@ import { describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "./api-client";
 import { createRentalApi } from "./rental-api";
 
+describe("space status filters", () => {
+  it("serializes an empty keyword and false effective state with lease status", async () => {
+    const get = vi.fn().mockResolvedValue({});
+    const api = createRentalApi({ get } as unknown as ApiClient);
+    await api.searchSpaces({
+      propertyId: "p1",
+      keyword: "",
+      isEffectivelyActive: false,
+      leaseStatus: "active",
+      page: 2,
+      pageSize: 20,
+    });
+    expect(get).toHaveBeenCalledWith(
+      "/rental-spaces/search?propertyId=p1&keyword=&isEffectivelyActive=false&leaseStatus=active&page=2&pageSize=20",
+    );
+  });
+});
+
+describe("space contract filters", () => {
+  it("sends space identifiers and relation scope without using names as identifiers", async () => {
+    const get = vi.fn().mockResolvedValue({});
+    const api = createRentalApi({ get } as unknown as ApiClient);
+    await api.listContracts({
+      propertyId: "property-1",
+      spaceId: "room-1",
+      spaceScope: "related",
+      currentOnly: true,
+      page: 2,
+      pageSize: 10,
+    });
+    expect(get).toHaveBeenCalledWith(
+      "/rental-contracts/list?propertyId=property-1&spaceId=room-1&spaceScope=related&currentOnly=true&page=2&pageSize=10",
+    );
+  });
+});
+
 describe("createRentalApi", () => {
   function createHarness() {
     const client = {

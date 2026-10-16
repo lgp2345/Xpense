@@ -993,3 +993,22 @@ describe("SpacesService", () => {
     ).rejects.toBe(databaseError);
   });
 });
+
+it("passes status-only search filters with the trusted organization clock before paging", async () => {
+  const { service, repository } = createHarness();
+  await service.search(authContext, {
+    propertyId: "property-1",
+    keyword: "",
+    isEffectivelyActive: false,
+    leaseStatus: "active",
+    page: 2,
+    pageSize: 20,
+  });
+  expect(repository.search).toHaveBeenCalledWith("organization-1", "property-1", {
+    keyword: "",
+    isEffectivelyActive: false,
+    leaseFilter: { status: "active", now: "2026-08-31T14:05:06" },
+    page: 2,
+    pageSize: 20,
+  });
+});

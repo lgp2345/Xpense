@@ -16,7 +16,7 @@ import type { RentalApi } from "@/services/rental-api";
 import type { WebSessionDependency } from "@/services/web-session";
 import { createAuthStore } from "@/stores/auth-store";
 import { createMenuStore } from "@/stores/menu-store";
-import { Route as PropertyDetailRoute } from "./$propertyId";
+import { Route as PropertyDetailRoute, validatePropertyDetailSearch } from "./$propertyId";
 import { Route as PropertiesRoute, validateRentalPropertiesSearch } from "./index";
 
 const propertyId = "123e4567-e89b-42d3-a456-426614174000";
@@ -209,4 +209,63 @@ describe("rental property file routes", () => {
     expect(propertyAInput).toHaveValue("alpha");
     expect(propertyBInput).toHaveValue("beta");
   });
+});
+
+describe("property detail filter URL", () => {
+  it("restores independent contract and space filters and validates date ranges", () => {
+    expect(
+      validatePropertyDetailSearch({
+        keyword: "  陈  ",
+        status: "active",
+        startDateFrom: "2026-10-01",
+        startDateTo: "2026-10-31",
+        spaceKeyword: " 401 ",
+        spaceEffectiveStatus: "active",
+        spaceLeaseStatus: "expiring_soon",
+        page: "2",
+        pageSize: "10",
+      }),
+    ).toEqual({
+      keyword: "陈",
+      status: "active",
+      startDateFrom: "2026-10-01",
+      startDateTo: "2026-10-31",
+      spaceKeyword: "401",
+      spaceEffectiveStatus: "active",
+      spaceLeaseStatus: "expiring_soon",
+      page: 2,
+      pageSize: 10,
+    });
+    expect(
+      validatePropertyDetailSearch({
+        status: "unknown",
+        spaceEffectiveStatus: "unknown",
+        spaceLeaseStatus: "unknown",
+        startDateFrom: "2026-11-01",
+        startDateTo: "2026-10-01",
+        endDateFrom: "invalid",
+        page: -1,
+        pageSize: 101,
+      }),
+    ).toEqual({});
+  });
+});
+
+it("restores property-scoped contract keyword, date range and status from the detail URL", async () => {
+  const activeSession = session();
+  renderRoute(
+    `/rentals/properties/${propertyId}?keyword=401&status=active&startDateFrom=2026-10-01&startDateTo=2026-10-31&page=2&pageSize=20`,
+    activeSession,
+  );
+  await waitFor(() =>
+    expect(activeSession.rentalApi.listContracts).toHaveBeenCalledWith({
+      propertyId,
+      keyword: "401",
+      status: "active",
+      startDateFrom: "2026-10-01",
+      startDateTo: "2026-10-31",
+      page: 2,
+      pageSize: 20,
+    }),
+  );
 });

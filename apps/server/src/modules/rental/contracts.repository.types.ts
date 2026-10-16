@@ -13,6 +13,9 @@ export type ContractListInput = {
   keyword?: string;
   propertyId?: string;
   tenantId?: string;
+  spaceId?: string;
+  spaceScope?: "related";
+  currentOnly?: boolean;
   status?: RentalContractDisplayStatus;
   startDateFrom?: string;
   startDateTo?: string;

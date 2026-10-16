@@ -1,18 +1,16 @@
-import type { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
-import type { PermissionKey, RentalContractPage } from "@xpense/shared";
-import { Building2, ChevronRight, FileText, MapPin, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Pagination } from "@/components/pagination";
+import type { PermissionKey } from "@xpense/shared";
+import { Building2, MapPin, Plus } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "../../../services/api-client";
-import type { RentalApi } from "../../../services/rental-api";
+import type { ListRentalContractsQuery, RentalApi } from "../../../services/rental-api";
 import { rentalQueryOptions } from "../../../services/rental-query";
-import { ContractStatusBadge } from "../contracts/contract-status";
 import { propertyAddress, propertyTypeLabel } from "../properties/property-table";
+import { PropertyContractsSection } from "./property-contracts-section";
+import type { PropertyDetailSearch } from "./property-detail-search";
 import { PropertyOverview } from "./property-overview";
 import { SpaceTreeTable } from "./space-tree-table";
 
@@ -23,7 +21,11 @@ export function PropertyDetailPage({
   propertyId,
   onCreateContract,
   onNavigateContract,
+  search,
+  onSearchChange,
 }: {
+  search?: PropertyDetailSearch;
+  onSearchChange?: (search: PropertyDetailSearch) => void;
   api: RentalApi;
   organizationId: string;
   permissions?: readonly PermissionKey[];
@@ -37,25 +39,41 @@ export function PropertyDetailPage({
     permissions.includes("rental_contracts:create") &&
     permissions.includes("rental_contracts:read") &&
     permissions.includes("rental_contracts:update");
-  const [contractsPage, setContractsPage] = useState(1);
-  const [contractsPageSize, setContractsPageSize] = useState(10);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: route scope is the local pagination session
-  useEffect(() => {
-    setContractsPage(1);
-  }, [organizationId, propertyId]);
+  const [localSearch, setLocalSearch] = useState<PropertyDetailSearch>({});
+  const activeSearch = search ?? localSearch;
+  const { spaceKeyword, spaceEffectiveStatus, spaceLeaseStatus, ...contractSearch } = activeSearch;
+  const contractsPage = contractSearch.page ?? 1;
+  const contractsPageSize = contractSearch.pageSize ?? 10;
+  const changeSearch = (next: PropertyDetailSearch) => {
+    if (onSearchChange) onSearchChange(next);
+    else setLocalSearch(next);
+  };
+  const changeContracts = (next: ListRentalContractsQuery) =>
+    changeSearch({ spaceKeyword, spaceEffectiveStatus, spaceLeaseStatus, ...next });
   const contractsQuery = useQuery({
     ...rentalQueryOptions.contracts(api, organizationId, {
+      ...contractSearch,
       propertyId,
       page: contractsPage,
       pageSize: contractsPageSize,
     }),
     enabled: canReadContracts && Boolean(api.listContracts),
-    placeholderData: (previousData, previousQuery) =>
-      previousQuery?.queryKey?.[1] === organizationId &&
-      (previousQuery?.queryKey?.[3] as { propertyId?: string } | undefined)?.propertyId ===
-        propertyId
+    placeholderData: (previousData, previousQuery) => {
+      const previous = previousQuery?.queryKey?.[3] as ListRentalContractsQuery | undefined;
+      const keys = [
+        "keyword",
+        "status",
+        "startDateFrom",
+        "startDateTo",
+        "endDateFrom",
+        "endDateTo",
+      ] as const;
+      return previousQuery?.queryKey?.[1] === organizationId &&
+        previous?.propertyId === propertyId &&
+        keys.every((key) => previous?.[key] === contractSearch[key])
         ? previousData
-        : undefined,
+        : undefined;
+    },
     retry: false,
   });
   if (query.isPending)
@@ -130,142 +148,39 @@ export function PropertyDetailPage({
           此房产已停用，所属空间因上级停用而不可用。
         </p>
       ) : null}
-      <PropertyContractsSection
-        query={contractsQuery}
-        canRead={canReadContracts}
-        onPageSizeChange={(pageSize) => {
-          setContractsPageSize(pageSize);
-          setContractsPage(1);
-        }}
-        onPageChange={setContractsPage}
-        onNavigateContract={onNavigateContract}
-      />
       <SpaceTreeTable
         api={api}
         key={`${organizationId}:${propertyId}`}
         organizationId={organizationId}
         permissions={permissions}
         propertyActive={property.isActive}
+        onNavigateContract={onNavigateContract}
         propertyId={propertyId}
+        filters={{
+          keyword: spaceKeyword,
+          effectiveStatus: spaceEffectiveStatus,
+          leaseStatus: spaceLeaseStatus,
+        }}
+        onFiltersChange={(next) =>
+          changeSearch({
+            ...contractSearch,
+            spaceKeyword: next.keyword,
+            spaceEffectiveStatus: next.effectiveStatus,
+            spaceLeaseStatus: next.leaseStatus,
+          })
+        }
+      />
+      <PropertyContractsSection
+        query={contractsQuery}
+        canRead={canReadContracts}
+        search={{ ...contractSearch, page: contractsPage, pageSize: contractsPageSize }}
+        onFilterChange={changeContracts}
+        onPageSizeChange={(pageSize) => changeContracts({ ...contractSearch, page: 1, pageSize })}
+        onPageChange={(page) =>
+          changeContracts({ ...contractSearch, page, pageSize: contractsPageSize })
+        }
+        onNavigateContract={onNavigateContract}
       />
     </main>
-  );
-}
-
-function PropertyContractsSection({
-  query,
-  canRead,
-  onPageChange,
-  onPageSizeChange,
-  onNavigateContract,
-}: {
-  query: UseQueryResult<RentalContractPage, Error>;
-  canRead: boolean;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (pageSize: number) => void;
-  onNavigateContract?: (contractId: string) => void;
-}) {
-  if (!canRead)
-    return (
-      <p className="rounded-lg border bg-muted p-3 text-sm text-muted-foreground">
-        你没有查看合同的权限。
-      </p>
-    );
-  if (query.isPending && !query.data)
-    return (
-      <Card>
-        <CardContent className="p-4">
-          <Skeleton className="h-6 w-48" />
-          <span className="sr-only">正在加载房产合同...</span>
-        </CardContent>
-      </Card>
-    );
-  if (query.isError && !query.data) {
-    const forbidden = query.error instanceof ApiError && query.error.status === 403;
-    return (
-      <div
-        role="alert"
-        className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
-      >
-        {forbidden ? "你没有查看当前房产合同的权限。" : "加载房产合同失败，请稍后重试。"}
-        <Button variant="link" className="ml-2 px-0" onClick={() => void query.refetch()}>
-          重试
-        </Button>
-      </div>
-    );
-  }
-  const page = query.data;
-  return (
-    <section
-      aria-labelledby="property-contracts-title"
-      className="space-y-4 rounded-xl border bg-card p-5 text-card-foreground lg:p-6"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h2 id="property-contracts-title" className="flex items-center gap-2 text-sm font-semibold">
-          <FileText aria-hidden="true" className="size-4 text-muted-foreground" />
-          当前房产合同
-        </h2>
-        {query.isFetching ? (
-          <span className="text-xs text-muted-foreground" aria-live="polite">
-            正在更新...
-          </span>
-        ) : null}
-      </div>
-      {query.isError ? (
-        <div
-          role="alert"
-          className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
-        >
-          {query.error instanceof ApiError && query.error.status === 403
-            ? "你没有查看当前房产合同的权限。"
-            : "加载房产合同失败，请稍后重试。"}
-          <Button variant="link" className="ml-2 px-0" onClick={() => void query.refetch()}>
-            重试
-          </Button>
-        </div>
-      ) : null}
-      {page?.items.length ? (
-        <div className="divide-y">
-          {page.items.map((contract) => (
-            <a
-              key={contract.id}
-              href={`/rentals/contracts/${contract.id}`}
-              className="group flex min-w-0 items-center gap-3 rounded-md px-3 py-4 text-sm outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50"
-              onClick={(event) => {
-                if (!onNavigateContract) return;
-                event.preventDefault();
-                onNavigateContract(contract.id);
-              }}
-            >
-              <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-center sm:gap-4">
-                <p className="break-words font-medium">{contract.contractNumber}</p>
-                <p className="break-words text-muted-foreground">
-                  {contract.tenantNames.join("、") || "未指定承租方"}
-                </p>
-              </div>
-              <ContractStatusBadge status={contract.displayStatus} />
-              <ChevronRight
-                aria-hidden="true"
-                className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground"
-              />
-            </a>
-          ))}
-        </div>
-      ) : (
-        <p className="rounded-lg bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
-          当前房产没有合同。
-        </p>
-      )}
-      {page ? (
-        <Pagination
-          page={page.page}
-          pageSize={page.pageSize}
-          total={page.total}
-          pending={query.isFetching}
-          onPageSizeChange={onPageSizeChange}
-          onPageChange={onPageChange}
-        />
-      ) : null}
-    </section>
   );
 }

@@ -374,6 +374,26 @@ describe("rental DTO schemas", () => {
     ).toThrow();
   });
 
+  it("parses the current contract filter without accepting truthy arbitrary strings", () => {
+    expect(listContractsSchema.parse({ spaceId, currentOnly: "true" })).toMatchObject({
+      spaceId,
+      currentOnly: true,
+    });
+    expect(listContractsSchema.parse({ currentOnly: "false" })).toMatchObject({
+      currentOnly: false,
+    });
+    expect(() => listContractsSchema.parse({ currentOnly: "yes" })).toThrow();
+  });
+
+  it("validates space contract filters and rejects ambiguous related scopes", () => {
+    expect(listContractsSchema.parse({ propertyId, spaceId, spaceScope: "related" })).toMatchObject(
+      { propertyId, spaceId, spaceScope: "related", page: 1, pageSize: 20 },
+    );
+    expect(() => listContractsSchema.parse({ spaceId: "not-an-id" })).toThrow();
+    expect(() => listContractsSchema.parse({ spaceScope: "related" })).toThrow();
+    expect(() => listContractsSchema.parse({ spaceId, spaceScope: "all" })).toThrow();
+  });
+
   it("validates contract list/detail/availability inputs without internal scope fields", () => {
     expect(listContractsSchema.parse({ keyword: "  C-001  ", page: "2" })).toEqual({
       keyword: "C-001",
@@ -750,4 +770,25 @@ describe("rental DTO schemas", () => {
       }),
     ).toThrow();
   });
+});
+
+it("accepts status-only space searches and parses effective booleans strictly", () => {
+  const propertyId = "123e4567-e89b-42d3-a456-426614174000";
+  expect(
+    searchSpacesSchema.parse({
+      propertyId,
+      keyword: "",
+      isEffectivelyActive: "false",
+      leaseStatus: "active",
+    }),
+  ).toMatchObject({
+    propertyId,
+    keyword: "",
+    isEffectivelyActive: false,
+    leaseStatus: "active",
+    page: 1,
+    pageSize: 20,
+  });
+  expect(() => searchSpacesSchema.parse({ propertyId, isEffectivelyActive: "yes" })).toThrow();
+  expect(() => searchSpacesSchema.parse({ propertyId, leaseStatus: "cancelled" })).toThrow();
 });

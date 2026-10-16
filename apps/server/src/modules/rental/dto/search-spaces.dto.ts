@@ -4,7 +4,11 @@ import { z } from "zod";
 export const searchSpacesSchema = z
   .object({
     propertyId: z.string().uuid(),
-    keyword: z.string().trim().min(1).max(200),
+    keyword: z.string().trim().max(200).default(""),
+    isEffectivelyActive: z
+      .union([z.boolean(), z.enum(["true", "false"]).transform((value) => value === "true")])
+      .optional(),
+    leaseStatus: z.enum(["vacant", "upcoming", "active", "expiring_soon"]).optional(),
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
   })

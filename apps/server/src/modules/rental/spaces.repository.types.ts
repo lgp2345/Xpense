@@ -12,6 +12,8 @@ export type SpaceChildrenListInput = {
 /** 空间关键词分页查询。 */
 export type SpaceSearchInput = {
   keyword: string;
+  isEffectivelyActive?: boolean;
+  leaseFilter?: { status: "vacant" | "upcoming" | "active" | "expiring_soon"; now: string };
   page: number;
   pageSize: number;
 };

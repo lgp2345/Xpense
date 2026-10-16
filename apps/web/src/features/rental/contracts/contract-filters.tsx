@@ -29,7 +29,9 @@ const statuses: RentalContractDisplayStatus[] = [
 export function ContractFilters({
   search,
   onApply,
+  propertyScoped = false,
 }: {
+  propertyScoped?: boolean;
   search: ListRentalContractsQuery;
   onApply: (search: ListRentalContractsQuery) => void;
 }) {
@@ -75,44 +77,48 @@ export function ContractFilters({
         <FieldGroup className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field>
             <FieldLabel htmlFor="contract-filter-keyword">
-              <span>合同号或外部编号</span>
+              <span>{propertyScoped ? "合同号、空间名称或承租人" : "合同号或外部编号"}</span>
             </FieldLabel>
             <Input
               id="contract-filter-keyword"
               name="keyword"
-              aria-label="合同号或外部编号"
+              aria-label={propertyScoped ? "合同号、空间名称或承租人" : "合同号或外部编号"}
               value={draft.keyword}
               onChange={(event) => setDraft((value) => ({ ...value, keyword: event.target.value }))}
             />
           </Field>
-          <Field>
-            <FieldLabel htmlFor="contract-filter-property">
-              <span>房产</span>
-            </FieldLabel>
-            <Input
-              id="contract-filter-property"
-              name="propertyId"
-              aria-label="房产"
-              value={draft.propertyId}
-              onChange={(event) =>
-                setDraft((value) => ({ ...value, propertyId: event.target.value }))
-              }
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="contract-filter-tenant">
-              <span>租户</span>
-            </FieldLabel>
-            <Input
-              id="contract-filter-tenant"
-              name="tenantId"
-              aria-label="租户"
-              value={draft.tenantId}
-              onChange={(event) =>
-                setDraft((value) => ({ ...value, tenantId: event.target.value }))
-              }
-            />
-          </Field>
+          {!propertyScoped ? (
+            <>
+              <Field>
+                <FieldLabel htmlFor="contract-filter-property">
+                  <span>房产</span>
+                </FieldLabel>
+                <Input
+                  id="contract-filter-property"
+                  name="propertyId"
+                  aria-label="房产"
+                  value={draft.propertyId}
+                  onChange={(event) =>
+                    setDraft((value) => ({ ...value, propertyId: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="contract-filter-tenant">
+                  <span>租户</span>
+                </FieldLabel>
+                <Input
+                  id="contract-filter-tenant"
+                  name="tenantId"
+                  aria-label="租户"
+                  value={draft.tenantId}
+                  onChange={(event) =>
+                    setDraft((value) => ({ ...value, tenantId: event.target.value }))
+                  }
+                />
+              </Field>
+            </>
+          ) : null}
           <Field>
             <FieldLabel htmlFor="contract-filter-status">状态</FieldLabel>
             <Select

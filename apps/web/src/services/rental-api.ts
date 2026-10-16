@@ -68,6 +68,8 @@ export type ListRentalSpaceChildrenQuery = {
 export type SearchRentalSpacesQuery = {
   propertyId: string;
   keyword: string;
+  isEffectivelyActive?: boolean;
+  leaseStatus?: "vacant" | "upcoming" | "active" | "expiring_soon";
   page?: number;
   pageSize?: number;
 };
@@ -242,6 +244,8 @@ function toSearchQueryString(query: SearchRentalSpacesQuery): string {
   const params = new URLSearchParams();
   appendParam(params, "propertyId", query.propertyId);
   appendParam(params, "keyword", query.keyword.trim());
+  appendParam(params, "isEffectivelyActive", query.isEffectivelyActive?.toString());
+  appendParam(params, "leaseStatus", query.leaseStatus);
   appendParam(params, "page", query.page?.toString());
   appendParam(params, "pageSize", query.pageSize?.toString());
   return withQueryPrefix(params);
@@ -271,6 +275,9 @@ function toContractsQueryString(query: ListRentalContractsQuery): string {
   const params = new URLSearchParams();
   appendParam(params, "keyword", query.keyword?.trim());
   appendParam(params, "propertyId", query.propertyId);
+  appendParam(params, "spaceId", query.spaceId);
+  appendParam(params, "spaceScope", query.spaceScope);
+  appendParam(params, "currentOnly", query.currentOnly?.toString());
   appendParam(params, "tenantId", query.tenantId);
   appendParam(params, "status", query.status);
   appendParam(params, "startDateFrom", query.startDateFrom);

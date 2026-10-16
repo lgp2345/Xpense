@@ -23,7 +23,8 @@ export type NormalizedRentalChildrenQuery = Required<
 
 export type NormalizedRentalSearchQuery = Required<
   Pick<SearchRentalSpacesQuery, "propertyId" | "keyword" | "page" | "pageSize">
->;
+> &
+  Pick<SearchRentalSpacesQuery, "isEffectivelyActive" | "leaseStatus">;
 
 export type NormalizedRentalTenantsQuery = Required<
   Pick<ListRentalTenantsQuery, "page" | "pageSize">
@@ -71,6 +72,10 @@ export function normalizeRentalSearchQuery(
   return {
     propertyId: query.propertyId,
     keyword: query.keyword.trim(),
+    ...(query.isEffectivelyActive !== undefined
+      ? { isEffectivelyActive: query.isEffectivelyActive }
+      : {}),
+    ...(query.leaseStatus ? { leaseStatus: query.leaseStatus } : {}),
     page: query.page ?? 1,
     pageSize: query.pageSize ?? 20,
   };
@@ -103,6 +108,9 @@ export function normalizeRentalContractsQuery(
   return {
     ...(keyword ? { keyword } : {}),
     ...(query.propertyId ? { propertyId: query.propertyId } : {}),
+    ...(query.spaceId ? { spaceId: query.spaceId } : {}),
+    ...(query.spaceId && query.spaceScope ? { spaceScope: query.spaceScope } : {}),
+    ...(query.currentOnly !== undefined ? { currentOnly: query.currentOnly } : {}),
     ...(query.tenantId ? { tenantId: query.tenantId } : {}),
     ...(query.status ? { status: query.status } : {}),
     ...(query.startDateFrom ? { startDateFrom: query.startDateFrom } : {}),

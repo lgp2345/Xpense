@@ -183,6 +183,12 @@ export type ListRentalContractsQuery = Partial<{
   keyword: string;
   propertyId: string;
   tenantId: string;
+  /** 按空间主键筛选，默认仅查询直接签约的合同。 */
+  spaceId: string;
+  /** related 仅查询上级和下级空间的合同，不包含本空间。 */
+  spaceScope: "related";
+  /** 仅返回当前生效（含即将到期）的合同，按组织当前时刻判断。 */
+  currentOnly: boolean;
   status: RentalContractDisplayStatus;
   /** 合同开始区间下界，可传 YYYY-MM-DD 或 YYYY-MM-DDTHH:mm:ss。 */
   startDateFrom: string;
