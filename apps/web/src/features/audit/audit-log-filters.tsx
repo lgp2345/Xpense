@@ -1,4 +1,4 @@
-import { DateRangePicker, type DateRangeValue } from "@/components/date-picker";
+import { DateRangePicker, type DateRangeValue } from "@/components/date-range-picker";
 import { FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";

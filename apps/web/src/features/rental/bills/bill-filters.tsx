@@ -1,7 +1,7 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import type { ListRentalBillsQuery } from "@xpense/shared";
 import { z } from "zod";
-import { DatePickerInput } from "@/components/date-picker";
+import { DateRangePicker } from "@/components/date-range-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isCalendarDate } from "../contracts/contract-action-model";
@@ -107,19 +107,16 @@ function FilterForm({
           </select>
         </label>
         <div className="space-y-1 text-sm">
-          <label htmlFor="bill-date-from">到期日起</label>
-          <DatePickerInput
-            id="bill-date-from"
-            value={values.dueDateFrom}
-            onChange={(value) => form.setFieldValue("dueDateFrom", value ?? "")}
-          />
-        </div>
-        <div className="space-y-1 text-sm">
-          <label htmlFor="bill-date-to">到期日止</label>
-          <DatePickerInput
-            id="bill-date-to"
-            value={values.dueDateTo}
-            onChange={(value) => form.setFieldValue("dueDateTo", value ?? "")}
+          <label htmlFor="bill-due-date-range">到期日范围</label>
+          <DateRangePicker
+            id="bill-due-date-range"
+            aria-label="到期日范围"
+            placeholder="选择到期日范围"
+            value={{ from: values.dueDateFrom, to: values.dueDateTo }}
+            onChange={({ from, to }) => {
+              form.setFieldValue("dueDateFrom", from ?? "");
+              form.setFieldValue("dueDateTo", to ?? "");
+            }}
           />
         </div>
         <div className="flex items-end gap-2">

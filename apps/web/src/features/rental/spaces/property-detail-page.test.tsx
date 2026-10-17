@@ -247,8 +247,7 @@ describe("property space contract connections", () => {
         pageSize: 10,
       }),
     );
-    expect(within(section).getByRole("button", { name: "开始日期范围" })).toBeInTheDocument();
-    expect(within(section).getByRole("button", { name: "结束日期范围" })).toBeInTheDocument();
+    expect(within(section).getByRole("button", { name: "租期范围" })).toBeInTheDocument();
   });
 
   it("queries all spaces with combined effective and lease filters, including collapsed descendants", async () => {

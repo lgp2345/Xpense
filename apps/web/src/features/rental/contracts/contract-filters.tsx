@@ -1,7 +1,7 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import type { RentalContractDisplayStatus } from "@xpense/shared";
 import { useCallback, useEffect } from "react";
-import { DateRangePicker, type DateRangeValue } from "@/components/date-picker";
+import { DateRangePicker } from "@/components/date-range-picker";
 import { FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -50,8 +50,6 @@ export function ContractFilters({
         tenantId: search.tenantId,
         status: search.status,
         startDateFrom: search.startDateFrom,
-        startDateTo: search.startDateTo,
-        endDateFrom: search.endDateFrom,
         endDateTo: search.endDateTo,
       }),
     );
@@ -62,8 +60,6 @@ export function ContractFilters({
     search.tenantId,
     search.status,
     search.startDateFrom,
-    search.startDateTo,
-    search.endDateFrom,
     search.endDateTo,
   ]);
   return (
@@ -144,20 +140,18 @@ export function ContractFilters({
               </SelectContent>
             </Select>
           </Field>
-          <DateRangeField
-            label="开始日期范围"
-            value={{ from: draft.startDateFrom, to: draft.startDateTo }}
-            onChange={({ from, to }) =>
-              setDraft((draft) => ({ ...draft, startDateFrom: from ?? "", startDateTo: to ?? "" }))
-            }
-          />
-          <DateRangeField
-            label="结束日期范围"
-            value={{ from: draft.endDateFrom, to: draft.endDateTo }}
-            onChange={({ from, to }) =>
-              setDraft((draft) => ({ ...draft, endDateFrom: from ?? "", endDateTo: to ?? "" }))
-            }
-          />
+          <Field className="sm:col-span-2">
+            <FieldLabel htmlFor="contract-filter-date-range">租期范围</FieldLabel>
+            <DateRangePicker
+              id="contract-filter-date-range"
+              aria-label="租期范围"
+              placeholder="选择租期范围"
+              value={{ from: draft.startDateFrom, to: draft.endDateTo }}
+              onChange={({ from, to }) =>
+                setDraft((draft) => ({ ...draft, startDateFrom: from ?? "", endDateTo: to ?? "" }))
+              }
+            />
+          </Field>
           <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
             <Button type="submit">应用筛选</Button>
             <Button
@@ -175,14 +169,7 @@ export function ContractFilters({
 }
 
 type FilterDraft = Record<
-  | "keyword"
-  | "propertyId"
-  | "tenantId"
-  | "status"
-  | "startDateFrom"
-  | "startDateTo"
-  | "endDateFrom"
-  | "endDateTo",
+  "keyword" | "propertyId" | "tenantId" | "status" | "startDateFrom" | "endDateTo",
   string
 >;
 
@@ -193,8 +180,6 @@ function toDraft(search: ListRentalContractsQuery): FilterDraft {
     tenantId: search.tenantId ?? "",
     status: search.status ?? "",
     startDateFrom: search.startDateFrom ?? "",
-    startDateTo: search.startDateTo ?? "",
-    endDateFrom: search.endDateFrom ?? "",
     endDateTo: search.endDateTo ?? "",
   };
 }
@@ -203,29 +188,4 @@ function compact(draft: FilterDraft): ListRentalContractsQuery {
   return Object.fromEntries(
     Object.entries(draft).filter(([, value]) => value.trim() !== ""),
   ) as ListRentalContractsQuery;
-}
-
-function DateRangeField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: DateRangeValue;
-  onChange: (value: DateRangeValue) => void;
-}) {
-  return (
-    <Field>
-      <FieldLabel htmlFor={`contract-filter-${label}`}>
-        <span>{label}</span>
-      </FieldLabel>
-      <DateRangePicker
-        id={`contract-filter-${label}`}
-        aria-label={label}
-        value={value}
-        onChange={onChange}
-        placeholder={`选择${label}`}
-      />
-    </Field>
-  );
 }

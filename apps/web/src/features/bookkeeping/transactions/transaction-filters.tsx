@@ -1,7 +1,7 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import type { AccountSummary, CategoryNode, LedgerSummary, TransactionType } from "@xpense/shared";
 import { useCallback, useEffect } from "react";
-import { DateRangePicker } from "@/components/date-picker";
+import { DateRangePicker } from "@/components/date-range-picker";
 import { FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
