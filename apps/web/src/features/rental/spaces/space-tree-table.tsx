@@ -34,7 +34,6 @@ import {
 import { FilteredSpaceTable } from "./filtered-space-table";
 import { SpaceActions } from "./space-actions";
 import { SpaceBatchDialog } from "./space-batch-dialog";
-import { SpaceContractsSheet } from "./space-contracts-sheet";
 import { SpaceFilters, type SpaceFiltersValue } from "./space-filters";
 import { SpaceFormDialog } from "./space-form-dialog";
 import { SpaceSearchResults } from "./space-search-results";
@@ -73,8 +72,28 @@ export function SpaceTreeTable({
   propertyId: string;
   onNavigateContract?: (id: string) => void;
 }) {
-  const [contractSpace, setContractSpace] = useState<RentalSpaceNode | null>(null);
   const queryClient = useQueryClient();
+  const contractNavigation = useMutation({
+    mutationFn: (space: RentalSpaceNode) =>
+      queryClient.fetchQuery({
+        ...rentalQueryOptions.contracts(api, organizationId, {
+          propertyId,
+          spaceId: space.id,
+          currentOnly: true,
+          page: 1,
+          pageSize: 1,
+        }),
+        retry: false,
+      }),
+    retry: false,
+  });
+  const openSpaceContract = (space: RentalSpaceNode) =>
+    contractNavigation.mutate(space, {
+      onSuccess: (page) => {
+        const contract = page.items[0];
+        if (contract) onNavigateContract?.(contract.id);
+      },
+    });
   const [tree, setTree] = useState(createSpaceTreeState);
   const treeRef = useRef(tree);
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
@@ -506,6 +525,24 @@ export function SpaceTreeTable({
           {mutationError}
         </div>
       ) : null}
+      {contractNavigation.isPending ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          正在打开空间合同...
+        </p>
+      ) : contractNavigation.isError ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+        >
+          {contractNavigation.error instanceof ApiError && contractNavigation.error.status === 403
+            ? "你没有查看此空间合同的权限。"
+            : "打开空间合同失败，请再次点击租赁状态重试。"}
+        </p>
+      ) : contractNavigation.isSuccess && !contractNavigation.data.items.length ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          此空间暂无当前生效合同，请刷新后重试。
+        </p>
+      ) : null}
       <div className="space-y-2">
         <SpaceFilters
           keyword={keyword}
@@ -566,7 +603,9 @@ export function SpaceTreeTable({
           canActions={canActions}
           renderActions={renderActions}
           onViewContracts={
-            permissions.includes("rental_contracts:read") ? setContractSpace : undefined
+            permissions.includes("rental_contracts:read") && onNavigateContract
+              ? openSpaceContract
+              : undefined
           }
           onLoadMore={() => void loadMoreSearchResults()}
           onRetry={() => void searchQuery.refetch()}
@@ -622,7 +661,9 @@ export function SpaceTreeTable({
                   onToggle={(nodeId) => void toggle(nodeId)}
                   renderActions={renderActions}
                   onViewContracts={
-                    permissions.includes("rental_contracts:read") ? setContractSpace : undefined
+                    permissions.includes("rental_contracts:read") && onNavigateContract
+                      ? openSpaceContract
+                      : undefined
                   }
                   rowRefs={rowRefs}
                   state={tree}
@@ -668,17 +709,6 @@ export function SpaceTreeTable({
           </CardContent>
         </Card>
       )}
-      {contractSpace && permissions.includes("rental_contracts:read") ? (
-        <SpaceContractsSheet
-          key={`${organizationId}:${propertyId}:${contractSpace.id}`}
-          api={api}
-          organizationId={organizationId}
-          propertyId={propertyId}
-          space={contractSpace}
-          onClose={() => setContractSpace(null)}
-          onNavigateContract={onNavigateContract}
-        />
-      ) : null}
     </section>
   );
 }

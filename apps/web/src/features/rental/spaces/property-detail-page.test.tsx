@@ -162,15 +162,16 @@ describe("property space contract connections", () => {
       { onNavigateContract },
     );
     await user.click(await screen.findByRole("button", { name: "查看 A 座 的合同" }));
-    const drawer = screen.getByRole("dialog");
-    expect(await within(drawer).findByRole("alert")).toHaveTextContent(
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const section = screen.getByRole("region", { name: "空间管理" });
+    expect(await within(section).findByRole("alert")).toHaveTextContent(
       "你没有查看此空间合同的权限。",
     );
-    expect(drawer).not.toHaveTextContent("internal detail");
-    await user.click(within(drawer).getByRole("button", { name: "重试" }));
-    await user.click(await within(drawer).findByRole("link", { name: /HT-001/ }));
-    expect(onNavigateContract).toHaveBeenCalledWith(contractPage.items[0]?.id);
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(section).not.toHaveTextContent("internal detail");
+    expect(onNavigateContract).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "查看 A 座 的合同" }));
+    await waitFor(() => expect(onNavigateContract).toHaveBeenCalledWith(contractPage.items[0]?.id));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("shows the contracted spaces and lease dates beside each property contract", async () => {
@@ -187,8 +188,12 @@ describe("property space contract connections", () => {
     expect(within(section).getByText(/2027-07-31/)).toBeInTheDocument();
   });
 
-  it("opens current contracts from an occupied lease badge without a separate contract column", async () => {
+  it.each([
+    "active",
+    "expiring_soon",
+  ] as const)("从 %s 租赁状态直接跳转当前合同详情", async (leaseStatus) => {
     const user = userEvent.setup();
+    const onNavigateContract = vi.fn();
     const listContracts = vi.fn(async (query) =>
       query.spaceId
         ? { ...contractPage, total: 1 }
@@ -199,6 +204,44 @@ describe("property space contract connections", () => {
         getProperty: vi.fn().mockResolvedValue(detail),
         listContracts,
         listChildren: vi.fn().mockResolvedValue({
+          items: [{ ...building, leaseStatus }],
+          total: 1,
+          page: 1,
+          pageSize: 50,
+        }),
+      },
+      ["rental_spaces:read", "rental_contracts:read"],
+      { onNavigateContract },
+    );
+    const button = await screen.findByRole("button", { name: "查看 A 座 的合同" });
+    expect(button).toHaveTextContent(leaseStatus === "active" ? "出租中" : "即将到期");
+    expect(screen.queryByRole("columnheader", { name: "当前合同" })).not.toBeInTheDocument();
+    await user.click(button);
+    await waitFor(() => expect(onNavigateContract).toHaveBeenCalledWith(contractPage.items[0]?.id));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(listContracts).toHaveBeenLastCalledWith({
+      propertyId: detail.id,
+      spaceId: building.id,
+      currentOnly: true,
+      page: 1,
+      pageSize: 1,
+    });
+  });
+
+  it.each([
+    "empty",
+    "network",
+  ])("空间当前合同查询为 %s 时保留页面并提示，不跳转", async (result) => {
+    const user = userEvent.setup();
+    const onNavigateContract = vi.fn();
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(detail),
+        listContracts: vi.fn(async (query) => {
+          if (query.spaceId && result === "network") throw new Error("private connection detail");
+          return { items: [], total: 0, page: 1, pageSize: query.pageSize };
+        }),
+        listChildren: vi.fn().mockResolvedValue({
           items: [{ ...building, leaseStatus: "active" }],
           total: 1,
           page: 1,
@@ -206,19 +249,84 @@ describe("property space contract connections", () => {
         }),
       },
       ["rental_spaces:read", "rental_contracts:read"],
+      { onNavigateContract },
     );
-    const button = await screen.findByRole("button", { name: "查看 A 座 的合同" });
-    expect(button).toHaveTextContent("出租中");
-    expect(screen.queryByRole("columnheader", { name: "当前合同" })).not.toBeInTheDocument();
-    await user.click(button);
-    expect(await within(screen.getByRole("dialog")).findByText("HT-001")).toBeInTheDocument();
-    expect(listContracts).toHaveBeenLastCalledWith({
-      propertyId: detail.id,
-      spaceId: building.id,
-      currentOnly: true,
-      page: 1,
-      pageSize: 10,
+    await user.click(await screen.findByRole("button", { name: "查看 A 座 的合同" }));
+    const section = screen.getByRole("region", { name: "空间管理" });
+    expect(
+      await within(section).findByRole(result === "empty" ? "status" : "alert"),
+    ).toHaveTextContent(result === "empty" ? "此空间暂无当前生效合同" : "打开空间合同失败");
+    expect(section).not.toHaveTextContent("private connection detail");
+    expect(onNavigateContract).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("移动端空间详情中的租赁状态直接跳转合同，并关闭空间详情", async () => {
+    const user = userEvent.setup();
+    const onNavigateContract = vi.fn();
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(detail),
+        listContracts: vi.fn().mockResolvedValue({ ...contractPage, total: 1 }),
+        listChildren: vi.fn().mockResolvedValue({
+          items: [{ ...building, leaseStatus: "active" }],
+          total: 1,
+          page: 1,
+          pageSize: 50,
+        }),
+      },
+      ["rental_spaces:read", "rental_contracts:read"],
+      { onNavigateContract },
+    );
+    await user.click(await screen.findByRole("button", { name: "详情" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "查看 A 座 的合同" }),
+    );
+    await waitFor(() => expect(onNavigateContract).toHaveBeenCalledWith(contractPage.items[0]?.id));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("筛选结果中的租赁状态加载合同后直接跳转，查询期间显示进度", async () => {
+    const user = userEvent.setup();
+    const onNavigateContract = vi.fn();
+    let resolveContract: (page: RentalContractPage) => void = () => {};
+    const contractResult = new Promise<RentalContractPage>((resolve) => {
+      resolveContract = resolve;
     });
+    renderPage(
+      {
+        getProperty: vi.fn().mockResolvedValue(detail),
+        listContracts: vi.fn((query) =>
+          query.spaceId
+            ? contractResult
+            : Promise.resolve({ items: [], total: 0, page: 1, pageSize: 10 }),
+        ),
+        searchSpaces: vi.fn().mockResolvedValue({
+          items: [
+            {
+              ...building,
+              leaseStatus: "active",
+              path: [{ id: building.id, name: building.name }],
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 20,
+        }),
+      },
+      ["rental_spaces:read", "rental_contracts:read"],
+      { onNavigateContract },
+    );
+    const section = await screen.findByRole("region", { name: "空间管理" });
+    await user.click(within(section).getByRole("combobox", { name: "空间租赁状态" }));
+    await user.click(await screen.findByRole("option", { name: "出租中" }));
+    await user.click(within(section).getByRole("button", { name: "应用筛选" }));
+    await user.click(await within(section).findByRole("button", { name: "查看 A 座 的合同" }));
+    expect(await within(section).findByRole("status")).toHaveTextContent("正在打开空间合同");
+    expect(onNavigateContract).not.toHaveBeenCalled();
+    await act(async () => resolveContract({ ...contractPage, total: 1 }));
+    await waitFor(() => expect(onNavigateContract).toHaveBeenCalledWith(contractPage.items[0]?.id));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("combines property-scoped contract keyword and status filters and resets pagination", async () => {
