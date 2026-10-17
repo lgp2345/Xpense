@@ -12,18 +12,20 @@ export function FilterPanel({ children, actions }: { children: ReactNode; action
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="space-y-3 min-w-0">
       <div className="flex flex-wrap gap-2 items-center justify-between">
-        <span className="font-medium text-sm">筛选条件</span>
-        <div className="flex gap-2 items-center">
-          {actions}
-          <CollapsibleTrigger
-            render={
-              <Button type="button" size="sm" variant="outline">
-                {open ? "收起筛选" : "展开筛选"}
-                <ChevronDown aria-hidden="true" className={open ? "size-4 rotate-180" : "size-4"} />
-              </Button>
-            }
-          />
-        </div>
+        <CollapsibleTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-8 min-w-0 flex-1 justify-between px-0"
+              aria-label={open ? "收起筛选" : "展开筛选"}
+            >
+              <span>筛选条件</span>
+              <ChevronDown aria-hidden="true" className={open ? "size-4 rotate-180" : "size-4"} />
+            </Button>
+          }
+        />
+        {actions ? <div className="flex gap-2 items-center">{actions}</div> : null}
       </div>
       <CollapsibleContent keepMounted hidden={!open} className="min-w-0 rounded-lg border p-4">
         {children}

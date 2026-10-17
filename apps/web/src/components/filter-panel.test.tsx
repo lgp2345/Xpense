@@ -24,12 +24,32 @@ describe("筛选表单折叠", () => {
         </FilterPanel>
       </form>,
     );
-    await user.click(screen.getByRole("button", { name: "收起筛选" }));
+    await user.click(screen.getByRole("button", { name: "显示列" }));
+    expect(screen.getByRole("textbox", { name: "搜索条件" })).toBeVisible();
+    await user.click(screen.getByText("筛选条件"));
     expect(screen.getByRole("button", { name: "显示列" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "查询" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "展开筛选" }));
     expect(screen.getByRole("textbox", { name: "搜索条件" })).toHaveValue("保留内容");
     expect(submit).not.toHaveBeenCalled();
+  });
+  it("整行标题作为折叠按钮，只显示标题和图标并支持空格键", async () => {
+    const user = userEvent.setup();
+    render(
+      <FilterPanel>
+        <input aria-label="搜索条件" />
+      </FilterPanel>,
+    );
+    const trigger = screen.getByRole("button", { name: "收起筛选" });
+    expect(trigger).toHaveTextContent("筛选条件");
+    expect(trigger).not.toHaveTextContent("收起筛选");
+    await user.click(screen.getByText("筛选条件"));
+    expect(screen.queryByRole("textbox", { name: "搜索条件" })).not.toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    trigger.focus();
+    await user.keyboard(" ");
+    expect(screen.getByRole("textbox", { name: "搜索条件" })).toBeVisible();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
   });
   it.each([
     "审计",
