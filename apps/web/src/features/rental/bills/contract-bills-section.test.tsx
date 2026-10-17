@@ -109,6 +109,8 @@ describe("合同应收覆盖", () => {
     );
     await screen.findByText(billFixture.billNumber);
     await user.tab();
+    expect(screen.getByRole("button", { name: "收起筛选" })).toHaveFocus();
+    await user.tab();
     expect(screen.getByRole("combobox", { name: "合同账单费用" })).toHaveFocus();
     await user.keyboard("{Enter}");
     await waitFor(() => expect(screen.getByRole("option", { name: "全部费用" })).toHaveFocus());

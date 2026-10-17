@@ -2,9 +2,9 @@ import { useForm, useStore } from "@tanstack/react-form";
 import type { AccountSummary, CategoryNode, LedgerSummary, TransactionType } from "@xpense/shared";
 import { useCallback, useEffect } from "react";
 import { DateRangePicker } from "@/components/date-range-picker";
-import { FilterPanel } from "@/components/filter-panel";
+import { FilterActions, FilterFields, FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -49,7 +49,7 @@ export function TransactionFilters({
 
   return (
     <FilterPanel>
-      <FieldGroup className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <FilterFields>
         <Field>
           <FieldLabel htmlFor="transaction-keyword">关键词</FieldLabel>
           <Input
@@ -103,7 +103,7 @@ export function TransactionFilters({
             }
           />
         </Field>
-        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-2">
+        <FilterActions>
           <Button
             onClick={() =>
               onApply({
@@ -127,8 +127,8 @@ export function TransactionFilters({
           >
             重置
           </Button>
-        </div>
-      </FieldGroup>
+        </FilterActions>
+      </FilterFields>
     </FilterPanel>
   );
 }

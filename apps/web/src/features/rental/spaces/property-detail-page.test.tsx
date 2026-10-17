@@ -276,9 +276,15 @@ describe("property space contract connections", () => {
     );
     await screen.findByText("A 座");
     await user.click(screen.getByRole("combobox", { name: "空间有效状态" }));
-    await user.click(screen.getByRole("option", { name: "有效" }));
+    await user.click(await screen.findByRole("option", { name: /^有效$/ }));
     await user.click(screen.getByRole("combobox", { name: "空间租赁状态" }));
-    await user.click(screen.getByRole("option", { name: "出租中" }));
+    await user.click(await screen.findByRole("option", { name: "出租中" }));
+    expect(searchSpaces).not.toHaveBeenCalled();
+    await user.click(
+      within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
+        name: "应用筛选",
+      }),
+    );
     await waitFor(() =>
       expect(searchSpaces).toHaveBeenLastCalledWith({
         propertyId: detail.id,
@@ -291,6 +297,37 @@ describe("property space contract connections", () => {
     );
     expect(await screen.findByRole("row", { name: /101/ })).toBeInTheDocument();
     expect(screen.queryByRole("row", { name: /楼栋/ })).not.toBeInTheDocument();
+  });
+
+  it("仅在应用空间筛选时查询，清空后恢复空间树", async () => {
+    const user = userEvent.setup();
+    const searchSpaces = vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
+    renderPage({
+      getProperty: vi.fn().mockResolvedValue(detail),
+      searchSpaces,
+      listChildren: vi
+        .fn()
+        .mockResolvedValue({ items: [building], total: 1, page: 1, pageSize: 50 }),
+    });
+    await screen.findByText("A 座");
+    const section = screen.getByRole("region", { name: "空间管理" });
+    await user.type(within(section).getByLabelText("搜索空间"), " 401 ");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    });
+    expect(searchSpaces).not.toHaveBeenCalled();
+    await user.click(within(section).getByRole("button", { name: "应用筛选" }));
+    await waitFor(() =>
+      expect(searchSpaces).toHaveBeenLastCalledWith({
+        propertyId: detail.id,
+        keyword: "401",
+        page: 1,
+        pageSize: 20,
+      }),
+    );
+    await user.click(within(section).getByRole("button", { name: /^清空$/ }));
+    expect(within(section).getByLabelText("搜索空间")).toHaveValue("");
+    expect(await within(section).findByRole("row", { name: /A 座/ })).toBeInTheDocument();
   });
 
   it("does not expose space contract controls without contract read permission", async () => {
@@ -704,6 +741,11 @@ describe("PropertyDetailPage", () => {
 
     await screen.findByText("A 座");
     await user.type(screen.getByLabelText("搜索空间"), "B-101");
+    await user.click(
+      within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
+        name: "应用筛选",
+      }),
+    );
     expect(await screen.findByRole("button", { name: /B-101/ })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /B-101/ }));
     await waitFor(() => expect(screen.getByRole("row", { name: /B-101/ })).toHaveFocus());
@@ -772,6 +814,11 @@ describe("PropertyDetailPage", () => {
 
     await screen.findByRole("heading", { name: "阳光公寓" });
     await user.type(screen.getByLabelText("搜索空间"), "1");
+    await user.click(
+      within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
+        name: "应用筛选",
+      }),
+    );
     expect(await screen.findByRole("button", { name: /101/ })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "加载更多" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("加载更多搜索结果失败");
@@ -839,6 +886,11 @@ describe("PropertyDetailPage", () => {
 
     await screen.findByText("A 座");
     await user.type(screen.getByLabelText("搜索空间"), "B-101");
+    await user.click(
+      within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
+        name: "应用筛选",
+      }),
+    );
     await user.click(await screen.findByRole("button", { name: /B-101/ }));
     await waitFor(() => expect(screen.getByRole("row", { name: /B-101/ })).toHaveFocus());
     expect(listChildren).toHaveBeenCalledWith({
@@ -886,6 +938,11 @@ describe("PropertyDetailPage", () => {
 
     await screen.findByText("A 座");
     await user.type(screen.getByLabelText("搜索空间"), "B-101");
+    await user.click(
+      within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
+        name: "应用筛选",
+      }),
+    );
     await user.click(await screen.findByRole("button", { name: /B-101/ }));
     expect(await screen.findByRole("status")).toHaveTextContent("定位空间失败");
     expect(listChildren).not.toHaveBeenCalledWith({
@@ -944,6 +1001,11 @@ describe("PropertyDetailPage", () => {
 
     await screen.findByText("B 座");
     await user.type(screen.getByLabelText("搜索空间"), "B-101");
+    await user.click(
+      within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
+        name: "应用筛选",
+      }),
+    );
     await user.click(await screen.findByRole("button", { name: /B-101/ }));
     expect(await screen.findByRole("status")).toHaveTextContent("正在定位空间 B-101");
     resolveTarget?.({ items: [target], total: 1, page: 1, pageSize: 50 });

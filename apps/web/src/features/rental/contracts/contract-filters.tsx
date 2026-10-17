@@ -2,9 +2,9 @@ import { useForm, useStore } from "@tanstack/react-form";
 import type { RentalContractDisplayStatus } from "@xpense/shared";
 import { useCallback, useEffect } from "react";
 import { DateRangePicker } from "@/components/date-range-picker";
-import { FilterPanel } from "@/components/filter-panel";
+import { FilterActions, FilterFields, FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -70,7 +70,7 @@ export function ContractFilters({
           onApply({ ...compact(draft), page: 1, pageSize: search.pageSize ?? 20 });
         }}
       >
-        <FieldGroup className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <FilterFields>
           <Field>
             <FieldLabel htmlFor="contract-filter-keyword">
               <span>{propertyScoped ? "合同号、空间名称或承租人" : "合同号或外部编号"}</span>
@@ -152,7 +152,7 @@ export function ContractFilters({
               }
             />
           </Field>
-          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+          <FilterActions>
             <Button type="submit">应用筛选</Button>
             <Button
               type="button"
@@ -161,8 +161,8 @@ export function ContractFilters({
             >
               清空
             </Button>
-          </div>
-        </FieldGroup>
+          </FilterActions>
+        </FilterFields>
       </form>
     </FilterPanel>
   );

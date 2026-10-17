@@ -1,9 +1,9 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import type { RentalIdentityDocumentType, RentalTenantType } from "@xpense/shared";
 import { useCallback, useEffect } from "react";
-import { FilterPanel } from "@/components/filter-panel";
+import { FilterActions, FilterFields, FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -75,7 +75,7 @@ export function TenantFilters({
     setDraft((current) => ({ ...current, [key]: value }));
   return (
     <FilterPanel>
-      <FieldGroup className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-3">
+      <FilterFields className="lg:grid-cols-3">
         <Text label="关键词" value={draft.keyword} onChange={(value) => update("keyword", value)} />
         <FilterSelect
           label="租客类型"
@@ -120,7 +120,7 @@ export function TenantFilters({
           value={draft.documentNumber}
           onChange={(value) => update("documentNumber", value)}
         />
-        <div className="flex items-end gap-2">
+        <FilterActions>
           <Button onClick={() => onApply(toSearch(draft, normalized.pageSize))}>应用筛选</Button>
           <Button
             variant="outline"
@@ -128,8 +128,8 @@ export function TenantFilters({
           >
             重置
           </Button>
-        </div>
-      </FieldGroup>
+        </FilterActions>
+      </FilterFields>
     </FilterPanel>
   );
 }

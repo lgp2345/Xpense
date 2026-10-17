@@ -253,16 +253,6 @@ export function SpaceTreeTable({
   }, [canRead, rootQuery.data, updateTree]);
 
   useEffect(() => {
-    const next = draftKeyword.trim();
-    if (next === keyword) return;
-    const timer = window.setTimeout(() => {
-      setKeyword(next);
-      changeFilters({ effectiveStatus, leaseStatus, keyword: next });
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [draftKeyword, keyword, effectiveStatus, leaseStatus, changeFilters]);
-
-  useEffect(() => {
     if (!focusId) return;
     rowRefs.current[focusId]?.focus();
     setFocusId(null);
@@ -518,10 +508,9 @@ export function SpaceTreeTable({
       ) : null}
       <div className="space-y-2">
         <SpaceFilters
-          keyword={draftKeyword}
+          keyword={keyword}
           effectiveStatus={effectiveStatus}
           leaseStatus={leaseStatus}
-          onKeywordChange={setDraftKeyword}
           onChange={(next) => {
             setDraftKeyword(next.keyword ?? "");
             setKeyword(next.keyword?.trim() ?? "");

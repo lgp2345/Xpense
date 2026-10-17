@@ -2,6 +2,7 @@ import { useForm, useStore } from "@tanstack/react-form";
 import type { ListRentalBillsQuery } from "@xpense/shared";
 import { z } from "zod";
 import { DateRangePicker } from "@/components/date-range-picker";
+import { FilterActions, FilterFields, FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isCalendarDate } from "../contracts/contract-action-model";
@@ -55,86 +56,90 @@ function FilterForm({
   const values = useStore(form.store, (state) => state.values);
   const errors = useStore(form.store, (state) => state.errors);
   return (
-    <form
-      className="space-y-3 rounded-lg border p-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void form.handleSubmit();
-      }}
-    >
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {(
-          [
-            ["keyword", "关键词"],
-            ["contractId", "合同 ID"],
-            ["propertyId", "房产 ID"],
-          ] as const
-        ).map(([key, label]) => (
-          <label className="space-y-1 text-sm" key={key} htmlFor={`bill-filter-${key}`}>
-            <span>{label}</span>
-            <Input
-              id={`bill-filter-${key}`}
-              value={values[key]}
-              onChange={(event) => form.setFieldValue(key, event.target.value)}
-            />
+    <FilterPanel>
+      <form
+        className="space-y-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void form.handleSubmit();
+        }}
+      >
+        <FilterFields>
+          {(
+            [
+              ["keyword", "关键词"],
+              ["contractId", "合同 ID"],
+              ["propertyId", "房产 ID"],
+            ] as const
+          ).map(([key, label]) => (
+            <label className="space-y-1 text-sm" key={key} htmlFor={`bill-filter-${key}`}>
+              <span>{label}</span>
+              <Input
+                id={`bill-filter-${key}`}
+                value={values[key]}
+                onChange={(event) => form.setFieldValue(key, event.target.value)}
+              />
+            </label>
+          ))}
+          <label className="space-y-1 text-sm">
+            <span>费用分类</span>
+            <select
+              className="h-9 w-full rounded-md border bg-background px-3"
+              value={values.type}
+              onChange={(event) =>
+                form.setFieldValue("type", event.target.value as typeof values.type)
+              }
+            >
+              <option value="all">全部费用</option>
+              <option value="period">账期账单</option>
+              <option value="deposit">押金</option>
+            </select>
           </label>
-        ))}
-        <label className="space-y-1 text-sm">
-          <span>费用分类</span>
-          <select
-            className="h-9 w-full rounded-md border bg-background px-3"
-            value={values.type}
-            onChange={(event) =>
-              form.setFieldValue("type", event.target.value as typeof values.type)
-            }
-          >
-            <option value="all">全部费用</option>
-            <option value="period">账期账单</option>
-            <option value="deposit">押金</option>
-          </select>
-        </label>
-        <label className="space-y-1 text-sm">
-          <span>账单状态</span>
-          <select
-            className="h-9 w-full rounded-md border bg-background px-3"
-            value={values.status}
-            onChange={(event) =>
-              form.setFieldValue("status", event.target.value as typeof values.status)
-            }
-          >
-            <option value="active">有效</option>
-            <option value="voided">作废</option>
-          </select>
-        </label>
-        <div className="space-y-1 text-sm">
-          <label htmlFor="bill-due-date-range">到期日范围</label>
-          <DateRangePicker
-            id="bill-due-date-range"
-            aria-label="到期日范围"
-            placeholder="选择到期日范围"
-            value={{ from: values.dueDateFrom, to: values.dueDateTo }}
-            onChange={({ from, to }) => {
-              form.setFieldValue("dueDateFrom", from ?? "");
-              form.setFieldValue("dueDateTo", to ?? "");
-            }}
-          />
-        </div>
-        <div className="flex items-end gap-2">
-          <Button type="submit">查询</Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onChange({ status: "active", page: 1, pageSize: search.pageSize ?? 20 })}
-          >
-            重置
-          </Button>
-        </div>
-      </div>
-      {errors.length ? (
-        <p role="alert" className="text-sm text-destructive">
-          请检查到期日范围，开始日期不得晚于结束日期。
-        </p>
-      ) : null}
-    </form>
+          <label className="space-y-1 text-sm">
+            <span>账单状态</span>
+            <select
+              className="h-9 w-full rounded-md border bg-background px-3"
+              value={values.status}
+              onChange={(event) =>
+                form.setFieldValue("status", event.target.value as typeof values.status)
+              }
+            >
+              <option value="active">有效</option>
+              <option value="voided">作废</option>
+            </select>
+          </label>
+          <div className="space-y-1 text-sm">
+            <label htmlFor="bill-due-date-range">到期日范围</label>
+            <DateRangePicker
+              id="bill-due-date-range"
+              aria-label="到期日范围"
+              placeholder="选择到期日范围"
+              value={{ from: values.dueDateFrom, to: values.dueDateTo }}
+              onChange={({ from, to }) => {
+                form.setFieldValue("dueDateFrom", from ?? "");
+                form.setFieldValue("dueDateTo", to ?? "");
+              }}
+            />
+          </div>
+          <FilterActions>
+            <Button type="submit">查询</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                onChange({ status: "active", page: 1, pageSize: search.pageSize ?? 20 })
+              }
+            >
+              重置
+            </Button>
+          </FilterActions>
+        </FilterFields>
+        {errors.length ? (
+          <p role="alert" className="text-sm text-destructive">
+            请检查到期日范围，开始日期不得晚于结束日期。
+          </p>
+        ) : null}
+      </form>
+    </FilterPanel>
   );
 }

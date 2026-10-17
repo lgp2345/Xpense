@@ -1,9 +1,9 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import type { RentalPropertyType } from "@xpense/shared";
 import { useCallback, useEffect } from "react";
-import { FilterPanel } from "@/components/filter-panel";
+import { FilterActions, FilterFields, FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -34,7 +34,7 @@ export function PropertyFilters({ search, onApply }: PropertyFiltersProps) {
   }
   return (
     <FilterPanel>
-      <FieldGroup className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <FilterFields>
         <TextInput
           label="关键词"
           value={draft.keyword}
@@ -78,7 +78,7 @@ export function PropertyFilters({ search, onApply }: PropertyFiltersProps) {
           value={draft.district}
           onChange={(value) => update("district", value)}
         />
-        <div className="flex items-end gap-2 lg:col-span-2">
+        <FilterActions>
           <Button
             onClick={() =>
               onApply({
@@ -101,8 +101,8 @@ export function PropertyFilters({ search, onApply }: PropertyFiltersProps) {
           >
             重置
           </Button>
-        </div>
-      </FieldGroup>
+        </FilterActions>
+      </FilterFields>
     </FilterPanel>
   );
 }
