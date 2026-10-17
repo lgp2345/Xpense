@@ -78,6 +78,7 @@ export function SpaceActions({
             message={restrictionMessage}
             aria-describedby={restrictionId}
             disabled
+            size="sm"
             variant="outline"
           >
             批量新增
