@@ -46,5 +46,12 @@ export * from "./rental-charges.js";
 export * from "./rental-contracts.js";
 export * from "./rental-item-names.js";
 export * from "./rental-period-bills.js";
+export type {
+  ListRentalPropertyBillingQuery,
+  RentalBillingSpacePathNode,
+  RentalPropertyBillingCandidate,
+  RentalPropertyBillingPage,
+} from "./rental-property-billing.js";
+export { rentalPropertyBillingPermissions } from "./rental-property-billing.js";
 export * from "./rental-settlements.js";
 export * from "./rental-tenants.js";
