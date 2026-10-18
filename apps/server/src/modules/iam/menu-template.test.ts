@@ -1,3 +1,4 @@
+import { permissionKeys } from "@xpense/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -5,6 +6,7 @@ import {
   DEFAULT_MENU_TEMPLATE,
   type MenuTemplateInsert,
 } from "./menu-template.js";
+import { buildPermissionTree, completePermissionSelection } from "./permission-tree.js";
 import { RENTAL_MENU_TEMPLATE } from "./rental-menu-template.js";
 
 describe("DEFAULT_MENU_TEMPLATE", () => {
@@ -21,7 +23,16 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       RENTAL_MENU_TEMPLATE.filter(
         (node) => node.parentTemplateKey === "rental-bills" && node.type === "button",
       ).map((node) => node.permissionCode),
-    ).toEqual(["rental_bills:generate", "rental_bills:adjust"]);
+    ).toEqual([
+      "rental_bills:generate",
+      "rental_bills:adjust",
+      "rental_period_bills:generate",
+      "rental_period_bills:void",
+      "rental_receipts:create",
+      "rental_receipts:revoke",
+      "rental_refunds:create",
+      "rental_refunds:revoke",
+    ]);
     expect(RENTAL_MENU_TEMPLATE.find((node) => node.routeKey === "RentalSettlement")).toMatchObject(
       {
         parentTemplateKey: "rental-bills",
@@ -490,6 +501,27 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
         visible: null,
         keepAlive: null,
       },
+      ...[
+        ["rental-spaces.read", "rental-properties", "rental_spaces:read"],
+        ["rental-charges.read", "rental-contracts", "rental_charges:read"],
+        ["rental-charges.update", "rental-contracts", "rental_charges:update"],
+        ["rental-meters.read", "rental-contracts", "rental_meters:read"],
+        ["rental-meters.update", "rental-contracts", "rental_meters:update"],
+        ["rental-period-bills.generate", "rental-bills", "rental_period_bills:generate"],
+        ["rental-period-bills.void", "rental-bills", "rental_period_bills:void"],
+        ["rental-receipts.create", "rental-bills", "rental_receipts:create"],
+        ["rental-receipts.revoke", "rental-bills", "rental_receipts:revoke"],
+        ["rental-refunds.create", "rental-bills", "rental_refunds:create"],
+        ["rental-refunds.revoke", "rental-bills", "rental_refunds:revoke"],
+      ].map(([key, parent, permission]) => ({
+        key,
+        parent,
+        permission,
+        type: "button",
+        route: null,
+        visible: null,
+        keepAlive: null,
+      })),
     ]);
   });
 
@@ -556,6 +588,17 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       "rental_settlements:confirm",
       "rental_bills:generate",
       "rental_bills:adjust",
+      "rental_spaces:read",
+      "rental_charges:read",
+      "rental_charges:update",
+      "rental_meters:read",
+      "rental_meters:update",
+      "rental_period_bills:generate",
+      "rental_period_bills:void",
+      "rental_receipts:create",
+      "rental_receipts:revoke",
+      "rental_refunds:create",
+      "rental_refunds:revoke",
       "members:create",
       "members:update",
       "members:disable",
@@ -579,6 +622,48 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
 });
 
 describe("copyMenuTemplate", () => {
+  it("copies the complete new rental action permissions under their business pages", async () => {
+    const executor = new InMemoryMenuTemplateExecutor();
+    await copyMenuTemplate("organization-1", executor);
+    const expected = [
+      ["rental_spaces:read", "RentalProperties"],
+      ["rental_charges:read", "RentalContracts"],
+      ["rental_charges:update", "RentalContracts"],
+      ["rental_meters:read", "RentalContracts"],
+      ["rental_meters:update", "RentalContracts"],
+      ["rental_period_bills:generate", "RentalBills"],
+      ["rental_period_bills:void", "RentalBills"],
+      ["rental_receipts:create", "RentalBills"],
+      ["rental_receipts:revoke", "RentalBills"],
+      ["rental_refunds:create", "RentalBills"],
+      ["rental_refunds:revoke", "RentalBills"],
+    ];
+    for (const [permissionCode, routeKey] of expected) {
+      const nodes = executor.rows.filter((row) => row.permissionCode === permissionCode);
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0]).toMatchObject({
+        type: "button",
+        parentId: executor.rows.find((row) => row.routeKey === routeKey)?.id,
+        routeKey: null,
+        isVisible: null,
+      });
+    }
+    const rows = executor.rows;
+    const tree = buildPermissionTree(
+      rows,
+      permissionKeys.map((key) => ({ key, name: key })),
+    );
+    const unmapped = tree.find((node) => node.name === "其他权限");
+    const newPermissions = expected.map(([key]) => key);
+    expect(
+      unmapped?.children.filter((node) => newPermissions.includes(node.permissionCode ?? "")) ?? [],
+    ).toEqual([]);
+    expect(completePermissionSelection(rows, ["rental_period_bills:void"])).toEqual([
+      "rental_bills:read",
+      "rental_period_bills:void",
+    ]);
+  });
+
   it("persists children with the generated numeric ID of their template parent", async () => {
     const executor = new InMemoryMenuTemplateExecutor();
 

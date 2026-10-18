@@ -1,6 +1,7 @@
 import type { PermissionKey, RouteKey } from "@xpense/shared";
 import { BILLING_MENU_TEMPLATE } from "./billing-menu-template.js";
 import type { MenuTemplateNode } from "./menu-template.js";
+import { RENTAL_FINANCE_MENU_TEMPLATE } from "./rental-finance-menu-template.js";
 
 const rentalRouteKeys = {
   contractCreate: "RentalContractCreate",
@@ -307,4 +308,5 @@ export const RENTAL_MENU_TEMPLATE: readonly MenuTemplateNode[] = [
     sortOrder: 120,
   },
   ...BILLING_MENU_TEMPLATE,
+  ...RENTAL_FINANCE_MENU_TEMPLATE,
 ];
