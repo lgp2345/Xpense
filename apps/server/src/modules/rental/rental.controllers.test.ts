@@ -7,7 +7,6 @@ import {
   PATH_METADATA,
 } from "@nestjs/common/constants.js";
 import { describe, expect, it, vi } from "vitest";
-
 import { AppModule } from "../../app.module.js";
 import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import { REQUIRE_PERMISSION_KEY } from "../iam/decorators/require-permission.decorator.js";
@@ -34,6 +33,9 @@ import { PropertiesController } from "./properties.controller.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import { PropertiesService } from "./properties.service.js";
 import { PropertiesPolicyService } from "./properties-policy.service.js";
+import { PropertyBillingController } from "./property-billing.controller.js";
+import { PropertyBillingRepository } from "./property-billing.repository.js";
+import { PropertyBillingService } from "./property-billing.service.js";
 import { RentalModule } from "./rental.module.js";
 import { RentalCashController } from "./rental-cash.controller.js";
 import { RentalCashService } from "./rental-cash.service.js";
@@ -133,6 +135,7 @@ describe("rental property controller", () => {
 
   it("registers the rental feature without exporting its repositories", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, RentalModule)).toEqual([
+      PropertyBillingController,
       BillsController,
       PropertiesController,
       SpacesController,
@@ -272,6 +275,7 @@ describe("rental space controller", () => {
 
   it("registers space providers without exporting repositories", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, RentalModule)).toEqual([
+      PropertyBillingController,
       BillsController,
       PropertiesController,
       SpacesController,
@@ -495,6 +499,7 @@ describe("rental contract controller", () => {
 
   it("registers contract providers without exporting repositories", () => {
     expect(Reflect.getMetadata(MODULE_METADATA.CONTROLLERS, RentalModule)).toEqual([
+      PropertyBillingController,
       BillsController,
       PropertiesController,
       SpacesController,

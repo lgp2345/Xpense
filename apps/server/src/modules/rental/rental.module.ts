@@ -36,6 +36,9 @@ import { PropertiesController } from "./properties.controller.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import { PropertiesService } from "./properties.service.js";
 import { PropertiesPolicyService } from "./properties-policy.service.js";
+import { PropertyBillingController } from "./property-billing.controller.js";
+import { PropertyBillingRepository } from "./property-billing.repository.js";
+import { PropertyBillingService } from "./property-billing.service.js";
 import { RentalCashController } from "./rental-cash.controller.js";
 import { RentalCashRepository } from "./rental-cash.repository.js";
 import { RentalCashService } from "./rental-cash.service.js";
@@ -62,6 +65,7 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
 @Module({
   imports: [AuditModule, AuthModule, BookkeepingModule, DbModule, IamModule],
   controllers: [
+    PropertyBillingController,
     BillsController,
     PropertiesController,
     SpacesController,
@@ -76,6 +80,8 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
     RentalSettlementsController,
   ],
   providers: [
+    PropertyBillingService,
+    PropertyBillingRepository,
     BillAdjustmentsRepository,
     ChargeTermsRepository,
     ChargeTermsService,
