@@ -1,6 +1,7 @@
 import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 import { ROUTE_DEFINITIONS, type RouteKey } from "@xpense/shared";
 import { useStore } from "zustand";
+import type { MenuSearch } from "@/features/menus/menu-search";
 
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
 import {
@@ -8,6 +9,7 @@ import {
   preloadRegisteredRoutePage,
   RegisteredRouteLeaf,
 } from "@/routes/-shared/registered-page";
+import { readTrimmedSearchString } from "@/routes/-shared/search";
 import { RouteAccessPending } from "@/routes/-shared/status";
 import type { WebSessionDependency } from "@/services/web-session";
 
@@ -46,7 +48,8 @@ const ROUTE_OPTIONS = (Object.keys(ROUTE_DEFINITIONS) as RouteKey[]).map((key) =
 
 export const Route = createFileRoute("/_authenticated/(iam)/menus")({
   staticData: { routeKey: "Menus" },
-  beforeLoad: async ({ context, location, params }) => ({
+  validateSearch: validateMenuSearch,
+  beforeLoad: async ({ context, location, params, search }) => ({
     ...(await preloadRegisteredRoutePage(
       requireRegisteredRouteAccess(context, location, "Menus"),
       MenuManagementPage,
@@ -54,21 +57,39 @@ export const Route = createFileRoute("/_authenticated/(iam)/menus")({
     registeredPage: defineRegisteredPage({
       routeKey: "Menus",
       cacheParams: params,
-      render: ({ session }) => <MenusRoutePage session={session} />,
+      render: ({ session }) => <MenusRoutePage search={search} session={session} />,
     }),
   }),
   component: RegisteredRouteLeaf,
   pendingComponent: RouteAccessPending,
 });
 
-function MenusRoutePage({ session }: { session: WebSessionDependency }) {
+export function validateMenuSearch(search: Record<string, unknown>): MenuSearch {
+  return Object.fromEntries(
+    ["name", "destination", "permission"].flatMap((key) => {
+      const value = readTrimmedSearchString(search[key]);
+      return value ? [[key, value]] : [];
+    }),
+  );
+}
+
+function MenusRoutePage({
+  session,
+  search,
+}: {
+  session: WebSessionDependency;
+  search: MenuSearch;
+}) {
   const permissions = useStore(session.authStore, (state) => state.permissions);
+  const navigate = Route.useNavigate();
 
   return (
     <MenuManagementPage
       api={session.iamApi}
       permissions={permissions}
       routeOptions={ROUTE_OPTIONS}
+      search={search}
+      onSearchChange={(nextSearch) => void navigate({ search: nextSearch, replace: true })}
       onAuthorizedMenusRefresh={async () => {
         const organizationId = session.authStore.getState().currentOrganization?.id;
 

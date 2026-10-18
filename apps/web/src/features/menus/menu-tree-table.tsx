@@ -1,28 +1,6 @@
 import type { MenuConfigurationNode } from "@xpense/shared";
-import {
-  ArrowDown,
-  ArrowUp,
-  ExternalLink,
-  FileKey2,
-  FolderTree,
-  Link2,
-  Pencil,
-  Plus,
-  Trash2,
-} from "lucide-react";
-import type { ReactNode } from "react";
-
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ChevronDown, ChevronRight, ExternalLink, FileKey2, FolderTree, Link2 } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,38 +12,78 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MenuFilters } from "./menu-filters";
+import { MenuRowActions, type MenuRowActionsProps } from "./menu-row-actions";
+import { getMatchingMenuIds, type MenuSearch } from "./menu-search";
 
-type MenuTreeTableProps = {
-  canCreate: boolean;
-  canDelete: boolean;
-  canUpdate: boolean;
-  isMutating: boolean;
+type MenuTreeTableProps = Omit<MenuRowActionsProps, "node" | "index" | "siblingCount"> & {
   nodes: readonly MenuConfigurationNode[];
-  onAddChild: (node: MenuConfigurationNode) => void;
-  onDelete: (node: MenuConfigurationNode) => Promise<void>;
-  onEdit: (node: MenuConfigurationNode) => void;
-  onMove: (node: MenuConfigurationNode, direction: "up" | "down") => Promise<void>;
+  search?: MenuSearch;
+  onSearchChange?: (search: MenuSearch) => void;
 };
+const EMPTY_SEARCH: MenuSearch = {};
 
 type VisibilityContext = {
   hasHiddenAncestor: boolean;
   hasMenuAncestor: boolean;
 };
 
-export function MenuTreeTable({
+export function MenuTreeTable({ search, onSearchChange, ...props }: MenuTreeTableProps) {
+  const [localSearch, setLocalSearch] = useState(EMPTY_SEARCH);
+  const activeSearch = search ?? localSearch;
+  const searchKey = JSON.stringify([
+    activeSearch.name,
+    activeSearch.destination,
+    activeSearch.permission,
+  ]);
+  const matchingIds = getMatchingMenuIds(props.nodes, activeSearch);
+
+  return (
+    <>
+      <MenuFilters
+        key={`filters-${searchKey}`}
+        search={activeSearch}
+        onApply={onSearchChange ?? setLocalSearch}
+      />
+      <MenuTreeContent key={`tree-${searchKey}`} {...props} matchingIds={matchingIds} />
+    </>
+  );
+}
+
+function MenuTreeContent({
   canCreate,
   canDelete,
   canUpdate,
   isMutating,
   nodes,
+  matchingIds,
   onAddChild,
   onDelete,
   onEdit,
   onMove,
-}: MenuTreeTableProps) {
+}: Omit<MenuTreeTableProps, "search" | "onSearchChange"> & {
+  matchingIds: ReadonlySet<number> | null;
+}) {
+  const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<number>>(() => new Set());
+  function toggleNode(id: number) {
+    setCollapsedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   if (nodes.length === 0) {
     return (
       <p className="py-10 text-center text-sm text-muted-foreground">当前组织还没有菜单配置。</p>
+    );
+  }
+
+  if (matchingIds?.size === 0) {
+    return (
+      <p className="py-10 text-center text-sm text-muted-foreground">
+        没有符合筛选条件的菜单节点。
+      </p>
     );
   }
 
@@ -89,6 +107,9 @@ export function MenuTreeTable({
               canDelete,
               canUpdate,
               depth: 0,
+              collapsedIds,
+              matchingIds,
+              toggleNode,
               isMutating,
               visibility: { hasHiddenAncestor: false, hasMenuAncestor: false },
               onAddChild,
@@ -103,7 +124,10 @@ export function MenuTreeTable({
   );
 }
 
-type RenderRowsOptions = Omit<MenuTreeTableProps, "nodes"> & {
+type RenderRowsOptions = Omit<MenuRowActionsProps, "node" | "index" | "siblingCount"> & {
+  collapsedIds: ReadonlySet<number>;
+  matchingIds: ReadonlySet<number> | null;
+  toggleNode: (id: number) => void;
   depth: number;
   visibility: VisibilityContext;
 };
@@ -113,9 +137,11 @@ function renderRows(
   options: RenderRowsOptions,
 ): ReactNode[] {
   return nodes.flatMap((node, index) => {
-    const hasChildren = node.children.length > 0;
-    const canHaveChildren =
-      node.type === "directory" || (node.type === "menu" && node.isExternal === false);
+    if (options.matchingIds && !options.matchingIds.has(node.id)) return [];
+    const hasVisibleChildren = node.children.some(
+      (child) => !options.matchingIds || options.matchingIds.has(child.id),
+    );
+    const isExpanded = !options.collapsedIds.has(node.id);
     const row = (
       <TableRow key={node.id}>
         <TableCell>
@@ -125,6 +151,24 @@ function renderRows(
               className="shrink-0"
               style={{ width: `${options.depth * 0.75}rem` }}
             />
+            {hasVisibleChildren ? (
+              <Button
+                aria-label={`${isExpanded ? "收起" : "展开"} ${node.name}`}
+                aria-expanded={isExpanded}
+                className="size-7 shrink-0"
+                size="icon"
+                variant="ghost"
+                onClick={() => options.toggleNode(node.id)}
+              >
+                {isExpanded ? (
+                  <ChevronDown aria-hidden="true" />
+                ) : (
+                  <ChevronRight aria-hidden="true" />
+                )}
+              </Button>
+            ) : (
+              <span aria-hidden="true" className="size-7 shrink-0" />
+            )}
             <NodeIcon node={node} />
             <span className="truncate font-medium" title={node.name}>
               {node.name}
@@ -149,89 +193,7 @@ function renderRows(
           </div>
         </TableCell>
         <TableCell>
-          <div className="flex justify-end gap-1">
-            {options.canCreate && canHaveChildren ? (
-              <Button
-                aria-label={`新增子节点 ${node.name}`}
-                disabled={options.isMutating}
-                size="icon"
-                title="新增子节点"
-                variant="ghost"
-                onClick={() => options.onAddChild(node)}
-              >
-                <Plus />
-              </Button>
-            ) : null}
-            {options.canUpdate ? (
-              <>
-                <Button
-                  aria-label={`上移 ${node.name}`}
-                  disabled={options.isMutating || index === 0}
-                  size="icon"
-                  title={index === 0 ? "已经是同级第一项" : "上移"}
-                  variant="ghost"
-                  onClick={() => void options.onMove(node, "up")}
-                >
-                  <ArrowUp />
-                </Button>
-                <Button
-                  aria-label={`下移 ${node.name}`}
-                  disabled={options.isMutating || index === nodes.length - 1}
-                  size="icon"
-                  title={index === nodes.length - 1 ? "已经是同级最后一项" : "下移"}
-                  variant="ghost"
-                  onClick={() => void options.onMove(node, "down")}
-                >
-                  <ArrowDown />
-                </Button>
-                <Button
-                  aria-label={`编辑 ${node.name}`}
-                  disabled={options.isMutating}
-                  size="icon"
-                  title="编辑"
-                  variant="ghost"
-                  onClick={() => options.onEdit(node)}
-                >
-                  <Pencil />
-                </Button>
-              </>
-            ) : null}
-            {options.canDelete ? (
-              <AlertDialog>
-                <AlertDialogTrigger
-                  render={
-                    <Button
-                      aria-label={`删除 ${node.name}`}
-                      disabled={options.isMutating || hasChildren}
-                      size="icon"
-                      title={hasChildren ? "包含子节点，不能删除" : "删除"}
-                      variant="ghost"
-                    >
-                      <Trash2 />
-                    </Button>
-                  }
-                />
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>确认删除菜单节点</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      确认删除“{node.name}”？此操作会立即修改当前组织的菜单配置。
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>取消</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-destructive text-white hover:bg-destructive/90"
-                      disabled={options.isMutating}
-                      onClick={() => void options.onDelete(node)}
-                    >
-                      确认删除
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            ) : null}
-          </div>
+          <MenuRowActions {...options} node={node} index={index} siblingCount={nodes.length} />
         </TableCell>
       </TableRow>
     );
@@ -242,6 +204,7 @@ function renderRows(
       hasMenuAncestor: options.visibility.hasMenuAncestor || node.type === "menu",
     };
 
+    if (!isExpanded) return [row];
     return [
       row,
       ...renderRows(node.children, {

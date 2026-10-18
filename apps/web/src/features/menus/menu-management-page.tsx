@@ -7,6 +7,7 @@ import type { IamApi } from "../../services/iam-api";
 import { webIamApi } from "../../services/web-session";
 import { MenuFormDialog } from "./menu-form-dialog";
 import type { MenuFormValues, MenuRouteOption } from "./menu-form-schema";
+import type { MenuSearch } from "./menu-search";
 import { MenuTreeTable } from "./menu-tree-table";
 
 type MenusApi = Pick<
@@ -17,6 +18,8 @@ type MenusApi = Pick<
 type MenuManagementPageProps = {
   api?: MenusApi;
   menuItems?: MenuConfigurationNode[];
+  search?: MenuSearch;
+  onSearchChange?: (search: MenuSearch) => void;
   onAuthorizedMenusRefresh: () => Promise<void>;
   permissions: PermissionKey[];
   routeOptions: MenuRouteOption[];
@@ -33,6 +36,8 @@ const SYNCHRONIZATION_ERROR = "菜单操作已成功，但配置与导航同步�
 export function MenuManagementPage({
   api = webIamApi,
   menuItems,
+  search,
+  onSearchChange,
   onAuthorizedMenusRefresh,
   permissions,
   routeOptions,
@@ -259,6 +264,8 @@ export function MenuManagementPage({
           canUpdate={canUpdate}
           isMutating={isMutating}
           nodes={nodes}
+          search={search}
+          onSearchChange={onSearchChange}
           onAddChild={(node) => setEditor({ kind: "create", initialParentId: node.id })}
           onDelete={handleDelete}
           onEdit={(node) => setEditor({ kind: "edit", node })}

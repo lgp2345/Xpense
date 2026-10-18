@@ -319,6 +319,75 @@ describe("getMenuParentOptions", () => {
 });
 
 describe("MenuManagementPage", () => {
+  it("combines name, destination and permission filters while retaining the ancestor path", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByRole("textbox", { name: "菜单名称" }), "成员");
+    await user.type(screen.getByRole("textbox", { name: "路由或外链" }), " MEMBERS ");
+    await user.type(screen.getByRole("textbox", { name: "权限标识" }), "members:READ");
+    await user.click(screen.getByRole("button", { name: "查询" }));
+
+    expect(screen.getByText("系统管理")).toBeInTheDocument();
+    expect(screen.getByText("组织设置")).toBeInTheDocument();
+    expect(screen.getByText("成员管理")).toBeInTheDocument();
+    expect(screen.queryByText("新增成员按钮")).not.toBeInTheDocument();
+    expect(screen.queryByText("角色管理")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "删除 成员管理" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "上移 系统管理" })).toBeDisabled();
+
+    await user.clear(screen.getByRole("textbox", { name: "权限标识" }));
+    await user.type(screen.getByRole("textbox", { name: "权限标识" }), "roles:read");
+    await user.keyboard("{Enter}");
+    expect(screen.getByText("没有符合筛选条件的菜单节点。")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "重置" }));
+    expect(screen.getByText("新增成员按钮")).toBeInTheDocument();
+    expect(screen.getByText("角色管理")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "菜单名称" })).toHaveValue("");
+  });
+
+  it.each([
+    "/members",
+    "Members",
+    "docs.example.com",
+  ])("queries destination %s", async (destination) => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByRole("textbox", { name: "路由或外链" }), destination);
+    await user.click(screen.getByRole("button", { name: "查询" }));
+    expect(
+      screen.getByText(destination === "docs.example.com" ? "产品文档" : "成员管理"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("仪表盘")).not.toBeInTheDocument();
+    if (destination === "docs.example.com") {
+      expect(screen.getByRole("button", { name: "上移 产品文档" })).toBeEnabled();
+    }
+  });
+
+  it("collapses nested branches by keyboard and expands matching ancestors on a new query", async () => {
+    const user = userEvent.setup();
+    renderPage({ permissions: ["menus:read"] });
+    screen.getByRole("button", { name: "收起 组织设置" }).focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "展开 组织设置" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.queryByText("成员管理")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "收起 系统管理" }));
+    await user.click(screen.getByRole("button", { name: "展开 系统管理" }));
+    expect(screen.queryByText("成员管理")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "收起 系统管理" }));
+
+    await user.type(screen.getByRole("textbox", { name: "权限标识" }), "members:create");
+    await user.click(screen.getByRole("button", { name: "查询" }));
+    expect(screen.getByText("新增成员按钮")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "收起 成员管理" }));
+    expect(screen.queryByText("新增成员按钮")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "展开 成员管理" }));
+    expect(screen.getByText("新增成员按钮")).toBeInTheDocument();
+  });
+
   it("disables creating a root node while the configuration is loading", () => {
     const api = createMenusApi({
       getMenuConfiguration: vi.fn().mockReturnValue(new Promise(() => undefined)),

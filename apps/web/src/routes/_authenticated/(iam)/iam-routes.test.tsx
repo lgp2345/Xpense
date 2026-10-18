@@ -13,7 +13,7 @@ import { createMenuStore } from "../../../stores/menu-store";
 import { Route as DashboardRoute } from "../(core)/index";
 import { Route as AuditLogsRoute } from "./audit-logs";
 import { Route as MembersRoute } from "./members";
-import { Route as MenusRoute } from "./menus";
+import { Route as MenusRoute, validateMenuSearch } from "./menus";
 import { Route as RolesRoute } from "./roles";
 import { Route as SessionsRoute } from "./sessions";
 
@@ -212,5 +212,31 @@ describe("Dashboard and IAM file routes", () => {
       status: "ready",
     });
     expect(router.state.location.pathname).toBe("/menus");
+  });
+
+  it("restores menu filters from the URL, updates them on submit and clears them on reset", async () => {
+    const user = userEvent.setup();
+    const { router } = renderRoute("/menus?name=成员&destination=Members&permission=members:read");
+    const name = await screen.findByRole("textbox", { name: "菜单名称" });
+    expect(name).toHaveValue("成员");
+    expect(screen.getByRole("textbox", { name: "路由或外链" })).toHaveValue("Members");
+    expect(screen.getByRole("textbox", { name: "权限标识" })).toHaveValue("members:read");
+    await user.clear(name);
+    await user.type(name, "菜单");
+    await user.click(screen.getByRole("button", { name: "查询" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({
+        name: "菜单",
+        destination: "Members",
+        permission: "members:read",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "重置" }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    expect(screen.getByRole("textbox", { name: "菜单名称" })).toHaveValue("");
+  });
+
+  it("ignores non-string menu filters in URL search", () => {
+    expect(validateMenuSearch({ name: 1, destination: [], permission: {} })).toEqual({});
   });
 });
