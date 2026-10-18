@@ -16,17 +16,25 @@ const PropertyDetailPage = lazyRouteComponent(
   "PropertyDetailPage",
 );
 
+const PropertyBillingPage = lazyRouteComponent(
+  () => import("@/features/rental/property-billing/property-billing-page"),
+  "PropertyBillingPage",
+);
+
 export const Route = createFileRoute("/_authenticated/(rental)/rentals/properties/$propertyId")({
   staticData: { routeKey: "RentalPropertyDetail" },
   validateSearch: validatePropertyDetailSearch,
   beforeLoad: async ({ context, location, params, search }) => ({
     ...(await preloadRegisteredRoutePage(
       requireRegisteredRouteAccess(context, location, "RentalPropertyDetail"),
-      PropertyDetailPage,
+      search.view === "billing" ? PropertyBillingPage : PropertyDetailPage,
     )),
     registeredPage: defineRegisteredPage({
       routeKey: "RentalPropertyDetail",
-      cacheParams: { propertyId: params.propertyId },
+      cacheParams: {
+        propertyId: params.propertyId,
+        ...(search.view === "billing" ? { view: "billing" } : {}),
+      },
       render: ({ session }) => (
         <PropertyDetailRoutePage
           propertyId={params.propertyId}
@@ -56,6 +64,17 @@ function PropertyDetailRoutePage({
   );
   const navigate = Route.useNavigate();
 
+  if (search.view === "billing")
+    return (
+      <PropertyBillingPage
+        api={session.rentalFinanceApi}
+        propertyId={propertyId}
+        organizationId={organizationId}
+        permissions={permissions}
+        onBack={() => void navigate({ to: "/rentals/properties", search: {} })}
+      />
+    );
+
   return (
     <PropertyDetailPage
       api={session.rentalApi}
@@ -77,6 +96,7 @@ function PropertyDetailRoutePage({
 /** 房产详情两组筛选相互独立，并从 URL 恢复。非法枚举、日期区间和页码不应用。 */
 export function validatePropertyDetailSearch(input: Record<string, unknown>): PropertyDetailSearch {
   const result: PropertyDetailSearch = {};
+  if (input.view === "billing") result.view = "billing";
   const keyword = readTrimmedSearchString(
     typeof input.keyword === "number" || typeof input.keyword === "boolean"
       ? String(input.keyword)

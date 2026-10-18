@@ -79,6 +79,13 @@ function PropertiesRoutePage({
       permissions={permissions}
       search={search}
       onSearchChange={(nextSearch) => void navigate({ search: nextSearch, replace: true } as never)}
+      onGenerateBills={(propertyId) =>
+        void navigate({
+          to: "/rentals/properties/$propertyId",
+          params: { propertyId },
+          search: { view: "billing" },
+        })
+      }
       onNavigate={(propertyId) =>
         void navigate({ to: "/rentals/properties/$propertyId", params: { propertyId } })
       }

@@ -269,3 +269,8 @@ it("restores property-scoped contract keyword, date range and status from the de
     }),
   );
 });
+
+it("billing view 是唯一合法枚举", () => {
+  expect(validatePropertyDetailSearch({ view: "billing" })).toEqual({ view: "billing" });
+  expect(validatePropertyDetailSearch({ view: "other" })).toEqual({});
+});

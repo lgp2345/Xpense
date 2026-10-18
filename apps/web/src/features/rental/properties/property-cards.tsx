@@ -1,6 +1,6 @@
 import type { RentalPropertyDetail, RentalPropertySummary } from "@xpense/shared";
-
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PropertyFormDialog } from "./property-form-dialog";
 import {
@@ -12,6 +12,8 @@ import {
 
 type PropertyCardsProps = {
   getProperty?: (id: string) => Promise<RentalPropertyDetail>;
+  canGenerateBills?: boolean;
+  onGenerateBills?: (propertyId: string) => void;
   canDelete: boolean;
   canCreateContract?: boolean;
   canUpdate: boolean;
@@ -29,6 +31,8 @@ type PropertyCardsProps = {
 /** 小屏房产摘要卡片，与表格使用相同的权限和写入操作。 */
 export function PropertyCards({
   getProperty,
+  canGenerateBills,
+  onGenerateBills,
   canDelete,
   canCreateContract,
   canUpdate,
@@ -65,8 +69,18 @@ export function PropertyCards({
             </div>
             <p className="text-sm text-muted-foreground">{propertyAddress(property)}</p>
             <p className="text-sm">{spaceSummary(property)}</p>
-            {canUpdate || canDelete || canCreateContract ? (
+            {canUpdate || canDelete || canCreateContract || canGenerateBills ? (
               <div className="flex flex-wrap gap-2">
+                {canGenerateBills ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onGenerateBills?.(property.id)}
+                  >
+                    生成账单
+                  </Button>
+                ) : null}
                 {canUpdate ? (
                   <>
                     <PropertyFormDialog

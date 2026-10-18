@@ -38,6 +38,8 @@ const typeLabels = {
 
 type PropertyTableProps = {
   getProperty?: (id: string) => Promise<RentalPropertyDetail>;
+  canGenerateBills?: boolean;
+  onGenerateBills?: (propertyId: string) => void;
   canDelete: boolean;
   canCreateContract?: boolean;
   canUpdate: boolean;
@@ -55,6 +57,8 @@ type PropertyTableProps = {
 /** 大屏房产表格，保留账本标识在数据层而不展示给终端用户。 */
 export function PropertyTable({
   getProperty,
+  canGenerateBills,
+  onGenerateBills,
   canDelete,
   canCreateContract,
   canUpdate,
@@ -77,7 +81,7 @@ export function PropertyTable({
               <TableHead>地址</TableHead>
               <TableHead>空间</TableHead>
               <TableHead>状态</TableHead>
-              {canUpdate || canDelete || canCreateContract ? (
+              {canUpdate || canDelete || canCreateContract || canGenerateBills ? (
                 <TableHead className="text-right">操作</TableHead>
               ) : null}
             </TableRow>
@@ -105,9 +109,19 @@ export function PropertyTable({
                 <TableCell>
                   <StatusBadge active={property.isActive} />
                 </TableCell>
-                {canUpdate || canDelete || canCreateContract ? (
+                {canUpdate || canDelete || canCreateContract || canGenerateBills ? (
                   <TableCell>
                     <div className="flex justify-end gap-2">
+                      {canGenerateBills ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onGenerateBills?.(property.id)}
+                        >
+                          生成账单
+                        </Button>
+                      ) : null}
                       {canUpdate ? (
                         <>
                           <PropertyFormDialog

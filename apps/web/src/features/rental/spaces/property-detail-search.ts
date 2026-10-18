@@ -6,6 +6,7 @@ export type PropertyDetailSearch = Omit<
   ListRentalContractsQuery,
   "propertyId" | "tenantId" | "spaceId" | "spaceScope" | "currentOnly"
 > & {
+  view?: "billing";
   spaceKeyword?: string;
   spaceEffectiveStatus?: "active" | "inactive";
   spaceLeaseStatus?: RentalLeaseStatus;

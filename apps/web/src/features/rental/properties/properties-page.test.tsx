@@ -7,6 +7,7 @@ import type {
   RentalPropertyPage,
   RentalPropertySummary,
 } from "@xpense/shared";
+import { rentalPropertyBillingPermissions } from "@xpense/shared";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -95,6 +96,7 @@ function renderPage({
   onSearchChange,
   onNavigate = () => undefined,
   onCreateContract = () => undefined,
+  onGenerateBills = () => undefined,
   queryClient: providedQueryClient,
 }: {
   api?: RentalApi;
@@ -103,6 +105,7 @@ function renderPage({
   onSearchChange?: (value: ListRentalPropertiesQuery) => void;
   onNavigate?: (propertyId: string) => void;
   onCreateContract?: (propertyId: string) => void;
+  onGenerateBills?: (propertyId: string) => void;
   queryClient?: QueryClient;
 } = {}) {
   const queryClient =
@@ -117,6 +120,7 @@ function renderPage({
         search={search}
         onNavigate={onNavigate}
         onCreateContract={onCreateContract}
+        onGenerateBills={onGenerateBills}
         onSearchChange={(next) => {
           onSearchChange?.(next);
           setSearch(next);
@@ -540,4 +544,30 @@ describe("PropertiesPage", () => {
     expect(onCreateContract).toHaveBeenCalledWith(property.id);
     Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
   });
+});
+
+it.each([false, true])("房产出账入口在桌面/移动均可达 %s", async (mobile) => {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: (query: string) => ({
+      matches: mobile && query === "(max-width: 767px)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }),
+  });
+  try {
+    const onGenerateBills = vi.fn();
+    renderPage({ permissions: [...rentalPropertyBillingPermissions], onGenerateBills });
+    await userEvent.click(await screen.findByRole("button", { name: "生成账单" }));
+    expect(onGenerateBills).toHaveBeenCalledWith(property.id);
+  } finally {
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: original });
+  }
+});
+it.each(rentalPropertyBillingPermissions)("缺少 %s 隐藏出账入口", async (missing) => {
+  renderPage({ permissions: rentalPropertyBillingPermissions.filter((p) => p !== missing) });
+  await screen.findByRole("link", { name: property.name });
+  expect(screen.queryByRole("button", { name: "生成账单" })).not.toBeInTheDocument();
 });

@@ -9,10 +9,11 @@ import {
   rentalSettlements,
 } from "../../db/schema.js";
 import { PropertyBillingRepository } from "./property-billing.repository.js";
+import { toPropertyBillingCandidate } from "./property-billing.rules.js";
 
 const org = "org";
 const property = "property";
-function executor(count: number) {
+function executor(count: number, exhaustFirstPage = false) {
   const contracts = Array.from({ length: count }, (_, n) => ({
     id: String(n).padStart(4, "0"),
     lifecycleStatus: "confirmed",
@@ -28,7 +29,18 @@ function executor(count: number) {
   const rows = new Map<unknown, unknown[]>([
     [rentalContracts, contracts],
     [rentalContractSpaces, contracts.map((c) => ({ contractId: c.id, spaceId: "space" }))],
-    [rentalBills, []],
+    [
+      rentalBills,
+      exhaustFirstPage
+        ? contracts.slice(0, 100).flatMap((c) =>
+            Array.from({ length: 12 }, (_, month) => ({
+              contractId: c.id,
+              periodStart: `2026-${String(month + 1).padStart(2, "0")}-01`,
+              periodEnd: `2026-${String(month + 1).padStart(2, "0")}-${[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month]}`,
+            })),
+          )
+        : [],
+    ],
     [rentalBillingStarts, []],
     [rentalSettlements, []],
     [rentalContractPartyPeriods, []],
@@ -41,7 +53,11 @@ function executor(count: number) {
         where: (condition: unknown) => {
           const record = { table, fields, condition, limit: undefined as number | undefined };
           queries.push(record);
-          const result = rows.get(table) ?? [];
+          let result = rows.get(table) ?? [];
+          if (table === rentalContracts) {
+            const params = new PgDialect().sqlToQuery(condition as never).params;
+            if (params.length === 3) result = contracts.filter((c) => c.id > String(params[2]));
+          }
           const query = {
             // biome-ignore lint/suspicious/noThenProperty: test query is intentionally awaitable.
             then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
@@ -103,4 +119,42 @@ describe("房产候选批量读取", () => {
       ).nextAfterContractId,
     ).toBeNull();
   });
+});
+
+it("201 个扫描合同分三页；首批无候选也推进，最后一批终止", async () => {
+  const { tx, queries } = executor(201, true);
+  const repo = new PropertyBillingRepository();
+  const first = await repo.scanSources(
+    { organizationId: org, propertyId: property, pageSize: 100 },
+    tx as never,
+  );
+  expect(
+    first.sources.flatMap((s) => toPropertyBillingCandidate(s, "2026-10-18") ?? []),
+  ).toHaveLength(0);
+  expect(first.nextAfterContractId).toBe("0099");
+  const second = await repo.scanSources(
+    {
+      organizationId: org,
+      propertyId: property,
+      pageSize: 100,
+      afterContractId: first.nextAfterContractId ?? undefined,
+    },
+    tx as never,
+  );
+  expect(
+    second.sources.flatMap((s) => toPropertyBillingCandidate(s, "2026-10-18") ?? []),
+  ).toHaveLength(100);
+  expect(second.nextAfterContractId).toBe("0199");
+  const last = await repo.scanSources(
+    {
+      organizationId: org,
+      propertyId: property,
+      pageSize: 100,
+      afterContractId: second.nextAfterContractId ?? undefined,
+    },
+    tx as never,
+  );
+  expect(last.sources).toHaveLength(1);
+  expect(last.nextAfterContractId).toBeNull();
+  expect(queries).toHaveLength(18);
 });
