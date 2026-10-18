@@ -3,6 +3,7 @@ import type {
   ConfirmRentalRefundRequest,
   ConfirmRentalSettlementRequest,
   GenerateRentalPeriodBillRequest,
+  ListRentalPropertyBillingQuery,
   PageResult,
   PreviewRentalPeriodBillRequest,
   PreviewRentalSettlementRequest,
@@ -14,6 +15,7 @@ import type {
   RentalMeterReadingInput,
   RentalPeriodBillContext,
   RentalPeriodBillPreview,
+  RentalPropertyBillingPage,
   RentalSettlementDetail,
   RentalSettlementPreview,
   RevokeRentalCashRequest,
@@ -78,6 +80,11 @@ function targetQuery(target: RentalCashTarget, page?: number, pageSize?: number)
 /** 租赁财务 HTTP 边界；金额与收费依据由服务端计算。 */
 export function createRentalFinanceApi(client: ApiClient) {
   return {
+    listPropertyBilling: (input: ListRentalPropertyBillingQuery, options?: ApiRequestOptions) =>
+      client.get<RentalPropertyBillingPage>(
+        `/rental-period-bills/list${queryString({ propertyId: input.propertyId, afterContractId: input.afterContractId, pageSize: input.pageSize ?? 100 })}`,
+        options,
+      ),
     getChargeTerms: (contractId: string, options?: ApiRequestOptions) =>
       client.get<RentalChargeTerms>(
         `/rental-charges/detail${queryString({ id: contractId })}`,

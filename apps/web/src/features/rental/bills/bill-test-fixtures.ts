@@ -26,6 +26,13 @@ export const meterBaselineFixture: RentalMeterBaseline = {
 
 export function financeApiFixture(overrides: Partial<RentalFinanceApi> = {}): RentalFinanceApi {
   return {
+    listPropertyBilling: vi.fn().mockResolvedValue({
+      property: { id: "property", name: "房产" },
+      today: "2026-10-18",
+      timezone: "Asia/Shanghai",
+      items: [],
+      nextAfterContractId: null,
+    }),
     getChargeTerms: vi.fn().mockResolvedValue(chargeTermsFixture),
     updateChargeTerms: vi.fn().mockResolvedValue(chargeTermsFixture),
     getMeterBaseline: vi.fn().mockResolvedValue(meterBaselineFixture),

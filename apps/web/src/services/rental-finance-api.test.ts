@@ -145,3 +145,16 @@ describe("租赁财务 API 边界", () => {
     expect(submit.mock.calls[0]?.[0]).toEqual(submit.mock.calls[1]?.[0]);
   });
 });
+it("房产候选分页使用只读端点并透传取消信号", async () => {
+  const client = { get: vi.fn().mockResolvedValue({}) };
+  const api = createRentalFinanceApi(client as unknown as ApiClient);
+  const signal = new AbortController().signal;
+  await api.listPropertyBilling(
+    { propertyId: "p/1", afterContractId: "c/2", pageSize: 100 },
+    { signal },
+  );
+  expect(client.get).toHaveBeenCalledWith(
+    "/rental-period-bills/list?propertyId=p%2F1&afterContractId=c%2F2&pageSize=100",
+    { signal },
+  );
+});
