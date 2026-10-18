@@ -73,7 +73,7 @@ function executor(count: number, exhaustFirstPage = false) {
     }),
     execute: async () => [{ id: "space", parentId: null, name: "101", sortOrder: 0 }],
   };
-  return { tx, queries };
+  return { tx, queries, rows };
 }
 describe("房产候选批量读取", () => {
   it.each([1, 100])("%s 合同固定7次查询，窄字段与作用域", async (count) => {
@@ -157,4 +157,32 @@ it("201 个扫描合同分三页；首批无候选也推进，最后一批终止
   expect(last.sources).toHaveLength(1);
   expect(last.nextAfterContractId).toBeNull();
   expect(queries).toHaveLength(18);
+});
+
+it("候选承租方按账期闭区间相交筛选并去重", async () => {
+  const { tx, rows } = executor(1);
+  rows.set(rentalBillingStarts, [{ contractId: "0000", firstPeriodStart: "2026-10-01" }]);
+  rows.set(rentalContractPartyPeriods, [
+    { contractId: "0000", name: "九月旧承租方", validFrom: "2026-01-01", validTo: "2026-09-30" },
+    { contractId: "0000", name: "十月前半承租方", validFrom: "2026-10-01", validTo: "2026-10-15" },
+    { contractId: "0000", name: "十月后半承租方", validFrom: "2026-10-16", validTo: "2026-10-31" },
+    { contractId: "0000", name: "十一月承租方", validFrom: "2026-11-01", validTo: "2026-12-31" },
+  ]);
+  const repo = new PropertyBillingRepository();
+  const source = (
+    await repo.scanSources(
+      { organizationId: org, propertyId: property, pageSize: 100 },
+      tx as never,
+    )
+  ).sources[0];
+  expect(source).toBeDefined();
+  if (!source) throw new Error("source missing");
+  expect(toPropertyBillingCandidate(source, "2026-10-18")?.tenantNames).toEqual([
+    "十月前半承租方",
+    "十月后半承租方",
+  ]);
+  source.firstPeriodStart = "2026-09-01";
+  expect(toPropertyBillingCandidate(source, "2026-10-18")?.tenantNames).toEqual(["九月旧承租方"]);
+  source.firstPeriodStart = "2026-11-01";
+  expect(toPropertyBillingCandidate(source, "2026-10-18")?.tenantNames).toEqual(["十一月承租方"]);
 });

@@ -19,6 +19,7 @@ export function PeriodBillEditor({
   onOpenChange,
   onSubmit,
   repreview,
+  canRepreview,
 }: ReturnType<typeof usePeriodBillSession>) {
   return (
     <form className="flex flex-col flex-1 min-h-0 min-w-0" onSubmit={onSubmit}>
@@ -48,7 +49,12 @@ export function PeriodBillEditor({
         <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
           取消
         </Button>
-        <Button type="button" variant="outline" disabled={busy || !request} onClick={repreview}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy || !request || !canRepreview}
+          onClick={repreview}
+        >
           重新预览
         </Button>
         <Button

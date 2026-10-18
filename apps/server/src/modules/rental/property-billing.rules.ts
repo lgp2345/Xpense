@@ -21,7 +21,7 @@ export type PropertyBillingSource = {
   firstPeriodStart: string | null;
   activePeriods: RentalBillingPeriod[];
   path: RentalBillingSpacePathNode[];
-  tenantNames: string[];
+  tenantPeriods: Array<{ name: string; validFrom: string; validTo: string }>;
 };
 export function billingStartDayDistance(today: string, periodStart: string): number {
   return (
@@ -51,7 +51,13 @@ export function toPropertyBillingCandidate(
     contractId: source.contractId,
     spaceId: source.spaceId,
     path: source.path,
-    tenantNames: source.tenantNames,
+    tenantNames: [
+      ...new Set(
+        source.tenantPeriods
+          .filter((p) => p.validFrom <= next.periodEnd && p.validTo >= next.periodStart)
+          .map((p) => p.name),
+      ),
+    ],
     period: { periodStart: next.periodStart, periodEnd: next.periodEnd },
     daysUntilStart: billingStartDayDistance(today, next.periodStart),
   };

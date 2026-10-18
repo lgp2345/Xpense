@@ -3,6 +3,7 @@ import {
   type PermissionKey,
   type RentalBillDetail,
   type RentalPropertyBillingCandidate,
+  type RentalPropertyBillingPage,
   rentalPropertyBillingPermissions,
 } from "@xpense/shared";
 import { ArrowLeft } from "lucide-react";
@@ -42,6 +43,10 @@ function PropertyBillingWorkbench({ propertyId, organizationId, api, onBack }: P
   const [completed, setCompleted] = useState<CompletedPropertyBill[]>([]);
   const [selected, setSelected] = useState<RentalPropertyBillingCandidate | null>(null);
   const [refreshError, setRefreshError] = useState(false);
+  const [lastContext, setLastContext] = useState<Pick<
+    RentalPropertyBillingPage,
+    "property" | "today" | "timezone"
+  > | null>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const query = useQuery({
     queryKey: propertyBillingKey(organizationId, propertyId),
@@ -49,6 +54,13 @@ function PropertyBillingWorkbench({ propertyId, organizationId, api, onBack }: P
     retry: false,
     refetchOnMount: "always",
   });
+  useEffect(() => {
+    if (query.data) {
+      const { property, today, timezone } = query.data;
+      setLastContext({ property, today, timezone });
+    }
+  }, [query.data]);
+  const context = query.data ?? lastContext;
   const refetch = query.refetch;
   // Activity 恢复时重新读取服务端组织日期；本轮结果和编辑会话保留。
   useEffect(() => {
@@ -80,7 +92,7 @@ function PropertyBillingWorkbench({ propertyId, organizationId, api, onBack }: P
           <ArrowLeft className="size-4" />
         </Button>
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">{query.data?.property.name ?? "房产"} · 生成账单</h1>
+          <h1 className="text-2xl font-bold">{context?.property.name ?? "房产"} · 生成账单</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             选择待出账空间，核对本期费用后生成账单。
           </p>
@@ -115,7 +127,7 @@ function PropertyBillingWorkbench({ propertyId, organizationId, api, onBack }: P
       ) : nodes.length ? (
         <PropertyBillingTree
           nodes={nodes}
-          today={query.data?.today ?? ""}
+          today={context?.today ?? ""}
           onSelect={(candidate, button) => {
             if (completed.some((row) => row.candidate.contractId === candidate.contractId)) return;
             trigger.current = button;

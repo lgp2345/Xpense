@@ -93,10 +93,11 @@ export function usePeriodBillSession({
   const fingerprint = request ? JSON.stringify(request) : "";
   // biome-ignore lint/correctness/useExhaustiveDependencies: nonce 是用户刷新与冲突恢复的显式触发器。
   useEffect(() => {
+    // Activity 恢复不重置结果未知的请求；保留原预览版本与幂等键供重试。
+    if (attempt.current) return;
     const current = ++sequence.current;
     const controller = new AbortController();
     setPreview(null);
-    attempt.current = null;
     setPreviewBusy(Boolean(request));
     if (!request) return;
     const timer = setTimeout(() => {
@@ -205,7 +206,9 @@ export function usePeriodBillSession({
       setAttempted(true);
       void form.handleSubmit();
     },
+    canRepreview: attempt.current === null,
     repreview: () => {
+      if (attempt.current) return;
       setPreview(null);
       setNonce((value) => value + 1);
     },

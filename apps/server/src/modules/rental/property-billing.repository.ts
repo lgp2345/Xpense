@@ -180,9 +180,13 @@ export class PropertyBillingRepository {
             return { periodStart: b.periodStart, periodEnd: b.periodEnd };
           }),
         path,
-        tenantNames: [
-          ...new Set(parties.filter((p) => p.contractId === c.id && p.name).map((p) => p.name!)),
-        ],
+        tenantPeriods: parties
+          .filter((p) => p.contractId === c.id)
+          .flatMap((p) =>
+            p.name && p.validFrom && p.validTo
+              ? [{ name: p.name, validFrom: p.validFrom, validTo: p.validTo }]
+              : [],
+          ),
       });
     }
     return { sources, nextAfterContractId };

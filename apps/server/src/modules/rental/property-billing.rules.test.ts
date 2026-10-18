@@ -28,7 +28,7 @@ function source(): PropertyBillingSource {
     firstPeriodStart: null,
     activePeriods: [],
     path: [{ id: s.contract.spaces[0]!.spaceId, parentId: null, name: "101", sortOrder: 0 }],
-    tenantNames: ["租户"],
+    tenantPeriods: [{ name: "租户", validFrom: "2026-01-01", validTo: "2026-12-31" }],
   };
 }
 describe("房产出账候选", () => {
