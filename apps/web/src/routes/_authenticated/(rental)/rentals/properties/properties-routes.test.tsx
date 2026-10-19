@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   AuthorizedMenuNode,
@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AppProviders } from "@/components/app-providers";
 import { createAppRouter } from "@/router";
+import { ApiError } from "@/services/api-client";
 import type { RentalApi } from "@/services/rental-api";
 import type { WebSessionDependency } from "@/services/web-session";
 import { createAuthStore } from "@/stores/auth-store";
@@ -118,6 +119,90 @@ function renderRoute(path: string, activeSession = session()) {
 }
 
 describe("rental property file routes", () => {
+  it("直接打开详情时显示面包屑，返回按钮回到房产列表", async () => {
+    const { router } = renderRoute(`/rentals/properties/${propertyId}`);
+    await screen.findByRole("heading", { name: property.name, level: 1 });
+    const breadcrumb = screen.getByRole("navigation", { name: "面包屑" });
+    expect(within(breadcrumb).getByRole("link", { name: "房产管理" })).toHaveAttribute(
+      "href",
+      "/rentals/properties",
+    );
+    expect(within(breadcrumb).getByText("房产详情")).toHaveAttribute("aria-current", "page");
+    await userEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/rentals/properties"));
+    expect(await screen.findByRole("heading", { name: "房产管理" })).toBeInTheDocument();
+  });
+
+  it("从其他详情进入时返回实际上一页，并保留上一页的筛选", async () => {
+    const { router } = renderRoute("/rentals/properties/previous?spaceKeyword=101");
+    await screen.findByRole("heading", { name: property.name });
+    await act(async () => {
+      await router.navigate({
+        to: "/rentals/properties/$propertyId",
+        params: { propertyId },
+      });
+    });
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(`/rentals/properties/${propertyId}`),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "返回上一页" }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/rentals/properties/previous"),
+    );
+    expect(router.state.location.search).toMatchObject({ spaceKeyword: "101" });
+  });
+
+  it("直接访问返回列表后，再次打开缓存详情仍能返回列表", async () => {
+    const { router } = renderRoute(`/rentals/properties/${propertyId}`);
+    await screen.findByRole("heading", { name: property.name });
+    await userEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+    await screen.findByRole("heading", { name: "房产管理" });
+    const propertiesTable = await screen.findByRole("table");
+    await userEvent.click(
+      await within(propertiesTable).findByRole("link", { name: property.name }),
+    );
+    await screen.findByRole("heading", { name: property.name });
+    await userEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/rentals/properties"));
+    expect(await screen.findByRole("heading", { name: "房产管理" })).toBeInTheDocument();
+  });
+
+  it("面包屑始终前往房产列表，不受访问来源影响", async () => {
+    const { router } = renderRoute("/rentals/properties/previous");
+    await screen.findByRole("heading", { name: property.name });
+    await act(async () => {
+      await router.navigate({ to: "/rentals/properties/$propertyId", params: { propertyId } });
+    });
+    const breadcrumb = await screen.findByRole("navigation", { name: "面包屑" });
+    await userEvent.click(within(breadcrumb).getByRole("link", { name: "房产管理" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/rentals/properties"));
+  });
+
+  it("加载中仍可通过返回按钮离开详情", async () => {
+    const { router } = renderRoute(
+      `/rentals/properties/${propertyId}`,
+      session({ getProperty: vi.fn(() => new Promise<RentalPropertyDetail>(() => {})) }),
+    );
+    await screen.findByText("正在加载房产详情...");
+    expect(screen.getByRole("navigation", { name: "面包屑" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/rentals/properties"));
+  });
+
+  it.each([
+    [new ApiError(404, "NOT_FOUND", "missing"), "房产不存在或已被删除。"],
+    [new Error("offline"), "加载房产详情失败，请稍后重试。"],
+  ])("详情请求失败后保留导航出口：%s", async (error, message) => {
+    const { router } = renderRoute(
+      `/rentals/properties/${propertyId}`,
+      session({ getProperty: vi.fn().mockRejectedValue(error) }),
+    );
+    await screen.findByText(message);
+    expect(screen.getByRole("heading", { name: "房产详情", level: 1 })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "返回上一页" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/rentals/properties"));
+  });
+
   it("normalizes valid and invalid search values", () => {
     expect(
       validateRentalPropertiesSearch({

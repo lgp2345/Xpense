@@ -1,5 +1,12 @@
-import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  lazyRouteComponent,
+  useCanGoBack,
+  useRouter,
+} from "@tanstack/react-router";
 import { useStore } from "zustand";
+import { BreadcrumbLink } from "@/components/ui/breadcrumb";
 import type { PropertyDetailSearch } from "@/features/rental/spaces/property-detail-search";
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
 import {
@@ -63,6 +70,8 @@ function PropertyDetailRoutePage({
     (state) => state.currentOrganization?.id ?? "",
   );
   const navigate = Route.useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
 
   if (search.view === "billing")
     return (
@@ -80,6 +89,21 @@ function PropertyDetailRoutePage({
 
   return (
     <PropertyDetailPage
+      onBack={() => {
+        if (canGoBack) router.history.back();
+        else void navigate({ to: "/rentals/properties", search: {}, replace: true });
+      }}
+      breadcrumbs={[
+        {
+          key: "properties",
+          label: (
+            <BreadcrumbLink render={<Link to="/rentals/properties" search={{}} />}>
+              房产管理
+            </BreadcrumbLink>
+          ),
+        },
+        { key: "detail", label: "房产详情" },
+      ]}
       api={session.rentalApi}
       organizationId={organizationId}
       permissions={permissions}
