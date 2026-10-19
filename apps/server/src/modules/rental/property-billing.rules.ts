@@ -1,6 +1,7 @@
 import type {
   RentalBillingPeriod,
   RentalBillingSpacePathNode,
+  RentalContractDisplayStatus,
   RentalContractLifecycleStatus,
   RentalPropertyBillingCandidate,
 } from "@xpense/shared";
@@ -14,6 +15,7 @@ export type PropertyBillingSource = {
   spaceId: string;
   terms: BillingTerms;
   lifecycleStatus: RentalContractLifecycleStatus;
+  displayStatus: RentalContractDisplayStatus;
   cancelled: boolean;
   settled: boolean;
   spaceCount: number;
@@ -35,6 +37,7 @@ export function toPropertyBillingCandidate(
 ): RentalPropertyBillingCandidate | null {
   if (
     !["confirmed", "terminated"].includes(source.lifecycleStatus) ||
+    !["active", "expiring_soon"].includes(source.displayStatus) ||
     source.cancelled ||
     source.settled ||
     source.spaceCount !== 1

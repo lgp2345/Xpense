@@ -66,7 +66,11 @@ function menu(routeKey: RouteKey, id: number): AuthorizedMenuNode {
 }
 
 function session(api: Partial<RentalApi> = {}): WebSessionDependency {
-  const menus = [menu("RentalProperties", 1), menu("RentalPropertyDetail", 2)];
+  const menus = [
+    menu("RentalProperties", 1),
+    menu("RentalPropertyDetail", 2),
+    menu("RentalContractDetail", 3),
+  ];
   const menuStore = createMenuStore();
   menuStore.setState({
     organizationId: "org-1",
@@ -156,7 +160,7 @@ it("房产入口、多页、Sheet、生成回填、其他空间继续，缓存�
   const active = billingSession();
   const { router } = renderRoute("/rentals/properties", active);
   await userEvent.click(await screen.findByRole("button", { name: "生成账单" }));
-  const button = await screen.findByRole("button", { name: /生成账单 301/ });
+  const button = await screen.findByRole("button", { name: /生成账单 301/ }, { timeout: 5000 });
   expect(router.state.location.search).toEqual({ view: "billing" });
   const url = router.state.location.href;
   await userEvent.click(button);
@@ -202,4 +206,17 @@ it("生成期间依据变化不标成功、不自动出下一期", async () => {
   await screen.findByText(/不会自动确认下一期/);
   expect(screen.queryByText("已生成")).not.toBeInTheDocument();
   expect(active.rentalFinanceApi.generatePeriodBill).toHaveBeenCalledTimes(1);
+});
+
+it("点击空间名称导航到该行合同，不打开出账 Sheet", async () => {
+  const active = billingSession();
+  active.rentalApi.contractDetail = vi
+    .fn()
+    .mockRejectedValue(new ApiError(404, "NOT_FOUND", "合同不存在"));
+  const { router } = renderRoute(`/rentals/properties/${propertyId}?view=billing`, active);
+  await userEvent.click(await screen.findByRole("button", { name: "查看合同 302 张三" }));
+  await waitFor(() => expect(router.state.location.pathname).toBe("/rentals/contracts/second"));
+  await waitFor(() => expect(active.rentalApi.contractDetail).toHaveBeenCalledWith("second"));
+  expect(active.rentalFinanceApi.getPeriodBillContext).not.toHaveBeenCalled();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });

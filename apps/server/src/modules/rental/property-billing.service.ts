@@ -5,7 +5,7 @@ import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDb } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import { AccessService } from "../iam/access.service.js";
-import { organizationDate } from "./contract-date.rules.js";
+import { organizationDateTime } from "./contract-time.rules.js";
 import type { ListPropertyBillingDto } from "./dto/list-property-billing.dto.js";
 import { PropertyBillingRepository } from "./property-billing.repository.js";
 import { toPropertyBillingCandidate } from "./property-billing.rules.js";
@@ -23,9 +23,10 @@ export class PropertyBillingService {
         const context = await this.repository.readContext(auth.organizationId, dto.propertyId, tx);
         if (!context)
           throw new NotFoundException({ code: apiErrorCodes.notFound, message: "租赁房产不存在" });
-        const today = organizationDate(new Date(), context.timezone);
+        const now = organizationDateTime(new Date(), context.timezone);
+        const today = now.slice(0, 10);
         const page = await this.repository.scanSources(
-          { organizationId: auth.organizationId, ...dto },
+          { organizationId: auth.organizationId, ...dto, now },
           tx,
         );
         return {

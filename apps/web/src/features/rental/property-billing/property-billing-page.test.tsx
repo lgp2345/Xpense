@@ -30,6 +30,7 @@ function setup(
     organizationId: "org",
     permissions,
     onBack: vi.fn(),
+    onNavigateContract: vi.fn(),
   };
   const view = render(
     <QueryClientProvider client={client}>
@@ -39,6 +40,7 @@ function setup(
   return {
     api,
     client,
+    props,
     ...view,
     rerenderPage: (patch: Partial<typeof props>) =>
       view.rerender(
@@ -48,7 +50,7 @@ function setup(
       ),
   };
 }
-it("六列、默认展开、折叠恢复；点击只开 Sheet；成功显示响应零金额且不能重复生成", async () => {
+it("七列、默认展开、折叠恢复；点击只开 Sheet；成功显示响应零金额且不能重复生成", async () => {
   const url = window.location.href;
   const h = setup();
   vi.spyOn(h.client, "invalidateQueries").mockRejectedValue(new Error("refresh failed"));
@@ -60,6 +62,7 @@ it("六列、默认展开、折叠恢复；点击只开 Sheet；成功显示响�
     "距账期开始",
     "总收费",
     "状态",
+    "操作",
   ]);
   await userEvent.click(screen.getByRole("button", { name: "折叠 一号楼" }));
   expect(screen.queryByRole("button", { name: /生成账单 301/ })).not.toBeInTheDocument();
@@ -74,8 +77,11 @@ it("六列、默认展开、折叠恢复；点击只开 Sheet；成功显示响�
   expect(screen.getByText("0.00")).toBeInTheDocument();
   expect(window.location.href).toBe(url);
   await waitFor(() => expect(trigger).toHaveFocus());
+  expect(trigger).toHaveAttribute("aria-disabled", "true");
   await userEvent.click(trigger);
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await userEvent.hover(trigger);
+  expect(await screen.findByRole("tooltip")).toHaveTextContent("本轮已生成账单");
   h.client.setQueryData(["rental", "org", "property-billing", "property"], {
     ...billingPageFixture,
     items: [],
@@ -111,4 +117,16 @@ it("空、失败与重试", async () => {
   await screen.findByRole("alert");
   await userEvent.click(screen.getByRole("button", { name: "重试" }));
   await screen.findByText("暂无可生成账单的空间");
+});
+
+it("空间名称跳转对应合同，操作列按钮只打开 Sheet", async () => {
+  const h = setup();
+  const contract = await screen.findByRole("button", { name: "查看合同 301 张三" });
+  await userEvent.click(contract);
+  expect(h.props.onNavigateContract).toHaveBeenCalledWith("contract");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(h.api.getPeriodBillContext).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "生成账单 301 张三" }));
+  await screen.findByLabelText("备注");
+  expect(h.props.onNavigateContract).toHaveBeenCalledTimes(1);
 });

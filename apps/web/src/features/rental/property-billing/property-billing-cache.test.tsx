@@ -63,6 +63,7 @@ it("completed rows retain a valid date when the hidden query has been garbage co
     organizationId: "org",
     permissions: [...rentalPropertyBillingPermissions],
     onBack: vi.fn(),
+    onNavigateContract: vi.fn(),
   };
   const view = (mode: "visible" | "hidden") => (
     <QueryClientProvider client={client}>

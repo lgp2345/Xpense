@@ -140,3 +140,34 @@ it("晚到预览不能恢复旧金额与版本", async () => {
   );
   expect(screen.queryByText(/9999.99/)).not.toBeInTheDocument();
 });
+
+it("加载账期后保留同一个 Sheet 面板，不重新挂载打断动画", async () => {
+  let resolveContext: (value: typeof periodContextFixture) => void = () => {};
+  setup(
+    financeApiFixture({
+      getPeriodBillContext: vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveContext = resolve;
+          }),
+      ),
+    }),
+  );
+  const panel = await screen.findByRole("dialog");
+  expect(screen.getByRole("status")).toHaveTextContent("正在读取下一账期");
+  await act(async () => resolveContext(periodContextFixture));
+  await screen.findByLabelText("备注");
+  expect(screen.getByRole("dialog")).toBe(panel);
+});
+
+it("同一合同关闭后再次打开会重新加载并清空本轮输入", async () => {
+  const h = setup();
+  await screen.findByLabelText("备注");
+  fireEvent.change(screen.getByLabelText("备注"), { target: { value: "上轮输入" } });
+  await userEvent.click(screen.getByRole("button", { name: "取消" }));
+  await waitFor(() => expect(h.props.onOpenChange).toHaveBeenCalledWith(false));
+  h.rerenderSheet({ open: false });
+  h.rerenderSheet({ open: true });
+  await waitFor(() => expect(screen.getByLabelText("备注")).toHaveValue(""));
+  expect(h.api.getPeriodBillContext).toHaveBeenCalledTimes(2);
+});

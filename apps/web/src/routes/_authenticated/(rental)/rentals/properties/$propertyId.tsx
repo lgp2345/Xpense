@@ -72,6 +72,9 @@ function PropertyDetailRoutePage({
         organizationId={organizationId}
         permissions={permissions}
         onBack={() => void navigate({ to: "/rentals/properties", search: {} })}
+        onNavigateContract={(contractId) =>
+          void navigate({ to: "/rentals/contracts/$contractId", params: { contractId } })
+        }
       />
     );
 

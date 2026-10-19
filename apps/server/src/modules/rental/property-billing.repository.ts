@@ -168,6 +168,7 @@ export class PropertyBillingRepository {
           dueDaysBefore: c.dueDaysBefore,
         },
         lifecycleStatus: c.lifecycleStatus,
+        displayStatus: raw.displayStatus,
         cancelled: false,
         settled: false,
         spaceCount: relations.length,

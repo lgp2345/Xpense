@@ -1,12 +1,14 @@
 import { and, asc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { rentalContracts, rentalSpaces } from "../../db/schema.js";
+import { contractDisplayStatusExpression } from "./contracts.repository.select-fields.js";
 import type { PropertyBillingScanInput } from "./property-billing.repository.types.js";
 export function scanPropertyContracts(input: PropertyBillingScanInput, tx: AppDbExecutor) {
   return tx
     .select({
       id: rentalContracts.id,
       lifecycleStatus: rentalContracts.status,
+      displayStatus: contractDisplayStatusExpression(input.now),
       startDate: rentalContracts.startDate,
       endDate: rentalContracts.endDate,
       rentAmountMinor: rentalContracts.rentAmountMinor,

@@ -21,6 +21,7 @@ function source(): PropertyBillingSource {
       dueDaysBefore: s.contract.dueDaysBefore!,
     },
     lifecycleStatus: "confirmed",
+    displayStatus: "active",
     cancelled: false,
     settled: false,
     spaceCount: 1,
@@ -54,12 +55,28 @@ describe("房产出账候选", () => {
     { spaceCount: 2 },
   ])("排除不合格来源 %j", (patch) =>
     expect(toPropertyBillingCandidate({ ...source(), ...patch }, "2026-10-18")).toBeNull());
-  it("未来合同仍可出账，未结算终止可出账", () => {
-    const s = source();
-    expect(toPropertyBillingCandidate(s, "2025-01-01")?.period.periodStart).toBe("2026-01-01");
+  it.each([
+    "draft",
+    "cancelled",
+    "upcoming",
+    "expired",
+    "terminated",
+  ] as const)("排除未在履行中的合同 %s", (displayStatus) =>
+    expect(toPropertyBillingCandidate({ ...source(), displayStatus }, "2026-10-18")).toBeNull());
+  it.each(["active", "expiring_soon"] as const)("允许 %s 合同待出账", (displayStatus) => {
+    expect(
+      toPropertyBillingCandidate({ ...source(), displayStatus }, "2026-10-18")?.period.periodStart,
+    ).toBe("2026-01-01");
+  });
+  it("预约终止但仍在租期内的合同可以待出账", () => {
     expect(
       toPropertyBillingCandidate(
-        { ...s, lifecycleStatus: "terminated", terminationDate: "2026-02-15" },
+        {
+          ...source(),
+          lifecycleStatus: "terminated",
+          displayStatus: "expiring_soon",
+          terminationDate: "2026-10-25",
+        },
         "2026-10-18",
       ),
     ).not.toBeNull();

@@ -20,7 +20,10 @@ function SheetOverlay({
   return (
     <SheetPrimitive.Backdrop
       data-slot="sheet-overlay"
-      className={cn("fixed inset-0 z-50 bg-black/50", className)}
+      className={cn(
+        "fixed inset-0 z-50 bg-black/50 duration-300 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none",
+        className,
+      )}
       {...props}
     />
   );
@@ -40,11 +43,15 @@ function SheetContent({
         <SheetPrimitive.Popup
           data-slot="sheet-content"
           className={cn(
-            "fixed z-50 flex flex-col gap-4 bg-background shadow-lg",
-            side === "left" && "inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
-            side === "right" && "inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
-            side === "top" && "inset-x-0 top-0 border-b",
-            side === "bottom" && "inset-x-0 bottom-0 border-t",
+            "fixed z-50 flex flex-col gap-4 bg-background shadow-lg duration-300 data-open:animate-in data-closed:animate-out motion-reduce:animate-none",
+            side === "left" &&
+              "inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm data-open:slide-in-from-left data-closed:slide-out-to-left",
+            side === "right" &&
+              "inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm data-open:slide-in-from-right data-closed:slide-out-to-right",
+            side === "top" &&
+              "inset-x-0 top-0 border-b data-open:slide-in-from-top data-closed:slide-out-to-top",
+            side === "bottom" &&
+              "inset-x-0 bottom-0 border-t data-open:slide-in-from-bottom data-closed:slide-out-to-bottom",
             className,
           )}
           {...props}

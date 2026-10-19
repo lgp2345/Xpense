@@ -29,6 +29,7 @@ type Props = {
   organizationId: string;
   permissions: readonly PermissionKey[];
   api: RentalFinanceApi;
+  onNavigateContract: (contractId: string) => void;
   onBack: () => void;
 };
 export function PropertyBillingPage(props: Props) {
@@ -38,7 +39,13 @@ export function PropertyBillingPage(props: Props) {
     <PropertyBillingWorkbench key={`${props.organizationId}:${props.propertyId}`} {...props} />
   );
 }
-function PropertyBillingWorkbench({ propertyId, organizationId, api, onBack }: Props) {
+function PropertyBillingWorkbench({
+  propertyId,
+  organizationId,
+  api,
+  onBack,
+  onNavigateContract,
+}: Props) {
   const client = useQueryClient();
   const [completed, setCompleted] = useState<CompletedPropertyBill[]>([]);
   const [selected, setSelected] = useState<RentalPropertyBillingCandidate | null>(null);
@@ -87,12 +94,12 @@ function PropertyBillingWorkbench({ propertyId, organizationId, api, onBack }: P
   const nodes = buildPropertyBillingTree(query.data?.items ?? [], completed);
   return (
     <section className="space-y-4 p-4 sm:p-6 lg:p-8">
-      <div className="flex items-start gap-3">
+      <div className="flex gap-3 items-start">
         <Button variant="ghost" size="icon" aria-label="返回房产列表" onClick={onBack}>
           <ArrowLeft className="size-4" />
         </Button>
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">{context?.property.name ?? "房产"} · 生成账单</h1>
+          <h1 className="font-bold text-2xl">{context?.property.name ?? "房产"} · 生成账单</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             选择待出账空间，核对本期费用后生成账单。
           </p>
@@ -107,7 +114,7 @@ function PropertyBillingWorkbench({ propertyId, organizationId, api, onBack }: P
         </p>
       ) : null}
       {query.isError ? (
-        <div role="alert" className="rounded-lg border p-4 space-y-3">
+        <div role="alert" className="border rounded-lg space-y-3 p-4">
           <p>待出账空间读取失败，请重试。</p>
           <Button variant="outline" onClick={() => void query.refetch()}>
             重试
@@ -118,7 +125,7 @@ function PropertyBillingWorkbench({ propertyId, organizationId, api, onBack }: P
         <div
           role="status"
           aria-label="正在读取待出账空间"
-          className="rounded-lg border p-4 space-y-3"
+          className="border rounded-lg space-y-3 p-4"
         >
           {[0, 1, 2, 3].map((n) => (
             <Skeleton key={n} className="h-10 w-full" />
@@ -128,6 +135,7 @@ function PropertyBillingWorkbench({ propertyId, organizationId, api, onBack }: P
         <PropertyBillingTree
           nodes={nodes}
           today={context?.today ?? ""}
+          onNavigateContract={onNavigateContract}
           onSelect={(candidate, button) => {
             if (completed.some((row) => row.candidate.contractId === candidate.contractId)) return;
             trigger.current = button;
@@ -135,7 +143,7 @@ function PropertyBillingWorkbench({ propertyId, organizationId, api, onBack }: P
           }}
         />
       ) : query.isError ? null : (
-        <p className="rounded-lg border p-8 text-center text-sm text-muted-foreground">
+        <p className="border rounded-lg text-center text-sm text-muted-foreground p-8">
           暂无可生成账单的空间
         </p>
       )}

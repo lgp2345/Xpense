@@ -73,3 +73,19 @@ describe("房产出账分页服务", () => {
     );
   });
 });
+
+it("按组织时区向候选查询传递秒级当前时刻，响应保留公历日", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-18T17:30:45Z"));
+  try {
+    const { service, repo } = await setup();
+    const result = await service.list(auth, { propertyId: "property", pageSize: 100 });
+    expect(result.today).toBe("2026-10-19");
+    expect(repo.scanSources).toHaveBeenCalledWith(
+      expect.objectContaining({ now: "2026-10-19T01:30:45" }),
+      expect.anything(),
+    );
+  } finally {
+    vi.useRealTimers();
+  }
+});

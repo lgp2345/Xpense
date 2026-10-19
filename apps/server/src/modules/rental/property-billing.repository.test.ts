@@ -17,6 +17,7 @@ function executor(count: number, exhaustFirstPage = false) {
   const contracts = Array.from({ length: count }, (_, n) => ({
     id: String(n).padStart(4, "0"),
     lifecycleStatus: "confirmed",
+    displayStatus: "active",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
     rentAmountMinor: 10000,
@@ -79,7 +80,7 @@ describe("房产候选批量读取", () => {
   it.each([1, 100])("%s 合同固定7次查询，窄字段与作用域", async (count) => {
     const { tx, queries } = executor(count);
     const result = await new PropertyBillingRepository().scanSources(
-      { organizationId: org, propertyId: property, pageSize: 100 },
+      { organizationId: org, propertyId: property, now: "2026-10-18T09:00:00", pageSize: 100 },
       tx as never,
     );
     expect(result.sources).toHaveLength(count);
@@ -95,6 +96,12 @@ describe("房产候选批量读取", () => {
       );
     }
     expect(queries[0]?.limit).toBe(101);
+    const fields = queries[0]?.fields as { displayStatus: never };
+    expect(fields).toHaveProperty("displayStatus");
+    const status = dialect.sqlToQuery(fields.displayStatus);
+    expect(status.params).toContain("2026-10-18T09:00:00");
+    expect(status.sql).toContain("23:59:59");
+    expect(result.sources[0]?.displayStatus).toBe("active");
     expect(result.sources[0]?.path).toEqual([
       { id: "space", parentId: null, name: "101", sortOrder: 0 },
     ]);
@@ -104,7 +111,7 @@ describe("房产候选批量读取", () => {
     expect(
       (
         await new PropertyBillingRepository().scanSources(
-          { organizationId: org, propertyId: property, pageSize: 100 },
+          { organizationId: org, propertyId: property, now: "2026-10-18T09:00:00", pageSize: 100 },
           tx as never,
         )
       ).nextAfterContractId,
@@ -113,7 +120,13 @@ describe("房产候选批量读取", () => {
     expect(
       (
         await new PropertyBillingRepository().scanSources(
-          { organizationId: org, propertyId: property, pageSize: 100, afterContractId: "0099" },
+          {
+            organizationId: org,
+            propertyId: property,
+            now: "2026-10-18T09:00:00",
+            pageSize: 100,
+            afterContractId: "0099",
+          },
           end.tx as never,
         )
       ).nextAfterContractId,
@@ -125,7 +138,7 @@ it("201 个扫描合同分三页；首批无候选也推进，最后一批终止
   const { tx, queries } = executor(201, true);
   const repo = new PropertyBillingRepository();
   const first = await repo.scanSources(
-    { organizationId: org, propertyId: property, pageSize: 100 },
+    { organizationId: org, propertyId: property, now: "2026-10-18T09:00:00", pageSize: 100 },
     tx as never,
   );
   expect(
@@ -136,6 +149,7 @@ it("201 个扫描合同分三页；首批无候选也推进，最后一批终止
     {
       organizationId: org,
       propertyId: property,
+      now: "2026-10-18T09:00:00",
       pageSize: 100,
       afterContractId: first.nextAfterContractId ?? undefined,
     },
@@ -149,6 +163,7 @@ it("201 个扫描合同分三页；首批无候选也推进，最后一批终止
     {
       organizationId: org,
       propertyId: property,
+      now: "2026-10-18T09:00:00",
       pageSize: 100,
       afterContractId: second.nextAfterContractId ?? undefined,
     },
@@ -171,7 +186,7 @@ it("候选承租方按账期闭区间相交筛选并去重", async () => {
   const repo = new PropertyBillingRepository();
   const source = (
     await repo.scanSources(
-      { organizationId: org, propertyId: property, pageSize: 100 },
+      { organizationId: org, propertyId: property, now: "2026-10-18T09:00:00", pageSize: 100 },
       tx as never,
     )
   ).sources[0];

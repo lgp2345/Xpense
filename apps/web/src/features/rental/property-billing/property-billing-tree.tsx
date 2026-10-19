@@ -1,5 +1,5 @@
 import type { RentalPropertyBillingCandidate } from "@xpense/shared";
-import { ChevronDown, ChevronRight, Folder } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatBillAmount } from "../bills/bill-format";
 import { BillingDistanceBadge } from "./billing-distance-badge";
 import {
@@ -23,9 +24,11 @@ export function PropertyBillingTree({
   nodes,
   today,
   onSelect,
+  onNavigateContract,
 }: {
   nodes: PropertyBillingNode[];
   today: string;
+  onNavigateContract: (contractId: string) => void;
   onSelect: (candidate: RentalPropertyBillingCandidate, trigger: HTMLButtonElement) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -41,13 +44,10 @@ export function PropertyBillingTree({
       <TableCell>
         <Button
           variant="ghost"
-          className="h-auto py-2 text-left whitespace-normal"
+          className="h-auto text-left py-2 whitespace-normal"
           style={{ marginLeft: `${depth * 20}px` }}
-          aria-label={`生成账单 ${node.space.name} ${row.candidate.tenantNames.join("、")}`}
-          aria-disabled={Boolean(row.bill)}
-          onClick={(event) => {
-            if (!row.bill) onSelect(row.candidate, event.currentTarget);
-          }}
+          aria-label={`查看合同 ${node.space.name} ${row.candidate.tenantNames.join("、")}`}
+          onClick={() => onNavigateContract(row.candidate.contractId)}
         >
           {node.space.name}
           {node.rows.length > 1 ? (
@@ -60,7 +60,7 @@ export function PropertyBillingTree({
       <TableCell className="max-w-48 whitespace-normal">
         {row.candidate.tenantNames.join("、")}
       </TableCell>
-      <TableCell className="whitespace-nowrap text-xs tabular-nums">
+      <TableCell className="text-xs whitespace-nowrap tabular-nums">
         {row.candidate.period.periodStart} 至 {row.candidate.period.periodEnd}
       </TableCell>
       <TableCell>
@@ -77,6 +77,27 @@ export function PropertyBillingTree({
       </TableCell>
       <TableCell>
         <Badge variant={row.bill ? "secondary" : "outline"}>{row.bill ? "已生成" : "待出账"}</Badge>
+      </TableCell>
+      <TableCell>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={Boolean(row.bill)}
+                focusableWhenDisabled
+                aria-label={`生成账单 ${node.space.name} ${row.candidate.tenantNames.join("、")}`}
+                onClick={(event) => onSelect(row.candidate, event.currentTarget)}
+              >
+                生成账单
+              </Button>
+            }
+          />
+          {row.bill ? (
+            <TooltipContent sideOffset={4}>本轮已生成账单，请刷新列表后继续。</TooltipContent>
+          ) : null}
+        </Tooltip>
       </TableCell>
     </TableRow>
   );
@@ -96,11 +117,10 @@ export function PropertyBillingTree({
               onClick={() => toggle(node.space.id)}
             >
               {closed ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
-              <Folder className="size-4 text-muted-foreground" />
               {node.space.name}
             </Button>
           </TableCell>
-          <TableCell colSpan={5} />
+          <TableCell colSpan={6} />
         </TableRow>
         {closed ? null : (
           <>
@@ -112,11 +132,11 @@ export function PropertyBillingTree({
     );
   };
   return (
-    <div className="rounded-lg border overflow-x-auto">
+    <div className="border rounded-lg overflow-x-auto">
       <Table className="min-w-[800px]">
         <TableHeader>
           <TableRow>
-            {["空间", "租户", "本次账期", "距账期开始", "总收费", "状态"].map((label) => (
+            {["空间", "租户", "本次账期", "距账期开始", "总收费", "状态", "操作"].map((label) => (
               <TableHead key={label} className={label === "总收费" ? "text-right" : undefined}>
                 {label}
               </TableHead>
