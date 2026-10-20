@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PermissionKey, SetRentalTenantStatusRequest } from "@xpense/shared";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
+import {
+  SecondaryPageLayout,
+  type SecondaryPageNavigation,
+} from "@/components/layout/secondary-page-layout";
 import { Pagination } from "@/components/pagination";
 
 import {
@@ -33,7 +37,12 @@ export function TenantDetailPage({
   organizationId,
   tenantId,
   permissions,
-}: {
+  onBack,
+  breadcrumbs = [
+    { key: "tenants", label: "租客管理" },
+    { key: "detail", label: "租客详情" },
+  ],
+}: SecondaryPageNavigation & {
   api: RentalApi;
   organizationId: string;
   tenantId: string;
@@ -68,18 +77,37 @@ export function TenantDetailPage({
     mutationFn: () => api.deleteTenant?.(tenantId) ?? Promise.reject(new Error("删除操作不可用")),
     onSuccess: () => invalidateDeletedTenantMutation(queryClient, organizationId, tenantId),
   });
+  const tenant = canRead && detailQuery.isSuccess ? detailQuery.data : undefined;
+  const renderPage = (children: ReactNode, actions?: ReactNode) => (
+    <SecondaryPageLayout
+      breadcrumbs={breadcrumbs}
+      title={tenant?.name ?? "租客详情"}
+      onBack={onBack}
+      status={
+        tenant ? (
+          <Badge variant={tenant.isActive ? "default" : "secondary"}>
+            {tenant.isActive ? "启用" : "停用"}
+          </Badge>
+        ) : null
+      }
+      description={tenant ? (tenant.type === "individual" ? "个人租客" : "企业租客") : null}
+      actions={actions}
+    >
+      {children}
+    </SecondaryPageLayout>
+  );
   if (!canRead)
-    return (
-      <main className="p-4 sm:p-6 lg:p-8">
+    return renderPage(
+      <main className="space-y-4">
         <p className="rounded-lg border border-muted-foreground/20 bg-muted p-4 text-sm text-muted-foreground">
           你没有查看租客的权限。
         </p>
-      </main>
+      </main>,
     );
-  if (detailQuery.isPending) return <LoadingDetail />;
+  if (detailQuery.isPending) return renderPage(<LoadingDetail />);
   if (detailQuery.isError)
-    return (
-      <main className="p-4 sm:p-6 lg:p-8">
+    return renderPage(
+      <main className="space-y-4">
         {detailQuery.error instanceof ApiError && detailQuery.error.status === 403 ? (
           <p className="rounded-lg border border-muted-foreground/20 bg-muted p-4 text-sm text-muted-foreground">
             你没有查看租客的权限。
@@ -94,9 +122,8 @@ export function TenantDetailPage({
             加载租客详情失败，请稍后重试。
           </p>
         )}
-      </main>
+      </main>,
     );
-  const tenant = detailQuery.data;
   if (!tenant) return null;
   const historyError =
     historyQuery.error instanceof ApiError && historyQuery.error.status === 403
@@ -118,70 +145,16 @@ export function TenantDetailPage({
       return;
     }
   }
-  async function handleStatus() {
+  const handleStatus = async () => {
     if (!canUpdate) return;
     try {
       await statusMutation.mutateAsync({ id: tenant.id, isActive: !tenant.isActive });
     } catch {
       return;
     }
-  }
-  return (
-    <main className="space-y-4 p-4 sm:p-6 lg:p-8">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-medium tracking-tight">{tenant.name}</h1>
-            <Badge variant={tenant.isActive ? "default" : "secondary"}>
-              {tenant.isActive ? "启用" : "停用"}
-            </Badge>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {tenant.type === "individual" ? "个人租客" : "企业租客"}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canUpdate ? (
-            <>
-              <Button variant="outline" onClick={() => setEditing(true)}>
-                编辑
-              </Button>
-              <Button
-                variant="outline"
-                disabled={statusMutation.isPending}
-                onClick={() => void handleStatus()}
-              >
-                {tenant.isActive ? "停用" : "启用"}
-              </Button>
-            </>
-          ) : null}
-          {canDelete ? (
-            <AlertDialog>
-              <AlertDialogTrigger
-                render={
-                  <Button variant="destructive" disabled={deleteMutation.isPending}>
-                    删除
-                  </Button>
-                }
-              />
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>删除租客</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    存在合同或空间关联时无法删除，请改为停用并保留历史。
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>取消</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => void handleDelete()}>
-                    确认删除
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          ) : null}
-        </div>
-      </header>
+  };
+  return renderPage(
+    <main className="space-y-4">
       {actionError ? (
         <p
           role="alert"
@@ -288,13 +261,52 @@ export function TenantDetailPage({
           }}
         />
       ) : null}
-    </main>
+    </main>,
+    <div className="flex flex-wrap gap-2">
+      {canUpdate ? (
+        <>
+          <Button variant="outline" onClick={() => setEditing(true)}>
+            编辑
+          </Button>
+          <Button
+            variant="outline"
+            disabled={statusMutation.isPending}
+            onClick={() => void handleStatus()}
+          >
+            {tenant.isActive ? "停用" : "启用"}
+          </Button>
+        </>
+      ) : null}
+      {canDelete ? (
+        <AlertDialog>
+          <AlertDialogTrigger
+            render={
+              <Button variant="destructive" disabled={deleteMutation.isPending}>
+                删除
+              </Button>
+            }
+          />
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>删除租客</AlertDialogTitle>
+              <AlertDialogDescription>
+                存在合同或空间关联时无法删除，请改为停用并保留历史。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void handleDelete()}>确认删除</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
+    </div>,
   );
 }
 
 function LoadingDetail() {
   return (
-    <main className="space-y-4 p-4 sm:p-6 lg:p-8">
+    <main className="space-y-4">
       <Card>
         <CardContent className="space-y-3 p-4" aria-live="polite">
           <Skeleton className="h-8 w-48" />

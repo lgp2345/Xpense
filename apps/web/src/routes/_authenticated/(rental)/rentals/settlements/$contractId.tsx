@@ -1,8 +1,10 @@
-import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
+import { createFileRoute, Link, lazyRouteComponent } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
 import { useStore } from "zustand";
 
 import type { RegisteredPageInput } from "@/components/layout/page-cache-host";
+import { BreadcrumbLink } from "@/components/ui/breadcrumb";
+import { useSecondaryPageBack } from "@/hooks/use-secondary-page-back";
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
 import {
   defineRegisteredPage,
@@ -70,9 +72,44 @@ function SettlementRoutePage({
     session.authStore,
     (state) => state.currentOrganization?.id ?? "",
   );
+  const navigate = Route.useNavigate();
+  const onBack = useSecondaryPageBack(
+    () =>
+      void navigate({
+        to: "/rentals/contracts/$contractId",
+        params: { contractId },
+        replace: true,
+      }),
+  );
   const props = createRentalSettlementRoutePageProps(
     { session, params: { contractId } },
     { organizationId, permissions },
   );
-  return <SettlementPage {...props} />;
+  return (
+    <SettlementPage
+      onBack={onBack}
+      breadcrumbs={[
+        {
+          key: "contracts",
+          label: (
+            <BreadcrumbLink render={<Link to="/rentals/contracts" search={{}} />}>
+              合同管理
+            </BreadcrumbLink>
+          ),
+        },
+        {
+          key: "contract",
+          label: (
+            <BreadcrumbLink
+              render={<Link to="/rentals/contracts/$contractId" params={{ contractId }} />}
+            >
+              合同详情
+            </BreadcrumbLink>
+          ),
+        },
+        { key: "current", label: "退租结算" },
+      ]}
+      {...props}
+    />
+  );
 }

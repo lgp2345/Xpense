@@ -2,6 +2,10 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import {
+  SecondaryPageLayout,
+  type SecondaryPageNavigation,
+} from "@/components/layout/secondary-page-layout";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -14,7 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -28,7 +32,14 @@ import type { WebSessionDependency } from "@/services/web-session";
 
 const organizationIdSchema = z.string().min(1);
 
-export function MenuResetPage({ session }: { session: WebSessionDependency }) {
+export function MenuResetPage({
+  session,
+  onBack,
+  breadcrumbs = [
+    { key: "home", label: "首页" },
+    { key: "reset", label: "菜单恢复" },
+  ],
+}: SecondaryPageNavigation & { session: WebSessionDependency }) {
   const form = useForm({ defaultValues: { selectedOrganizationId: "" } });
   const { selectedOrganizationId } = useStore(form.store, (state) => state.values);
   const setSelectedOrganizationId = (value: typeof selectedOrganizationId) =>
@@ -96,79 +107,79 @@ export function MenuResetPage({ session }: { session: WebSessionDependency }) {
   }
 
   return (
-    <main className="space-y-4 p-4 sm:p-6 lg:p-8">
-      <header>
-        <h1 className="text-2xl font-medium tracking-tight">菜单恢复</h1>
-        <FieldDescription className="text-sm text-muted-foreground">
-          为指定组织恢复默认菜单。此操作会替换目标组织当前的菜单配置。
-        </FieldDescription>
-      </header>
-
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>选择目标组织</CardTitle>
-          <CardDescription>必须明确选择组织后才能执行恢复。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Field data-invalid={Boolean(errorMessage)}>
-            <FieldLabel htmlFor="menu-reset-organization">目标组织</FieldLabel>
-            <Select
-              disabled={isLoading || isResetting}
-              value={selectedOrganizationId}
-              onValueChange={setSelectedOrganizationId}
-            >
-              <SelectTrigger
-                aria-invalid={Boolean(errorMessage)}
-                aria-describedby={errorMessage ? "menu-reset-error" : undefined}
-                aria-label="目标组织"
-                className="w-full"
-                id="menu-reset-organization"
+    <SecondaryPageLayout
+      breadcrumbs={breadcrumbs}
+      title="菜单恢复"
+      description="为指定组织恢复默认菜单。此操作会替换目标组织当前的菜单配置。"
+      onBack={onBack}
+    >
+      <main>
+        <Card className="max-w-2xl">
+          <CardHeader>
+            <CardTitle>选择目标组织</CardTitle>
+            <CardDescription>必须明确选择组织后才能执行恢复。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Field data-invalid={Boolean(errorMessage)}>
+              <FieldLabel htmlFor="menu-reset-organization">目标组织</FieldLabel>
+              <Select
+                disabled={isLoading || isResetting}
+                value={selectedOrganizationId}
+                onValueChange={setSelectedOrganizationId}
               >
-                <SelectValue placeholder={isLoading ? "正在加载组织..." : "请选择组织"} />
-              </SelectTrigger>
-              <SelectContent>
-                {organizations.map((organization) => (
-                  <SelectItem key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldError id="menu-reset-error">{errorMessage}</FieldError>
-          </Field>
+                <SelectTrigger
+                  aria-invalid={Boolean(errorMessage)}
+                  aria-describedby={errorMessage ? "menu-reset-error" : undefined}
+                  aria-label="目标组织"
+                  className="w-full"
+                  id="menu-reset-organization"
+                >
+                  <SelectValue placeholder={isLoading ? "正在加载组织..." : "请选择组织"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((organization) => (
+                    <SelectItem key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError id="menu-reset-error">{errorMessage}</FieldError>
+            </Field>
 
-          <AlertDialog>
-            <AlertDialogTrigger
-              render={
-                <Button
-                  disabled={!selectedOrganization || isLoading || isResetting}
-                  variant="destructive"
-                >
-                  恢复默认菜单
-                </Button>
-              }
-            />
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>确认恢复默认菜单</AlertDialogTitle>
-                <AlertDialogDescription>
-                  确认恢复“{selectedOrganization?.name}”的默认菜单？目标组织现有菜单配置将被替换。
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>取消</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-white hover:bg-destructive/90"
-                  disabled={isResetting}
-                  onClick={() => void handleReset()}
-                >
-                  确认恢复
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardContent>
-      </Card>
-    </main>
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    disabled={!selectedOrganization || isLoading || isResetting}
+                    variant="destructive"
+                  >
+                    恢复默认菜单
+                  </Button>
+                }
+              />
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>确认恢复默认菜单</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    确认恢复“{selectedOrganization?.name}”的默认菜单？目标组织现有菜单配置将被替换。
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>取消</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-white hover:bg-destructive/90"
+                    disabled={isResetting}
+                    onClick={() => void handleReset()}
+                  >
+                    确认恢复
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardContent>
+        </Card>
+      </main>
+    </SecondaryPageLayout>
   );
 }

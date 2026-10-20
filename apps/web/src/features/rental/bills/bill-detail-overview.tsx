@@ -1,7 +1,6 @@
 import type { UseNavigateResult } from "@tanstack/react-router";
 import type { RentalBillDetail } from "@xpense/shared";
-import { ArrowLeft, ArrowUpRight } from "lucide-react";
-import type { ReactNode } from "react";
+import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatBillAmount } from "./bill-format";
@@ -10,11 +9,9 @@ import { billDueLabel } from "./bill-table";
 export function BillDetailOverview({
   bill,
   navigate,
-  children,
 }: {
   bill: RentalBillDetail;
   navigate?: UseNavigateResult<"/rentals/bills/$billId">;
-  children?: ReactNode;
 }) {
   const financial = bill.financial;
   const metrics = financial
@@ -31,31 +28,7 @@ export function BillDetailOverview({
     : [];
 
   return (
-    <header className="space-y-4">
-      <a
-        href="/rentals/bills"
-        className={buttonVariants({
-          variant: "link",
-          className: "h-auto p-0 text-muted-foreground",
-        })}
-      >
-        <ArrowLeft aria-hidden="true" />
-        返回账单查询
-      </a>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="break-all text-2xl font-bold">{bill.billNumber}</h1>
-        <Badge variant="secondary">{bill.type === "deposit" ? "押金" : "账期账单"}</Badge>
-        <Badge
-          variant="secondary"
-          className={
-            bill.status === "active"
-              ? "border-success/20 bg-success/10 text-success"
-              : "text-muted-foreground"
-          }
-        >
-          {bill.status === "active" ? "有效" : "作废"}
-        </Badge>
-      </div>
+    <section aria-label="账单概览" className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
         <div className="flex min-w-0 items-center gap-2">
           <span className="shrink-0 text-muted-foreground">合同</span>
@@ -130,7 +103,6 @@ export function BillDetailOverview({
           </div>
         ) : null}
       </div>
-      {children}
-    </header>
+    </section>
   );
 }

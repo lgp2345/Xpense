@@ -6,8 +6,11 @@ import {
   type RentalPropertyBillingPage,
   rentalPropertyBillingPermissions,
 } from "@xpense/shared";
-import { ArrowLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import {
+  SecondaryPageLayout,
+  type SecondaryPageNavigation,
+} from "@/components/layout/secondary-page-layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RentalFinanceApi } from "../../../services/rental-finance-api";
@@ -24,7 +27,7 @@ import {
 } from "./property-billing-model";
 import { PropertyBillingTree } from "./property-billing-tree";
 
-type Props = {
+type Props = SecondaryPageNavigation & {
   propertyId: string;
   organizationId: string;
   permissions: readonly PermissionKey[];
@@ -34,7 +37,20 @@ type Props = {
 };
 export function PropertyBillingPage(props: Props) {
   if (!rentalPropertyBillingPermissions.every((p) => props.permissions.includes(p)))
-    return <p role="alert">缺少房产出账权限。</p>;
+    return (
+      <SecondaryPageLayout
+        breadcrumbs={
+          props.breadcrumbs ?? [
+            { key: "properties", label: "房产管理" },
+            { key: "billing", label: "生成账单" },
+          ]
+        }
+        title="生成账单"
+        onBack={props.onBack}
+      >
+        <p role="alert">缺少房产出账权限。</p>
+      </SecondaryPageLayout>
+    );
   return (
     <PropertyBillingWorkbench key={`${props.organizationId}:${props.propertyId}`} {...props} />
   );
@@ -44,6 +60,10 @@ function PropertyBillingWorkbench({
   organizationId,
   api,
   onBack,
+  breadcrumbs = [
+    { key: "properties", label: "房产管理" },
+    { key: "billing", label: "生成账单" },
+  ],
   onNavigateContract,
 }: Props) {
   const client = useQueryClient();
@@ -93,74 +113,73 @@ function PropertyBillingWorkbench({
   };
   const nodes = buildPropertyBillingTree(query.data?.items ?? [], completed);
   return (
-    <section className="space-y-4 p-4 sm:p-6 lg:p-8">
-      <div className="flex gap-3 items-start">
-        <Button variant="ghost" size="icon" aria-label="返回房产列表" onClick={onBack}>
-          <ArrowLeft className="size-4" />
-        </Button>
-        <div className="min-w-0">
-          <h1 className="font-bold text-2xl">{context?.property.name ?? "房产"} · 生成账单</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            选择待出账空间，核对本期费用后生成账单。
-          </p>
-        </div>
-        <Button variant="outline" className="ml-auto shrink-0" onClick={() => void query.refetch()}>
+    <SecondaryPageLayout
+      breadcrumbs={breadcrumbs}
+      title={`${context?.property.name ?? "房产"} · 生成账单`}
+      description="选择待出账空间，核对本期费用后生成账单。"
+      onBack={onBack}
+      actions={
+        <Button variant="outline" onClick={() => void query.refetch()}>
           刷新列表
         </Button>
-      </div>
-      {refreshError ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          账单已生成，财务数据刷新失败，请稍后刷新。
-        </p>
-      ) : null}
-      {query.isError ? (
-        <div role="alert" className="border rounded-lg space-y-3 p-4">
-          <p>待出账空间读取失败，请重试。</p>
-          <Button variant="outline" onClick={() => void query.refetch()}>
-            重试
-          </Button>
-        </div>
-      ) : null}
-      {query.isPending ? (
-        <div
-          role="status"
-          aria-label="正在读取待出账空间"
-          className="border rounded-lg space-y-3 p-4"
-        >
-          {[0, 1, 2, 3].map((n) => (
-            <Skeleton key={n} className="h-10 w-full" />
-          ))}
-        </div>
-      ) : nodes.length ? (
-        <PropertyBillingTree
-          nodes={nodes}
-          today={context?.today ?? ""}
-          onNavigateContract={onNavigateContract}
-          onSelect={(candidate, button) => {
-            if (completed.some((row) => row.candidate.contractId === candidate.contractId)) return;
-            trigger.current = button;
-            setSelected(candidate);
-          }}
-        />
-      ) : query.isError ? null : (
-        <p className="border rounded-lg text-center text-sm text-muted-foreground p-8">
-          暂无可生成账单的空间
-        </p>
-      )}
-      {selected ? (
-        <PeriodBillSheet
-          key={propertyBillingIdentity(selected)}
-          api={api}
-          organizationId={organizationId}
-          contractId={selected.contractId}
-          open
-          spaceLabel={selected.path.map((n) => n.name).join(" / ")}
-          tenantNames={selected.tenantNames}
-          expectedPeriodStart={selected.period.periodStart}
-          onOpenChange={close}
-          onGenerated={generated}
-        />
-      ) : null}
-    </section>
+      }
+    >
+      <section className="space-y-4">
+        {refreshError ? (
+          <p role="status" className="text-sm text-muted-foreground">
+            账单已生成，财务数据刷新失败，请稍后刷新。
+          </p>
+        ) : null}
+        {query.isError ? (
+          <div role="alert" className="border rounded-lg space-y-3 p-4">
+            <p>待出账空间读取失败，请重试。</p>
+            <Button variant="outline" onClick={() => void query.refetch()}>
+              重试
+            </Button>
+          </div>
+        ) : null}
+        {query.isPending ? (
+          <div
+            role="status"
+            aria-label="正在读取待出账空间"
+            className="border rounded-lg space-y-3 p-4"
+          >
+            {[0, 1, 2, 3].map((n) => (
+              <Skeleton key={n} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : nodes.length ? (
+          <PropertyBillingTree
+            nodes={nodes}
+            today={context?.today ?? ""}
+            onNavigateContract={onNavigateContract}
+            onSelect={(candidate, button) => {
+              if (completed.some((row) => row.candidate.contractId === candidate.contractId))
+                return;
+              trigger.current = button;
+              setSelected(candidate);
+            }}
+          />
+        ) : query.isError ? null : (
+          <p className="border rounded-lg text-center text-sm text-muted-foreground p-8">
+            暂无可生成账单的空间
+          </p>
+        )}
+        {selected ? (
+          <PeriodBillSheet
+            key={propertyBillingIdentity(selected)}
+            api={api}
+            organizationId={organizationId}
+            contractId={selected.contractId}
+            open
+            spaceLabel={selected.path.map((n) => n.name).join(" / ")}
+            tenantNames={selected.tenantNames}
+            expectedPeriodStart={selected.period.periodStart}
+            onOpenChange={close}
+            onGenerated={generated}
+          />
+        ) : null}
+      </section>
+    </SecondaryPageLayout>
   );
 }

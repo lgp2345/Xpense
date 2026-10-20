@@ -1,12 +1,14 @@
-import { createFileRoute, lazyRouteComponent, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, lazyRouteComponent, redirect } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
 import { useStore } from "zustand";
 
 import type { RegisteredPageInput } from "@/components/layout/page-cache-host";
+import { BreadcrumbLink } from "@/components/ui/breadcrumb";
 import type {
   ContractFormPageInput,
   ContractFormSearch,
 } from "@/features/rental/contracts/contract-form-page";
+import { useSecondaryPageBack } from "@/hooks/use-secondary-page-back";
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
 import {
   defineRegisteredPage,
@@ -106,6 +108,9 @@ function RentalContractCreateRoutePage({
     (state) => state.currentOrganization?.id ?? "",
   );
   const navigate = Route.useNavigate();
+  const onBack = useSecondaryPageBack(
+    () => void navigate({ to: "/rentals/contracts", search: {}, replace: true }),
+  );
   const props = createRentalContractCreateRoutePageProps(
     { session, navigate, search },
     { organizationId, permissions },
@@ -113,6 +118,18 @@ function RentalContractCreateRoutePage({
 
   return (
     <ContractFormPage
+      onBack={onBack}
+      breadcrumbs={[
+        {
+          key: "contracts",
+          label: (
+            <BreadcrumbLink render={<Link to="/rentals/contracts" search={{}} />}>
+              合同管理
+            </BreadcrumbLink>
+          ),
+        },
+        { key: "current", label: "新建合同" },
+      ]}
       {...props}
       onNonDraft={(detail) =>
         void navigate({

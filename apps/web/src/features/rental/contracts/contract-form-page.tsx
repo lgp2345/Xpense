@@ -1,8 +1,12 @@
-import { useForm, useStore } from '@tanstack/react-form'
-import { useBlocker } from '@tanstack/react-router'
-import type { PermissionKey, RentalContractAvailability } from '@xpense/shared'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useForm, useStore } from "@tanstack/react-form";
+import { useBlocker } from "@tanstack/react-router";
+import type { PermissionKey, RentalContractAvailability } from "@xpense/shared";
+import { ArrowLeft, ArrowRight, FileText } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  SecondaryPageLayout,
+  type SecondaryPageNavigation,
+} from "@/components/layout/secondary-page-layout";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,59 +16,91 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import type { RentalApi } from '@/services/rental-api'
-import type { RentalFinanceApi } from '@/services/rental-finance-api'
-import { defaultContractChargeValues } from '../charges/contract-charge-form'
-import { ContractFieldErrorsContext, ContractFieldFocusContext } from './contract-field-feedback'
-import { ContractFormLayout } from './contract-form-layout'
-import { type ContractFormValues, defaultContractFormValues } from './contract-form-schema'
-import { ContractLocalReviewStep } from './steps/contract-local-review-step'
-import { ContractPartiesStep } from './steps/contract-parties-step'
-import { ContractReviewStep } from './steps/contract-review-step'
-import { ContractSpacesStep } from './steps/contract-spaces-step'
-import { ContractTermsStep } from './steps/contract-terms-step'
-import { useContractDraft } from './use-contract-draft'
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { RentalApi } from "@/services/rental-api";
+import type { RentalFinanceApi } from "@/services/rental-finance-api";
+import { defaultContractChargeValues } from "../charges/contract-charge-form";
+import { ContractFieldErrorsContext, ContractFieldFocusContext } from "./contract-field-feedback";
+import { ContractFormLayout } from "./contract-form-layout";
+import { type ContractFormValues, defaultContractFormValues } from "./contract-form-schema";
+import { ContractLocalReviewStep } from "./steps/contract-local-review-step";
+import { ContractPartiesStep } from "./steps/contract-parties-step";
+import { ContractReviewStep } from "./steps/contract-review-step";
+import { ContractSpacesStep } from "./steps/contract-spaces-step";
+import { ContractTermsStep } from "./steps/contract-terms-step";
+import { useContractDraft } from "./use-contract-draft";
 
 export type ContractFormSearch = {
-  draftId?: string
-  propertyId?: string
-  spaceIds?: string[]
-}
+  draftId?: string;
+  propertyId?: string;
+  spaceIds?: string[];
+};
 
 export type ContractFormNavigate = (
   options:
     | {
-        search: { draftId: string }
-        replace: true
+        search: { draftId: string };
+        replace: true;
       }
     | {
-        to: '/rentals/contracts/$contractId'
-        params: { contractId: string }
-        replace: true
+        to: "/rentals/contracts/$contractId";
+        params: { contractId: string };
+        replace: true;
       },
-) => Promise<unknown> | unknown
+) => Promise<unknown> | unknown;
 
 export type ContractFormPageInput = {
-  api: RentalApi
-  financeApi?: RentalFinanceApi
-  organizationId: string
-  permissions: readonly PermissionKey[]
-  canCreate: boolean
-  navigate: ContractFormNavigate
-  search: ContractFormSearch
-}
+  api: RentalApi;
+  financeApi?: RentalFinanceApi;
+  organizationId: string;
+  permissions: readonly PermissionKey[];
+  canCreate: boolean;
+  navigate: ContractFormNavigate;
+  search: ContractFormSearch;
+};
 
-export type ContractFormPageProps = ContractFormPageInput & {
-  onNonDraft?: (
-    detail: Parameters<NonNullable<Parameters<typeof useContractDraft>[0]['onNonDraft']>>[0],
-  ) => void
-}
+export type ContractFormPageProps = ContractFormPageInput &
+  SecondaryPageNavigation & {
+    onNonDraft?: (
+      detail: Parameters<NonNullable<Parameters<typeof useContractDraft>[0]["onNonDraft"]>>[0],
+    ) => void;
+  };
 
 export function ContractFormPage({
+  onBack,
+  breadcrumbs = [
+    { key: "contracts", label: "合同管理" },
+    { key: "create", label: "新建合同" },
+  ],
+  ...props
+}: ContractFormPageProps) {
+  const isDraft = Boolean(props.search.draftId);
+  return (
+    <SecondaryPageLayout
+      breadcrumbs={breadcrumbs}
+      title="新建合同"
+      onBack={onBack}
+      description={
+        isDraft
+          ? "继续填写已有草稿，确认前会再次检查空间可用性。"
+          : "按步骤填写合同资料，复核后创建合同。提交前的内容仅保留在当前页面。"
+      }
+      actions={
+        <span className="inline-flex shrink-0 items-center gap-2 rounded-md border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground">
+          <FileText aria-hidden="true" className="size-3.5" />
+          {isDraft ? "继续草稿" : "尚未提交"}
+        </span>
+      }
+    >
+      <ContractFormContent {...props} />
+    </SecondaryPageLayout>
+  );
+}
+
+function ContractFormContent({
   api,
   financeApi,
   organizationId,
@@ -74,77 +110,84 @@ export function ContractFormPage({
   search,
   onNonDraft,
 }: ContractFormPageProps) {
-  const canEditCharges = permissions.includes('rental_charges:update') && (!search.draftId || permissions.includes('rental_charges:read'))
-  const canEditMeters = permissions.includes('rental_meters:update') && (!search.draftId || permissions.includes('rental_meters:read'))
-  const newValues = (propertyId?: string) => ({ ...defaultContractFormValues(propertyId), chargeSetup: canEditCharges ? defaultContractChargeValues() : null })
-  const canRead = permissions.includes('rental_contracts:read')
-  const canUpdate = permissions.includes('rental_contracts:update')
+  const canEditCharges =
+    permissions.includes("rental_charges:update") &&
+    (!search.draftId || permissions.includes("rental_charges:read"));
+  const canEditMeters =
+    permissions.includes("rental_meters:update") &&
+    (!search.draftId || permissions.includes("rental_meters:read"));
+  const newValues = (propertyId?: string) => ({
+    ...defaultContractFormValues(propertyId),
+    chargeSetup: canEditCharges ? defaultContractChargeValues() : null,
+  });
+  const canRead = permissions.includes("rental_contracts:read");
+  const canUpdate = permissions.includes("rental_contracts:update");
   const form = useForm({
     defaultValues: { contract: newValues(search.propertyId) },
-  })
-  const values = useStore(form.store, (state) => state.values.contract)
+  });
+  const values = useStore(form.store, (state) => state.values.contract);
   const setValues = useCallback(
-    (next: ContractFormValues) => form.setFieldValue('contract', next),
+    (next: ContractFormValues) => form.setFieldValue("contract", next),
     [form],
-  )
-  const valuesRef = useRef(values)
-  valuesRef.current = values
+  );
+  const valuesRef = useRef(values);
+  valuesRef.current = values;
   const [propertyValidationGeneration, setPropertyValidationGeneration] = useState<number | null>(
     null,
-  )
-  const [propertyValidationError, setPropertyValidationError] = useState<string | null>(null)
-  const [nonDraft, setNonDraft] = useState<string | null>(null)
-  const hydratedDraftId = useRef<string | undefined>(undefined)
-  const completedContractId = useRef<string | undefined>(undefined)
-  const [selectionNames, setSelectionNames] = useState<Record<string, string>>({})
+  );
+  const [propertyValidationError, setPropertyValidationError] = useState<string | null>(null);
+  const [nonDraft, setNonDraft] = useState<string | null>(null);
+  const hydratedDraftId = useRef<string | undefined>(undefined);
+  const completedContractId = useRef<string | undefined>(undefined);
+  const [selectionNames, setSelectionNames] = useState<Record<string, string>>({});
   const captureNames = useCallback((names: Record<string, string>) => {
-    setSelectionNames((current) => ({ ...current, ...names }))
-  }, [])
-  const scope = `${organizationId}:${search.draftId ?? ''}:${search.propertyId ?? ''}:${canRead}:${canUpdate}:${canCreate}`
-  const scopeRef = useRef({ key: scope, generation: 0 })
+    setSelectionNames((current) => ({ ...current, ...names }));
+  }, []);
+  const scope = `${organizationId}:${search.draftId ?? ""}:${search.propertyId ?? ""}:${canRead}:${canUpdate}:${canCreate}`;
+  const scopeRef = useRef({ key: scope, generation: 0 });
   if (scopeRef.current.key !== scope) {
-    scopeRef.current = { key: scope, generation: scopeRef.current.generation + 1 }
+    scopeRef.current = { key: scope, generation: scopeRef.current.generation + 1 };
   }
-  const propertyValidationPending = propertyValidationGeneration === scopeRef.current.generation
-  const seenBaselineVersion = useRef(0)
-  const seenCanonicalResetVersion = useRef(0)
+  const propertyValidationPending = propertyValidationGeneration === scopeRef.current.generation;
+  const seenBaselineVersion = useRef(0);
+  const seenCanonicalResetVersion = useRef(0);
   // biome-ignore lint/correctness/useExhaustiveDependencies: 组织或路由变化时重置整个表单会话
   useEffect(() => {
-    setNonDraft(null)
-    hydratedDraftId.current = undefined
-    seenBaselineVersion.current = 0
-    seenCanonicalResetVersion.current = 0
-    setValues(newValues(search.propertyId))
-    setSelectionNames({})
-    setPropertyValidationError(null)
-    setPropertyValidationGeneration(null)
-    completedContractId.current = undefined
-  }, [organizationId, search.draftId, search.propertyId])
+    setNonDraft(null);
+    hydratedDraftId.current = undefined;
+    seenBaselineVersion.current = 0;
+    seenCanonicalResetVersion.current = 0;
+    setValues(newValues(search.propertyId));
+    setSelectionNames({});
+    setPropertyValidationError(null);
+    setPropertyValidationGeneration(null);
+    completedContractId.current = undefined;
+  }, [organizationId, search.draftId, search.propertyId]);
   const handleConfirmed = useCallback(
     (id: string) => {
-      completedContractId.current = id
+      completedContractId.current = id;
       void navigate({
-        to: '/rentals/contracts/$contractId',
+        to: "/rentals/contracts/$contractId",
         params: { contractId: id },
         replace: true,
-      })
+      });
     },
     [navigate],
-  )
+  );
   const handleNonDraft = useCallback(
-    (detail: Parameters<NonNullable<Parameters<typeof useContractDraft>[0]['onNonDraft']>>[0]) => {
-      setNonDraft(detail.id)
-      onNonDraft?.(detail)
+    (detail: Parameters<NonNullable<Parameters<typeof useContractDraft>[0]["onNonDraft"]>>[0]) => {
+      setNonDraft(detail.id);
+      onNonDraft?.(detail);
     },
     [onNonDraft],
-  )
+  );
   const draft = useContractDraft({
     api,
     financeApi,
     canEditCharges,
     canEditMeters,
-    canReadCharges: permissions.includes('rental_charges:read'),
-    canReadMeters: permissions.includes('rental_meters:read'),
+    canReadCharges: permissions.includes("rental_charges:read"),
+    canReadMeters: permissions.includes("rental_meters:read"),
     organizationId,
     draftId: search.draftId,
     seed: search.propertyId ? { propertyId: search.propertyId, spaces: [] } : undefined,
@@ -153,37 +196,44 @@ export function ContractFormPage({
     canUpdate,
     onConfirmed: handleConfirmed,
     onNonDraft: handleNonDraft,
-  })
+  });
   const updateValues = useCallback(
     (next: ContractFormValues) => {
-      if (next.chargeSetup && valuesRef.current.spaces.map(({ spaceId }) => spaceId).join(',') !== next.spaces.map(({ spaceId }) => spaceId).join(',')) {
-        next = { ...next, chargeSetup: { ...next.chargeSetup, waterReading: '', electricityReading: '' } }
+      if (
+        next.chargeSetup &&
+        valuesRef.current.spaces.map(({ spaceId }) => spaceId).join(",") !==
+          next.spaces.map(({ spaceId }) => spaceId).join(",")
+      ) {
+        next = {
+          ...next,
+          chargeSetup: { ...next.chargeSetup, waterReading: "", electricityReading: "" },
+        };
       }
-      setValues(next)
-      draft.revalidate(next)
+      setValues(next);
+      draft.revalidate(next);
     },
     [setValues, draft.revalidate],
-  )
+  );
 
   useEffect(() => {
-    if (!draft.serverDraft || search.draftId !== draft.serverDraft.id) return
+    if (!draft.serverDraft || search.draftId !== draft.serverDraft.id) return;
     if (draft.canonicalResetVersion !== seenCanonicalResetVersion.current) {
-      seenCanonicalResetVersion.current = draft.canonicalResetVersion
-      setValues(draft.initialValues)
-      hydratedDraftId.current = draft.serverDraft.id
-      return
+      seenCanonicalResetVersion.current = draft.canonicalResetVersion;
+      setValues(draft.initialValues);
+      hydratedDraftId.current = draft.serverDraft.id;
+      return;
     }
     if (draft.baselineVersion !== seenBaselineVersion.current) {
-      seenBaselineVersion.current = draft.baselineVersion
+      seenBaselineVersion.current = draft.baselineVersion;
       if (hydratedDraftId.current !== draft.serverDraft.id || !draft.isDirty(values)) {
-        setValues(draft.initialValues)
+        setValues(draft.initialValues);
       }
-      hydratedDraftId.current = draft.serverDraft.id
-      return
+      hydratedDraftId.current = draft.serverDraft.id;
+      return;
     }
     if (hydratedDraftId.current !== draft.serverDraft.id) {
-      setValues(draft.initialValues)
-      hydratedDraftId.current = draft.serverDraft.id
+      setValues(draft.initialValues);
+      hydratedDraftId.current = draft.serverDraft.id;
     }
   }, [
     draft.initialValues,
@@ -194,108 +244,109 @@ export function ContractFormPage({
     search.draftId,
     setValues,
     values,
-  ])
+  ]);
 
   const hydrationPending = Boolean(
     search.draftId && draft.serverDraft && hydratedDraftId.current !== draft.serverDraft.id,
-  )
-  const dirty = hydrationPending ? false : draft.isDirty(values)
-  const hasUnsavedWork = !hydrationPending && (dirty || draft.operation !== 'idle')
+  );
+  const dirty = hydrationPending ? false : draft.isDirty(values);
+  const hasUnsavedWork = !hydrationPending && (dirty || draft.operation !== "idle");
   const shouldBlockNavigation = useCallback(
     (args: { action?: string; next?: { fullPath?: string; search?: unknown } }) => {
-      if (completedContractId.current && args.next?.fullPath === '/rentals/contracts/$contractId')
-        return false
-      return hasUnsavedWork
+      if (completedContractId.current && args.next?.fullPath === "/rentals/contracts/$contractId")
+        return false;
+      return hasUnsavedWork;
     },
     [hasUnsavedWork],
-  )
+  );
   const blocker = useBlocker({
     shouldBlockFn: shouldBlockNavigation,
     enableBeforeUnload: hasUnsavedWork,
     withResolver: true,
-  })
-  const blockedFocusRef = useRef<HTMLElement | null>(null)
-  const previousStepRef = useRef(draft.step)
+  });
+  const blockedFocusRef = useRef<HTMLElement | null>(null);
+  const previousStepRef = useRef(draft.step);
   useEffect(() => {
-    if (previousStepRef.current === draft.step) return
-    previousStepRef.current = draft.step
+    if (previousStepRef.current === draft.step) return;
+    previousStepRef.current = draft.step;
     const headingId = [
-      'contract-spaces-title',
-      'contract-parties-title',
-      'contract-terms-title',
-      'contract-review-title',
-    ][draft.step]
-    const heading = headingId ? document.getElementById(headingId) : null
+      "contract-spaces-title",
+      "contract-parties-title",
+      "contract-terms-title",
+      "contract-review-title",
+    ][draft.step];
+    const heading = headingId ? document.getElementById(headingId) : null;
     if (heading instanceof HTMLElement) {
-      heading.tabIndex = -1
-      heading.focus()
+      heading.tabIndex = -1;
+      heading.focus();
     }
-  }, [draft.step])
+  }, [draft.step]);
 
-  if (!canCreate || !canRead || !canUpdate) return <PermissionNotice />
-  if (!draft.requestReady) return <ApiUnavailableNotice />
-  if (draft.isLoading) return <Loading />
-  if (draft.loadError) return <LoadError message={draft.error?.message} onRetry={draft.retryLoad} />
-  if (hydrationPending) return <Loading />
-  if (nonDraft) return <NonDraftNotice contractId={nonDraft} />
+  if (!canCreate || !canRead || !canUpdate) return <PermissionNotice />;
+  if (!draft.requestReady) return <ApiUnavailableNotice />;
+  if (draft.isLoading) return <Loading />;
+  if (draft.loadError)
+    return <LoadError message={draft.error?.message} onRetry={draft.retryLoad} />;
+  if (hydrationPending) return <Loading />;
+  if (nonDraft) return <NonDraftNotice contractId={nonDraft} />;
 
-  const step = draft.step
-  const busy = draft.operation !== 'idle' || propertyValidationPending
-  const creationPending = !search.draftId && draft.operation === 'confirming'
+  const step = draft.step;
+  const busy = draft.operation !== "idle" || propertyValidationPending;
+  const creationPending = !search.draftId && draft.operation === "confirming";
   async function next() {
     if (step === 0 && !draft.draftId) {
-      const requestScope = scopeRef.current.generation
-      const propertyId = values.propertyId
-      setPropertyValidationError(null)
+      const requestScope = scopeRef.current.generation;
+      const propertyId = values.propertyId;
+      setPropertyValidationError(null);
       if (!propertyId) {
-        await draft.saveAndNext(values)
-        return
+        await draft.saveAndNext(values);
+        return;
       }
       if (!api.getProperty) {
-        setPropertyValidationError('房产验证失败，请稍后重试。')
-        return
+        setPropertyValidationError("房产验证失败，请稍后重试。");
+        return;
       }
-      setPropertyValidationGeneration(requestScope)
+      setPropertyValidationGeneration(requestScope);
       try {
-        const property = await api.getProperty(propertyId)
+        const property = await api.getProperty(propertyId);
         if (
           scopeRef.current.generation !== requestScope ||
           valuesRef.current.propertyId !== propertyId ||
           property.id !== propertyId
         )
-          return
+          return;
         if (!property.isActive) {
-          setPropertyValidationError('房产不可用，请重新选择启用房产。')
-          return
+          setPropertyValidationError("房产不可用，请重新选择启用房产。");
+          return;
         }
-        await draft.saveAndNext(values)
+        await draft.saveAndNext(values);
       } catch {
         if (scopeRef.current.generation === requestScope)
-          setPropertyValidationError('房产验证失败，请稍后重试。')
+          setPropertyValidationError("房产验证失败，请稍后重试。");
       } finally {
-        if (scopeRef.current.generation === requestScope) setPropertyValidationGeneration(null)
+        if (scopeRef.current.generation === requestScope) setPropertyValidationGeneration(null);
       }
-      return
+      return;
     }
-    await draft.saveAndNext(values)
+    await draft.saveAndNext(values);
   }
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8" aria-busy={busy}>
+    <main className="max-w-6xl space-y-6" aria-busy={busy}>
       <ContractFormLayout step={step} isDraft={Boolean(search.draftId)}>
-        {draft.error && draft.error.kind !== 'availability' && !draft.error.fieldErrors ? (
+        {draft.error && draft.error.kind !== "availability" && !draft.error.fieldErrors ? (
           <ErrorSummary
             key={propertyValidationError ?? draft.error?.message}
-            message={propertyValidationError ?? draft.error?.message ?? '操作失败，请稍后重试。'}
+            message={propertyValidationError ?? draft.error?.message ?? "操作失败，请稍后重试。"}
             onRetry={
-              draft.error?.kind === 'save' && draft.canRetrySave
+              draft.error?.kind === "save" && draft.canRetrySave
                 ? () => void draft.retrySave(values)
                 : undefined
             }
             onEditTerms={
-              step === 0 && draft.error?.kind === 'confirm' ? () => draft.setStep(2) : undefined
+              step === 0 && draft.error?.kind === "confirm" ? () => draft.setStep(2) : undefined
             }
             onEditSpaces={
-              step === 0 && draft.error?.kind === 'confirm' ? () => draft.setStep(0) : undefined
+              step === 0 && draft.error?.kind === "confirm" ? () => draft.setStep(0) : undefined
             }
           />
         ) : null}
@@ -306,7 +357,7 @@ export function ContractFormPage({
           />
         ) : null}
         <Card className="gap-0 overflow-hidden py-0 shadow-none">
-          <CardContent className="p-4 sm:p-6 lg:p-8">
+          <CardContent className="space-y-4">
             <ContractFieldErrorsContext
               value={{
                 ...draft.error?.fieldErrors,
@@ -339,7 +390,11 @@ export function ContractFormPage({
                       onChange={updateValues}
                     />
                   ) : step === 2 ? (
-                    <ContractTermsStep values={values} onChange={updateValues} canEditMeters={canEditMeters} />
+                    <ContractTermsStep
+                      values={values}
+                      onChange={updateValues}
+                      canEditMeters={canEditMeters}
+                    />
                   ) : !search.draftId ? (
                     <ContractLocalReviewStep
                       values={values}
@@ -355,7 +410,7 @@ export function ContractFormPage({
                       availability={draft.availability?.result ?? null}
                       dirty={dirty}
                       confirming={
-                        draft.operation === 'checking' || draft.operation === 'confirming'
+                        draft.operation === "checking" || draft.operation === "confirming"
                       }
                       onConfirm={() => void draft.checkAndConfirm(values)}
                       onEdit={(nextStep) => draft.setStep(nextStep)}
@@ -384,13 +439,13 @@ export function ContractFormPage({
               >
                 {busy
                   ? search.draftId
-                    ? '保存中...'
-                    : '校验中...'
+                    ? "保存中..."
+                    : "校验中..."
                   : !search.draftId
-                    ? '下一步'
+                    ? "下一步"
                     : step === 0
-                      ? '保存空间并下一步'
-                      : '保存并继续'}
+                      ? "保存空间并下一步"
+                      : "保存并继续"}
                 <ArrowRight aria-hidden="true" className="size-4" />
               </Button>
             </div>
@@ -399,36 +454,36 @@ export function ContractFormPage({
         {busy ? (
           <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
             {search.draftId
-              ? '正在保存合同草稿，请稍候。'
+              ? "正在保存合同草稿，请稍候。"
               : creationPending
-                ? '正在创建合同，请稍候。'
-                : '正在校验合同资料，请稍候。'}
+                ? "正在创建合同，请稍候。"
+                : "正在校验合同资料，请稍候。"}
           </p>
         ) : null}
       </ContractFormLayout>
-      {blocker.status === 'blocked' ? (
+      {blocker.status === "blocked" ? (
         <AlertDialog open>
           <AlertDialogContent
             initialFocus={() => {
               if (!blockedFocusRef.current && document.activeElement instanceof HTMLElement) {
-                blockedFocusRef.current = document.activeElement
+                blockedFocusRef.current = document.activeElement;
               }
-              return false
+              return false;
             }}
             finalFocus={() => {
-              const target = blockedFocusRef.current
-              blockedFocusRef.current = null
-              return target ?? false
+              const target = blockedFocusRef.current;
+              blockedFocusRef.current = null;
+              return target ?? false;
             }}
           >
             <AlertDialogHeader>
               <AlertDialogTitle>离开合同创建？</AlertDialogTitle>
               <AlertDialogDescription>
                 {draft.draftId
-                  ? '当前表单有未保存内容或正在保存，离开后可以从草稿继续。'
+                  ? "当前表单有未保存内容或正在保存，离开后可以从草稿继续。"
                   : creationPending
-                    ? '正在创建合同，请等待提交完成后再离开。'
-                    : '合同尚未提交，离开将丢弃当前填写内容。'}
+                    ? "正在创建合同，请等待提交完成后再离开。"
+                    : "合同尚未提交，离开将丢弃当前填写内容。"}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -436,19 +491,19 @@ export function ContractFormPage({
               <AlertDialogAction
                 disabled={creationPending}
                 onClick={() => {
-                  if (creationPending) return
-                  draft.cancelSession()
-                  blocker.proceed()
+                  if (creationPending) return;
+                  draft.cancelSession();
+                  blocker.proceed();
                 }}
               >
-                {draft.draftId ? '离开并保留草稿' : '离开并丢弃'}
+                {draft.draftId ? "离开并保留草稿" : "离开并丢弃"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       ) : null}
     </main>
-  )
+  );
 }
 
 function ErrorSummary({
@@ -457,15 +512,15 @@ function ErrorSummary({
   onEditTerms,
   onEditSpaces,
 }: {
-  message: string
-  onRetry?: () => void
-  onEditTerms?: () => void
-  onEditSpaces?: () => void
+  message: string;
+  onRetry?: () => void;
+  onEditTerms?: () => void;
+  onEditSpaces?: () => void;
 }) {
-  const summaryRef = useRef<HTMLDivElement>(null)
+  const summaryRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    summaryRef.current?.focus()
-  }, [])
+    summaryRef.current?.focus();
+  }, []);
   return (
     <div
       ref={summaryRef}
@@ -490,33 +545,33 @@ function ErrorSummary({
         </Button>
       ) : null}
     </div>
-  )
+  );
 }
 function PermissionNotice() {
   return (
-    <main className="p-4 sm:p-6 lg:p-8">
+    <main className="space-y-4">
       <p className="bg-muted border rounded-md text-sm text-muted-foreground p-4">
         你没有完成合同创建所需的权限。
       </p>
     </main>
-  )
+  );
 }
 function ApiUnavailableNotice() {
   return (
-    <main className="p-4 sm:p-6 lg:p-8">
+    <main className="space-y-4">
       <p className="bg-muted border rounded-md text-sm text-muted-foreground p-4">
         合同服务暂不可用，请稍后重试。
       </p>
     </main>
-  )
+  );
 }
 
 function AvailabilitySummary({
   availability,
   onEditTerms,
 }: {
-  availability: RentalContractAvailability
-  onEditTerms: () => void
+  availability: RentalContractAvailability;
+  onEditTerms: () => void;
 }) {
   return (
     <div
@@ -533,15 +588,11 @@ function AvailabilitySummary({
         返回修改条款
       </Button>
     </div>
-  )
+  );
 }
 function Loading() {
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8" aria-busy="true">
-      <div className="space-y-3 border-b pb-6">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-5 w-full max-w-lg" />
-      </div>
+    <main className="max-w-6xl space-y-6" aria-busy="true">
       <div className="grid gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
         <div className="grid grid-cols-4 gap-3 lg:grid-cols-1">
           {[0, 1, 2, 3].map((step) => (
@@ -558,41 +609,40 @@ function Loading() {
         </Card>
       </div>
     </main>
-  )
+  );
 }
 function LoadError({ message, onRetry }: { message?: string; onRetry: () => void }) {
   return (
-    <main className="space-y-4 p-4 sm:p-6 lg:p-8">
+    <main className="space-y-4">
       <div
         role="alert"
         className="border rounded-md bg-destructive/10 border-destructive/30 text-sm text-destructive p-3"
       >
-        {message ?? '合同草稿加载失败。'}
+        {message ?? "合同草稿加载失败。"}
         <Button variant="link" className="ml-2 px-0" onClick={onRetry}>
           重试
         </Button>
       </div>
     </main>
-  )
+  );
 }
 function NonDraftNotice({ contractId }: { contractId: string }) {
   return (
-    <main className="p-4 sm:p-6 lg:p-8">
+    <main className="space-y-4">
       <div role="alert" className="bg-muted border rounded-md text-sm p-4">
-        该合同已不是草稿，无法继续编辑。
-        修正计费相关信息可能作废受影响账单，需要重新预览补齐。
+        该合同已不是草稿，无法继续编辑。 修正计费相关信息可能作废受影响账单，需要重新预览补齐。
         <a className="ml-2 underline" href={`/rentals/contracts/${contractId}`}>
           查看合同详情
         </a>
       </div>
     </main>
-  )
+  );
 }
 
 export function canCreateRentalContract(permissions: readonly PermissionKey[]): boolean {
   return (
-    permissions.includes('rental_contracts:create') &&
-    permissions.includes('rental_contracts:read') &&
-    permissions.includes('rental_contracts:update')
-  )
+    permissions.includes("rental_contracts:create") &&
+    permissions.includes("rental_contracts:read") &&
+    permissions.includes("rental_contracts:update")
+  );
 }

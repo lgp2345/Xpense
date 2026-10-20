@@ -1,13 +1,8 @@
-import {
-  createFileRoute,
-  Link,
-  lazyRouteComponent,
-  useCanGoBack,
-  useRouter,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, lazyRouteComponent } from "@tanstack/react-router";
 import { useStore } from "zustand";
 import { BreadcrumbLink } from "@/components/ui/breadcrumb";
 import type { PropertyDetailSearch } from "@/features/rental/spaces/property-detail-search";
+import { useSecondaryPageBack } from "@/hooks/use-secondary-page-back";
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
 import {
   defineRegisteredPage,
@@ -70,8 +65,9 @@ function PropertyDetailRoutePage({
     (state) => state.currentOrganization?.id ?? "",
   );
   const navigate = Route.useNavigate();
-  const router = useRouter();
-  const canGoBack = useCanGoBack();
+  const onBack = useSecondaryPageBack(
+    () => void navigate({ to: "/rentals/properties", search: {}, replace: true }),
+  );
 
   if (search.view === "billing")
     return (
@@ -80,7 +76,18 @@ function PropertyDetailRoutePage({
         propertyId={propertyId}
         organizationId={organizationId}
         permissions={permissions}
-        onBack={() => void navigate({ to: "/rentals/properties", search: {} })}
+        onBack={onBack}
+        breadcrumbs={[
+          {
+            key: "properties",
+            label: (
+              <BreadcrumbLink render={<Link to="/rentals/properties" search={{}} />}>
+                房产管理
+              </BreadcrumbLink>
+            ),
+          },
+          { key: "billing", label: "生成账单" },
+        ]}
         onNavigateContract={(contractId) =>
           void navigate({ to: "/rentals/contracts/$contractId", params: { contractId } })
         }
@@ -89,10 +96,7 @@ function PropertyDetailRoutePage({
 
   return (
     <PropertyDetailPage
-      onBack={() => {
-        if (canGoBack) router.history.back();
-        else void navigate({ to: "/rentals/properties", search: {}, replace: true });
-      }}
+      onBack={onBack}
       breadcrumbs={[
         {
           key: "properties",

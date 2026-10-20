@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import type { PermissionKey } from "@xpense/shared";
+import type { ReactNode } from "react";
+import {
+  SecondaryPageLayout,
+  type SecondaryPageNavigation,
+} from "@/components/layout/secondary-page-layout";
 import { Button } from "@/components/ui/button";
 import type { RentalFinanceApi } from "../../../services/rental-finance-api";
 import { rentalFinanceKeys } from "../../../services/rental-finance-query";
@@ -14,7 +19,13 @@ export function SettlementPage({
   contractId,
   permissions,
   api,
-}: {
+  onBack,
+  breadcrumbs = [
+    { key: "contracts", label: "合同管理" },
+    { key: "contract", label: "合同详情" },
+    { key: "settlement", label: "退租结算" },
+  ],
+}: SecondaryPageNavigation & {
   organizationId: string;
   contractId: string;
   permissions: readonly PermissionKey[];
@@ -27,37 +38,36 @@ export function SettlementPage({
     enabled: Boolean(canRead && organizationId && contractId),
   });
 
+  const renderPage = (children: ReactNode) => (
+    <SecondaryPageLayout
+      breadcrumbs={breadcrumbs}
+      title="退租结算"
+      description="结算确认与实际收退款分别登记；最终金额由服务端预览。"
+      onBack={onBack}
+    >
+      {children}
+    </SecondaryPageLayout>
+  );
   if (!canRead)
-    return (
-      <main className="p-4">
+    return renderPage(
+      <main>
         <p>你没有查看退租结算的权限。</p>
-      </main>
+      </main>,
     );
-  if (settlementQuery.isPending)
-    return (
-      <main className="p-4" role="status">
-        正在读取退租结算…
-      </main>
-    );
+  if (settlementQuery.isPending) return renderPage(<main role="status">正在读取退租结算…</main>);
   if (settlementQuery.isError)
-    return (
-      <main className="space-y-3 p-4">
+    return renderPage(
+      <main className="space-y-3">
         <p role="alert">退租结算读取失败。</p>
         <Button variant="outline" onClick={() => void settlementQuery.refetch()}>
           重试
         </Button>
-      </main>
+      </main>,
     );
 
   const settlement = settlementQuery.data.settlement;
-  return (
-    <main className="mx-auto w-full max-w-5xl space-y-5 p-4 sm:p-6 lg:p-8">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-bold">退租结算</h1>
-        <p className="text-sm text-muted-foreground">
-          结算确认与实际收退款分别登记；最终金额由服务端预览。
-        </p>
-      </header>
+  return renderPage(
+    <main className="max-w-5xl space-y-5">
       {settlement ? (
         <>
           <section className="space-y-2 rounded-lg border p-4" aria-label="最终费用">
@@ -90,6 +100,6 @@ export function SettlementPage({
         />
       )}
       <SettlementHistory organizationId={organizationId} contractId={contractId} api={api} />
-    </main>
+    </main>,
   );
 }

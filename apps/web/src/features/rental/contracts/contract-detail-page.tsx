@@ -1,7 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import type { UseNavigateResult } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
-import { ArrowLeft, Building2, CalendarClock } from "lucide-react";
+import { Building2, CalendarClock } from "lucide-react";
+
+import type { ReactNode } from "react";
+import {
+  SecondaryPageLayout,
+  type SecondaryPageNavigation,
+} from "@/components/layout/secondary-page-layout";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,7 +38,12 @@ export function ContractDetailPage({
   permissions,
   search,
   navigate,
-}: {
+  onBack,
+  breadcrumbs = [
+    { key: "contracts", label: "合同管理" },
+    { key: "detail", label: "合同详情" },
+  ],
+}: SecondaryPageNavigation & {
   api: RentalApi;
   billsApi?: RentalBillsApi;
   financeApi?: RentalFinanceApi;
@@ -47,81 +58,45 @@ export function ContractDetailPage({
     ...rentalQueryOptions.contract(api, organizationId, contractId),
     enabled: canRead && Boolean(organizationId && contractId),
   });
+  const contract = canRead && query.isSuccess ? query.data : undefined;
+  const renderPage = (children: ReactNode, actions?: ReactNode) => (
+    <SecondaryPageLayout
+      breadcrumbs={breadcrumbs}
+      title={contract?.contractNumber ?? "合同详情"}
+      onBack={onBack}
+      status={contract ? <ContractStatusBadge status={contract.displayStatus} /> : null}
+      description={
+        contract ? (
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Building2 aria-hidden="true" className="size-4 shrink-0" />
+              <span className="break-words">{contract.propertyName}</span>
+            </span>
+            <span className="min-w-0 break-words">
+              外部编号：{contract.externalContractNumber ?? "无外部合同编号"}
+            </span>
+          </div>
+        ) : null
+      }
+      actions={actions}
+    >
+      {children}
+    </SecondaryPageLayout>
+  );
   if (!canRead)
-    return (
-      <main className="p-4 sm:p-6 lg:p-8">
+    return renderPage(
+      <main className="space-y-3">
         <p className="rounded-lg border bg-muted p-4 text-sm text-muted-foreground">
           你没有查看合同的权限。
         </p>
-      </main>
+      </main>,
     );
-  if (query.isPending) return <LoadingDetail />;
-  if (query.isError) return <DetailError error={query.error} retry={() => void query.refetch()} />;
-  const contract = query.data;
+  if (query.isPending) return renderPage(<LoadingDetail />);
+  if (query.isError)
+    return renderPage(<DetailError error={query.error} retry={() => void query.refetch()} />);
   if (!contract) return null;
-  return (
-    <main className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="space-y-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2 text-muted-foreground hover:text-foreground"
-          onClick={() =>
-            void navigate?.({ to: "/rentals/contracts" as never, search: search as never })
-          }
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          返回合同列表
-        </Button>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="min-w-0 break-words text-2xl font-bold tracking-tight">
-                {contract.contractNumber}
-              </h1>
-              <ContractStatusBadge status={contract.displayStatus} />
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
-              <span className="flex min-w-0 items-center gap-1.5">
-                <Building2 aria-hidden="true" className="size-4 shrink-0" />
-                <span className="break-words">{contract.propertyName}</span>
-              </span>
-              <span className="min-w-0 break-words">
-                外部编号：{contract.externalContractNumber ?? "无外部合同编号"}
-              </span>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <ContractActions
-              key={`${organizationId}:${contract.id}`}
-              api={api}
-              billsApi={billsApi}
-              organizationId={organizationId}
-              contract={contract}
-              permissions={permissions}
-              search={search}
-              navigate={navigate}
-            />
-            {permissions.includes("rental_settlements:read") &&
-            (contract.hasScheduledTermination ||
-              contract.lifecycleStatus === "terminated" ||
-              contract.lifecycleStatus === "cancelled" ||
-              contract.displayStatus === "expired") ? (
-              <Button
-                variant="outline"
-                onClick={() =>
-                  void navigate?.({
-                    to: "/rentals/settlements/$contractId",
-                    params: { contractId: contract.id },
-                  })
-                }
-              >
-                查看退租结算
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </header>
+  return renderPage(
+    <main className="space-y-6">
       {contract.hasScheduledTermination ? (
         <div
           role="status"
@@ -180,13 +155,42 @@ export function ContractDetailPage({
         <DepositSection contract={contract} />
         <LifecycleSection contract={contract} />
       </div>
-    </main>
+    </main>,
+    <div className="flex flex-wrap gap-2">
+      <ContractActions
+        key={`${organizationId}:${contract.id}`}
+        api={api}
+        billsApi={billsApi}
+        organizationId={organizationId}
+        contract={contract}
+        permissions={permissions}
+        search={search}
+        navigate={navigate}
+      />
+      {permissions.includes("rental_settlements:read") &&
+      (contract.hasScheduledTermination ||
+        contract.lifecycleStatus === "terminated" ||
+        contract.lifecycleStatus === "cancelled" ||
+        contract.displayStatus === "expired") ? (
+        <Button
+          variant="outline"
+          onClick={() =>
+            void navigate?.({
+              to: "/rentals/settlements/$contractId",
+              params: { contractId: contract.id },
+            })
+          }
+        >
+          查看退租结算
+        </Button>
+      ) : null}
+    </div>,
   );
 }
 
 function LoadingDetail() {
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8" aria-busy="true">
+    <main className="space-y-6" aria-busy="true">
       <Skeleton className="h-8 w-32" />
       <Skeleton className="h-8 w-full max-w-64" />
       <Card>
@@ -213,7 +217,7 @@ function DetailError({ error, retry }: { error: unknown; retry: () => void }) {
         ? "合同不存在或已删除。"
         : "加载合同详情失败，请稍后重试。";
   return (
-    <main className="space-y-3 p-4 sm:p-6 lg:p-8">
+    <main className="space-y-3">
       <div
         role="alert"
         className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"

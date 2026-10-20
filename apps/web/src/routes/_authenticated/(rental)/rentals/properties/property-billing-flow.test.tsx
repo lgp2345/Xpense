@@ -177,7 +177,7 @@ it("房产入口、多页、Sheet、生成回填、其他空间继续，缓存�
     expect.anything(),
   );
   await userEvent.click(screen.getByRole("button", { name: "取消" }));
-  await userEvent.click(screen.getByRole("button", { name: "返回房产列表" }));
+  await userEvent.click(screen.getByRole("button", { name: "返回上一页" }));
   await screen.findByRole("heading", { name: "房产管理" });
   await userEvent.click(screen.getByRole("button", { name: "生成账单" }));
   await screen.findByText("已生成");

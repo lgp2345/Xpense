@@ -13,6 +13,11 @@ export type SecondaryPageBreadcrumb = {
   label: ReactNode;
 };
 
+export type SecondaryPageNavigation = {
+  breadcrumbs?: readonly SecondaryPageBreadcrumb[];
+  onBack?: () => void;
+};
+
 export function SecondaryPageLayout({
   breadcrumbs,
   title,

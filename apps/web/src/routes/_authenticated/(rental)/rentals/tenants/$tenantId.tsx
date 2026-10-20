@@ -1,7 +1,9 @@
-import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
+import { createFileRoute, Link, lazyRouteComponent } from "@tanstack/react-router";
 import type { PermissionKey } from "@xpense/shared";
 import { useStore } from "zustand";
 import type { RegisteredPageInput } from "@/components/layout/page-cache-host";
+import { BreadcrumbLink } from "@/components/ui/breadcrumb";
+import { useSecondaryPageBack } from "@/hooks/use-secondary-page-back";
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
 import {
   defineRegisteredPage,
@@ -76,6 +78,9 @@ function TenantDetailRoutePage({
     (state) => state.currentOrganization?.id ?? "",
   );
   const navigate = Route.useNavigate();
+  const onBack = useSecondaryPageBack(
+    () => void navigate({ to: "/rentals/tenants", search: {}, replace: true }),
+  );
   const props = createRentalTenantDetailRoutePageProps(
     { session, navigate, params: { tenantId }, search: {} } as Pick<
       RegisteredPageInput<typeof Route>,
@@ -84,5 +89,21 @@ function TenantDetailRoutePage({
     { organizationId, permissions },
   );
 
-  return <TenantDetailPage {...props} />;
+  return (
+    <TenantDetailPage
+      onBack={onBack}
+      breadcrumbs={[
+        {
+          key: "tenants",
+          label: (
+            <BreadcrumbLink render={<Link to="/rentals/tenants" search={{}} />}>
+              租客管理
+            </BreadcrumbLink>
+          ),
+        },
+        { key: "current", label: "租客详情" },
+      ]}
+      {...props}
+    />
+  );
 }

@@ -1,6 +1,8 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 
+import { BreadcrumbLink } from "@/components/ui/breadcrumb";
 import { MenuResetPage } from "@/features/menus/menu-reset-page";
+import { useSecondaryPageBack } from "@/hooks/use-secondary-page-back";
 
 export const Route = createFileRoute("/_session/_shell/system/menu-reset")({
   beforeLoad: ({ context }) => {
@@ -14,5 +16,16 @@ export const Route = createFileRoute("/_session/_shell/system/menu-reset")({
 function MenuResetRoutePage() {
   const { session } = Route.useRouteContext();
 
-  return <MenuResetPage session={session} />;
+  const navigate = Route.useNavigate();
+  const onBack = useSecondaryPageBack(() => void navigate({ to: "/", replace: true }));
+  return (
+    <MenuResetPage
+      session={session}
+      onBack={onBack}
+      breadcrumbs={[
+        { key: "home", label: <BreadcrumbLink render={<Link to="/" />}>首页</BreadcrumbLink> },
+        { key: "reset", label: "菜单恢复" },
+      ]}
+    />
+  );
 }
