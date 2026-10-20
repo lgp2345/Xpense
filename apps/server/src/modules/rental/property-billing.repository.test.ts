@@ -7,6 +7,7 @@ import {
   rentalContractSpaces,
   rentalContracts,
   rentalSettlements,
+  rentalSpaces,
 } from "../../db/schema.js";
 import { PropertyBillingRepository } from "./property-billing.repository.js";
 import { toPropertyBillingCandidate } from "./property-billing.rules.js";
@@ -29,7 +30,10 @@ function executor(count: number, exhaustFirstPage = false) {
   }));
   const rows = new Map<unknown, unknown[]>([
     [rentalContracts, contracts],
-    [rentalContractSpaces, contracts.map((c) => ({ contractId: c.id, spaceId: "space" }))],
+    [
+      rentalContractSpaces,
+      contracts.map((c) => ({ contractId: c.id, spaceId: "space", deletedAt: null })),
+    ],
     [
       rentalBills,
       exhaustFirstPage
@@ -48,37 +52,107 @@ function executor(count: number, exhaustFirstPage = false) {
   ]);
   const queries: Array<{ table: unknown; fields: unknown; condition: unknown; limit?: number }> =
     [];
+  const joins: Array<{ table: unknown; condition: unknown }> = [];
   const tx = {
     select: (fields: unknown) => ({
-      from: (table: unknown) => ({
-        where: (condition: unknown) => {
-          const record = { table, fields, condition, limit: undefined as number | undefined };
-          queries.push(record);
-          let result = rows.get(table) ?? [];
-          if (table === rentalContracts) {
-            const params = new PgDialect().sqlToQuery(condition as never).params;
-            if (params.length === 3) result = contracts.filter((c) => c.id > String(params[2]));
-          }
-          const query = {
-            // biome-ignore lint/suspicious/noThenProperty: test query is intentionally awaitable.
-            then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
-            orderBy: () => query,
-            limit: (n: number) => {
-              record.limit = n;
-              return Promise.resolve(result.slice(0, n));
-            },
-          };
-          return query;
-        },
-      }),
+      from: (table: unknown) => {
+        const selection = {
+          innerJoin: (joinedTable: unknown, condition: unknown) => {
+            joins.push({ table: joinedTable, condition });
+            return selection;
+          },
+          where: (condition: unknown) => {
+            const record = { table, fields, condition, limit: undefined as number | undefined };
+            queries.push(record);
+            let result = rows.get(table) ?? [];
+            if (table === rentalContracts) {
+              const params = new PgDialect().sqlToQuery(condition as never).params;
+              if (params.length === 3) result = contracts.filter((c) => c.id > String(params[2]));
+            }
+            const query = {
+              // biome-ignore lint/suspicious/noThenProperty: test query is intentionally awaitable.
+              then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
+              orderBy: () => query,
+              limit: (n: number) => {
+                record.limit = n;
+                return Promise.resolve(result.slice(0, n));
+              },
+            };
+            return query;
+          },
+        };
+        return selection;
+      },
     }),
     execute: async () => [{ id: "space", parentId: null, name: "101", sortOrder: 0 }],
   };
-  return { tx, queries, rows };
+  return { tx, queries, rows, joins };
 }
 describe("房产候选批量读取", () => {
+  it("履行中合同关联已删除空间时跳过，保留其他候选与扫描游标", async () => {
+    const { tx, rows } = executor(3);
+    rows.set(rentalContractSpaces, [
+      { contractId: "0000", spaceId: "deleted-space", deletedAt: new Date("2026-10-01") },
+      { contractId: "0001", spaceId: "space", deletedAt: null },
+      { contractId: "0002", spaceId: "space", deletedAt: null },
+    ]);
+    const result = await new PropertyBillingRepository().scanSources(
+      { organizationId: org, propertyId: property, now: "2026-10-18T09:00:00", pageSize: 2 },
+      tx as never,
+    );
+    expect(result.sources.map((source) => source.contractId)).toEqual(["0001"]);
+    expect(result.nextAfterContractId).toBe("0001");
+  });
+
+  it("多空间合同即使只剩一个未删除空间也不能成为单空间候选", async () => {
+    const { tx, rows } = executor(1);
+    rows.set(rentalContractSpaces, [
+      { contractId: "0000", spaceId: "deleted-space", deletedAt: new Date("2026-10-01") },
+      { contractId: "0000", spaceId: "space", deletedAt: null },
+    ]);
+    const result = await new PropertyBillingRepository().scanSources(
+      { organizationId: org, propertyId: property, now: "2026-10-18T09:00:00", pageSize: 100 },
+      tx as never,
+    );
+    expect(result.sources).toEqual([]);
+  });
+
+  it.each([
+    "upcoming",
+    "expired",
+    "terminated",
+  ])("在读取路径前排除 %s 合同，空候选页仍推进扫描游标", async (displayStatus) => {
+    const { tx, rows } = executor(2);
+    rows.set(
+      rentalContracts,
+      (rows.get(rentalContracts) as Array<Record<string, unknown>>).map((contract) => ({
+        ...contract,
+        displayStatus,
+        lifecycleStatus: displayStatus === "terminated" ? "terminated" : "confirmed",
+      })),
+    );
+    tx.execute = async () => [];
+    await expect(
+      new PropertyBillingRepository().scanSources(
+        { organizationId: org, propertyId: property, now: "2026-10-18T09:00:00", pageSize: 1 },
+        tx as never,
+      ),
+    ).resolves.toEqual({ sources: [], nextAfterContractId: "0000" });
+  });
+
+  it("履行中合同的祖先缺失仍报错，不静默丢弃待出账项目", async () => {
+    const { tx } = executor(1);
+    tx.execute = async () => [];
+    await expect(
+      new PropertyBillingRepository().scanSources(
+        { organizationId: org, propertyId: property, now: "2026-10-18T09:00:00", pageSize: 100 },
+        tx as never,
+      ),
+    ).rejects.toThrow("空间祖先路径不完整");
+  });
+
   it.each([1, 100])("%s 合同固定7次查询，窄字段与作用域", async (count) => {
-    const { tx, queries } = executor(count);
+    const { tx, queries, joins } = executor(count);
     const result = await new PropertyBillingRepository().scanSources(
       { organizationId: org, propertyId: property, now: "2026-10-18T09:00:00", pageSize: 100 },
       tx as never,
@@ -86,6 +160,16 @@ describe("房产候选批量读取", () => {
     expect(result.sources).toHaveLength(count);
     expect(queries).toHaveLength(6);
     const dialect = new PgDialect();
+    expect(joins).toHaveLength(1);
+    expect(joins[0]?.table === rentalSpaces).toBe(true);
+    const joinSql = dialect.sqlToQuery(joins[0]?.condition as never).sql;
+    expect(joinSql).toContain('"rental_spaces"."id" = "rental_contract_spaces"."space_id"');
+    expect(joinSql).toContain(
+      '"rental_spaces"."organization_id" = "rental_contract_spaces"."organization_id"',
+    );
+    expect(joinSql).toContain(
+      '"rental_spaces"."property_id" = "rental_contract_spaces"."property_id"',
+    );
     for (const q of queries) {
       const sql = dialect.sqlToQuery(q.condition as never);
       expect(sql.params).toContain(org);
@@ -96,6 +180,10 @@ describe("房产候选批量读取", () => {
       );
     }
     expect(queries[0]?.limit).toBe(101);
+    const spaceFields = queries.find((q) => q.table === rentalContractSpaces)?.fields as {
+      deletedAt: unknown;
+    };
+    expect(spaceFields.deletedAt === rentalSpaces.deletedAt).toBe(true);
     const fields = queries[0]?.fields as { displayStatus: never };
     expect(fields).toHaveProperty("displayStatus");
     const status = dialect.sqlToQuery(fields.displayStatus);

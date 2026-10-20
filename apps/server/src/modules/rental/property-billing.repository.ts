@@ -9,6 +9,7 @@ import {
   rentalContractSpaces,
   rentalProperties,
   rentalSettlements,
+  rentalSpaces,
 } from "../../db/schema.js";
 import { toBillingContractDates } from "./billing-contract-dates.rules.js";
 import { readPropertyAncestors, scanPropertyContracts } from "./property-billing.queries.js";
@@ -56,8 +57,17 @@ export class PropertyBillingRepository {
         .select({
           contractId: rentalContractSpaces.contractId,
           spaceId: rentalContractSpaces.spaceId,
+          deletedAt: rentalSpaces.deletedAt,
         })
         .from(rentalContractSpaces)
+        .innerJoin(
+          rentalSpaces,
+          and(
+            eq(rentalSpaces.id, rentalContractSpaces.spaceId),
+            eq(rentalSpaces.organizationId, rentalContractSpaces.organizationId),
+            eq(rentalSpaces.propertyId, rentalContractSpaces.propertyId),
+          ),
+        )
         .where(
           and(
             eq(rentalContractSpaces.organizationId, org),
@@ -129,8 +139,10 @@ export class PropertyBillingRepository {
       const relations = spaces.filter((s) => s.contractId === raw.id);
       if (
         !["confirmed", "terminated"].includes(raw.lifecycleStatus) ||
+        !["active", "expiring_soon"].includes(raw.displayStatus) ||
         raw.cancelledAt ||
         relations.length !== 1 ||
+        relations.some((s) => s.deletedAt !== null) ||
         settlements.some((s) => s.contractId === raw.id)
       )
         continue;
