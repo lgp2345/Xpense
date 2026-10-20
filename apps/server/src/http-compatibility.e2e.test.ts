@@ -78,7 +78,7 @@ describe("NestJS 12 HTTP compatibility", () => {
     await app.close();
   });
 
-  it("correlates safe exception details and completion logs with the response id", async () => {
+  it("correlates original exception diagnostics and completion logs with the response id", async () => {
     const errors = vi.spyOn(Logger.prototype, "error").mockImplementation(() => {});
     const logs = vi.spyOn(Logger.prototype, "log").mockImplementation(() => {});
     const response = await app.inject({
@@ -102,8 +102,9 @@ describe("NestJS 12 HTTP compatibility", () => {
       statusCode: 500,
       error: {
         type: "Error",
+        message: "private bill details",
         stack: expect.stringContaining("http-compatibility.e2e.test.ts"),
-        cause: { code: "ECONNREFUSED" },
+        cause: { code: "ECONNREFUSED", message: "private SQL parameter" },
       },
     });
     expect(logs.mock.calls.map(([entry]) => entry)).toContainEqual(
@@ -117,10 +118,14 @@ describe("NestJS 12 HTTP compatibility", () => {
     );
     const output = JSON.stringify([errors.mock.calls, logs.mock.calls, response.json()]);
     expect(output).not.toContain("private-");
-    expect(output).not.toContain("private ");
+    expect(response.json()).toEqual({
+      code: "INTERNAL_ERROR",
+      message: "private bill details",
+      data: null,
+    });
   });
 
-  it("logs explicit 503 exceptions safely and keeps concurrent ids separate", async () => {
+  it("preserves explicit 503 messages and keeps concurrent ids separate", async () => {
     const errors = vi.spyOn(Logger.prototype, "error").mockImplementation(() => {});
     const logs = vi.spyOn(Logger.prototype, "log").mockImplementation(() => {});
     const [failure, success] = await Promise.all([
@@ -137,7 +142,7 @@ describe("NestJS 12 HTTP compatibility", () => {
     ]);
     expect(failure.json()).toEqual({
       code: "SERVICE_UNAVAILABLE",
-      message: "服务暂时不可用，请稍后重试",
+      message: "private connection details",
       data: null,
     });
     expect(success.statusCode).toBe(200);

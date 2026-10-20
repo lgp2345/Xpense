@@ -63,7 +63,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code: string = apiErrorCodes.internalError;
-    let message = "服务器内部错误";
+    let message =
+      exception instanceof Error && exception.message ? exception.message : "服务器内部错误";
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -99,8 +100,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       const request = ctx.getRequest<{ method: string; routeOptions?: { url?: string } }>();
       code = codeForHttpStatus(status);
-      message =
-        status === HttpStatus.SERVICE_UNAVAILABLE ? "服务暂时不可用，请稍后重试" : "服务器内部错误";
       this.logger.error({
         event: "request.failed",
         method: request.method,

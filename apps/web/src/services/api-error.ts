@@ -24,6 +24,7 @@ export function isSystemError(error: ApiError): boolean {
 
 export function apiErrorMessage(status: number, code: string, message: string): string {
   if (status === 0) return "网络异常，请检查网络连接";
+  if (message.trim()) return message;
   if (status === 503 || code === API_CODES.serviceUnavailable) return "服务暂时不可用，请稍后重试";
   if (status >= 500) return "服务器内部错误，请稍后重试";
   return message;

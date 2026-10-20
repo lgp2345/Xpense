@@ -629,7 +629,7 @@ describe("AuthenticatedLayout", () => {
     await user.click(await screen.findByRole("button", { name: /个人账本/ }));
     await user.click(await screen.findByRole("menuitem", { name: "家庭账本" }));
 
-    expect(await screen.findByText("切换组织失败，请稍后重试。")).toBeInTheDocument();
+    expect(await screen.findByText("Unable to switch organization")).toBeInTheDocument();
     expect(await screen.findByText("组织内容")).toBeInTheDocument();
     expect(session.menuStore.getState()).toMatchObject({
       organizationId: "org-1",

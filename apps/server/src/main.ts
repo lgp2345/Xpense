@@ -10,7 +10,12 @@ import { configureHttpApplication } from "./configure-http-application.js";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
-    logger: new ConsoleLogger({ json: process.env.NODE_ENV === "production" }),
+    logger: new ConsoleLogger({
+      json: process.env.NODE_ENV === "production",
+      depth: Number.POSITIVE_INFINITY,
+      maxArrayLength: Number.POSITIVE_INFINITY,
+      maxStringLength: Number.POSITIVE_INFINITY,
+    }),
   });
   const config = app.get(ServerConfigService);
   app.setGlobalPrefix(config.apiPrefix);

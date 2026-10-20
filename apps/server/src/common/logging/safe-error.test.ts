@@ -2,27 +2,36 @@ import { describe, expect, it } from "vitest";
 import { safeError } from "./safe-error.js";
 
 describe("safeError", () => {
-  it("keeps known causes and locations without free text, SQL or arbitrary fields", () => {
-    const cause = Object.assign(new Error("private connection"), {
-      code: "23505",
-      detail: "private row",
+  it("preserves original error types, messages, codes and complete stacks", () => {
+    const cause = Object.assign(new Error("connection diagnostic"), { code: "CUSTOM_DB_CODE" });
+    const error = new Error("空间祖先路径不完整\n查询房产计费失败", { cause });
+    error.name = "BillingPathError";
+    error.stack = "BillingPathError: 空间祖先路径不完整\n    at scanSources (/app/service.ts:12:4)";
+    expect(safeError(error)).toEqual({
+      type: "BillingPathError",
+      message: "空间祖先路径不完整\n查询房产计费失败",
+      stack: "BillingPathError: 空间祖先路径不完整\n    at scanSources (/app/service.ts:12:4)",
+      cause: {
+        type: "Error",
+        code: "CUSTOM_DB_CODE",
+        message: "connection diagnostic",
+        stack: cause.stack,
+      },
     });
-    const error = Object.assign(new Error("private SQL", { cause }), {
-      params: ["private parameter"],
-    });
-    error.stack =
-      "Error: private SQL\n    at privateFunction (/app/service.ts:12:4)\nprivate multiline detail";
-    expect(safeError(error)).toMatchObject({
-      type: "Error",
-      stack: "/app/service.ts:12:4",
-      cause: { code: "23505", message: "数据库唯一约束冲突" },
-    });
-    expect(JSON.stringify(safeError(error))).not.toContain("private");
   });
-  it("bounds cyclic causes and safely handles arbitrary thrown values", () => {
-    const error = new Error("private");
+
+  it("preserves causes beyond two levels", () => {
+    const error = new Error("outer", {
+      cause: new Error("second", { cause: new Error("third", { cause: new Error("root") }) }),
+    });
+    expect(safeError(error).cause?.cause?.cause?.message).toBe("root");
+  });
+
+  it("terminates cyclic causes and retains non-Error diagnostics", () => {
+    const error = new Error("cyclic diagnostic");
     error.cause = error;
-    expect(safeError(error).cause?.cause?.cause).toBeUndefined();
-    expect(JSON.stringify(safeError({ password: "private" }))).not.toContain("private");
+    expect(() => JSON.stringify(safeError(error))).not.toThrow();
+    expect(safeError(error).message).toBe("cyclic diagnostic");
+    expect(safeError({ reason: "unexpected result" }).message).toContain("unexpected result");
   });
 });

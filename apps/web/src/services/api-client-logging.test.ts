@@ -18,7 +18,7 @@ function harness() {
 const failure = { code: "INTERNAL_ERROR", message: "private server detail", data: null };
 
 describe("API failure correlation", () => {
-  it("notifies once after retries and uses the final response id with safe system message", async () => {
+  it("notifies once after retries and preserves the original message and final response id", async () => {
     const { client, mock, onError } = harness();
     mock.onGet("/api/test").replyOnce(500, failure, { "X-Request-Id": "first-id" });
     mock.onGet("/api/test").reply(500, failure, { "X-Request-Id": "final-id" });
@@ -28,7 +28,7 @@ describe("API failure correlation", () => {
     expect(error).toMatchObject({
       status: 500,
       requestId: "final-id",
-      message: "服务器内部错误，请稍后重试",
+      message: "private server detail",
     });
     expect(onError).toHaveBeenCalledExactlyOnceWith(error);
   });
@@ -42,6 +42,20 @@ describe("API failure correlation", () => {
       client.post("/auth/refresh", undefined, { authFailure: "ignore", authRefresh: "ignore" }),
     ).rejects.toMatchObject({ status: 401 });
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it.each([200, 503])("preserves the server message for a %s error envelope", async (status) => {
+    const { client, mock } = harness();
+    mock.onPost("/api/test").reply(status, {
+      code: "SERVICE_UNAVAILABLE",
+      message: "数据库尚未就绪\n请检查连接状态",
+      data: null,
+    });
+    await expect(client.post("/test")).rejects.toMatchObject({
+      status,
+      code: "SERVICE_UNAVAILABLE",
+      message: "数据库尚未就绪\n请检查连接状态",
+    });
   });
 
   it("does not notify when a retry succeeds", async () => {

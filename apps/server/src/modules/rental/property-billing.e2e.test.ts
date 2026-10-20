@@ -78,5 +78,8 @@ it("HTTP 验证、认证、权限、404及读取失败统一映射", async () =>
   list.mockRejectedValueOnce(new Error("private database detail"));
   const failed = await app.inject({ method: "GET", url, headers: { authorization: "ok" } });
   expect(failed.statusCode).toBe(500);
-  expect(failed.body).not.toContain("private database detail");
+  expect(failed.json()).toMatchObject({
+    code: "INTERNAL_ERROR",
+    message: "private database detail",
+  });
 });

@@ -106,22 +106,31 @@ describe("AllExceptionsFilter", () => {
     filter.catch(new ServiceUnavailableException("服务未就绪"), host);
     expect(reply.mock.calls[1]?.[1]).toEqual({
       code: "SERVICE_UNAVAILABLE",
-      message: "服务暂时不可用，请稍后重试",
+      message: "服务未就绪",
       data: null,
     });
   });
 
-  it("falls back to a generic internal error for unknown exceptions", () => {
+  it("preserves the original internal error message", () => {
     const { filter, host, reply, response } = createHarness();
 
     filter.catch(new Error("boom"), host);
 
     expect(reply).toHaveBeenCalledWith(
       response,
+      { code: "INTERNAL_ERROR", message: "boom", data: null },
+      500,
+    );
+  });
+
+  it("falls back to a generic message when the thrown value has no error message", () => {
+    const { filter, host, reply, response } = createHarness();
+    filter.catch(null, host);
+    expect(reply).toHaveBeenCalledWith(
+      response,
       { code: "INTERNAL_ERROR", message: "服务器内部错误", data: null },
       500,
     );
-    expect(reply.mock.calls[0]?.[1]?.message).not.toContain("boom");
   });
 
   it("handles array messages from generic bad requests as validation failures", () => {

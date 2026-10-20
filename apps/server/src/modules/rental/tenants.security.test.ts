@@ -157,7 +157,7 @@ describe("tenant persistence error security", () => {
     }
     expect(reply.mock.calls[0]?.[1]).toEqual({
       code: "INTERNAL_ERROR",
-      message: "服务器内部错误",
+      message: "Rental tenant persistence failed",
       data: null,
     });
     expect(logger).toHaveBeenCalledOnce();

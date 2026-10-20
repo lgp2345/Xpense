@@ -13,12 +13,10 @@ function showErrorToast(error: unknown, fallback?: string): void {
   const system = apiError && isSystemError(apiError);
   const requestId = system && apiError.status !== 0 ? apiError.requestId : undefined;
   const message = apiError
-    ? apiErrorMessage(
-        apiError.status,
-        apiError.code,
-        system ? "服务暂时异常，请稍后重试" : apiError.message,
-      )
-    : (fallback ?? (typeof error === "string" ? error : "操作失败，请稍后重试"));
+    ? apiErrorMessage(apiError.status, apiError.code, apiError.message)
+    : error instanceof Error && error.message
+      ? error.message
+      : (fallback ?? (typeof error === "string" ? error : "操作失败，请稍后重试"));
   const id = sonnerToast.error(message, {
     duration: system ? 15_000 : 6_000,
     closeButton: true,
@@ -44,11 +42,15 @@ async function copyRequestId(
 ): Promise<void> {
   try {
     await navigator.clipboard.writeText(requestId);
-    sonnerToast.success("错误编号已复制", {
+    sonnerToast.error(message, {
       id,
-      description: requestId,
-      action: undefined,
-      duration: 4_000,
+      action: {
+        label: "编码已复制",
+        onClick: (event) => {
+          event.preventDefault();
+          void copyRequestId(requestId, id, message);
+        },
+      },
     });
   } catch {
     sonnerToast.error(message, {
