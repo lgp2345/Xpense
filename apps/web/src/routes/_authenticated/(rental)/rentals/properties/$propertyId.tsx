@@ -86,10 +86,13 @@ function PropertyDetailRoutePage({
               </BreadcrumbLink>
             ),
           },
-          { key: "billing", label: "生成账单" },
+          { key: "billing", label: "账单" },
         ]}
         onNavigateContract={(contractId) =>
           void navigate({ to: "/rentals/contracts/$contractId", params: { contractId } })
+        }
+        onNavigateBill={(billId) =>
+          void navigate({ to: "/rentals/bills/$billId", params: { billId } })
         }
       />
     );

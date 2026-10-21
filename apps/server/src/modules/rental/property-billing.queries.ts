@@ -7,6 +7,7 @@ export function scanPropertyContracts(input: PropertyBillingScanInput, tx: AppDb
   return tx
     .select({
       id: rentalContracts.id,
+      contractNumber: rentalContracts.contractNumber,
       lifecycleStatus: rentalContracts.status,
       displayStatus: contractDisplayStatusExpression(input.now),
       startDate: rentalContracts.startDate,

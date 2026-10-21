@@ -119,7 +119,7 @@ export function PropertyTable({
                           size="sm"
                           onClick={() => onGenerateBills?.(property.id)}
                         >
-                          生成账单
+                          账单
                         </Button>
                       ) : null}
                       {canUpdate ? (

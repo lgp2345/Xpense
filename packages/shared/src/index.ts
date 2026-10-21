@@ -51,6 +51,7 @@ export type {
   RentalBillingSpacePathNode,
   RentalPropertyBillingCandidate,
   RentalPropertyBillingPage,
+  RentalPropertyUnpaidBill,
 } from "./rental-property-billing.js";
 export { rentalPropertyBillingPermissions } from "./rental-property-billing.js";
 export * from "./rental-settlements.js";

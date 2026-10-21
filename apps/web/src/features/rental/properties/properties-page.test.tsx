@@ -560,7 +560,7 @@ it.each([false, true])("房产出账入口在桌面/移动均可达 %s", async (
   try {
     const onGenerateBills = vi.fn();
     renderPage({ permissions: [...rentalPropertyBillingPermissions], onGenerateBills });
-    await userEvent.click(await screen.findByRole("button", { name: "生成账单" }));
+    await userEvent.click(await screen.findByRole("button", { name: "账单" }));
     expect(onGenerateBills).toHaveBeenCalledWith(property.id);
   } finally {
     Object.defineProperty(window, "matchMedia", { configurable: true, value: original });
@@ -569,5 +569,5 @@ it.each([false, true])("房产出账入口在桌面/移动均可达 %s", async (
 it.each(rentalPropertyBillingPermissions)("缺少 %s 隐藏出账入口", async (missing) => {
   renderPage({ permissions: rentalPropertyBillingPermissions.filter((p) => p !== missing) });
   await screen.findByRole("link", { name: property.name });
-  expect(screen.queryByRole("button", { name: "生成账单" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "账单" })).not.toBeInTheDocument();
 });

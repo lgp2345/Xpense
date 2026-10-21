@@ -18,8 +18,13 @@ import type {
   PropertyBillingScanInput,
 } from "./property-billing.repository.types.js";
 import type { PropertyBillingSource } from "./property-billing.rules.js";
+import { toPropertyBillingUnpaidBills } from "./property-billing-unpaid-bills.rules.js";
+import { RentalCashProjectionRepository } from "./rental-cash-projection.repository.js";
+
 @Injectable()
 export class PropertyBillingRepository {
+  constructor(private readonly projectionSources: RentalCashProjectionRepository) {}
+
   async readContext(organizationId: string, propertyId: string, tx: AppDbExecutor) {
     const [context] = await tx
       .select({
@@ -50,7 +55,7 @@ export class PropertyBillingRepository {
     const ids = contracts.map((c) => c.id);
     const nextAfterContractId =
       scanned.length > input.pageSize ? (contracts.at(-1)?.id ?? null) : null;
-    if (!ids.length) return { sources: [], nextAfterContractId };
+    if (!ids.length) return { sources: [], unpaidBills: [], nextAfterContractId };
     const org = input.organizationId;
     const [spaces, bills, starts, settlements, parties] = await Promise.all([
       tx
@@ -58,6 +63,11 @@ export class PropertyBillingRepository {
           contractId: rentalContractSpaces.contractId,
           spaceId: rentalContractSpaces.spaceId,
           deletedAt: rentalSpaces.deletedAt,
+          parentId: rentalSpaces.parentId,
+          name: rentalSpaces.name,
+          sortOrder: rentalSpaces.sortOrder,
+          spaceNameSnapshot: rentalContractSpaces.spaceNameSnapshot,
+          spacePathSnapshot: rentalContractSpaces.spacePathSnapshot,
         })
         .from(rentalContractSpaces)
         .innerJoin(
@@ -77,19 +87,35 @@ export class PropertyBillingRepository {
         ),
       tx
         .select({
+          id: rentalBills.id,
           contractId: rentalBills.contractId,
+          billNumber: rentalBills.billNumber,
+          contractNumber: rentalBills.contractNumber,
+          propertyId: rentalBills.propertyId,
+          propertyName: rentalBills.propertyName,
+          currencyCode: rentalBills.currencyCode,
+          type: rentalBills.type,
+          status: rentalBills.status,
+          sourceKey: rentalBills.sourceKey,
           periodStart: rentalBills.periodStart,
           periodEnd: rentalBills.periodEnd,
+          effectiveEnd: rentalBills.effectiveEnd,
+          dueDate: rentalBills.dueDate,
+          amountMinor: rentalBills.amountMinor,
+          revision: rentalBills.revision,
+          createdAt: rentalBills.createdAt,
+          snapshot: rentalBills.snapshot,
         })
         .from(rentalBills)
         .where(
           and(
             eq(rentalBills.organizationId, org),
+            eq(rentalBills.propertyId, input.propertyId),
             inArray(rentalBills.contractId, ids),
-            eq(rentalBills.type, "period"),
             eq(rentalBills.status, "active"),
           ),
-        ),
+        )
+        .orderBy(asc(rentalBills.contractId), asc(rentalBills.createdAt), asc(rentalBills.id)),
       tx
         .select({
           contractId: rentalBillingStarts.contractId,
@@ -130,7 +156,12 @@ export class PropertyBillingRepository {
     ]);
     const ancestors = await readPropertyAncestors(
       input,
-      spaces.map((s) => s.spaceId),
+      [
+        ...new Set([
+          ...spaces.map((space) => space.spaceId),
+          ...bills.flatMap((bill) => bill.snapshot.spaces.map((space) => space.spaceId)),
+        ]),
+      ],
       tx,
     );
     const nodes = new Map(ancestors.map((n) => [n.id, n]));
@@ -156,7 +187,9 @@ export class PropertyBillingRepository {
         c.dueDaysBefore === null
       )
         throw new RangeError("合同缺少计费信息");
-      const spaceId = relations[0]!.spaceId;
+      const relation = relations[0];
+      if (!relation) continue;
+      const spaceId = relation.spaceId;
       const path = [];
       const visited = new Set<string>();
       let node = nodes.get(spaceId);
@@ -167,9 +200,10 @@ export class PropertyBillingRepository {
         if (node.parentId === null) break;
         node = nodes.get(node.parentId);
       }
-      if (!path.length || path[0]!.parentId !== null) throw new Error("空间祖先路径不完整");
+      if (!path.length || path[0]?.parentId !== null) throw new Error("空间祖先路径不完整");
       sources.push({
         contractId: c.id,
+        contractNumber: c.contractNumber,
         spaceId,
         terms: {
           startDate: c.startDate,
@@ -187,7 +221,7 @@ export class PropertyBillingRepository {
         terminationDate: c.terminationDate,
         firstPeriodStart: starts.find((s) => s.contractId === c.id)?.firstPeriodStart ?? null,
         activePeriods: bills
-          .filter((b) => b.contractId === c.id)
+          .filter((b) => b.contractId === c.id && b.type === "period")
           .map((b) => {
             if (!b.periodStart || !b.periodEnd) throw new Error("普通账单缺少账期");
             return { periodStart: b.periodStart, periodEnd: b.periodEnd };
@@ -202,6 +236,32 @@ export class PropertyBillingRepository {
           ),
       });
     }
-    return { sources, nextAfterContractId };
+
+    const billContractIds = [...new Set(bills.map((bill) => bill.contractId))];
+    const facts = billContractIds.length
+      ? await this.projectionSources.readMany(org, billContractIds, tx)
+      : [];
+    const factsByContract = new Map(facts.map((item) => [item.contractId, item]));
+    if (
+      facts.length !== factsByContract.size ||
+      facts.some(
+        (item) => item.organizationId !== org || !billContractIds.includes(item.contractId),
+      ) ||
+      billContractIds.some((contractId) => !factsByContract.has(contractId))
+    ) {
+      throw new Error("Rental bill finance facts do not match the requested scope");
+    }
+
+    const unpaidBills = toPropertyBillingUnpaidBills({
+      organizationId: org,
+      timezone: input.timezone,
+      now: input.now,
+      bills,
+      spaces,
+      parties,
+      nodes,
+      factsByContract,
+    });
+    return { sources, unpaidBills, nextAfterContractId };
   }
 }

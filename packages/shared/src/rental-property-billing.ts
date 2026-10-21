@@ -1,3 +1,4 @@
+import type { RentalBillSummary } from "./rental-bills.js";
 import type { RentalBillingPeriod } from "./rental-period-bills.js";
 
 export const rentalPropertyBillingPermissions = [
@@ -15,11 +16,18 @@ export type RentalBillingSpacePathNode = {
 };
 export type RentalPropertyBillingCandidate = {
   contractId: string;
+  contractNumber: string;
   spaceId: string;
   path: RentalBillingSpacePathNode[];
   tenantNames: string[];
   period: RentalBillingPeriod;
   daysUntilStart: number;
+};
+export type RentalPropertyUnpaidBill = {
+  bill: RentalBillSummary;
+  spaceId: string;
+  path: RentalBillingSpacePathNode[];
+  tenantNames: string[];
 };
 export type ListRentalPropertyBillingQuery = {
   propertyId: string;
@@ -31,5 +39,6 @@ export type RentalPropertyBillingPage = {
   today: string;
   timezone: string;
   items: RentalPropertyBillingCandidate[];
+  unpaidBills: RentalPropertyUnpaidBill[];
   nextAfterContractId: string | null;
 };

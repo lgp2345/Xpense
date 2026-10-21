@@ -2,6 +2,7 @@ import { expect, it, vi } from "vitest";
 import {
   billingPageFixture,
   candidateFixture,
+  unpaidBillFixture,
 } from "../features/rental/property-billing/property-billing-test-fixtures";
 import { loadPropertyBillingCandidates, propertyBillingKey } from "./rental-property-billing-query";
 
@@ -60,4 +61,25 @@ it("取消后不继续下一页", async () => {
     loadPropertyBillingCandidates(api, "property", { signal: controller.signal }),
   ).rejects.toThrow();
   expect(api.listPropertyBilling).toHaveBeenCalledTimes(1);
+});
+
+it("逐页合并未收账单，包括没有待出账候选的页", async () => {
+  const deposit = {
+    ...unpaidBillFixture,
+    bill: { ...unpaidBillFixture.bill, id: "deposit", type: "deposit" as const },
+  };
+  const api = {
+    listPropertyBilling: vi
+      .fn()
+      .mockResolvedValueOnce({
+        ...billingPageFixture,
+        items: [],
+        unpaidBills: [unpaidBillFixture],
+        nextAfterContractId: "100",
+      })
+      .mockResolvedValueOnce({ ...billingPageFixture, unpaidBills: [deposit] }),
+  };
+  const result = await loadPropertyBillingCandidates(api, "property");
+  expect(result.unpaidBills.map((item) => item.bill.id)).toEqual(["old-bill", "deposit"]);
+  expect(result.items).toEqual([candidateFixture]);
 });

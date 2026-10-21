@@ -26,7 +26,7 @@ export class PropertyBillingService {
         const now = organizationDateTime(new Date(), context.timezone);
         const today = now.slice(0, 10);
         const page = await this.repository.scanSources(
-          { organizationId: auth.organizationId, ...dto, now },
+          { organizationId: auth.organizationId, ...dto, now, timezone: context.timezone },
           tx,
         );
         return {
@@ -36,6 +36,7 @@ export class PropertyBillingService {
             const candidate = toPropertyBillingCandidate(source, today);
             return candidate ? [candidate] : [];
           }),
+          unpaidBills: page.unpaidBills,
           nextAfterContractId: page.nextAfterContractId,
         };
       },

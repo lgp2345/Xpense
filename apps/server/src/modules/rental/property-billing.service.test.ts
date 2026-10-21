@@ -19,7 +19,9 @@ async function setup() {
     readContext: vi
       .fn()
       .mockResolvedValue({ property: { id: "property", name: "房产" }, timezone: "Asia/Shanghai" }),
-    scanSources: vi.fn().mockResolvedValue({ sources: [], nextAfterContractId: "next" }),
+    scanSources: vi
+      .fn()
+      .mockResolvedValue({ sources: [], unpaidBills: [], nextAfterContractId: "next" }),
   };
   const db = { transaction: async (fn: (tx: unknown) => unknown) => fn({}) };
   const module = await Test.createTestingModule({
@@ -54,8 +56,59 @@ describe("房产出账分页服务", () => {
     const { service } = await setup();
     expect(await service.list(auth, { propertyId: "property", pageSize: 100 })).toMatchObject({
       items: [],
+      unpaidBills: [],
       nextAfterContractId: "next",
       timezone: "Asia/Shanghai",
+    });
+  });
+  it("没有待出账候选时仍返回本批合同的有效未收清账单", async () => {
+    const { service, repo } = await setup();
+    const unpaidBill = {
+      bill: {
+        id: "bill",
+        billNumber: "RB-2026-000001",
+        contractId: "contract",
+        contractNumber: "C-001",
+        propertyId: "property",
+        propertyName: "房产",
+        currencyCode: "CNY",
+        type: "deposit",
+        status: "active",
+        sourceKey: "deposit:1",
+        periodStart: null,
+        periodEnd: null,
+        effectiveEnd: null,
+        dueDate: "2026-10-01",
+        amountMinor: 100_000,
+        dueState: null,
+        createdAt: "2026-09-01T00:00:00.000Z",
+        revision: 1,
+        financial: {
+          receivedMinor: 40_000,
+          refundedMinor: 0,
+          netReceivedMinor: 40_000,
+          outstandingMinor: 60_000,
+          refundableMinor: 0,
+          state: "partial",
+          overdue: true,
+        },
+      },
+      spaceId: "space",
+      path: [{ id: "space", parentId: null, name: "101", sortOrder: 0 }],
+      tenantNames: ["历史租户"],
+    };
+    repo.scanSources.mockResolvedValue({
+      sources: [],
+      unpaidBills: [unpaidBill],
+      nextAfterContractId: "contract",
+    });
+
+    await expect(
+      service.list(auth, { propertyId: "property", pageSize: 1 }),
+    ).resolves.toMatchObject({
+      items: [],
+      unpaidBills: [unpaidBill],
+      nextAfterContractId: "contract",
     });
   });
   it("其他组织或不存在的房产404", async () => {

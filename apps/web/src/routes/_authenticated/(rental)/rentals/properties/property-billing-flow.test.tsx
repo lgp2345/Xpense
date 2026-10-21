@@ -11,10 +11,15 @@ import type {
 import { rentalPropertyBillingPermissions } from "@xpense/shared";
 import { expect, it, vi } from "vitest";
 import { AppProviders } from "@/components/app-providers";
-import { billFixture, financeApiFixture } from "@/features/rental/bills/bill-test-fixtures";
+import {
+  billFixture,
+  billsApiFixture,
+  financeApiFixture,
+} from "@/features/rental/bills/bill-test-fixtures";
 import {
   billingPageFixture,
   candidateFixture,
+  unpaidBillFixture,
 } from "@/features/rental/property-billing/property-billing-test-fixtures";
 import { createAppRouter } from "@/router";
 import { ApiError } from "@/services/api-client";
@@ -70,6 +75,7 @@ function session(api: Partial<RentalApi> = {}): WebSessionDependency {
     menu("RentalProperties", 1),
     menu("RentalPropertyDetail", 2),
     menu("RentalContractDetail", 3),
+    menu("RentalBillDetail", 4),
   ];
   const menuStore = createMenuStore();
   menuStore.setState({
@@ -128,17 +134,23 @@ function renderRoute(path: string, activeSession = session()) {
 function billingSession() {
   const active = session();
   active.authStore.setState({ permissions: [...rentalPropertyBillingPermissions] });
+  let generated = false;
+  active.rentalBillsApi = billsApiFixture();
   active.rentalFinanceApi = financeApiFixture({
-    listPropertyBilling: vi
-      .fn()
-      .mockResolvedValueOnce({ ...billingPageFixture, items: [], nextAfterContractId: "100" })
-      .mockResolvedValue({
+    listPropertyBilling: vi.fn().mockImplementation(async (input) => {
+      if (!input.afterContractId)
+        return { ...billingPageFixture, items: [], unpaidBills: [], nextAfterContractId: "100" };
+      return {
         ...billingPageFixture,
+        unpaidBills: generated
+          ? [{ ...unpaidBillFixture, bill: { ...billFixture, amountMinor: 12345 } }]
+          : [],
         items: [
-          candidateFixture,
+          ...(generated ? [] : [candidateFixture]),
           {
             ...candidateFixture,
             contractId: "second",
+            contractNumber: "RC-2026-000002",
             spaceId: "room-2",
             path: [
               ...candidateFixture.path.slice(0, -1),
@@ -146,12 +158,16 @@ function billingSession() {
             ],
           },
         ],
-      }),
-    generatePeriodBill: vi.fn().mockResolvedValue({
-      ...billFixture,
-      periodStart: "2026-10-05",
-      periodEnd: "2026-11-04",
-      amountMinor: 12345,
+      };
+    }),
+    generatePeriodBill: vi.fn().mockImplementation(async () => {
+      generated = true;
+      return {
+        ...billFixture,
+        periodStart: "2026-10-05",
+        periodEnd: "2026-11-04",
+        amountMinor: 12345,
+      };
     }),
   });
   return active;
@@ -159,7 +175,7 @@ function billingSession() {
 it("房产入口、多页、Sheet、生成回填、其他空间继续，缓存返回保持结果", async () => {
   const active = billingSession();
   const { router } = renderRoute("/rentals/properties", active);
-  await userEvent.click(await screen.findByRole("button", { name: "生成账单" }));
+  await userEvent.click(await screen.findByRole("button", { name: "账单" }));
   const button = await screen.findByRole("button", { name: /生成账单 301/ }, { timeout: 5000 });
   expect(router.state.location.search).toEqual({ view: "billing" });
   const url = router.state.location.href;
@@ -168,7 +184,7 @@ it("房产入口、多页、Sheet、生成回填、其他空间继续，缓存�
   await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
   await userEvent.click(screen.getByRole("button", { name: "确认生成" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-  expect(screen.getByText("123.45")).toBeInTheDocument();
+  expect(screen.getByRole("row", { name: /总收费合计/ })).toHaveTextContent("CNY 123.45");
   expect(router.state.location.href).toBe(url);
   await userEvent.click(screen.getByRole("button", { name: /生成账单 302/ }));
   await screen.findByLabelText("水表读数");
@@ -179,9 +195,9 @@ it("房产入口、多页、Sheet、生成回填、其他空间继续，缓存�
   await userEvent.click(screen.getByRole("button", { name: "取消" }));
   await userEvent.click(screen.getByRole("button", { name: "返回上一页" }));
   await screen.findByRole("heading", { name: "房产管理" });
-  await userEvent.click(screen.getByRole("button", { name: "生成账单" }));
-  await screen.findByText("已生成");
-  expect(screen.getByText("123.45")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "账单" }));
+  await screen.findByRole("button", { name: billFixture.billNumber });
+  expect(screen.getByRole("row", { name: /总收费合计/ })).toHaveTextContent("CNY 123.45");
 });
 it.each(
   rentalPropertyBillingPermissions,
@@ -208,15 +224,49 @@ it("生成期间依据变化不标成功、不自动出下一期", async () => {
   expect(active.rentalFinanceApi.generatePeriodBill).toHaveBeenCalledTimes(1);
 });
 
-it("点击空间名称导航到该行合同，不打开出账 Sheet", async () => {
+it("空间行的合同入口导航到该合同，不打开出账 Sheet", async () => {
   const active = billingSession();
   active.rentalApi.contractDetail = vi
     .fn()
     .mockRejectedValue(new ApiError(404, "NOT_FOUND", "合同不存在"));
   const { router } = renderRoute(`/rentals/properties/${propertyId}?view=billing`, active);
-  await userEvent.click(await screen.findByRole("button", { name: "查看合同 302 张三" }));
+  await userEvent.click(await screen.findByRole("button", { name: "查看合同 RC-2026-000002" }));
   await waitFor(() => expect(router.state.location.pathname).toBe("/rentals/contracts/second"));
   await waitFor(() => expect(active.rentalApi.contractDetail).toHaveBeenCalledWith("second"));
   expect(active.rentalFinanceApi.getPeriodBillContext).not.toHaveBeenCalled();
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+it("房产账单号进入对应账单详情", async () => {
+  const active = billingSession();
+  active.rentalFinanceApi.listPropertyBilling = vi.fn().mockResolvedValue({
+    ...billingPageFixture,
+    items: [],
+    unpaidBills: [unpaidBillFixture],
+  });
+  const { router } = renderRoute(`/rentals/properties/${propertyId}?view=billing`, active);
+  await userEvent.click(
+    await screen.findByRole("button", { name: unpaidBillFixture.bill.billNumber }),
+  );
+  await waitFor(() => expect(router.state.location.pathname).toBe("/rentals/bills/old-bill"));
+  await waitFor(() => expect(active.rentalBillsApi.getBill).toHaveBeenCalledWith("old-bill"));
+});
+
+it("空间行的历史合同号进入其合同详情", async () => {
+  const active = billingSession();
+  active.rentalFinanceApi.listPropertyBilling = vi.fn().mockResolvedValue({
+    ...billingPageFixture,
+    items: [],
+    unpaidBills: [unpaidBillFixture],
+  });
+  active.rentalApi.contractDetail = vi
+    .fn()
+    .mockRejectedValue(new ApiError(404, "NOT_FOUND", "合同不存在"));
+  const { router } = renderRoute(`/rentals/properties/${propertyId}?view=billing`, active);
+  await userEvent.click(await screen.findByRole("button", { name: "查看合同 RC-2026-000009" }));
+  await waitFor(() =>
+    expect(router.state.location.pathname).toBe("/rentals/contracts/old-contract"),
+  );
+  await waitFor(() => expect(active.rentalApi.contractDetail).toHaveBeenCalledWith("old-contract"));
+  expect(active.rentalFinanceApi.getPeriodBillContext).not.toHaveBeenCalled();
 });

@@ -62,12 +62,12 @@ const pages = [
   },
   {
     path: "/rentals/properties/property?view=billing",
-    title: "房产 · 生成账单",
+    title: "房产 · 账单",
     parent: "房产管理",
-    current: "生成账单",
+    current: "账单",
     fallback: "/rentals/properties",
     loading: null,
-    error: "待出账空间读取失败，请重试。",
+    error: "账单列表读取失败，请重试。",
   },
 ];
 

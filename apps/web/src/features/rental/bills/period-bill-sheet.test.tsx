@@ -14,6 +14,7 @@ function setup(api = financeApiFixture(), expectedPeriodStart = "2026-10-05") {
     open: true,
     onOpenChange: vi.fn(),
     onGenerated: vi.fn(),
+    onContextChanged: vi.fn(),
     spaceLabel: "楼栋 / 101",
     tenantNames: ["张三"],
     expectedPeriodStart,
@@ -55,9 +56,10 @@ it("取消不生成", async () => {
 });
 it("账期变化不装入另一账期", async () => {
   const h = setup(financeApiFixture(), "2026-09-05");
-  await screen.findByText("待出账账期已变化，请刷新列表");
+  await screen.findByText("待出账账期已变化，关闭窗口后可查看最新账期。");
   expect(screen.queryByLabelText("水表读数")).not.toBeInTheDocument();
   expect(h.api.previewPeriodBill).not.toHaveBeenCalled();
+  await waitFor(() => expect(h.props.onContextChanged).toHaveBeenCalledTimes(1));
 });
 it("加载失败仍用 Sheet", async () => {
   setup(

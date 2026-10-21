@@ -1,35 +1,38 @@
 import type { RentalPropertyBillingCandidate } from "@xpense/shared";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatBillAmount } from "../bills/bill-format";
-import { BillingDistanceBadge } from "./billing-distance-badge";
 import {
-  displayBillingDayDistance,
   type PropertyBillingNode,
-  type PropertyBillingRow,
-  propertyBillingIdentity,
+  propertyBillingContracts,
+  propertyBillingTotals,
 } from "./property-billing-model";
+import { PropertyBillingRows } from "./property-billing-rows";
+
 export function PropertyBillingTree({
   nodes,
   today,
   onSelect,
   onNavigateContract,
+  onNavigateBill,
+  disabledReason,
 }: {
   nodes: PropertyBillingNode[];
   today: string;
   onNavigateContract: (contractId: string) => void;
+  onNavigateBill: (billId: string) => void;
   onSelect: (candidate: RentalPropertyBillingCandidate, trigger: HTMLButtonElement) => void;
+  disabledReason?: string;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
@@ -39,79 +42,22 @@ export function PropertyBillingTree({
       else next.add(id);
       return next;
     });
-  const feeRow = (row: PropertyBillingRow, node: PropertyBillingNode, depth: number) => (
-    <TableRow key={propertyBillingIdentity(row.candidate)}>
-      <TableCell>
-        <Button
-          variant="ghost"
-          className="h-auto text-left py-2 whitespace-normal"
-          style={{ marginLeft: `${depth * 20}px` }}
-          aria-label={`查看合同 ${node.space.name} ${row.candidate.tenantNames.join("、")}`}
-          onClick={() => onNavigateContract(row.candidate.contractId)}
-        >
-          {node.space.name}
-          {node.rows.length > 1 ? (
-            <span className="text-xs text-muted-foreground">
-              合同 {row.candidate.contractId.slice(-8)}
-            </span>
-          ) : null}
-        </Button>
-      </TableCell>
-      <TableCell className="max-w-48 whitespace-normal">
-        {row.candidate.tenantNames.join("、")}
-      </TableCell>
-      <TableCell className="text-xs whitespace-nowrap tabular-nums">
-        {row.candidate.period.periodStart} 至 {row.candidate.period.periodEnd}
-      </TableCell>
-      <TableCell>
-        <BillingDistanceBadge
-          daysUntilStart={displayBillingDayDistance(today, row.candidate.period.periodStart)}
-        />
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {row.bill ? (
-          formatBillAmount(row.bill.amountMinor)
-        ) : (
-          <span className="text-muted-foreground">待计算</span>
-        )}
-      </TableCell>
-      <TableCell>
-        <Badge variant={row.bill ? "secondary" : "outline"}>{row.bill ? "已生成" : "待出账"}</Badge>
-      </TableCell>
-      <TableCell>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={Boolean(row.bill)}
-                focusableWhenDisabled
-                aria-label={`生成账单 ${node.space.name} ${row.candidate.tenantNames.join("、")}`}
-                onClick={(event) => onSelect(row.candidate, event.currentTarget)}
-              >
-                生成账单
-              </Button>
-            }
-          />
-          {row.bill ? (
-            <TooltipContent sideOffset={4}>本轮已生成账单，请刷新列表后继续。</TooltipContent>
-          ) : null}
-        </Tooltip>
-      </TableCell>
-    </TableRow>
-  );
+  const totals = propertyBillingTotals(nodes);
+  const hasPending = (list: PropertyBillingNode[]): boolean =>
+    list.some(
+      (node) => node.rows.some((row) => row.kind === "candidate") || hasPending(node.children),
+    );
   const visit = (node: PropertyBillingNode, depth: number): React.ReactNode => {
-    if (!node.children.length && node.rows.length === 1) return feeRow(node.rows[0]!, node, depth);
     const closed = collapsed.has(node.space.id);
+    const contracts = propertyBillingContracts(node.rows);
     return (
       <Fragment key={node.space.id}>
-        <TableRow className="bg-muted/30">
-          <TableCell>
+        <TableRow className="bg-muted/30 hover:bg-muted/30">
+          <TableCell className="py-2 align-top">
             <Button
               variant="ghost"
-              className="font-medium"
-              style={{ marginLeft: `${depth * 20}px` }}
+              className="h-9 font-medium"
+              style={{ marginLeft: `${depth * 16}px` }}
               aria-label={`${closed ? "展开" : "折叠"} ${node.space.name}`}
               aria-expanded={!closed}
               onClick={() => toggle(node.space.id)}
@@ -120,11 +66,34 @@ export function PropertyBillingTree({
               {node.space.name}
             </Button>
           </TableCell>
-          <TableCell colSpan={6} />
+          <TableCell className="py-2 align-top whitespace-normal">
+            <div className="space-y-2">
+              {contracts.map((contract) => (
+                <div key={contract.contractId} className="space-y-0.5">
+                  <p>{contract.tenantNames.join("、")}</p>
+                  <Button
+                    variant="link"
+                    className="h-auto p-0 text-xs text-muted-foreground tabular-nums"
+                    aria-label={`查看合同 ${contract.contractNumber}`}
+                    onClick={() => onNavigateContract(contract.contractId)}
+                  >
+                    {contract.contractNumber}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </TableCell>
+          <TableCell colSpan={5} />
         </TableRow>
         {closed ? null : (
           <>
-            {node.rows.map((row) => feeRow(row, node, depth + 1))}
+            <PropertyBillingRows
+              node={node}
+              today={today}
+              onSelect={onSelect}
+              onNavigateBill={onNavigateBill}
+              disabledReason={disabledReason}
+            />
             {node.children.map((child) => visit(child, depth + 1))}
           </>
         )}
@@ -132,11 +101,11 @@ export function PropertyBillingTree({
     );
   };
   return (
-    <div className="border rounded-lg overflow-x-auto">
-      <Table className="min-w-[800px]">
+    <div className="overflow-hidden rounded-lg border">
+      <Table className="min-w-[860px]" aria-label="空间账单列表">
         <TableHeader>
-          <TableRow>
-            {["空间", "租户", "本次账期", "距账期开始", "总收费", "状态", "操作"].map((label) => (
+          <TableRow className="hover:bg-transparent">
+            {["空间", "租户", "账单号", "账期", "总收费", "状态", "操作"].map((label) => (
               <TableHead key={label} className={label === "总收费" ? "text-right" : undefined}>
                 {label}
               </TableHead>
@@ -144,6 +113,26 @@ export function PropertyBillingTree({
           </TableRow>
         </TableHeader>
         <TableBody>{nodes.map((node) => visit(node, 0))}</TableBody>
+        <TableFooter>
+          <TableRow className="hover:bg-transparent">
+            <TableCell colSpan={4} className="py-4 pl-4">
+              总收费合计
+              {hasPending(nodes) ? (
+                <p className="mt-1 text-xs font-normal text-muted-foreground">待计算账单未计入</p>
+              ) : null}
+            </TableCell>
+            <TableCell className="text-right tabular-nums font-semibold">
+              {totals.length
+                ? totals.map((total) => (
+                    <p key={total.currencyCode}>
+                      {formatBillAmount(total.amountMinor, total.currencyCode)}
+                    </p>
+                  ))
+                : formatBillAmount(0)}
+            </TableCell>
+            <TableCell colSpan={2} />
+          </TableRow>
+        </TableFooter>
       </Table>
     </div>
   );

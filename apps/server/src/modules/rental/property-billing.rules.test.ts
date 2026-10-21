@@ -11,6 +11,7 @@ function source(): PropertyBillingSource {
   const s = rentalFinanceSnapshot();
   return {
     contractId: s.contract.id,
+    contractNumber: s.contract.contractNumber,
     spaceId: s.contract.spaces[0]!.spaceId,
     terms: {
       startDate: s.contract.startDate!,
@@ -33,6 +34,11 @@ function source(): PropertyBillingSource {
   };
 }
 describe("房产出账候选", () => {
+  it("尚未生成账单时也返回合同编号", () => {
+    expect(toPropertyBillingCandidate(source(), "2026-10-18")).toMatchObject({
+      contractNumber: source().contractNumber,
+    });
+  });
   it.each([
     ["2026-10-02", -16],
     ["2026-10-03", -15],

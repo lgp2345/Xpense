@@ -12,6 +12,7 @@ import { selectNextBillingPeriod } from "./period-schedule.rules.js";
 /** 列表只读取账期资格及空间展示所需的窄输入，不依赖收费、抄表或收退款。 */
 export type PropertyBillingSource = {
   contractId: string;
+  contractNumber: string;
   spaceId: string;
   terms: BillingTerms;
   lifecycleStatus: RentalContractLifecycleStatus;
@@ -52,6 +53,7 @@ export function toPropertyBillingCandidate(
   if (!next) return null;
   return {
     contractId: source.contractId,
+    contractNumber: source.contractNumber,
     spaceId: source.spaceId,
     path: source.path,
     tenantNames: [

@@ -64,6 +64,7 @@ it("completed rows retain a valid date when the hidden query has been garbage co
     permissions: [...rentalPropertyBillingPermissions],
     onBack: vi.fn(),
     onNavigateContract: vi.fn(),
+    onNavigateBill: vi.fn(),
   };
   const view = (mode: "visible" | "hidden") => (
     <QueryClientProvider client={client}>
@@ -75,15 +76,68 @@ it("completed rows retain a valid date when the hidden query has been garbage co
   const r = render(view("visible"));
   await userEvent.click(await screen.findByRole("button", { name: /生成账单 301/ }));
   await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
+  list.mockRejectedValue(new Error("offline"));
   await userEvent.click(screen.getByRole("button", { name: "确认生成" }));
-  await screen.findByText("已生成");
+  await screen.findByRole("button", { name: billFixture.billNumber });
   list.mockRejectedValue(new Error("offline"));
   r.rerender(view("hidden"));
   await waitFor(() =>
     expect(client.getQueryData(["rental", "org", "property-billing", "property"])).toBeUndefined(),
   );
   r.rerender(view("visible"));
-  await screen.findByText("待出账空间读取失败，请重试。");
-  expect(screen.getByText("已生成")).toBeInTheDocument();
+  await screen.findByRole("alert");
+  expect(screen.getByRole("button", { name: billFixture.billNumber })).toBeInTheDocument();
   expect(screen.queryByText(/NaN/)).not.toBeInTheDocument();
+});
+
+it("生成后读取失败，缓存恢复成功时以新快照清除已收清账单和错误", async () => {
+  const list = vi.fn().mockResolvedValue(billingPageFixture);
+  const api = financeApiFixture({
+    listPropertyBilling: list,
+    generatePeriodBill: vi.fn().mockResolvedValue({
+      ...billFixture,
+      periodStart: "2026-10-05",
+      periodEnd: "2026-11-04",
+    }),
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const props = {
+    api,
+    propertyId: "property",
+    organizationId: "org",
+    permissions: [...rentalPropertyBillingPermissions],
+    onBack: vi.fn(),
+    onNavigateContract: vi.fn(),
+    onNavigateBill: vi.fn(),
+  };
+  const view = (mode: "visible" | "hidden") => (
+    <QueryClientProvider client={client}>
+      <Activity mode={mode}>
+        <PropertyBillingPage {...props} />
+      </Activity>
+    </QueryClientProvider>
+  );
+  const r = render(view("visible"));
+  await userEvent.click(await screen.findByRole("button", { name: /生成账单 301/ }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
+  list.mockRejectedValue(new Error("offline"));
+  await userEvent.click(screen.getByRole("button", { name: "确认生成" }));
+  await screen.findByRole("alert");
+  r.rerender(view("hidden"));
+  list.mockResolvedValue({
+    ...billingPageFixture,
+    items: [
+      {
+        ...billingPageFixture.items[0],
+        period: { periodStart: "2026-11-05", periodEnd: "2026-12-04" },
+      },
+    ],
+  });
+  r.rerender(view("visible"));
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: billFixture.billNumber })).not.toBeInTheDocument(),
+  );
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /生成账单 301/ })).toBeEnabled();
+  expect(screen.getByRole("row", { name: /总收费合计/ })).toHaveTextContent("0.00");
 });

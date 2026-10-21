@@ -13,6 +13,7 @@ export async function loadPropertyBillingCandidates(
     let first: RentalPropertyBillingPage | null = null;
     let afterContractId: string | undefined;
     const items: RentalPropertyBillingPage["items"] = [];
+    const unpaidBills: RentalPropertyBillingPage["unpaidBills"] = [];
     const seen = new Set<string>();
     while (true) {
       options?.signal?.throwIfAborted();
@@ -24,7 +25,9 @@ export async function loadPropertyBillingCandidates(
       if (first && (page.today !== first.today || page.timezone !== first.timezone)) break;
       first ??= page;
       items.push(...page.items);
-      if (!page.nextAfterContractId) return { ...first, items, nextAfterContractId: null };
+      unpaidBills.push(...page.unpaidBills);
+      if (!page.nextAfterContractId)
+        return { ...first, items, unpaidBills, nextAfterContractId: null };
       if (seen.has(page.nextAfterContractId)) throw new Error("候选分页游标未推进，请重试。");
       seen.add(page.nextAfterContractId);
       afterContractId = page.nextAfterContractId;

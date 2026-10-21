@@ -21,7 +21,48 @@ afterEach(async () => {
   await app?.close();
 });
 it("HTTP 验证、认证、权限、404及读取失败统一映射", async () => {
-  const list = vi.fn().mockResolvedValue({ items: [], nextAfterContractId: null });
+  const unpaidBill = {
+    bill: {
+      id: "bill",
+      billNumber: "RB-2026-000001",
+      contractId: "contract",
+      contractNumber: "C-001",
+      propertyId: "00000000-0000-4000-8000-000000000001",
+      propertyName: "房产",
+      currencyCode: "CNY",
+      type: "deposit",
+      status: "active",
+      sourceKey: "deposit:security",
+      periodStart: null,
+      periodEnd: null,
+      effectiveEnd: null,
+      dueDate: "2026-10-01",
+      amountMinor: 100_000,
+      dueState: "date_passed",
+      createdAt: "2026-09-01T00:00:00.000Z",
+      revision: 1,
+      financial: {
+        receivedMinor: 40_000,
+        refundedMinor: 0,
+        netReceivedMinor: 40_000,
+        outstandingMinor: 60_000,
+        refundableMinor: 0,
+        state: "partial",
+        overdue: true,
+      },
+    },
+    spaceId: "space",
+    path: [{ id: "space", parentId: null, name: "101", sortOrder: 0 }],
+    tenantNames: ["历史租户"],
+  };
+  const list = vi.fn().mockResolvedValue({
+    property: { id: "00000000-0000-4000-8000-000000000001", name: "房产" },
+    today: "2026-10-21",
+    timezone: "Asia/Shanghai",
+    items: [],
+    unpaidBills: [unpaidBill],
+    nextAfterContractId: null,
+  });
   const module = await Test.createTestingModule({
     controllers: [PropertyBillingController],
     providers: [
@@ -68,9 +109,9 @@ it("HTTP 验证、认证、权限、404及读取失败统一映射", async () =>
       })
     ).statusCode,
   ).toBe(400);
-  expect(
-    (await app.inject({ method: "GET", url, headers: { authorization: "ok" } })).statusCode,
-  ).toBe(200);
+  const response = await app.inject({ method: "GET", url, headers: { authorization: "ok" } });
+  expect(response.statusCode).toBe(200);
+  expect(response.json().data.unpaidBills).toEqual([unpaidBill]);
   list.mockRejectedValueOnce(new NotFoundException());
   expect(
     (await app.inject({ method: "GET", url, headers: { authorization: "ok" } })).statusCode,

@@ -31,6 +31,7 @@ export function financeApiFixture(overrides: Partial<RentalFinanceApi> = {}): Re
       today: "2026-10-18",
       timezone: "Asia/Shanghai",
       items: [],
+      unpaidBills: [],
       nextAfterContractId: null,
     }),
     getChargeTerms: vi.fn().mockResolvedValue(chargeTermsFixture),

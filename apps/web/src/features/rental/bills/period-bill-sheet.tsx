@@ -18,6 +18,7 @@ export type PeriodBillSheetProps = PeriodBillDialogProps & {
   spaceLabel: string;
   tenantNames: string[];
   expectedPeriodStart: string;
+  onContextChanged?: () => void;
 };
 export function PeriodBillSheet(props: PeriodBillSheetProps) {
   return props.open ? (
@@ -47,6 +48,13 @@ function SheetLoader(props: PeriodBillSheetProps) {
     )
       setSnapshot(context.data);
   }, [context.isFetchedAfterMount, context.isSuccess, context.isFetching, context.data, snapshot]);
+  const changed = Boolean(
+    snapshot && snapshot.nextPeriod?.periodStart !== props.expectedPeriodStart,
+  );
+  const onContextChanged = props.onContextChanged;
+  useEffect(() => {
+    if (changed) onContextChanged?.();
+  }, [changed, onContextChanged]);
   return (
     <Sheet
       open={open}
@@ -87,7 +95,7 @@ function SheetLoader(props: PeriodBillSheetProps) {
                 </Button>
               </>
             ) : context.data?.nextPeriod ? (
-              <p role="alert">待出账账期已变化，请刷新列表</p>
+              <p role="alert">待出账账期已变化，关闭窗口后可查看最新账期。</p>
             ) : (
               <p>合同账期已全部生成。</p>
             )}
