@@ -1,4 +1,3 @@
-import type { PageResult } from "./bookkeeping.js";
 import type { RentalBillLine } from "./rental-bills.js";
 import type {
   RentalChargeTerms,
@@ -49,7 +48,7 @@ export type RentalPeriodBillContext = {
   defaults: RentalChargeTerms;
   baselineReadings: RentalMeterReadingInput[];
   defaultReadings: RentalMeterReadingInput[];
-  selectablePeriods: PageResult<RentalBillingPeriod>;
+  selectablePeriods: RentalBillingPeriod[];
   missingFields: string[];
 };
 export type RentalPeriodBillPreview = {

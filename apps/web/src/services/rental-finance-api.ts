@@ -99,12 +99,9 @@ export function createRentalFinanceApi(client: ApiClient) {
       ),
     updateMeterBaseline: (input: UpdateRentalMeterBaselineRequest) =>
       client.post<RentalMeterBaseline>("/rental-meters/update", input),
-    getPeriodBillContext: (
-      input: { contractId: string; page?: number; pageSize?: number },
-      options?: ApiRequestOptions,
-    ) =>
+    getPeriodBillContext: (input: { contractId: string }, options?: ApiRequestOptions) =>
       client.get<RentalPeriodBillContext>(
-        `/rental-period-bills/context${queryString({ contractId: input.contractId, page: input.page ?? 1, pageSize: input.pageSize ?? 20 })}`,
+        `/rental-period-bills/context${queryString({ contractId: input.contractId })}`,
         options,
       ),
     previewPeriodBill: (input: PreviewRentalPeriodBillRequest, options?: ApiRequestOptions) =>

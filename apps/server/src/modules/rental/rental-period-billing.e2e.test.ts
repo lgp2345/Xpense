@@ -37,6 +37,19 @@ describe("合同账期HTTP", () => {
       extraFees: [],
     };
   }
+  it("上下文返回候选账期数组并拒绝已移除的分页参数", async () => {
+    const url = `/rental-period-bills/context?contractId=${h.financeContractId}`;
+    const response = await h.request(url, undefined, undefined, "GET");
+    expect(response.statusCode).toBe(200);
+    const context = h.parse<RentalPeriodBillContext>(response);
+    expect(context.canSelectBillingStart).toBe(true);
+    expect(context.selectablePeriods).toContainEqual(context.nextPeriod);
+    expect(context.selectablePeriods.length).toBeGreaterThan(1);
+    for (const query of ["page=2", "pageSize=20"]) {
+      const invalid = await h.request(`${url}&${query}`, undefined, undefined, "GET");
+      expect(invalid.statusCode).toBe(400);
+    }
+  });
   it("200预览、400严格校验、401未认证、403无权限、404跨组织及409过期版本", async () => {
     const dto = await input();
     const preview = await h.request("/rental-period-bills/preview", dto);

@@ -7,13 +7,12 @@ import {
 } from "./rental-period-bills.dto.js";
 
 const id = "00000000-0000-4000-8000-000000000001";
-it("context默认分页20且上限100", () => {
+it("context仅接收合同标识，不再接收分页参数", () => {
   expect(periodBillContextSchema.parse({ contractId: id })).toEqual({
     contractId: id,
-    page: 1,
-    pageSize: 20,
   });
-  expect(periodBillContextSchema.safeParse({ contractId: id, pageSize: 101 }).success).toBe(false);
+  expect(periodBillContextSchema.safeParse({ contractId: id, page: 2 }).success).toBe(false);
+  expect(periodBillContextSchema.safeParse({ contractId: id, pageSize: 20 }).success).toBe(false);
 });
 it("预览不接受期末或客户端房租金额", () => {
   const dto = { contractId: id, periodStart: "2026-10-05", extraFees: [] };

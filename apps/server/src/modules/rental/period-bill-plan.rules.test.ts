@@ -136,7 +136,7 @@ it("未来合同用今天真实底数提前生成首期，以基准日期限制�
     billingAnchor: "contract_start",
     paymentIntervalMonths: 1,
   });
-  const context = buildPeriodBillContext(source, { page: 1, pageSize: 20 });
+  const context = buildPeriodBillContext(source);
   const input = {
     contractId: source.context.contractId,
     periodStart: context.nextPeriod!.periodStart,

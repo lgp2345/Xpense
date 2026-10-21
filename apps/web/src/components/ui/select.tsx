@@ -76,9 +76,17 @@ function SelectContent({
   side = "bottom",
   align = "start",
   sideOffset = 0,
+  listProps,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Popup> &
-  Pick<React.ComponentProps<typeof SelectPrimitive.Positioner>, "side" | "align" | "sideOffset">) {
+  Pick<React.ComponentProps<typeof SelectPrimitive.Positioner>, "side" | "align" | "sideOffset"> & {
+    listProps?: Omit<
+      React.ComponentProps<typeof SelectPrimitive.List>,
+      "children" | "className"
+    > & {
+      className?: string;
+    };
+  }) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner
@@ -97,7 +105,13 @@ function SelectContent({
           {...props}
         >
           <SelectScrollUpButton />
-          <SelectPrimitive.List className="max-h-(--available-height) scroll-py-6 overflow-y-auto p-1">
+          <SelectPrimitive.List
+            {...listProps}
+            className={cn(
+              "max-h-(--available-height) scroll-py-6 overflow-y-auto p-1",
+              listProps?.className,
+            )}
+          >
             {children}
           </SelectPrimitive.List>
           <SelectScrollDownButton />

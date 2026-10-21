@@ -78,7 +78,7 @@ it("跨日恢复沿用有效账单读数且不重复已完成账单", async () =
     .mockResolvedValueOnce([{ result: { resourceId: "second" } }]);
   const db = { select: () => ({ from: () => ({ where }) }) };
   const periods = {
-    context: vi.fn(async () => buildPeriodBillContext(source, { page: 1, pageSize: 100 })),
+    context: vi.fn(async () => buildPeriodBillContext(source)),
     preview: vi.fn(async (_auth, input: Parameters<typeof buildPeriodBillPlan>[1]) =>
       buildPeriodBillPlan(source, input),
     ),

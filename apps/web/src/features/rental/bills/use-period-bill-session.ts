@@ -1,5 +1,4 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import { useQuery } from "@tanstack/react-query";
 import type {
   GenerateRentalPeriodBillRequest,
   RentalBillDetail,
@@ -9,7 +8,6 @@ import type {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "../../../services/api-client";
 import { createRentalFinanceAttempt } from "../../../services/rental-finance-api";
-import { rentalFinanceKeys } from "../../../services/rental-finance-query";
 import {
   createPeriodBillDraft,
   createPeriodBillDraftSchema,
@@ -25,7 +23,6 @@ export function usePeriodBillSession({
   onGenerated,
   context,
 }: PeriodBillDialogProps & { context: RentalPeriodBillContext }) {
-  const [page, setPage] = useState(1);
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [attempted, setAttempted] = useState(false);
   const [nonce, setNonce] = useState(0);
@@ -47,13 +44,6 @@ export function usePeriodBillSession({
     onSubmit: async () => submitAction.current(),
   });
   const draft = useStore(form.store, (state) => state.values);
-  const periods = useQuery({
-    queryKey: rentalFinanceKeys.periodBillContext(organizationId, contractId, page, 20),
-    queryFn: ({ signal }) =>
-      api.getPeriodBillContext({ contractId, page, pageSize: 20 }, { signal }),
-    enabled: page !== 1,
-    retry: false,
-  });
   const continuation =
     context.canSelectBillingStart && draft.periodStart !== context.nextPeriod?.periodStart;
   const schema = useMemo(
@@ -174,29 +164,14 @@ export function usePeriodBillSession({
       setBusy(false);
     }
   };
-  const displayedContext =
-    page === 1
-      ? context
-      : {
-          ...context,
-          selectablePeriods: periods.data?.selectablePeriods ?? {
-            items: [],
-            page,
-            pageSize: 20,
-            total: context.selectablePeriods.total,
-          },
-        };
   return {
     draft,
-    context: displayedContext,
+    context,
     currentPreview,
     previewBusy,
     errors,
     busy,
-    page,
-    setPage,
     update,
-    periods,
     error,
     canConfirm,
     request,

@@ -45,10 +45,7 @@ export class PeriodBillsService {
     private readonly audit: AuditService,
     private readonly transactions: DatabaseTransactionService,
   ) {}
-  context(
-    auth: AuthContext,
-    input: { contractId: string; page: number; pageSize: number },
-  ): Promise<RentalPeriodBillContext> {
+  context(auth: AuthContext, input: { contractId: string }): Promise<RentalPeriodBillContext> {
     this.permissions(auth);
     return this.transactions.run(async (tx) => {
       await this.lock(auth, input.contractId, tx);
@@ -56,7 +53,7 @@ export class PeriodBillsService {
         { organizationId: auth.organizationId, contractId: input.contractId },
         tx,
       );
-      return this.mapErrors(() => buildPeriodBillContext(source, input));
+      return this.mapErrors(() => buildPeriodBillContext(source));
     });
   }
   preview(

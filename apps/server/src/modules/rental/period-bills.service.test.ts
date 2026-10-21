@@ -222,14 +222,22 @@ describe("账期生成事务", () => {
     ).rejects.toBeInstanceOf(ConflictException);
     expect(h.writes).toEqual([]);
   });
-  it("context分页不改变下一账期", async () => {
+  it("context完整返回超过20期的合同账期且保留下一账期", async () => {
     const h = harness();
+    h.snapshot.contract.endDate = "2028-12-31";
+    h.snapshot.contract.actualEndDate = "2028-12-31";
     const result = await h.service.context(rentalFinanceAuth as never, {
       contractId: h.input.contractId,
-      page: 2,
-      pageSize: 2,
     });
     expect(result.nextPeriod).toEqual({ periodStart: "2026-01-01", periodEnd: "2026-01-31" });
-    expect(result.selectablePeriods.items[0]?.periodStart).toBe("2026-03-01");
+    expect(result.selectablePeriods).toHaveLength(36);
+    expect(result.selectablePeriods[0]).toEqual({
+      periodStart: "2026-01-01",
+      periodEnd: "2026-01-31",
+    });
+    expect(result.selectablePeriods.at(-1)).toEqual({
+      periodStart: "2028-12-01",
+      periodEnd: "2028-12-31",
+    });
   });
 });

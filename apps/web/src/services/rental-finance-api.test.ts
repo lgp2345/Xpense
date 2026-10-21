@@ -22,7 +22,7 @@ describe("租赁财务 API 边界", () => {
       fixedFees: [],
     };
 
-    await api.getPeriodBillContext({ contractId, page: 2, pageSize: 50 });
+    await api.getPeriodBillContext({ contractId });
     await api.getChargeTerms(contractId);
     await api.updateChargeTerms(update);
     await api.getMeterBaseline(contractId);
@@ -45,7 +45,7 @@ describe("租赁财务 API 边界", () => {
     });
 
     expect(client.get.mock.calls.map(([path]) => path)).toEqual([
-      "/rental-period-bills/context?contractId=contract%2F1&page=2&pageSize=50",
+      "/rental-period-bills/context?contractId=contract%2F1",
       "/rental-charges/detail?id=contract%2F1",
       "/rental-meters/detail?id=contract%2F1",
     ]);

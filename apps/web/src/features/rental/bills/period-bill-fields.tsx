@@ -1,14 +1,7 @@
 import type { RentalPeriodBillContext, RentalPeriodBillPreview } from "@xpense/shared";
 import { useId } from "react";
 import { DatePickerInput } from "@/components/date-picker";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { BillingPeriodSelect } from "./billing-period-select";
 import { MeterReadingFields } from "./meter-reading-fields";
 import type { PeriodBillDraft } from "./period-bill-form";
 import { PeriodChargeFields } from "./period-charge-fields";
@@ -20,8 +13,6 @@ type Props = {
   previewBusy: boolean;
   errors: ReadonlyMap<string, string>;
   disabled: boolean;
-  page: number;
-  onPage: (page: number) => void;
   onChange: <K extends keyof PeriodBillDraft>(key: K, value: PeriodBillDraft[K]) => void;
 };
 /** 账期和水电费用由服务端提供，收费事项直接录入本期金额。 */
@@ -32,16 +23,11 @@ export function PeriodBillFields({
   previewBusy,
   errors,
   disabled,
-  page,
-  onPage,
   onChange,
 }: Props) {
   const continuation =
     context.canSelectBillingStart && draft.periodStart !== context.nextPeriod?.periodStart;
   const fieldId = useId();
-  const selectedPeriod =
-    context.selectablePeriods.items.find((period) => period.periodStart === draft.periodStart) ??
-    (context.nextPeriod?.periodStart === draft.periodStart ? context.nextPeriod : preview?.period);
   const meterErrors = (name: "readings" | "baselineReadings") =>
     Object.fromEntries(
       (["water", "electricity"] as const).map((kind) => [
@@ -57,59 +43,17 @@ export function PeriodBillFields({
         <div className="space-y-1 text-sm">
           <label htmlFor="period-start">出账账期</label>
           {context.canSelectBillingStart ? (
-            <Select
+            <BillingPeriodSelect
+              periods={context.selectablePeriods}
               value={draft.periodStart}
               disabled={disabled}
-              onValueChange={(value) => onChange("periodStart", value)}
-            >
-              <SelectTrigger id="period-start" aria-label="出账账期" className="w-full min-w-0">
-                <SelectValue placeholder="请选择出账账期" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={draft.periodStart}>
-                  {draft.periodStart}
-                  {selectedPeriod ? ` 至 ${selectedPeriod.periodEnd}` : "（已选择）"}
-                </SelectItem>
-                {context.selectablePeriods.items
-                  .filter((period) => period.periodStart !== draft.periodStart)
-                  .map((period) => (
-                    <SelectItem key={period.periodStart} value={period.periodStart}>
-                      {period.periodStart} 至 {period.periodEnd}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+              onChange={(value) => onChange("periodStart", value)}
+            />
           ) : (
             <p className="rounded-md border px-3 py-2 tabular-nums">
               {context.nextPeriod?.periodStart} 至 {context.nextPeriod?.periodEnd}
             </p>
           )}
-          {context.canSelectBillingStart &&
-          context.selectablePeriods.total > context.selectablePeriods.pageSize ? (
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={page === 1}
-                onClick={() => onPage(page - 1)}
-              >
-                上一页账期
-              </Button>
-              <span>第 {page} 页</span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={
-                  page * context.selectablePeriods.pageSize >= context.selectablePeriods.total
-                }
-                onClick={() => onPage(page + 1)}
-              >
-                下一页账期
-              </Button>
-            </div>
-          ) : null}
         </div>
         <div className="space-y-1 text-sm">
           <label htmlFor="period-due-date">付款截止日</label>

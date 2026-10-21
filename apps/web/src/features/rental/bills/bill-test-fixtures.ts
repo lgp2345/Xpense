@@ -176,14 +176,9 @@ export const periodContextFixture: import("@xpense/shared").RentalPeriodBillCont
     { kind: "water", reading: "3500" },
     { kind: "electricity", reading: "50" },
   ],
-  selectablePeriods: {
-    items: [
-      { periodStart: "2026-10-05", periodEnd: "2026-11-04" },
-      { periodStart: "2026-11-05", periodEnd: "2026-12-04" },
-    ],
-    total: 2,
-    page: 1,
-    pageSize: 20,
-  },
+  selectablePeriods: [
+    { periodStart: "2026-10-05", periodEnd: "2026-11-04" },
+    { periodStart: "2026-11-05", periodEnd: "2026-12-04" },
+  ],
   missingFields: [],
 };

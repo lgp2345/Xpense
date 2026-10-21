@@ -200,11 +200,8 @@ export function buildPeriodBillPlan(
 }
 export type PeriodBillPlan = ReturnType<typeof buildPeriodBillPlan>;
 
-/** 只读表单上下文：候选期分页与下一期判定独立，日期和基准均由服务端提供。 */
-export function buildPeriodBillContext(
-  source: RentalFinanceSnapshot,
-  input: { page: number; pageSize: number },
-): RentalPeriodBillContext {
+/** 只读表单上下文：完整候选账期、下一期日期和基准均由服务端提供。 */
+export function buildPeriodBillContext(source: RentalFinanceSnapshot): RentalPeriodBillContext {
   assertPeriodBillingOpen(source);
   const period = nextPeriod(source);
   const all = selectableBillingPeriods(source);
@@ -230,14 +227,7 @@ export function buildPeriodBillContext(
     defaults,
     baselineReadings: baselines.map(({ kind, reading }) => ({ kind, reading })),
     defaultReadings: baselines.map(({ kind, reading }) => ({ kind, reading })),
-    selectablePeriods: {
-      items: canSelectBillingStart
-        ? all.slice((input.page - 1) * input.pageSize, input.page * input.pageSize)
-        : [],
-      total: canSelectBillingStart ? all.length : 0,
-      page: input.page,
-      pageSize: input.pageSize,
-    },
+    selectablePeriods: canSelectBillingStart ? all : [],
     missingFields: (["water", "electricity"] as const)
       .filter(
         (kind) =>

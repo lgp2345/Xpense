@@ -45,7 +45,7 @@ export async function seedPeriodFinance(
   async function generate(name: string, water: string) {
     const saved = await step(name);
     if (saved) return detail(saved.result.resourceId);
-    const context = await periods.context(auth, { contractId, page: 1, pageSize: 100 });
+    const context = await periods.context(auth, { contractId });
     const firstPeriodStart =
       key === "continuation" ? `${today.slice(0, 7)}-01` : context.nextPeriod!.periodStart;
     const input = {

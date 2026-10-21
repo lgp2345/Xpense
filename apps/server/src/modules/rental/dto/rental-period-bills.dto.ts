@@ -18,12 +18,10 @@ export const rentalExtraFeeInputSchema = z
     note: z.string().trim().max(1000),
   })
   .strict();
-/** 候选期分页不影响下一期判定；禁止客户端提交账期结束日或金额。 */
+/** 按合同读取完整候选账期；禁止客户端提交账期结束日或金额。 */
 export const periodBillContextSchema = z
   .object({
     contractId: z.string().uuid(),
-    page: z.coerce.number().int().min(1).default(1),
-    pageSize: z.coerce.number().int().min(1).max(100).default(20),
   })
   .strict();
 const shape = {

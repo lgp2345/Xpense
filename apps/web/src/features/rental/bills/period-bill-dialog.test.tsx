@@ -81,6 +81,48 @@ it("接续选择要求起算读数并提示线下已结清", async () => {
     ),
   );
 });
+it("长账期列表滚动到底加载后续选项，选中末期后重新打开仍保留选择", async () => {
+  const selectablePeriods = Array.from({ length: 24 }, (_, index) => {
+    const month = `${2027 + Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+    return { periodStart: `${month}-05`, periodEnd: `${month}-28` };
+  });
+  const h = setup(
+    financeApiFixture({
+      getPeriodBillContext: vi.fn().mockResolvedValue({
+        ...periodContextFixture,
+        selectablePeriods: [...periodContextFixture.selectablePeriods, ...selectablePeriods],
+      }),
+    }),
+  );
+  await screen.findByLabelText("出账账期");
+  expect(screen.queryByRole("button", { name: "上一页账期" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "下一页账期" })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("combobox", { name: "出账账期" }));
+  const list = await screen.findByRole("listbox");
+  expect(screen.getAllByRole("option")).toHaveLength(20);
+  expect(
+    screen.queryByRole("option", { name: "2028-12-05 至 2028-12-28" }),
+  ).not.toBeInTheDocument();
+  Object.defineProperties(list, {
+    clientHeight: { configurable: true, value: 288 },
+    scrollHeight: { configurable: true, value: 960 },
+  });
+  fireEvent.scroll(list, { target: { scrollTop: 300 } });
+  expect(screen.getAllByRole("option")).toHaveLength(20);
+  fireEvent.scroll(list, { target: { scrollTop: 660 } });
+  await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(26));
+  await userEvent.click(await screen.findByRole("option", { name: "2028-12-05 至 2028-12-28" }));
+  await waitFor(() =>
+    expect(screen.getByRole("combobox", { name: "出账账期" })).toHaveTextContent("2028-12-05"),
+  );
+  expect(screen.getByText(/视为已在线下结清/)).toBeInTheDocument();
+  expect(h.api.getPeriodBillContext).toHaveBeenCalledTimes(1);
+  await userEvent.click(screen.getByRole("combobox", { name: "出账账期" }));
+  expect(await screen.findByRole("option", { name: "2028-12-05 至 2028-12-28" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+});
 it("关闭再打开不调用生成，切换合同读取独立上下文", async () => {
   const h = setup();
   await screen.findByLabelText("水表读数");

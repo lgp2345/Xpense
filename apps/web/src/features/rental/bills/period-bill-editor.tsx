@@ -9,10 +9,7 @@ export function PeriodBillEditor({
   previewBusy,
   errors,
   busy,
-  page,
-  setPage,
   update,
-  periods,
   error,
   canConfirm,
   request,
@@ -31,12 +28,8 @@ export function PeriodBillEditor({
           previewBusy={previewBusy}
           errors={errors}
           disabled={busy}
-          page={page}
-          onPage={setPage}
           onChange={update}
         />
-        {periods.isFetching ? <p role="status">正在读取候选账期…</p> : null}
-        {periods.isError ? <p role="alert">候选账期读取失败，请重试。</p> : null}
         {previewBusy ? <p role="status">正在计算账单预览…</p> : null}
         {currentPreview ? <PeriodBillPreview preview={currentPreview} /> : null}
         {error ? (

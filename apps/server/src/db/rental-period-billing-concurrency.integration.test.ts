@@ -35,8 +35,6 @@ describe("真实账期并发", () => {
           const periodInput = async () => {
             const context = await a.get(PeriodBillsService).context(fixture.auth, {
               contractId: fixture.scope.contractId,
-              page: 1,
-              pageSize: 20,
             });
             const input = {
               contractId: fixture.scope.contractId,
@@ -187,7 +185,7 @@ describe("真实账期并发", () => {
           const final = await a.get(RentalFinanceSourceService).read(fixture.scope, pg.db);
           const context = await a
             .get(PeriodBillsService)
-            .context(fixture.auth, { contractId: fixture.scope.contractId, page: 1, pageSize: 20 });
+            .context(fixture.auth, { contractId: fixture.scope.contractId });
           if (kind === "作废与收款")
             expect(context.baselineReadings.map((r) => r.reading)).toEqual(
               final.readings.filter((r) => r.source === "contract").map((r) => r.reading),
