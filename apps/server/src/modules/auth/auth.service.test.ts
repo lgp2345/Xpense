@@ -57,6 +57,8 @@ describe("AuthService", () => {
     let nextSessionId = 1;
 
     const repository = {
+      lockActiveUser: vi.fn(),
+      updateLastOrganization: vi.fn(),
       findActiveUserByPhone: vi.fn().mockResolvedValue({
         initialPasswordUnchanged: true,
         id: "user-1",
@@ -154,6 +156,7 @@ describe("AuthService", () => {
       },
     };
     const auditService = {
+      appendRequired: vi.fn().mockResolvedValue(undefined),
       append: vi.fn().mockResolvedValue(undefined),
     };
     const captchaService = {
@@ -164,6 +167,9 @@ describe("AuthService", () => {
       recordFailure: vi.fn(),
       resetPhone: vi.fn(),
     };
+    repository.lockActiveUser = vi
+      .fn()
+      .mockImplementation(() => repository.findActiveUserByPhone());
     const service = new AuthService(
       repository as never,
       passwordService as never,
@@ -173,6 +179,7 @@ describe("AuthService", () => {
       captchaService as never,
       rateLimiter as never,
       { resolveSessionContext: vi.fn().mockResolvedValue(authContext) } as never,
+      { run: async (operation: (tx: unknown) => Promise<unknown>) => operation({}) } as never,
     );
 
     return {
@@ -197,14 +204,42 @@ describe("AuthService", () => {
     expect([...sessions.values()].filter((session) => session.status === "active")).toHaveLength(2);
     expect(sessions.get("session-1")?.currentOrganizationId).toBe("org-1");
     expect(sessions.get("session-2")?.clientType).toBe("app_ios");
-    expect(auditService.append).toHaveBeenCalledWith(
+    expect(auditService.appendRequired).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "auth.login.succeeded",
         actorUserId: "user-1",
         organizationId: "org-1",
         targetType: "session",
       }),
+      expect.anything(),
     );
+  });
+
+  it("rejects correct credentials without an eligible organization instead of creating a platform session", async () => {
+    const { repository, service, sessions } = createHarness();
+    repository.lockActiveUser.mockResolvedValue({
+      id: "user-1",
+      passwordHash: "hash",
+      isSuperAdmin: false,
+      defaultOrganizationId: null,
+    });
+    await expect(service.login(loginInput)).rejects.toThrow("没有可访问的组织");
+    expect(sessions.size).toBe(0);
+    expect(repository.updateLastOrganization).not.toHaveBeenCalled();
+  });
+
+  it("rechecks changed credentials under the user lock before creating a session", async () => {
+    const { repository, service, passwordService, sessions } = createHarness();
+    repository.lockActiveUser.mockResolvedValue({
+      id: "user-1",
+      passwordHash: "changed-hash",
+      isSuperAdmin: false,
+      defaultOrganizationId: "org-1",
+    });
+    passwordService.verify.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    await expect(service.login(loginInput)).rejects.toThrow("账号或密码错误");
+    expect(sessions.size).toBe(0);
+    expect(repository.updateLastOrganization).not.toHaveBeenCalled();
   });
 
   it("checks the rate limit before validating credentials", async () => {

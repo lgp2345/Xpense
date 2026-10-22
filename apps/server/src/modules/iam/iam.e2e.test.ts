@@ -195,22 +195,15 @@ describe("IAM e2e", () => {
 
   async function loginSuperInOrganization() {
     if (!harness) throw new Error("Test harness is required");
-    await login(harness.app, "13800000004");
-    const session = [...harness.state.sessions.values()].find(
-      (item) => item.userId === testIds.superUser,
-    );
-    if (!session) throw new Error("Super admin session is required");
-    harness.state.sessions.set(session.id, {
-      ...session,
-      currentOrganizationId: testIds.organization,
+    const tokens = await login(harness.app, "13800000004");
+    const result = await harness.app.inject({
+      method: "POST",
+      url: "/api/user/current-organization",
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { organizationId: testIds.organization },
     });
-    return {
-      accessToken: await harness.auth.signAccessToken({
-        userId: session.userId,
-        sessionId: session.id,
-        organizationId: testIds.organization,
-      }),
-    };
+    expect(result.statusCode).toBe(200);
+    return parseJson<{ data: { accessToken: string } }>(result).data;
   }
 
   it("GET /roles/list without permission returns 403", async () => {

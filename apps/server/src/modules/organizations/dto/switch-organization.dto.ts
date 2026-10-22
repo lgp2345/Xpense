@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export const switchOrganizationSchema = z.object({
+/** 显式切换当前会话目标，不接受客户端伪造其他身份字段。 */
+export const switchOrganizationSchema = z.strictObject({
   organizationId: z.string().uuid(),
 });
 

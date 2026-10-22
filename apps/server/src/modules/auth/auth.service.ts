@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import type { AuthTokensResponse, ClientType } from "@xpense/shared";
 
 import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { ServerConfigService } from "../../config/config.service.js";
+import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import { AuditService } from "../audit/audit.service.js";
 import { AccessService } from "../iam/access.service.js";
 import { type AuthRefreshSession, AuthRepository } from "./auth.repository.js";
@@ -63,6 +64,7 @@ export class AuthService {
     private readonly captchaService: CaptchaService,
     private readonly rateLimiter: LoginRateLimiterService,
     private readonly accessService: AccessService,
+    private readonly transactions: DatabaseTransactionService,
   ) {}
 
   async login(input: LoginInput): Promise<AuthTokensResponse> {
@@ -96,7 +98,7 @@ export class AuthService {
 
     const passwordMatches = await this.passwordService.verify(user.passwordHash, input.password);
 
-    if (!passwordMatches || (!user.isSuperAdmin && !user.defaultOrganizationId)) {
+    if (!passwordMatches) {
       this.rateLimiter.recordFailure(input.ip, input.phone);
       await this.auditService.append({
         organizationId: user.defaultOrganizationId,
@@ -108,14 +110,13 @@ export class AuthService {
         metadata: {
           phone,
           clientType: input.clientType,
-          reason: passwordMatches ? "missing_default_organization" : "password_mismatch",
+          reason: "password_mismatch",
           ip: input.ip,
         },
       });
       throw this.unauthenticated("账号或密码错误");
     }
 
-    const organizationId = user.isSuperAdmin ? null : user.defaultOrganizationId;
     this.rateLimiter.resetPhone(input.phone);
 
     const refreshToken = this.tokenService.createRefreshToken();
@@ -124,42 +125,66 @@ export class AuthService {
       ? await this.tokenService.hashRefreshToken(input.deviceId)
       : undefined;
     const ipHash = input.ip ? await this.tokenService.hashRefreshToken(input.ip) : undefined;
-    const session = await this.repository.createRefreshSession({
-      userId: user.id,
-      currentOrganizationId: organizationId,
-      clientType: input.clientType,
-      deviceIdHash,
-      deviceName: input.deviceName,
-      refreshTokenHash,
-      expiresAt: this.createRefreshTokenExpiresAt(),
-      userAgent: input.userAgent,
-      ipHash,
-    });
+    return this.transactions.run(async (transaction) => {
+      const lockedUser = await this.repository.lockActiveUser(user.id, transaction);
+      if (
+        !lockedUser ||
+        (lockedUser.passwordHash !== user.passwordHash &&
+          !(await this.passwordService.verify(lockedUser.passwordHash, input.password)))
+      )
+        throw this.unauthenticated("账号或密码错误");
+      const organizationId = lockedUser.isSuperAdmin ? null : lockedUser.defaultOrganizationId;
+      if (!lockedUser.isSuperAdmin && !organizationId)
+        throw new ForbiddenException({
+          code: apiErrorCodes.forbidden,
+          message: "没有可访问的组织，请联系组织负责人",
+        });
+      const session = await this.repository.createRefreshSession(
+        {
+          userId: user.id,
+          currentOrganizationId: organizationId,
+          clientType: input.clientType,
+          deviceIdHash,
+          deviceName: input.deviceName,
+          refreshTokenHash,
+          expiresAt: this.createRefreshTokenExpiresAt(),
+          userAgent: input.userAgent,
+          ipHash,
+        },
+        transaction,
+      );
 
-    const accessToken = await this.tokenService.signAccessToken({
-      userId: user.id,
-      sessionId: session.id,
-      organizationId,
-    });
+      if (!lockedUser.isSuperAdmin && organizationId)
+        await this.repository.updateLastOrganization(user.id, organizationId, transaction);
 
-    await this.auditService.append({
-      organizationId,
-      actorUserId: user.id,
-      action: "auth.login.succeeded",
-      targetType: "session",
-      targetId: session.id,
-      result: "succeeded",
-      metadata: {
-        clientType: input.clientType,
-        deviceName: input.deviceName,
-        ip: input.ip,
-      },
-    });
+      const accessToken = await this.tokenService.signAccessToken({
+        userId: user.id,
+        sessionId: session.id,
+        organizationId,
+      });
 
-    return {
-      accessToken,
-      refreshToken,
-    };
+      await this.auditService.appendRequired(
+        {
+          organizationId,
+          actorUserId: user.id,
+          action: "auth.login.succeeded",
+          targetType: "session",
+          targetId: session.id,
+          result: "succeeded",
+          metadata: {
+            clientType: input.clientType,
+            deviceName: input.deviceName,
+            ip: input.ip,
+          },
+        },
+        transaction,
+      );
+
+      return {
+        accessToken,
+        refreshToken,
+      };
+    });
   }
 
   async refresh(input: RefreshInput): Promise<RefreshResult> {
@@ -304,6 +329,38 @@ export class AuthService {
         result: "succeeded",
       });
     }
+  }
+
+  async returnToPlatform(authContext: SessionAuthContext): Promise<AuthTokensResponse> {
+    return this.transactions.run(async (transaction) => {
+      const user = await this.repository.lockActiveUser(authContext.userId, transaction);
+      if (!user?.isSuperAdmin)
+        throw new ForbiddenException({
+          code: apiErrorCodes.forbidden,
+          message: "当前账号无平台访问权限",
+        });
+      const session = await this.repository.lockActiveSession(authContext, transaction);
+      if (!session) throw this.unauthenticated("会话无效或已失效");
+      await this.repository.updateSessionOrganization(session.id, null, transaction);
+      const accessToken = await this.tokenService.signAccessToken({
+        userId: user.id,
+        sessionId: session.id,
+        organizationId: null,
+      });
+      await this.auditService.appendRequired(
+        {
+          organizationId: authContext.organizationId,
+          actorUserId: user.id,
+          action: "organization.exited",
+          targetType: "session",
+          targetId: session.id,
+          result: "succeeded",
+          metadata: { fromOrganizationId: authContext.organizationId, accessSource: "platform" },
+        },
+        transaction,
+      );
+      return { accessToken };
+    });
   }
 
   async listSessions(authContext: SessionAuthContext): Promise<SessionResponse[]> {

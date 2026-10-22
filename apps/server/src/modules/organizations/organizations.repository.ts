@@ -1,9 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { and, desc, eq } from "drizzle-orm";
 
-import type { AppDb } from "../../db/db.module.js";
+import type { AppDb, AppDbExecutor } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
-import { organizationMemberships, organizations, refreshSessions } from "../../db/schema.js";
+import { organizationMemberships, organizations } from "../../db/schema.js";
 
 export type UserOrganization = {
   id: string;
@@ -43,8 +43,9 @@ export class OrganizationsRepository {
   async findActiveMembership(
     userId: string,
     organizationId: string,
+    executor: AppDbExecutor = this.db,
   ): Promise<ActiveMembership | null> {
-    const [membership] = await this.db
+    const [membership] = await executor
       .select({
         userId: organizationMemberships.userId,
         organizationId: organizationMemberships.organizationId,
@@ -69,13 +70,15 @@ export class OrganizationsRepository {
     return membership ?? null;
   }
 
-  async updateSessionOrganization(sessionId: string, organizationId: string): Promise<void> {
-    await this.db
-      .update(refreshSessions)
-      .set({
-        currentOrganizationId: organizationId,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(refreshSessions.id, sessionId), eq(refreshSessions.status, "active")));
+  async findActiveOrganization(
+    organizationId: string,
+    executor: AppDbExecutor,
+  ): Promise<UserOrganization | null> {
+    const [organization] = await executor
+      .select({ id: organizations.id, name: organizations.name, status: organizations.status })
+      .from(organizations)
+      .where(and(eq(organizations.id, organizationId), eq(organizations.status, "active")))
+      .limit(1);
+    return organization ?? null;
   }
 }

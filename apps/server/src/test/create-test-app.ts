@@ -11,6 +11,7 @@ import { AuditRepository } from "../modules/audit/audit.repository.js";
 import type { AppendAuditLogInput, AuditLogRecord } from "../modules/audit/audit.types.js";
 import { type AuthRefreshSession, AuthRepository } from "../modules/auth/auth.repository.js";
 import { CaptchaService } from "../modules/auth/captcha.service.js";
+import { selectDefaultOrganization } from "../modules/auth/default-organization.rules.js";
 import { PasswordService } from "../modules/auth/password.service.js";
 import { type AccessTokenPayload, TokenService } from "../modules/auth/token.service.js";
 import { AccessRepository } from "../modules/iam/access.repository.js";
@@ -80,6 +81,7 @@ type TestUser = {
   passwordHash: string;
   status: "active" | "disabled";
   isSuperAdmin: boolean;
+  lastOrganizationId?: string | null;
 };
 
 type TestOrganization = {
@@ -215,7 +217,22 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .overrideProvider(DB)
     .useValue(options.rental ? createRentalDatabaseFake(state.rental, rentalQuery) : {})
     .overrideProvider(DatabaseTransactionService)
-    .useValue(transactionService)
+    .useValue({
+      run: <T>(operation: (tx: AppDbTransaction) => Promise<T>) =>
+        transactionService.run(async (tx) => {
+          const usersBefore = structuredClone(state.users);
+          const sessionsBefore = structuredClone(state.sessions);
+          try {
+            return await operation(tx);
+          } catch (error) {
+            state.users.clear();
+            for (const [id, user] of usersBefore) state.users.set(id, user);
+            state.sessions.clear();
+            for (const [id, session] of sessionsBefore) state.sessions.set(id, session);
+            throw error;
+          }
+        }),
+    })
     .overrideProvider(bookkeepingRepositoryTokens.LedgersRepository)
     .useValue(bookkeepingFakes.ledgersRepository)
     .overrideProvider(bookkeepingRepositoryTokens.AccountsRepository)
@@ -607,6 +624,18 @@ function createCaptchaService(): Pick<CaptchaService, "issue" | "verify"> {
 function createAuthRepository(state: TestState): Partial<AuthRepository> {
   let nextSessionId = 1;
 
+  const toAuthUser = (user: TestUser) => ({
+    ...user,
+    defaultOrganizationId: selectDefaultOrganization(
+      user.lastOrganizationId ?? null,
+      [...state.members.values()].filter(
+        (member) =>
+          member.userId === user.id &&
+          member.status === "active" &&
+          state.organizations.get(member.organizationId)?.status === "active",
+      ),
+    ),
+  });
   return {
     findActiveUserByPhone: async (phone) => {
       const user = [...state.users.values()].find(
@@ -617,10 +646,29 @@ function createAuthRepository(state: TestState): Partial<AuthRepository> {
         return null;
       }
 
-      return {
-        ...user,
-        defaultOrganizationId: findActiveMemberByUser(state, user.id)?.organizationId ?? null,
-      };
+      return toAuthUser(user);
+    },
+    lockActiveUser: async (userId) => {
+      const user = state.users.get(userId);
+      return user?.status === "active" ? toAuthUser(user) : null;
+    },
+    lockActiveSession: async (context) => {
+      const session = state.sessions.get(context.sessionId);
+      return session?.status === "active" &&
+        session.userId === context.userId &&
+        session.currentOrganizationId === context.organizationId &&
+        session.expiresAt > new Date()
+        ? session
+        : null;
+    },
+    updateLastOrganization: async (userId, organizationId) => {
+      const user = state.users.get(userId);
+      if (user) state.users.set(userId, { ...user, lastOrganizationId: organizationId });
+    },
+    updateSessionOrganization: async (sessionId, organizationId) => {
+      const session = state.sessions.get(sessionId);
+      if (session)
+        state.sessions.set(sessionId, { ...session, currentOrganizationId: organizationId });
     },
     createRefreshSession: async (input) => {
       const session = createSession({
@@ -740,12 +788,9 @@ function createOrganizationsRepository(state: TestState): Partial<OrganizationsR
         ? { userId, organizationId, organization }
         : null;
     },
-    updateSessionOrganization: async (sessionId, organizationId) => {
-      const session = state.sessions.get(sessionId);
-
-      if (session) {
-        state.sessions.set(sessionId, { ...session, currentOrganizationId: organizationId });
-      }
+    findActiveOrganization: async (organizationId) => {
+      const organization = state.organizations.get(organizationId);
+      return organization?.status === "active" ? organization : null;
     },
   };
 }

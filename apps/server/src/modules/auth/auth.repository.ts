@@ -1,10 +1,12 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { ClientType } from "@xpense/shared";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gt, isNull } from "drizzle-orm";
 
-import type { AppDb } from "../../db/db.module.js";
+import type { AppDb, AppDbExecutor } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import { organizationMemberships, organizations, refreshSessions, users } from "../../db/schema.js";
+import { selectDefaultOrganization } from "./default-organization.rules.js";
+import type { AccessTokenPayload } from "./token.service.js";
 
 export type AuthUser = {
   id: string;
@@ -56,24 +58,31 @@ export class AuthRepository {
 
   async findActiveUserByPhone(phone: string): Promise<AuthUser | null> {
     const [user] = await this.db
-      .select({
-        id: users.id,
-        phone: users.phone,
-        passwordHash: users.passwordHash,
-        status: users.status,
-        isSuperAdmin: users.isSuperAdmin,
-      })
+      .select(authUserFields)
       .from(users)
       .where(and(eq(users.phone, phone), eq(users.status, "active")))
       .limit(1);
+    return user ? this.withDefaultOrganization(user, this.db) : null;
+  }
 
-    if (!user) {
-      return null;
-    }
+  async lockActiveUser(userId: string, executor: AppDbExecutor): Promise<AuthUser | null> {
+    const [user] = await executor
+      .select(authUserFields)
+      .from(users)
+      .where(and(eq(users.id, userId), eq(users.status, "active")))
+      .for("update")
+      .limit(1);
+    return user ? this.withDefaultOrganization(user, executor) : null;
+  }
 
-    const [membership] = await this.db
+  private async withDefaultOrganization(
+    user: Omit<AuthUser, "defaultOrganizationId"> & { lastOrganizationId: string | null },
+    executor: AppDbExecutor,
+  ): Promise<AuthUser> {
+    const memberships = await executor
       .select({
         organizationId: organizationMemberships.organizationId,
+        joinedAt: organizationMemberships.joinedAt,
       })
       .from(organizationMemberships)
       .innerJoin(organizations, eq(organizationMemberships.organizationId, organizations.id))
@@ -83,18 +92,63 @@ export class AuthRepository {
           eq(organizationMemberships.status, "active"),
           eq(organizations.status, "active"),
         ),
-      )
-      .orderBy(desc(organizationMemberships.joinedAt))
-      .limit(1);
-
+      );
     return {
       ...user,
-      defaultOrganizationId: membership?.organizationId ?? null,
+      defaultOrganizationId: selectDefaultOrganization(user.lastOrganizationId, memberships),
     };
   }
 
-  async createRefreshSession(input: CreateRefreshSessionInput): Promise<AuthRefreshSession> {
-    const [session] = await this.db
+  async lockActiveSession(
+    payload: AccessTokenPayload,
+    executor: AppDbExecutor,
+  ): Promise<AuthRefreshSession | null> {
+    const [session] = await executor
+      .select()
+      .from(refreshSessions)
+      .where(
+        and(
+          eq(refreshSessions.id, payload.sessionId),
+          eq(refreshSessions.userId, payload.userId),
+          payload.organizationId === null
+            ? isNull(refreshSessions.currentOrganizationId)
+            : eq(refreshSessions.currentOrganizationId, payload.organizationId),
+          eq(refreshSessions.status, "active"),
+          gt(refreshSessions.expiresAt, new Date()),
+        ),
+      )
+      .for("update")
+      .limit(1);
+    return session ?? null;
+  }
+
+  async updateLastOrganization(
+    userId: string,
+    organizationId: string,
+    executor: AppDbExecutor,
+  ): Promise<void> {
+    await executor
+      .update(users)
+      .set({ lastOrganizationId: organizationId, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async updateSessionOrganization(
+    sessionId: string,
+    organizationId: string | null,
+    executor: AppDbExecutor,
+  ): Promise<void> {
+    await executor
+      .update(refreshSessions)
+      .set({ currentOrganizationId: organizationId, updatedAt: new Date() })
+      .where(eq(refreshSessions.id, sessionId));
+  }
+
+  async createRefreshSession(
+    input: CreateRefreshSessionInput,
+    executor: AppDbExecutor = this.db,
+  ): Promise<AuthRefreshSession> {
+    const [session] = await executor
       .insert(refreshSessions)
       .values({
         userId: input.userId,
@@ -191,3 +245,12 @@ export class AuthRepository {
       .orderBy(desc(refreshSessions.createdAt));
   }
 }
+
+const authUserFields = {
+  id: users.id,
+  phone: users.phone,
+  passwordHash: users.passwordHash,
+  status: users.status,
+  isSuperAdmin: users.isSuperAdmin,
+  lastOrganizationId: users.lastOrganizationId,
+};

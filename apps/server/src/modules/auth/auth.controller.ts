@@ -136,6 +136,15 @@ export class AuthController {
     });
   }
 
+  @Post("platform")
+  @HttpCode(200)
+  @UseGuards(SessionAuthGuard)
+  returnToPlatform(
+    @CurrentSessionContext() context: SessionAuthContext,
+  ): Promise<AuthTokensResponse> {
+    return this.authService.returnToPlatform(context);
+  }
+
   @Get("sessions")
   @RequirePermission("sessions:read")
   @UseGuards(SessionAuthGuard, RbacGuard)
