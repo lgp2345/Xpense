@@ -103,15 +103,33 @@ describe("IamService", () => {
         }
       }),
     };
+    const ownerPolicy = { lockOrganization: vi.fn(), assertMemberMutation: vi.fn() };
     const ServiceWithAccess = IamService as unknown as new (
       repository: unknown,
       auditService: unknown,
       transactions: unknown,
       accessService: unknown,
+      menuRepository: unknown,
+      ownerPolicy: unknown,
     ) => IamService;
-    const service = new ServiceWithAccess(repository, auditService, transactions, accessService);
+    const service = new ServiceWithAccess(
+      repository,
+      auditService,
+      transactions,
+      accessService,
+      {},
+      ownerPolicy,
+    );
 
-    return { accessService, auditService, repository, service, transaction, transactions };
+    return {
+      ownerPolicy,
+      accessService,
+      auditService,
+      repository,
+      service,
+      transaction,
+      transactions,
+    };
   }
 
   function createRollbackHarness() {
@@ -179,16 +197,40 @@ describe("IamService", () => {
       auditService: unknown,
       transactions: unknown,
       accessService: unknown,
+      menuRepository: unknown,
+      ownerPolicy: unknown,
     ) => IamService;
     const service = new ServiceWithAccess(
       repository,
       auditService,
       transactionService,
       accessService,
+      {},
+      { lockOrganization: vi.fn(), assertMemberMutation: vi.fn() },
     );
 
     return { service, state };
   }
+
+  it("locks the organization before loading or creating a member", async () => {
+    const { service, ownerPolicy, repository } = createHarness();
+    ownerPolicy.lockOrganization.mockRejectedValue(new ForbiddenException());
+    await expect(
+      service.createMember(authContext, { userId: "user-1", roleId: "role-custom" }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(repository.findMemberByOrganizationAndUser).not.toHaveBeenCalled();
+    expect(repository.createMember).not.toHaveBeenCalled();
+  });
+
+  it("does not write or revoke sessions when the owner policy rejects a mutation", async () => {
+    const { service, ownerPolicy, repository } = createHarness();
+    ownerPolicy.assertMemberMutation.mockRejectedValue(new ConflictException());
+    await expect(
+      service.updateMember(authContext, { id: "member-1", status: "disabled" }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(repository.updateMember).not.toHaveBeenCalled();
+    expect(repository.revokeActiveSessionsForUserInOrganization).not.toHaveBeenCalled();
+  });
 
   it("uses authContext.organizationId for member queries", async () => {
     const { repository, service } = createHarness();
@@ -269,7 +311,7 @@ describe("IamService", () => {
 
     await service.updateMember(authContext, { id: "member-1", status: "disabled" });
 
-    expect(repository.findMemberById).toHaveBeenCalledWith("org-1", "member-1", transaction, true);
+    expect(repository.findMemberById).toHaveBeenCalledWith("org-1", "member-1", transaction, false);
     expect(repository.revokeActiveSessionsForUserInOrganization).toHaveBeenCalledWith(
       "user-1",
       "org-1",

@@ -67,8 +67,9 @@ export class IamRepository {
   async findMemberByOrganizationAndUser(
     organizationId: string,
     userId: string,
+    executor: AppDbExecutor = this.db,
   ): Promise<IamMember | null> {
-    const [member] = await this.db
+    const [member] = await executor
       .select(memberSelectFields)
       .from(organizationMemberships)
       .innerJoin(users, eq(organizationMemberships.userId, users.id))
@@ -190,8 +191,12 @@ export class IamRepository {
     }));
   }
 
-  async findRoleById(organizationId: string, roleId: string): Promise<IamRole | null> {
-    const [role] = await this.db
+  async findRoleById(
+    organizationId: string,
+    roleId: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<IamRole | null> {
+    const [role] = await executor
       .select(roleSelectFields)
       .from(roles)
       .where(

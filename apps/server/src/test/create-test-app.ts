@@ -33,6 +33,7 @@ import {
   type MenuRow,
   type MenuSortOrderUpdate,
 } from "../modules/iam/menu.repository.js";
+import { OrganizationOwnerRepository } from "../modules/iam/organization-owner.repository.js";
 import { OrganizationsRepository } from "../modules/organizations/organizations.repository.js";
 import { BillAdjustmentsRepository } from "../modules/rental/bill-adjustments.repository.js";
 import { BillingStartsRepository } from "../modules/rental/billing-starts.repository.js";
@@ -270,6 +271,33 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .useValue(createOrganizationsRepository(state))
     .overrideProvider(UserRepository)
     .useValue(createUserRepository(state))
+    .overrideProvider(OrganizationOwnerRepository)
+    .useValue({
+      lockOrganization: async (id: string) => state.organizations.get(id)?.status === "active",
+      findActiveUser: async (id: string) => {
+        const user = state.users.get(id);
+        return user?.status === "active" ? { id: user.id, isSuperAdmin: user.isSuperAdmin } : null;
+      },
+      findActiveMemberRole: async (org: string, user: string) => {
+        const member = findActiveMemberByUser(state, user, org);
+        const role = member ? state.roles.get(member.roleId) : null;
+        return role?.key ?? null;
+      },
+      findRoleKey: async (org: string, id: string) => {
+        const role = state.roles.get(id);
+        return role && (role.organizationId === org || role.organizationId === null)
+          ? role.key
+          : null;
+      },
+      countActiveOwners: async (org: string) =>
+        [...state.members.values()].filter(
+          (member) =>
+            member.organizationId === org &&
+            member.status === "active" &&
+            state.users.get(member.userId)?.status === "active" &&
+            state.roles.get(member.roleId)?.key === "owner",
+        ).length,
+    })
     .overrideProvider(IamRepository)
     .useValue(createIamRepository(state))
     .overrideProvider(MenuRepository)

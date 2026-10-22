@@ -13,6 +13,8 @@ import { IamService } from "./iam.service.js";
 import { MenuController } from "./menu.controller.js";
 import { MenuRepository } from "./menu.repository.js";
 import { MenuService } from "./menu.service.js";
+import { OrganizationOwnerRepository } from "./organization-owner.repository.js";
+import { OrganizationOwnerPolicyService } from "./organization-owner-policy.service.js";
 import { PermissionSyncService } from "./permission-sync.service.js";
 import { PermissionTreeService } from "./permission-tree.service.js";
 
@@ -25,6 +27,8 @@ import { PermissionTreeService } from "./permission-tree.service.js";
     AuthGuard,
     IamRepository,
     IamService,
+    OrganizationOwnerRepository,
+    OrganizationOwnerPolicyService,
     MenuRepository,
     MenuService,
     PermissionSyncService,

@@ -15,6 +15,7 @@ import {
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
+import type { AppDbExecutor } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import { AccessService } from "./access.service.js";
 import type { CreateMemberDto } from "./dto/create-member.dto.js";
@@ -26,6 +27,7 @@ import { IamRepository } from "./iam.repository.js";
 import type { IamMember, IamPermission, IamRole, IamRoleWithPermissions } from "./iam.types.js";
 import { MenuRepository } from "./menu.repository.js";
 import { type AuthorizedMenuTreeNode, buildAuthorizedMenuTree } from "./menu-tree.js";
+import { OrganizationOwnerPolicyService } from "./organization-owner-policy.service.js";
 
 type UpdateRoleProfile = Pick<UpdateRoleDto, "id" | "name" | "description">;
 
@@ -37,6 +39,7 @@ export class IamService {
     private readonly transactions: DatabaseTransactionService,
     private readonly accessService: AccessService,
     private readonly menuRepository: MenuRepository,
+    private readonly ownerPolicy: OrganizationOwnerPolicyService,
   ) {}
 
   listMembers(authContext: AuthContext): Promise<IamMember[]> {
@@ -44,19 +47,26 @@ export class IamService {
   }
 
   async createMember(authContext: AuthContext, dto: CreateMemberDto): Promise<IamMember> {
-    const existingMember = await this.repository.findMemberByOrganizationAndUser(
-      authContext.organizationId,
-      dto.userId,
-    );
-
-    if (existingMember) {
-      throw this.conflict("用户已属于当前组织");
-    }
-
-    await this.ensureRoleInCurrentOrganization(authContext.organizationId, dto.roleId);
-    await this.assertRoleWithinPermissionCeiling(authContext, dto.roleId);
-
     return this.transactions.run(async (transaction) => {
+      await this.ownerPolicy.lockOrganization(authContext.organizationId, transaction);
+      const existingMember = await this.repository.findMemberByOrganizationAndUser(
+        authContext.organizationId,
+        dto.userId,
+        transaction,
+      );
+      if (existingMember) throw this.conflict("用户已属于当前组织");
+      await this.ensureRoleInCurrentOrganization(
+        authContext.organizationId,
+        dto.roleId,
+        transaction,
+      );
+      await this.assertRoleWithinPermissionCeiling(authContext, dto.roleId, transaction);
+      await this.ownerPolicy.assertMemberMutation(
+        authContext,
+        null,
+        { ...dto, status: "active" },
+        transaction,
+      );
       const member = await this.repository.createMember(
         {
           organizationId: authContext.organizationId,
@@ -102,22 +112,28 @@ export class IamService {
       this.accessService.assertPermission(authContext, "members:disable");
     }
 
-    if (dto.roleId) {
-      await this.ensureRoleInCurrentOrganization(authContext.organizationId, dto.roleId);
-      await this.assertRoleWithinPermissionCeiling(authContext, dto.roleId);
-    }
-
     return this.transactions.run(async (transaction) => {
+      await this.ownerPolicy.lockOrganization(authContext.organizationId, transaction);
+      if (dto.roleId) {
+        await this.ensureRoleInCurrentOrganization(
+          authContext.organizationId,
+          dto.roleId,
+          transaction,
+        );
+        await this.assertRoleWithinPermissionCeiling(authContext, dto.roleId, transaction);
+      }
       const member = await this.repository.findMemberById(
         authContext.organizationId,
         memberId,
         transaction,
-        true,
+        false,
       );
 
       if (!member) {
         throw this.notFound("组织成员不存在");
       }
+
+      await this.ownerPolicy.assertMemberMutation(authContext, member, dto, transaction);
 
       const updatedMember = await this.repository.updateMember(
         {
@@ -129,7 +145,10 @@ export class IamService {
         transaction,
       );
 
-      if (member.status === "active" && dto.status === "disabled") {
+      if (
+        (member.status === "active" && dto.status === "disabled") ||
+        (dto.roleId !== undefined && dto.roleId !== member.roleId)
+      ) {
         await this.repository.revokeActiveSessionsForUserInOrganization(
           member.userId,
           authContext.organizationId,
@@ -380,8 +399,9 @@ export class IamService {
   private async ensureRoleInCurrentOrganization(
     organizationId: string,
     roleId: string,
+    executor?: AppDbExecutor,
   ): Promise<IamRole> {
-    const role = await this.repository.findRoleById(organizationId, roleId);
+    const role = await this.repository.findRoleById(organizationId, roleId, executor);
 
     if (!role) {
       throw this.notFound("角色不存在");
@@ -414,12 +434,13 @@ export class IamService {
   private async assertRoleWithinPermissionCeiling(
     authContext: AuthContext,
     roleId: string,
+    executor?: AppDbExecutor,
   ): Promise<void> {
     if (authContext.isSuperAdmin) {
       return;
     }
 
-    const permissionKeys = await this.repository.listPermissionKeysForRole(roleId);
+    const permissionKeys = await this.repository.listPermissionKeysForRole(roleId, executor);
     this.assertPermissionsWithinCeiling(authContext, permissionKeys);
   }
 
