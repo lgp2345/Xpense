@@ -98,9 +98,15 @@ const rentalFinancePermissions = [
   "rental_settlements:confirm",
 ] as const;
 
+const organizationSettingsPermissions = [
+  "organization_settings:read",
+  "organization_settings:update",
+] as const;
+
 // ── 汇总（不修改此行逻辑）─────────────────────────
 export const permissionKeys = [
   ...dashboardPermissions,
+  ...organizationSettingsPermissions,
   ...menuPermissions,
   ...memberPermissions,
   ...rolePermissions,

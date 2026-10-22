@@ -35,6 +35,6 @@ import { PermissionTreeService } from "./permission-tree.service.js";
     PermissionTreeService,
     RbacGuard,
   ],
-  exports: [AccessService, AuthGuard, RbacGuard],
+  exports: [OrganizationOwnerRepository, AccessService, AuthGuard, RbacGuard],
 })
 export class IamModule {}

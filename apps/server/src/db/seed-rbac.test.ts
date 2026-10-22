@@ -57,6 +57,16 @@ describe("buildRbacSeedPlan", () => {
       );
     }
   });
+  it("grants organization settings only to the default owner role", () => {
+    for (const role of buildRbacSeedPlan().roles) {
+      expect(role.permissions.includes("organization_settings:read" as PermissionKey)).toBe(
+        role.key === "owner",
+      );
+      expect(role.permissions.includes("organization_settings:update" as PermissionKey)).toBe(
+        role.key === "owner",
+      );
+    }
+  });
   it("includes every shared permission", () => {
     const plan = buildRbacSeedPlan();
 
@@ -74,7 +84,10 @@ describe("buildRbacSeedPlan", () => {
 
   it("grants admin every permission except deleting roles", () => {
     const admin = buildRbacSeedPlan().roles.find((role) => role.key === "admin");
-    const expected = permissionKeys.filter((permission) => permission !== "roles:delete");
+    const expected = permissionKeys.filter(
+      (permission) =>
+        permission !== "roles:delete" && !permission.startsWith("organization_settings:"),
+    );
 
     expect(admin?.permissions.toSorted()).toEqual(expected.toSorted());
   });

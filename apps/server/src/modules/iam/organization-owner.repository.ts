@@ -31,7 +31,7 @@ export class OrganizationOwnerRepository {
   async findActiveMemberRole(
     organizationId: string,
     userId: string,
-    tx: AppDbExecutor,
+    tx: AppDbExecutor = this.db,
   ): Promise<string | null> {
     const [member] = await tx
       .select({ key: roles.key, isSystem: roles.isSystem })
@@ -51,7 +51,7 @@ export class OrganizationOwnerRepository {
   async findRoleKey(
     organizationId: string,
     roleId: string,
-    tx: AppDbExecutor,
+    tx: AppDbExecutor = this.db,
   ): Promise<string | null> {
     const [role] = await tx
       .select({ key: roles.key, isSystem: roles.isSystem })

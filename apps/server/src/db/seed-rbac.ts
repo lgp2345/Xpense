@@ -4,20 +4,15 @@ import argon2 from "argon2";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-
 import { parseServerEnv, type ServerEnv } from "../config/env.schema.js";
-import {
-  copyMenuTemplate,
-  type MenuTemplateExecutor,
-  type MenuTemplateInsert,
-} from "../modules/iam/menu-template.js";
+import { copyMenuTemplate } from "../modules/iam/menu-template.js";
+import { createMenuTemplateExecutor } from "../modules/iam/menu-template-executor.js";
 import {
   type BookkeepingDefaultsContext,
   initializeBookkeepingDefaults,
 } from "./bookkeeping-defaults.js";
 import { createBookkeepingDefaultsExecutor } from "./bookkeeping-defaults-executor.js";
 import {
-  menus,
   organizationMemberships,
   organizations,
   permissions,
@@ -96,7 +91,7 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
     roles: [
       {
         key: "owner",
-        name: "Owner",
+        name: "组织负责人",
         isSystem: true,
         isEditable: false,
         permissions: [...permissionKeys],
@@ -106,7 +101,9 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
         name: "Admin",
         isSystem: true,
         isEditable: false,
-        permissions: permissionKeys.filter((key) => key !== "roles:delete"),
+        permissions: permissionKeys.filter(
+          (key) => key !== "roles:delete" && !key.startsWith("organization_settings:"),
+        ),
       },
       {
         key: "member",
@@ -496,20 +493,6 @@ async function ensureBootstrapOrganization(
   }
 
   return { id: insertedOrganization.id, created: true };
-}
-
-function createMenuTemplateExecutor(db: SeedExecutor): MenuTemplateExecutor {
-  return {
-    async insertMenu(input: MenuTemplateInsert): Promise<number> {
-      const [insertedMenu] = await db.insert(menus).values(input).returning({ id: menus.id });
-
-      if (!insertedMenu) {
-        throw new Error(`Failed to seed menu template node: ${input.name}`);
-      }
-
-      return insertedMenu.id;
-    },
-  };
 }
 
 function isEntrypoint(): boolean {
