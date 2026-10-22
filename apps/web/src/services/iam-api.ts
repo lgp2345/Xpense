@@ -13,7 +13,8 @@ export type IamMember = {
   id: string;
   organizationId: string;
   userId: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   roleId: string;
   roleKey: string;
   roleName: string;

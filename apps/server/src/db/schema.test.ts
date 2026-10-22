@@ -39,6 +39,32 @@ import {
 } from "./schema.js";
 
 describe("RBAC database schema", () => {
+  it("allows absent email while keeping non-null uniqueness and new account state", () => {
+    expect(users.email.notNull).toBe(false);
+    const columns = Object.fromEntries(
+      getTableConfig(users).columns.map((column) => [column.name, column]),
+    );
+    expect(columns.initial_password_unchanged).toMatchObject({ default: true, notNull: true });
+    expect(columns.last_organization_id).toMatchObject({ notNull: false });
+    const emailIndex = getTableConfig(users).indexes.find(
+      (item) => item.config.name === "users_email_unique",
+    );
+    expect(emailIndex?.config.unique).toBe(true);
+  });
+
+  it("reserves organization names across all statuses and has nullable contact fields", () => {
+    const config = getTableConfig(organizations);
+    const nameIndex = config.indexes.find(
+      (item) => item.config.name === "organizations_name_unique",
+    );
+    expect(nameIndex?.config.unique).toBe(true);
+    expect(nameIndex?.config.where).toBeUndefined();
+    const columns = Object.fromEntries(config.columns.map((column) => [column.name, column]));
+    for (const name of ["contact_name", "contact_phone", "address"]) {
+      expect(columns[name]).toMatchObject({ notNull: false });
+    }
+  });
+
   it("exports all RBAC tables", () => {
     expect(users).toBeDefined();
     expect(organizations).toBeDefined();

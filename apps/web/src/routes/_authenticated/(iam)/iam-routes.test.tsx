@@ -85,6 +85,7 @@ function createSession(overrides: Partial<WebSessionDependency> = {}): WebSessio
       currentUser: {
         id: "user-1",
         email: "owner@example.com",
+        phone: null,
         isSuperAdmin: false,
         status: "active",
       },

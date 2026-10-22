@@ -24,12 +24,11 @@ export async function insertRentalPostgresFixture(
   const ids = { january: randomUUID(), february: randomUUID(), deposit: randomUUID() };
   const actor = { createdByUserId: userId, updatedByUserId: userId };
   const scope = { organizationId, contractId };
-  await db
-    .insert(tables.users)
-    .values({ id: userId, email: `${userId}@example.invalid`, passwordHash: "unused-test-hash" });
-  await db
-    .insert(tables.organizations)
-    .values({ id: organizationId, name: "隔离租赁测试", createdByUserId: userId });
+  // 历史迁移用例需要在组织管理字段出现前建数据，只写所有版本共有的列。
+  await db.execute(sql`INSERT INTO users (id, email, password_hash)
+    VALUES (${userId}, ${`${userId}@example.invalid`}, 'unused-test-hash')`);
+  await db.execute(sql`INSERT INTO organizations (id, name, created_by_user_id)
+    VALUES (${organizationId}, ${`隔离租赁测试-${organizationId}`}, ${userId})`);
   await db.insert(tables.ledgers).values({
     id: ledgerId,
     organizationId,

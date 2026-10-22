@@ -20,6 +20,7 @@ describe("UserService", () => {
         user: {
           id: "user-1",
           email: "a@example.com",
+          phone: null,
           isSuperAdmin: false,
           status: "active",
         },
@@ -51,6 +52,7 @@ describe("UserService", () => {
       user: {
         id: "user-1",
         email: "a@example.com",
+        phone: null,
         isSuperAdmin: false,
         status: "active",
       },
@@ -77,6 +79,7 @@ describe("UserService", () => {
       user: {
         id: "user-1",
         email: "root@example.com",
+        phone: null,
         isSuperAdmin: true,
         status: "active",
       },

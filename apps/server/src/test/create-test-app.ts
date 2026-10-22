@@ -776,6 +776,7 @@ function createUserRepository(state: TestState): Partial<UserRepository> {
         user: {
           id: user.id,
           email: user.email,
+          phone: user.phone,
           isSuperAdmin: user.isSuperAdmin,
           status: user.status,
         },
@@ -1051,6 +1052,7 @@ function toIamMember(state: TestState, member: TestMember): IamMember | null {
     organizationId: member.organizationId,
     userId: member.userId,
     email: user.email,
+    phone: user.phone,
     roleId: member.roleId,
     roleKey: role.key,
     roleName: role.name,

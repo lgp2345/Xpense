@@ -56,6 +56,7 @@ function createHarness() {
     currentUser: {
       id: "user-1",
       email: "super@example.com",
+      phone: null,
       isSuperAdmin: true,
       status: "active",
     },

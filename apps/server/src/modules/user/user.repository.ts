@@ -18,7 +18,8 @@ import {
 export type CurrentUserContextRecord = {
   user: {
     id: string;
-    email: string;
+    email: string | null;
+    phone: string | null;
     isSuperAdmin: boolean;
     status: "active" | "disabled";
   };
@@ -47,6 +48,7 @@ export class UserRepository {
         user: {
           id: users.id,
           email: users.email,
+          phone: users.phone,
           isSuperAdmin: users.isSuperAdmin,
           status: users.status,
         },

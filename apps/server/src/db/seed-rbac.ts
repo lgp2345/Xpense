@@ -444,6 +444,7 @@ async function upsertBootstrapUser(
       email,
       phone,
       passwordHash: await argon2.hash(password, { type: argon2.argon2id }),
+      initialPasswordUnchanged: true,
       status: "active",
       isSuperAdmin: true,
     })

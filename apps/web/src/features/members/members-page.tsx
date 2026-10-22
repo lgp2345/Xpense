@@ -181,7 +181,7 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
           <DataTableToolbar
             table={table}
             searchKey="email"
-            searchPlaceholder="搜索邮箱..."
+            searchPlaceholder="搜索邮箱或手机号..."
             filters={[
               {
                 columnId: "roleName",

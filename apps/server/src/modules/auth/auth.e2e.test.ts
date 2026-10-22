@@ -631,6 +631,7 @@ describe("Auth e2e", () => {
       user: {
         id: testIds.managerUser,
         email: "manager@example.com",
+        phone: "13800000002",
         isSuperAdmin: false,
         status: "active",
       },

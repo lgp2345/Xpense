@@ -48,6 +48,7 @@ const activeMember = {
   organizationId: "org-1",
   userId: "user-1",
   email: "member@example.com",
+  phone: null,
   roleId: "role-custom",
   roleKey: "bookkeeper",
   roleName: "Bookkeeper",

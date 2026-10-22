@@ -18,7 +18,8 @@ export type MembershipStatus = "active" | "disabled";
 export type CurrentUserResponse = {
   user: {
     id: string;
-    email: string;
+    email: string | null;
+    phone: string | null;
     isSuperAdmin: boolean;
     status: UserStatus;
   };

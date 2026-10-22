@@ -29,7 +29,7 @@ export function NavUser({ session }: { session: WebSessionDependency }) {
   const user = useStore(authStore, (state) => state.currentUser);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const email = user?.email ?? "未登录";
+  const email = user ? (user.email ?? user.phone ?? "当前账号") : "未登录";
 
   async function handleRefreshPermissions() {
     if (isRefreshing) return;

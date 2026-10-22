@@ -8,7 +8,13 @@ import { type ApiClient, createApiClient } from "./api-client";
 import { createAuthApi } from "./auth-api";
 
 const currentUserContext: CurrentUserResponse = {
-  user: { id: "user-1", email: "owner@example.com", isSuperAdmin: false, status: "active" },
+  user: {
+    id: "user-1",
+    email: "owner@example.com",
+    phone: null,
+    isSuperAdmin: false,
+    status: "active",
+  },
   organization: { id: "org-1", name: "个人账本" },
   role: { id: "role-1", key: "owner", name: "所有者" },
   permissions: ["members:read"],

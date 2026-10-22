@@ -24,9 +24,16 @@ export function createMemberColumns({
 }: MemberColumnsOptions): MemberColumnDef[] {
   return [
     {
-      accessorKey: "email",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="邮箱" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.email}</span>,
+      id: "email",
+      accessorFn: (member) => member.email ?? member.phone ?? "未填写",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="账号" />,
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.email ?? row.original.phone ?? "未填写"}</span>
+      ),
+      filterFn: (row, _columnId, filterValue: string) =>
+        [row.original.email, row.original.phone].some((value) =>
+          value?.toLowerCase().includes(filterValue.toLowerCase()),
+        ),
     },
     {
       accessorKey: "roleName",

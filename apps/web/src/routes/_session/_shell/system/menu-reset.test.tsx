@@ -16,6 +16,7 @@ function createSession(isSuperAdmin = false): WebSessionDependency {
       currentUser: {
         id: "user-1",
         email: "owner@example.com",
+        phone: null,
         isSuperAdmin,
         status: "active",
       },

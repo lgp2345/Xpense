@@ -33,11 +33,14 @@ export const users = snakeCase.table(
   "users",
   {
     id: uuid().primaryKey().defaultRandom(),
-    email: text().notNull(),
+    email: text(),
     phone: text(),
     passwordHash: text().notNull(),
     status: userStatus().notNull().default("active"),
     isSuperAdmin: boolean().notNull().default(false),
+    initialPasswordUnchanged: boolean().notNull().default(true),
+    /** 登录偏好，不参与授权判断。 */
+    lastOrganizationId: uuid(),
     ...timestamps,
   },
   (table) => [
@@ -46,19 +49,26 @@ export const users = snakeCase.table(
   ],
 );
 
-export const organizations = snakeCase.table("organizations", {
-  id: uuid().primaryKey().defaultRandom(),
-  name: text().notNull(),
-  status: organizationStatus().notNull().default("active"),
-  /** ISO 4217 三字符基础币种；组织内所有金额均使用该币种。 */
-  baseCurrency: text().notNull().default("CNY"),
-  /** 组织的 IANA 时区，用于换算账务日期。 */
-  timezone: text().notNull().default("Asia/Shanghai"),
-  createdByUserId: uuid()
-    .notNull()
-    .references(() => users.id),
-  ...timestamps,
-});
+export const organizations = snakeCase.table(
+  "organizations",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    name: text().notNull(),
+    status: organizationStatus().notNull().default("active"),
+    /** ISO 4217 三字符基础币种；组织内所有金额均使用该币种。 */
+    baseCurrency: text().notNull().default("CNY"),
+    /** 组织的 IANA 时区，用于换算账务日期。 */
+    timezone: text().notNull().default("Asia/Shanghai"),
+    contactName: text(),
+    contactPhone: text(),
+    address: text(),
+    createdByUserId: uuid()
+      .notNull()
+      .references(() => users.id),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("organizations_name_unique").on(table.name)],
+);
 
 export const roles = snakeCase.table(
   "roles",

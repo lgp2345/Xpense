@@ -15,6 +15,7 @@ const currentUserContext: CurrentUserResponse = {
   user: {
     id: "user-1",
     email: "owner@example.com",
+    phone: null,
     isSuperAdmin: false,
     status: "active",
   },

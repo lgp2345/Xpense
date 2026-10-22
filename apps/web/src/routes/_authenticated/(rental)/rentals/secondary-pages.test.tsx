@@ -243,6 +243,7 @@ describe("二级页面导航", () => {
       currentUser: {
         id: "admin",
         email: "admin@example.test",
+        phone: null,
         isSuperAdmin: true,
         status: "active",
       },
