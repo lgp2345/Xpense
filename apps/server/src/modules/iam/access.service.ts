@@ -3,6 +3,7 @@ import type { PermissionKey } from "@xpense/shared";
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
+import type { AppDbExecutor } from "../../db/db.module.js";
 import type { AccessTokenPayload } from "../auth/token.service.js";
 import { AccessRepository } from "./access.repository.js";
 
@@ -19,14 +20,17 @@ export class AccessService {
     return authContext;
   }
 
-  async resolveSessionContext(payload: AccessTokenPayload): Promise<SessionAuthContext> {
-    const session = await this.repository.findActiveSession(payload);
+  async resolveSessionContext(
+    payload: AccessTokenPayload,
+    executor?: AppDbExecutor,
+  ): Promise<SessionAuthContext> {
+    const session = await this.repository.findActiveSession(payload, executor);
 
     if (!session) {
       throw this.unauthenticated("会话无效或已失效");
     }
 
-    const user = await this.repository.findActiveUser(payload.userId);
+    const user = await this.repository.findActiveUser(payload.userId, executor);
 
     if (!user) {
       throw this.unauthenticated("用户无效或已停用");
@@ -43,7 +47,10 @@ export class AccessService {
       };
     }
 
-    const organization = await this.repository.findActiveOrganization(payload.organizationId);
+    const organization = await this.repository.findActiveOrganization(
+      payload.organizationId,
+      executor,
+    );
 
     if (!organization) {
       throw this.forbidden("组织无效或已停用");
@@ -52,6 +59,7 @@ export class AccessService {
     const membership = await this.repository.findActiveMembership(
       payload.userId,
       payload.organizationId,
+      executor,
     );
 
     if (!membership && !user.isSuperAdmin) {
@@ -65,7 +73,7 @@ export class AccessService {
       organizationId: payload.organizationId,
       isSuperAdmin: user.isSuperAdmin,
       permissions: membership
-        ? await this.repository.listPermissionKeysForRole(membership.roleId)
+        ? await this.repository.listPermissionKeysForRole(membership.roleId, executor)
         : [],
     };
   }

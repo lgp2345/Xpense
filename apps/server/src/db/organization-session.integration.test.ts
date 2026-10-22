@@ -131,6 +131,22 @@ describe.skipIf(!url)("organization session transactions", () => {
           )
         ).organizationId,
       ).toBe(secondId);
+      if (!otherDevice.refreshToken) throw new Error("Missing test refresh token");
+      const refreshed = await auth.refresh({
+        refreshToken: otherDevice.refreshToken,
+        transport: "json_body",
+      });
+      expect(
+        (await access.resolveSessionContext(await tokens.verifyAccessToken(refreshed.accessToken)))
+          .organizationId,
+      ).toBe(firstId);
+      if (!refreshed.refreshToken) throw new Error("Missing renewed test token");
+      await expect(
+        auth.refresh({ refreshToken: refreshed.refreshToken, transport: "cookie" }),
+      ).rejects.toThrow("刷新令牌传输方式无效");
+      await expect(
+        auth.refresh({ refreshToken: refreshed.refreshToken, transport: "json_body" }),
+      ).resolves.toMatchObject({ clientType: "app_ios" });
       const before = await db.select().from(tables.refreshSessions);
       const failLoginAudit = vi
         .spyOn(audit, "appendRequired")

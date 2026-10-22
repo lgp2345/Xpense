@@ -205,33 +205,71 @@ export class AuthService {
       throw this.unauthenticated("刷新会话无效");
     }
 
-    const tokenMatches = await this.tokenService.verifyRefreshTokenHash(
-      input.refreshToken,
-      session.refreshTokenHash,
-    );
-
-    if (!tokenMatches) {
-      await this.auditService.append({
-        organizationId: session.currentOrganizationId,
-        actorUserId: session.userId,
-        action: "auth.refresh.failed",
-        targetType: "session",
-        targetId: session.id,
-        result: "failed",
-        metadata: {
-          reason: "token_mismatch",
-        },
-      });
-      throw this.unauthenticated("刷新会话无效");
-    }
-
     try {
-      this.assertRefreshSessionUsable(session);
-      this.assertRefreshTransport(session.clientType, input.transport);
-      await this.accessService.resolveSessionContext({
-        userId: session.userId,
-        sessionId: session.id,
-        organizationId: session.currentOrganizationId,
+      return await this.transactions.run(async (tx) => {
+        const user = await this.repository.lockActiveUser(session.userId, tx);
+        if (!user) throw this.unauthenticated("用户无效或已停用");
+        const lockedSession = await this.repository.lockActiveSession(
+          {
+            userId: session.userId,
+            sessionId: session.id,
+            organizationId: session.currentOrganizationId,
+          },
+          tx,
+        );
+        if (
+          !lockedSession ||
+          lockedSession.refreshTokenHash !== refreshTokenHash ||
+          !(await this.tokenService.verifyRefreshTokenHash(
+            input.refreshToken,
+            lockedSession.refreshTokenHash,
+          ))
+        )
+          throw this.unauthenticated("刷新会话无效");
+        this.assertRefreshSessionUsable(lockedSession);
+        this.assertRefreshTransport(lockedSession.clientType, input.transport);
+        await this.accessService.resolveSessionContext(
+          {
+            userId: lockedSession.userId,
+            sessionId: lockedSession.id,
+            organizationId: lockedSession.currentOrganizationId,
+          },
+          tx,
+        );
+        const nextRefreshToken = this.tokenService.createRefreshToken();
+        const now = this.getNow();
+        const didRotate = await this.repository.updateRefreshSessionToken(
+          {
+            sessionId: lockedSession.id,
+            expectedRefreshTokenHash: lockedSession.refreshTokenHash,
+            refreshTokenHash: await this.tokenService.hashRefreshToken(nextRefreshToken),
+            rotatedAt: now,
+            lastUsedAt: now,
+          },
+          tx,
+        );
+        if (!didRotate) throw this.unauthenticated("刷新会话无效");
+        const accessToken = await this.tokenService.signAccessToken({
+          userId: lockedSession.userId,
+          sessionId: lockedSession.id,
+          organizationId: lockedSession.currentOrganizationId,
+        });
+        await this.auditService.appendRequired(
+          {
+            organizationId: lockedSession.currentOrganizationId,
+            actorUserId: lockedSession.userId,
+            action: "auth.refresh.succeeded",
+            targetType: "session",
+            targetId: lockedSession.id,
+            result: "succeeded",
+          },
+          tx,
+        );
+        return {
+          accessToken,
+          refreshToken: nextRefreshToken,
+          clientType: lockedSession.clientType,
+        };
       });
     } catch (error) {
       await this.auditService.append({
@@ -241,58 +279,10 @@ export class AuthService {
         targetType: "session",
         targetId: session.id,
         result: "failed",
-        metadata: {
-          reason: "session_unusable",
-        },
+        metadata: { reason: "session_unusable" },
       });
       throw error;
     }
-
-    const nextRefreshToken = this.tokenService.createRefreshToken();
-    const nextRefreshTokenHash = await this.tokenService.hashRefreshToken(nextRefreshToken);
-    const now = this.getNow();
-
-    const didRotate = await this.repository.updateRefreshSessionToken({
-      sessionId: session.id,
-      expectedRefreshTokenHash: session.refreshTokenHash,
-      refreshTokenHash: nextRefreshTokenHash,
-      rotatedAt: now,
-      lastUsedAt: now,
-    });
-
-    if (!didRotate) {
-      await this.auditService.append({
-        organizationId: session.currentOrganizationId,
-        actorUserId: session.userId,
-        action: "auth.refresh.failed",
-        targetType: "session",
-        targetId: session.id,
-        result: "failed",
-        metadata: { reason: "rotation_conflict" },
-      });
-      throw this.unauthenticated("刷新会话无效");
-    }
-
-    const accessToken = await this.tokenService.signAccessToken({
-      userId: session.userId,
-      sessionId: session.id,
-      organizationId: session.currentOrganizationId,
-    });
-
-    await this.auditService.append({
-      organizationId: session.currentOrganizationId,
-      actorUserId: session.userId,
-      action: "auth.refresh.succeeded",
-      targetType: "session",
-      targetId: session.id,
-      result: "succeeded",
-    });
-
-    return {
-      accessToken,
-      refreshToken: nextRefreshToken,
-      clientType: session.clientType,
-    };
   }
 
   async logout(input: LogoutInput): Promise<void> {

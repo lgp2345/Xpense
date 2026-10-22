@@ -9,6 +9,7 @@ import type { AppDbTransaction } from "../db/db.module.js";
 import { DB } from "../db/db.tokens.js";
 import { AuditRepository } from "../modules/audit/audit.repository.js";
 import type { AppendAuditLogInput, AuditLogRecord } from "../modules/audit/audit.types.js";
+import { AccountPasswordRepository } from "../modules/auth/account-password.repository.js";
 import { type AuthRefreshSession, AuthRepository } from "../modules/auth/auth.repository.js";
 import { CaptchaService } from "../modules/auth/captcha.service.js";
 import { selectDefaultOrganization } from "../modules/auth/default-organization.rules.js";
@@ -82,6 +83,7 @@ type TestUser = {
   status: "active" | "disabled";
   isSuperAdmin: boolean;
   lastOrganizationId?: string | null;
+  initialPasswordUnchanged?: boolean;
 };
 
 type TestOrganization = {
@@ -249,6 +251,17 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .useValue(createPasswordService())
     .overrideProvider(CaptchaService)
     .useValue(createCaptchaService())
+    .overrideProvider(AccountPasswordRepository)
+    .useValue({
+      updatePassword: async (userId: string, passwordHash: string) => {
+        const user = state.users.get(userId);
+        if (user)
+          state.users.set(userId, { ...user, passwordHash, initialPasswordUnchanged: false });
+      },
+      canUseOrganization: async (userId: string, organizationId: string, isSuperAdmin: boolean) =>
+        state.organizations.get(organizationId)?.status === "active" &&
+        (isSuperAdmin || Boolean(findActiveMemberByUser(state, userId, organizationId))),
+    })
     .overrideProvider(AuthRepository)
     .useValue(createAuthRepository(state))
     .overrideProvider(AccessRepository)
@@ -813,7 +826,7 @@ function createUserRepository(state: TestState): Partial<UserRepository> {
           email: user.email,
           phone: user.phone,
           isSuperAdmin: user.isSuperAdmin,
-          initialPasswordUnchanged: true,
+          initialPasswordUnchanged: user.initialPasswordUnchanged ?? true,
           status: user.status,
         },
         session: { id: session.id, clientType: session.clientType },

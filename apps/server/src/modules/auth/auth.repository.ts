@@ -190,8 +190,11 @@ export class AuthRepository {
     return session ?? null;
   }
 
-  async updateRefreshSessionToken(input: UpdateRefreshSessionTokenInput): Promise<boolean> {
-    const updatedSessions = await this.db
+  async updateRefreshSessionToken(
+    input: UpdateRefreshSessionTokenInput,
+    executor: AppDbExecutor = this.db,
+  ): Promise<boolean> {
+    const updatedSessions = await executor
       .update(refreshSessions)
       .set({
         refreshTokenHash: input.refreshTokenHash,
@@ -224,10 +227,10 @@ export class AuthRepository {
       .where(and(eq(refreshSessions.id, sessionId), eq(refreshSessions.status, "active")));
   }
 
-  async revokeAllUserSessions(userId: string): Promise<void> {
+  async revokeAllUserSessions(userId: string, executor: AppDbExecutor = this.db): Promise<void> {
     const now = new Date();
 
-    await this.db
+    await executor
       .update(refreshSessions)
       .set({
         status: "revoked",

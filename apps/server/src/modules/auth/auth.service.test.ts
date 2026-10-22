@@ -58,6 +58,12 @@ describe("AuthService", () => {
 
     const repository = {
       lockActiveUser: vi.fn(),
+      lockActiveSession: vi.fn(async (ctx) => {
+        const session = sessions.get(ctx.sessionId);
+        return session?.status === "active" && session.currentOrganizationId === ctx.organizationId
+          ? session
+          : null;
+      }),
       updateLastOrganization: vi.fn(),
       findActiveUserByPhone: vi.fn().mockResolvedValue({
         initialPasswordUnchanged: true,
@@ -170,6 +176,7 @@ describe("AuthService", () => {
     repository.lockActiveUser = vi
       .fn()
       .mockImplementation(() => repository.findActiveUserByPhone());
+    const transactionState = { open: false };
     const service = new AuthService(
       repository as never,
       passwordService as never,
@@ -179,10 +186,20 @@ describe("AuthService", () => {
       captchaService as never,
       rateLimiter as never,
       { resolveSessionContext: vi.fn().mockResolvedValue(authContext) } as never,
-      { run: async (operation: (tx: unknown) => Promise<unknown>) => operation({}) } as never,
+      {
+        run: async (operation: (tx: unknown) => Promise<unknown>) => {
+          transactionState.open = true;
+          try {
+            return await operation({});
+          } finally {
+            transactionState.open = false;
+          }
+        },
+      } as never,
     );
 
     return {
+      transactionState,
       auditService,
       service,
       sessions,
@@ -325,6 +342,23 @@ describe("AuthService", () => {
       UnauthorizedException,
     );
     expect(sessions.get("session-1")?.refreshTokenHash).toBe("hash:refresh-1");
+  });
+
+  it("records refresh failure only after releasing the user lock", async () => {
+    const { service, auditService, transactionState } = createHarness();
+    const login = await service.login(loginInput);
+    auditService.append.mockImplementation(async () => {
+      expect(transactionState.open).toBe(false);
+    });
+    await expect(
+      service.refresh({
+        refreshToken: requireValue(login.refreshToken, "refresh"),
+        transport: "json_body",
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(auditService.append).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "auth.refresh.failed" }),
+    );
   });
 
   it("allows only one concurrent rotation of the same refresh token", async () => {

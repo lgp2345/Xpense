@@ -65,3 +65,5 @@ export type MenuItem = {
   sortOrder: number;
   children: MenuItem[];
 };
+
+export type ChangePasswordInput = { currentPassword: string; newPassword: string };

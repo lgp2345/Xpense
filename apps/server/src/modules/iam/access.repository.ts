@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { PermissionKey } from "@xpense/shared";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
-import type { AppDb } from "../../db/db.module.js";
+import type { AppDb, AppDbExecutor } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import {
   organizationMemberships,
@@ -39,8 +39,11 @@ export type ActiveMembership = {
 export class AccessRepository {
   constructor(@Inject(DB) private readonly db: AppDb) {}
 
-  async findActiveSession(payload: AccessTokenPayload): Promise<ActiveSession | null> {
-    const [session] = await this.db
+  async findActiveSession(
+    payload: AccessTokenPayload,
+    executor: AppDbExecutor = this.db,
+  ): Promise<ActiveSession | null> {
+    const [session] = await executor
       .select({
         id: refreshSessions.id,
         userId: refreshSessions.userId,
@@ -63,8 +66,11 @@ export class AccessRepository {
     return session ?? null;
   }
 
-  async findActiveUser(userId: string): Promise<ActiveUser | null> {
-    const [user] = await this.db
+  async findActiveUser(
+    userId: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<ActiveUser | null> {
+    const [user] = await executor
       .select({
         id: users.id,
         isSuperAdmin: users.isSuperAdmin,
@@ -76,8 +82,11 @@ export class AccessRepository {
     return user ?? null;
   }
 
-  async findActiveOrganization(organizationId: string): Promise<ActiveOrganization | null> {
-    const [organization] = await this.db
+  async findActiveOrganization(
+    organizationId: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<ActiveOrganization | null> {
+    const [organization] = await executor
       .select({
         id: organizations.id,
       })
@@ -91,8 +100,9 @@ export class AccessRepository {
   async findActiveMembership(
     userId: string,
     organizationId: string,
+    executor: AppDbExecutor = this.db,
   ): Promise<ActiveMembership | null> {
-    const [membership] = await this.db
+    const [membership] = await executor
       .select({
         userId: organizationMemberships.userId,
         organizationId: organizationMemberships.organizationId,
@@ -111,8 +121,11 @@ export class AccessRepository {
     return membership ?? null;
   }
 
-  async listPermissionKeysForRole(roleId: string): Promise<PermissionKey[]> {
-    const rows = await this.db
+  async listPermissionKeysForRole(
+    roleId: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<PermissionKey[]> {
+    const rows = await executor
       .select({
         key: permissions.key,
       })

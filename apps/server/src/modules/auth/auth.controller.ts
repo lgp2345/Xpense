@@ -18,9 +18,11 @@ import { ServerConfigService } from "../../config/config.service.js";
 import { RequirePermission } from "../iam/decorators/require-permission.decorator.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
 import { SessionAuthGuard } from "../iam/guards/session-auth.guard.js";
+import { AccountPasswordService } from "./account-password.service.js";
 import type { SessionResponse } from "./auth.service.js";
 import { AuthService } from "./auth.service.js";
 import { CaptchaService } from "./captcha.service.js";
+import { type ChangePasswordDto, changePasswordSchema } from "./dto/change-password.dto.js";
 import { type LoginDto, loginSchema } from "./dto/login.dto.js";
 import { type RefreshDto, refreshSchema } from "./dto/refresh.dto.js";
 import { OptionalAuthGuard } from "./optional-auth.guard.js";
@@ -54,6 +56,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly captchaService: CaptchaService,
     private readonly config: ServerConfigService,
+    private readonly accountPassword: AccountPasswordService,
   ) {}
 
   @Get("captcha")
@@ -134,6 +137,21 @@ export class AuthController {
       authContext: request.sessionContext,
       refreshToken: request.cookies[this.config.env.WEB_REFRESH_TOKEN_COOKIE],
     });
+  }
+
+  @Post("password/update")
+  @HttpCode(200)
+  @UseGuards(SessionAuthGuard)
+  async changePassword(
+    @CurrentSessionContext() ctx: SessionAuthContext,
+    @Body({ schema: changePasswordSchema }) dto: ChangePasswordDto,
+    @Res({ passthrough: true }) reply: AuthCookieReply,
+  ): Promise<AuthTokensResponse> {
+    const tokens = await this.accountPassword.changePassword(ctx, dto);
+    if (!this.isWebClient(tokens.clientType))
+      return { accessToken: tokens.accessToken, refreshToken: this.requireRefreshToken(tokens) };
+    this.setRefreshCookie(reply, this.requireRefreshToken(tokens));
+    return { accessToken: tokens.accessToken };
   }
 
   @Post("platform")

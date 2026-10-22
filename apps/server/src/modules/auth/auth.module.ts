@@ -7,6 +7,8 @@ import { AccessRepository } from "../iam/access.repository.js";
 import { AccessService } from "../iam/access.service.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { SessionAuthGuard } from "../iam/guards/session-auth.guard.js";
+import { AccountPasswordRepository } from "./account-password.repository.js";
+import { AccountPasswordService } from "./account-password.service.js";
 import { AuthController } from "./auth.controller.js";
 import { AuthRepository } from "./auth.repository.js";
 import { AuthService } from "./auth.service.js";
@@ -27,6 +29,8 @@ import { TokenService } from "./token.service.js";
     SessionAuthGuard,
     OptionalAuthGuard,
     AuthRepository,
+    AccountPasswordRepository,
+    AccountPasswordService,
     AuthService,
     CaptchaService,
     LoginRateLimiterService,
