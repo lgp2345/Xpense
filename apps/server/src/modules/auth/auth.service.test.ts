@@ -2,7 +2,7 @@ import { UnauthorizedException } from "@nestjs/common";
 import type { ClientType } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AuthContext } from "../../common/auth/auth-context.js";
+import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import { AuthService, type LoginInput } from "./auth.service.js";
 
 type TestSession = {
@@ -10,12 +10,13 @@ type TestSession = {
   userId: string;
   refreshTokenHash: string;
   status: "active" | "revoked";
-  currentOrganizationId: string;
+  currentOrganizationId: string | null;
   clientType: ClientType;
   expiresAt: Date;
 };
 
-const authContext: AuthContext = {
+const authContext: SessionAuthContext = {
+  accessScope: "organization",
   userId: "user-1",
   sessionId: "session-1",
   organizationId: "org-1",
@@ -57,6 +58,7 @@ describe("AuthService", () => {
 
     const repository = {
       findActiveUserByPhone: vi.fn().mockResolvedValue({
+        initialPasswordUnchanged: true,
         id: "user-1",
         phone: "13800000001",
         passwordHash: "hash",
@@ -170,6 +172,7 @@ describe("AuthService", () => {
       auditService as never,
       captchaService as never,
       rateLimiter as never,
+      { resolveSessionContext: vi.fn().mockResolvedValue(authContext) } as never,
     );
 
     return {

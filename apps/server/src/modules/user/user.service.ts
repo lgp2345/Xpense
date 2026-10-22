@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { type CurrentUserResponse, permissionKeys } from "@xpense/shared";
 
-import type { AuthContext } from "../../common/auth/auth-context.js";
+import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { UserRepository } from "./user.repository.js";
 
@@ -9,7 +9,7 @@ import { UserRepository } from "./user.repository.js";
 export class UserService {
   constructor(private readonly repository: UserRepository) {}
 
-  async getCurrentUser(authContext: AuthContext): Promise<CurrentUserResponse> {
+  async getCurrentUser(authContext: SessionAuthContext): Promise<CurrentUserResponse> {
     const currentContext = await this.repository.findCurrentUserContext(authContext);
 
     if (!currentContext) {
@@ -21,9 +21,14 @@ export class UserService {
 
     return {
       ...currentContext,
-      permissions: currentContext.user.isSuperAdmin
-        ? [...permissionKeys]
-        : await this.repository.listPermissionKeysForRole(currentContext.role.id),
+      permissions:
+        currentContext.accessScope === "platform"
+          ? []
+          : currentContext.user.isSuperAdmin
+            ? [...permissionKeys]
+            : currentContext.role
+              ? await this.repository.listPermissionKeysForRole(currentContext.role.id)
+              : [],
     };
   }
 }

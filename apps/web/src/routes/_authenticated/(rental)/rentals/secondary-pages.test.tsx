@@ -105,7 +105,13 @@ function createSession(mode: "pending" | "error" = "pending"): WebSessionDepende
     authApi: { listOrganizations: vi.fn().mockResolvedValue([]) } as never,
     authStore: createAuthStore({
       status: "authenticated",
-      currentOrganization: { id: "org", name: "组织" },
+      currentOrganization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
+        id: "org",
+        name: "组织",
+      },
       permissions: [
         ...new Set<PermissionKey>([
           "rental_tenants:read",
@@ -241,6 +247,7 @@ describe("二级页面导航", () => {
     const session = createSession();
     session.authStore.setState({
       currentUser: {
+        initialPasswordUnchanged: true,
         id: "admin",
         email: "admin@example.test",
         phone: null,

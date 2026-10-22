@@ -33,6 +33,9 @@ export async function requireRegisteredRouteAccess(
   requireAuthenticatedRouteAccess(context, location);
 
   const { session } = context;
+  if (session.authStore.getState().accessScope === "platform") {
+    throw redirect({ to: "/forbidden" });
+  }
   const organizationId = session.authStore.getState().currentOrganization?.id ?? null;
   let menuState = session.menuStore.getState();
 

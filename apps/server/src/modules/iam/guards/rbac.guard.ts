@@ -6,14 +6,15 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { PermissionKey } from "@xpense/shared";
-
 import type { AuthContext } from "../../../common/auth/auth-context.js";
+import type { SessionAuthContext } from "../../../common/auth/session-auth-context.js";
 import { apiErrorCodes } from "../../../common/errors/api-error.js";
 import { AccessService } from "../access.service.js";
 import { REQUIRE_PERMISSION_KEY } from "../decorators/require-permission.decorator.js";
 
 type RequestWithAuthContext = {
   authContext?: AuthContext;
+  sessionContext?: SessionAuthContext;
 };
 
 @Injectable()
@@ -25,7 +26,7 @@ export class RbacGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<RequestWithAuthContext>();
-    const authContext = request.authContext;
+    const authContext = request.sessionContext ?? request.authContext;
 
     if (!authContext) {
       throw new UnauthorizedException({

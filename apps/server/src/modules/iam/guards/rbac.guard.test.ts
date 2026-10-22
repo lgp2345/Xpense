@@ -9,6 +9,7 @@ import {
 } from "../decorators/require-permission.decorator.js";
 import { AuthGuard } from "./auth.guard.js";
 import { RbacGuard } from "./rbac.guard.js";
+import { SessionAuthGuard } from "./session-auth.guard.js";
 
 const authContext: AuthContext = {
   userId: "user-1",
@@ -48,9 +49,13 @@ describe("AuthGuard", () => {
       }),
     };
     const accessService = {
-      resolveAuthContext: vi.fn().mockResolvedValue(authContext),
+      resolveSessionContext: vi
+        .fn()
+        .mockResolvedValue({ ...authContext, accessScope: "organization" }),
     };
-    const guard = new AuthGuard(tokenService as never, accessService as never);
+    const guard = new AuthGuard(
+      new SessionAuthGuard(tokenService as never, accessService as never),
+    );
 
     return { accessService, guard, request, tokenService };
   }
@@ -61,7 +66,7 @@ describe("AuthGuard", () => {
     await expect(guard.canActivate(createContext(request, () => undefined))).resolves.toBe(true);
 
     expect(tokenService.verifyAccessToken).toHaveBeenCalledWith("access-token");
-    expect(accessService.resolveAuthContext).toHaveBeenCalledWith({
+    expect(accessService.resolveSessionContext).toHaveBeenCalledWith({
       userId: "user-1",
       sessionId: "session-1",
       organizationId: "org-1",

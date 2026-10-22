@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { PermissionKey } from "@xpense/shared";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 
 import type { AppDb } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
@@ -51,7 +51,9 @@ export class AccessRepository {
         and(
           eq(refreshSessions.id, payload.sessionId),
           eq(refreshSessions.userId, payload.userId),
-          eq(refreshSessions.currentOrganizationId, payload.organizationId),
+          payload.organizationId === null
+            ? isNull(refreshSessions.currentOrganizationId)
+            : eq(refreshSessions.currentOrganizationId, payload.organizationId),
           eq(refreshSessions.status, "active"),
           gt(refreshSessions.expiresAt, new Date()),
         ),

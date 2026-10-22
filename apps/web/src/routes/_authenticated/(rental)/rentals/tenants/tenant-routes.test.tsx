@@ -72,7 +72,13 @@ function session(api: Partial<RentalApi> = {}): WebSessionDependency {
     authApi: { listOrganizations: vi.fn().mockResolvedValue([]) } as never,
     authStore: createAuthStore({
       status: "authenticated",
-      currentOrganization: { id: "org-1", name: "组织" },
+      currentOrganization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
+        id: "org-1",
+        name: "组织",
+      },
       permissions: [
         "rental_tenants:read",
         "rental_tenants:sensitive_read",

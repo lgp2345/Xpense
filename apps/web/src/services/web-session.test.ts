@@ -14,7 +14,9 @@ import {
 } from "./web-session";
 
 const currentUserContext: CurrentUserResponse = {
+  accessScope: "organization",
   user: {
+    initialPasswordUnchanged: true,
     id: "user-1",
     email: "owner@example.com",
     phone: null,
@@ -22,6 +24,9 @@ const currentUserContext: CurrentUserResponse = {
     status: "active",
   },
   organization: {
+    status: "active",
+    baseCurrency: "CNY",
+    timezone: "Asia/Shanghai",
     id: "org-1",
     name: "个人账本",
   },
@@ -100,6 +105,40 @@ function expectAnonymousState(store: ReturnType<typeof createAuthStore>) {
 }
 
 describe("web session", () => {
+  it.each([
+    "login",
+    "restore",
+  ])("keeps platform %s free of organization menus", async (operation) => {
+    const store = createAuthStore();
+    const user: CurrentUserResponse = {
+      ...currentUserContext,
+      accessScope: "platform",
+      organization: null,
+      role: null,
+      permissions: [],
+      user: { ...currentUserContext.user, isSuperAdmin: true },
+    };
+    const api = createAuthApi({ userResult: user });
+    const menuStore = createMenuStore();
+    const iamApi = { getAuthorizedMenus: vi.fn().mockResolvedValue(authorizedMenus) };
+    if (operation === "restore") await restoreWebSession(api, store, { iamApi, menuStore });
+    else
+      await loginWebSession(
+        api,
+        store,
+        { phone: "13800000001", password: "password", captchaId: "captcha", captchaText: "test" },
+        { iamApi, menuStore },
+      );
+    expect(store.getState()).toMatchObject({
+      status: "authenticated",
+      accessScope: "platform",
+      currentOrganization: null,
+      role: null,
+    });
+    expect(iamApi.getAuthorizedMenus).not.toHaveBeenCalled();
+    expect(menuStore.getState().organizationId).toBeNull();
+  });
+
   it("refreshes concurrent protected 401 responses once and replays them with the new token", async () => {
     const store = createAuthStore({ accessToken: "expired-access" });
     store.getState().setCurrentUserContext(currentUserContext);
@@ -370,7 +409,13 @@ describe("web session", () => {
     store.getState().setCurrentUserContext(currentUserContext);
     const switchedContext: CurrentUserResponse = {
       ...currentUserContext,
-      organization: { id: "org-2", name: "家庭账本" },
+      organization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
+        id: "org-2",
+        name: "家庭账本",
+      },
       role: { id: "role-2", key: "member", name: "成员" },
       permissions: ["transactions:read"],
       session: { id: "session-1", clientType: "web_mobile" },
@@ -405,7 +450,13 @@ describe("web session", () => {
     const switchRequest = createDeferred<AuthTokensResponse>();
     const switchedContext: CurrentUserResponse = {
       ...currentUserContext,
-      organization: { id: "org-2", name: "家庭账本" },
+      organization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
+        id: "org-2",
+        name: "家庭账本",
+      },
       permissions: ["transactions:read"],
     };
     const api = createAuthApi({ userResult: switchedContext });
@@ -564,7 +615,13 @@ describe("web session", () => {
     const newLoginContext: CurrentUserResponse = {
       ...currentUserContext,
       user: { ...currentUserContext.user, email: "new-login@example.com" },
-      organization: { id: "org-3", name: "新登录账本" },
+      organization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
+        id: "org-3",
+        name: "新登录账本",
+      },
     };
     store.getState().setAccessToken("new-login-access");
     store.getState().setCurrentUserContext(newLoginContext);
@@ -595,7 +652,13 @@ describe("web session", () => {
     });
     const newLoginContext: CurrentUserResponse = {
       ...currentUserContext,
-      organization: { id: "org-3", name: "新登录账本" },
+      organization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
+        id: "org-3",
+        name: "新登录账本",
+      },
     };
     store.getState().clearAuth();
     const loginApi = createAuthApi({
@@ -656,13 +719,25 @@ describe("web session", () => {
     const newLoginContext: CurrentUserResponse = {
       ...currentUserContext,
       user: { ...currentUserContext.user, email: "new-login@example.com" },
-      organization: { id: "org-3", name: "新登录账本" },
+      organization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
+        id: "org-3",
+        name: "新登录账本",
+      },
     };
     store.getState().setAccessToken("new-login-access");
     store.getState().setCurrentUserContext(newLoginContext);
     oldCurrentUserRequest.resolve({
       ...currentUserContext,
-      organization: { id: "org-2", name: "旧切换账本" },
+      organization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
+        id: "org-2",
+        name: "旧切换账本",
+      },
     });
 
     await switching;

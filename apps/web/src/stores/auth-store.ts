@@ -5,6 +5,7 @@ export type AuthStatus = "anonymous" | "authenticated";
 
 export type AuthStoreState = {
   accessToken: string | null;
+  accessScope: CurrentUserResponse["accessScope"] | null;
   currentUser: CurrentUserResponse["user"] | null;
   currentOrganization: CurrentUserResponse["organization"] | null;
   role: CurrentUserResponse["role"] | null;
@@ -24,6 +25,7 @@ export type AuthStoreApi = StoreApi<AuthStore>;
 
 const anonymousState: AuthStoreState = {
   accessToken: null,
+  accessScope: null,
   currentUser: null,
   currentOrganization: null,
   role: null,
@@ -43,6 +45,7 @@ export function createAuthStore(initialState: Partial<AuthStoreState> = {}): Aut
     setAccessToken: (accessToken) => set({ accessToken }),
     setCurrentUserContext: (context) =>
       set({
+        accessScope: context.accessScope,
         currentUser: context.user,
         currentOrganization: context.organization,
         role: context.role,

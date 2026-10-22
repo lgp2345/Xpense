@@ -9,6 +9,7 @@ import { NavUser } from "./nav-user";
 describe("NavUser account identity", () => {
   it("shows a signed-in phone account without an email", () => {
     const currentUser = {
+      initialPasswordUnchanged: true,
       id: "user-1",
       email: null,
       phone: "13800000001",

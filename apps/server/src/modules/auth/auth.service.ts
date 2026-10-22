@@ -1,10 +1,11 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import type { AuthTokensResponse, ClientType } from "@xpense/shared";
 
-import type { AuthContext } from "../../common/auth/auth-context.js";
+import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { ServerConfigService } from "../../config/config.service.js";
 import { AuditService } from "../audit/audit.service.js";
+import { AccessService } from "../iam/access.service.js";
 import { type AuthRefreshSession, AuthRepository } from "./auth.repository.js";
 import { CaptchaService } from "./captcha.service.js";
 import { LoginRateLimiterService } from "./login-rate-limiter.service.js";
@@ -35,7 +36,7 @@ export type RefreshResult = AuthTokensResponse & {
 };
 
 export type LogoutInput = {
-  authContext?: AuthContext;
+  authContext?: SessionAuthContext;
   refreshToken?: string;
 };
 
@@ -61,6 +62,7 @@ export class AuthService {
     private readonly auditService: AuditService,
     private readonly captchaService: CaptchaService,
     private readonly rateLimiter: LoginRateLimiterService,
+    private readonly accessService: AccessService,
   ) {}
 
   async login(input: LoginInput): Promise<AuthTokensResponse> {
@@ -94,7 +96,7 @@ export class AuthService {
 
     const passwordMatches = await this.passwordService.verify(user.passwordHash, input.password);
 
-    if (!passwordMatches || !user.defaultOrganizationId) {
+    if (!passwordMatches || (!user.isSuperAdmin && !user.defaultOrganizationId)) {
       this.rateLimiter.recordFailure(input.ip, input.phone);
       await this.auditService.append({
         organizationId: user.defaultOrganizationId,
@@ -113,6 +115,7 @@ export class AuthService {
       throw this.unauthenticated("账号或密码错误");
     }
 
+    const organizationId = user.isSuperAdmin ? null : user.defaultOrganizationId;
     this.rateLimiter.resetPhone(input.phone);
 
     const refreshToken = this.tokenService.createRefreshToken();
@@ -123,7 +126,7 @@ export class AuthService {
     const ipHash = input.ip ? await this.tokenService.hashRefreshToken(input.ip) : undefined;
     const session = await this.repository.createRefreshSession({
       userId: user.id,
-      currentOrganizationId: user.defaultOrganizationId,
+      currentOrganizationId: organizationId,
       clientType: input.clientType,
       deviceIdHash,
       deviceName: input.deviceName,
@@ -136,11 +139,11 @@ export class AuthService {
     const accessToken = await this.tokenService.signAccessToken({
       userId: user.id,
       sessionId: session.id,
-      organizationId: user.defaultOrganizationId,
+      organizationId,
     });
 
     await this.auditService.append({
-      organizationId: user.defaultOrganizationId,
+      organizationId,
       actorUserId: user.id,
       action: "auth.login.succeeded",
       targetType: "session",
@@ -200,6 +203,11 @@ export class AuthService {
     try {
       this.assertRefreshSessionUsable(session);
       this.assertRefreshTransport(session.clientType, input.transport);
+      await this.accessService.resolveSessionContext({
+        userId: session.userId,
+        sessionId: session.id,
+        organizationId: session.currentOrganizationId,
+      });
     } catch (error) {
       await this.auditService.append({
         organizationId: session.currentOrganizationId,
@@ -298,13 +306,13 @@ export class AuthService {
     }
   }
 
-  async listSessions(authContext: AuthContext): Promise<SessionResponse[]> {
+  async listSessions(authContext: SessionAuthContext): Promise<SessionResponse[]> {
     const sessions = await this.repository.listUserSessions(authContext.userId);
 
     return sessions.map((session) => this.toSessionResponse(session));
   }
 
-  async revokeSession(authContext: AuthContext, sessionId: string): Promise<void> {
+  async revokeSession(authContext: SessionAuthContext, sessionId: string): Promise<void> {
     const session = await this.repository.findActiveSessionById(sessionId);
 
     if (!session || session.userId !== authContext.userId) {
@@ -322,7 +330,7 @@ export class AuthService {
     });
   }
 
-  async revokeAllSessions(authContext: AuthContext): Promise<void> {
+  async revokeAllSessions(authContext: SessionAuthContext): Promise<void> {
     await this.repository.revokeAllUserSessions(authContext.userId);
     await this.auditService.append({
       organizationId: authContext.organizationId,
@@ -344,17 +352,9 @@ export class AuthService {
     return new Date();
   }
 
-  private assertRefreshSessionUsable(
-    session: AuthRefreshSession,
-  ): asserts session is AuthRefreshSession & {
-    currentOrganizationId: string;
-  } {
+  private assertRefreshSessionUsable(session: AuthRefreshSession): void {
     if (session.status !== "active" || session.expiresAt.getTime() <= this.getNow().getTime()) {
       throw this.unauthenticated("刷新会话无效");
-    }
-
-    if (!session.currentOrganizationId) {
-      throw this.unauthenticated("组织上下文无效");
     }
   }
 

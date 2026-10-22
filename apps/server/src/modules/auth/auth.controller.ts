@@ -11,14 +11,13 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import type { AuthTokensResponse, CaptchaChallengeResponse, ClientType } from "@xpense/shared";
-
-import type { AuthContext } from "../../common/auth/auth-context.js";
-import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
+import { CurrentSessionContext } from "../../common/auth/current-session-context.decorator.js";
+import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { ServerConfigService } from "../../config/config.service.js";
 import { RequirePermission } from "../iam/decorators/require-permission.decorator.js";
-import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
+import { SessionAuthGuard } from "../iam/guards/session-auth.guard.js";
 import type { SessionResponse } from "./auth.service.js";
 import { AuthService } from "./auth.service.js";
 import { CaptchaService } from "./captcha.service.js";
@@ -27,7 +26,7 @@ import { type RefreshDto, refreshSchema } from "./dto/refresh.dto.js";
 import { OptionalAuthGuard } from "./optional-auth.guard.js";
 
 type AuthCookieRequest = {
-  authContext?: AuthContext;
+  sessionContext?: SessionAuthContext;
   cookies: Record<string, string | undefined>;
 };
 
@@ -132,24 +131,26 @@ export class AuthController {
     });
 
     return this.authService.logout({
-      authContext: request.authContext,
+      authContext: request.sessionContext,
       refreshToken: request.cookies[this.config.env.WEB_REFRESH_TOKEN_COOKIE],
     });
   }
 
   @Get("sessions")
   @RequirePermission("sessions:read")
-  @UseGuards(AuthGuard, RbacGuard)
-  listSessions(@CurrentAuthContext() authContext: AuthContext): Promise<SessionResponse[]> {
+  @UseGuards(SessionAuthGuard, RbacGuard)
+  listSessions(
+    @CurrentSessionContext() authContext: SessionAuthContext,
+  ): Promise<SessionResponse[]> {
     return this.authService.listSessions(authContext);
   }
 
   @Post("sessions/:id/revoke")
   @HttpCode(200)
   @RequirePermission("sessions:revoke")
-  @UseGuards(AuthGuard, RbacGuard)
+  @UseGuards(SessionAuthGuard, RbacGuard)
   revokeSession(
-    @CurrentAuthContext() authContext: AuthContext,
+    @CurrentSessionContext() authContext: SessionAuthContext,
     @Param("id") sessionId: string,
   ): Promise<void> {
     return this.authService.revokeSession(authContext, sessionId);
@@ -158,8 +159,8 @@ export class AuthController {
   @Post("sessions/revoke-all")
   @HttpCode(200)
   @RequirePermission("sessions:revoke")
-  @UseGuards(AuthGuard, RbacGuard)
-  revokeAllSessions(@CurrentAuthContext() authContext: AuthContext): Promise<void> {
+  @UseGuards(SessionAuthGuard, RbacGuard)
+  revokeAllSessions(@CurrentSessionContext() authContext: SessionAuthContext): Promise<void> {
     return this.authService.revokeAllSessions(authContext);
   }
 

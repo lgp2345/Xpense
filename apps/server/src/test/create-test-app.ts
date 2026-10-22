@@ -567,7 +567,7 @@ function createMember(id: string, userId: string, roleId: string): TestMember {
 function createSession(input: {
   id: string;
   userId: string;
-  currentOrganizationId: string;
+  currentOrganizationId: string | null;
   refreshTokenHash: string;
   clientType?: ClientType;
   expiresAt?: Date;
@@ -755,44 +755,37 @@ function createUserRepository(state: TestState): Partial<UserRepository> {
     findCurrentUserContext: async (authContext) => {
       const session = state.sessions.get(authContext.sessionId);
       const user = state.users.get(authContext.userId);
-      const organization = state.organizations.get(authContext.organizationId);
-      const member = findActiveMemberByUser(state, authContext.userId, authContext.organizationId);
-      const role = member ? state.roles.get(member.roleId) : undefined;
-
       if (
         session?.status !== "active" ||
         session.currentOrganizationId !== authContext.organizationId ||
         !user ||
-        user.status !== "active" ||
-        !organization ||
-        organization.status !== "active" ||
-        !member ||
-        !role
-      ) {
+        user.status !== "active"
+      )
         return null;
-      }
-
-      return {
+      const base = {
         user: {
           id: user.id,
           email: user.email,
           phone: user.phone,
           isSuperAdmin: user.isSuperAdmin,
+          initialPasswordUnchanged: true,
           status: user.status,
         },
-        organization: {
-          id: organization.id,
-          name: organization.name,
-        },
-        role: {
-          id: role.id,
-          key: role.key,
-          name: role.name,
-        },
-        session: {
-          id: session.id,
-          clientType: session.clientType,
-        },
+        session: { id: session.id, clientType: session.clientType },
+      };
+      if (authContext.accessScope === "platform")
+        return user.isSuperAdmin
+          ? { ...base, accessScope: "platform", organization: null, role: null }
+          : null;
+      const organization = state.organizations.get(authContext.organizationId);
+      const member = findActiveMemberByUser(state, authContext.userId, authContext.organizationId);
+      const role = member ? state.roles.get(member.roleId) : undefined;
+      if (organization?.status !== "active" || (!user.isSuperAdmin && !role)) return null;
+      return {
+        ...base,
+        accessScope: "organization",
+        organization: { ...organization, baseCurrency: "CNY", timezone: "Asia/Shanghai" },
+        role: role ? { id: role.id, key: role.key, name: role.name } : null,
       };
     },
     listPermissionKeysForRole: async (roleId) => state.roles.get(roleId)?.permissions ?? [],

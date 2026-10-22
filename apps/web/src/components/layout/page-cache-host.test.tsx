@@ -136,14 +136,22 @@ function authorizedMenu(routeKey: RouteKey, id: number, keepAlive = true): Autho
 }
 
 const userContext: CurrentUserResponse = {
+  accessScope: "organization",
   user: {
+    initialPasswordUnchanged: true,
     id: "user-1",
     email: "owner@example.com",
     phone: null,
     isSuperAdmin: false,
     status: "active",
   },
-  organization: { id: "org-1", name: "个人账本" },
+  organization: {
+    status: "active",
+    baseCurrency: "CNY",
+    timezone: "Asia/Shanghai",
+    id: "org-1",
+    name: "个人账本",
+  },
   role: { id: "role-1", key: "owner", name: "所有者" },
   permissions: ["members:read", "roles:read"],
   session: { id: "session-1", clientType: "web_pc" },

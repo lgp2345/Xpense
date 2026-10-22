@@ -193,6 +193,26 @@ describe("IAM e2e", () => {
     expectApiError(response, 403, "FORBIDDEN");
   });
 
+  async function loginSuperInOrganization() {
+    if (!harness) throw new Error("Test harness is required");
+    await login(harness.app, "13800000004");
+    const session = [...harness.state.sessions.values()].find(
+      (item) => item.userId === testIds.superUser,
+    );
+    if (!session) throw new Error("Super admin session is required");
+    harness.state.sessions.set(session.id, {
+      ...session,
+      currentOrganizationId: testIds.organization,
+    });
+    return {
+      accessToken: await harness.auth.signAccessToken({
+        userId: session.userId,
+        sessionId: session.id,
+        organizationId: testIds.organization,
+      }),
+    };
+  }
+
   it("GET /roles/list without permission returns 403", async () => {
     const { app } = await createHarness();
     const { accessToken } = await login(app, "13800000003");
@@ -235,7 +255,7 @@ describe("IAM e2e", () => {
 
   it("super_admin active member can access /roles/list without roles.read", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "13800000004");
+    const { accessToken } = await loginSuperInOrganization();
 
     const response = await app.inject({
       method: "GET",
@@ -248,7 +268,7 @@ describe("IAM e2e", () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it("super_admin non-member cannot access current organization", async () => {
+  it("super_admin non-member can access an explicitly selected active organization", async () => {
     const { app, auth } = await createHarness();
     const accessToken = await auth.signAccessToken({
       userId: testIds.superNonMemberUser,
@@ -264,7 +284,7 @@ describe("IAM e2e", () => {
       },
     });
 
-    expect([401, 403]).toContain(response.statusCode);
+    expect(response.statusCode).toBe(200);
   });
 
   it("POST /roles/update rejects permission changes without roles.permissions.update", async () => {
@@ -503,7 +523,7 @@ describe("IAM e2e", () => {
 
   it("allows a super admin to grant permissions above their assigned role", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "13800000004");
+    const { accessToken } = await loginSuperInOrganization();
 
     const response = await app.inject({
       method: "POST",
@@ -526,7 +546,7 @@ describe("IAM e2e", () => {
 
   it("allows a super admin to assign a role above their assigned role", async () => {
     const { app, state } = await createHarness();
-    const { accessToken } = await login(app, "13800000004");
+    const { accessToken } = await loginSuperInOrganization();
 
     const response = await app.inject({
       method: "POST",
@@ -1371,7 +1391,7 @@ describe("IAM e2e", () => {
     const superPermissions = superMember
       ? (state.roles.get(superMember.roleId)?.permissions ?? [])
       : [];
-    const { accessToken } = await login(app, "13800000004");
+    const { accessToken } = await loginSuperInOrganization();
 
     expect(superPermissions.filter((permission) => permission.startsWith("menus:"))).toEqual([]);
 
@@ -1394,7 +1414,7 @@ describe("IAM e2e", () => {
 
   it("POST /organizations/menus/reset returns 404 for an unknown organization", async () => {
     const { app } = await createHarness();
-    const { accessToken } = await login(app, "13800000004");
+    const { accessToken } = await loginSuperInOrganization();
 
     const response = await app.inject({
       method: "POST",

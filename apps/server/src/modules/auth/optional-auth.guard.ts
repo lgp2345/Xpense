@@ -1,10 +1,10 @@
 import { type CanActivate, type ExecutionContext, Injectable } from "@nestjs/common";
 
-import { AuthGuard } from "../iam/guards/auth.guard.js";
+import { SessionAuthGuard } from "../iam/guards/session-auth.guard.js";
 
 @Injectable()
 export class OptionalAuthGuard implements CanActivate {
-  constructor(private readonly authGuard: AuthGuard) {}
+  constructor(private readonly authGuard: SessionAuthGuard) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     try {

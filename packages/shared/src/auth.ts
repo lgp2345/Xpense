@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { OrganizationSummary } from "./organizations.js";
 import type { ClientType, PermissionKey } from "./rbac.js";
 
 export type {
@@ -21,23 +22,22 @@ export type CurrentUserResponse = {
     email: string | null;
     phone: string | null;
     isSuperAdmin: boolean;
+    initialPasswordUnchanged: boolean;
     status: UserStatus;
-  };
-  organization: {
-    id: string;
-    name: string;
-  };
-  role: {
-    id: string;
-    key: string;
-    name: string;
   };
   permissions: PermissionKey[];
   session: {
     id: string;
     clientType: ClientType;
   };
-};
+} & (
+  | { accessScope: "platform"; organization: null; role: null }
+  | {
+      accessScope: "organization";
+      organization: OrganizationSummary;
+      role: { id: string; key: string; name: string } | null;
+    }
+);
 
 export type AuthTokensResponse = {
   accessToken: string;

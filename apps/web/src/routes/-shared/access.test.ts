@@ -40,7 +40,13 @@ function contextWithSession(
     status: options.status ?? "authenticated",
     currentOrganization:
       (options.status ?? "authenticated") === "authenticated"
-        ? { id: "org-1", name: "组织" }
+        ? {
+            status: "active",
+            baseCurrency: "CNY",
+            timezone: "Asia/Shanghai",
+            id: "org-1",
+            name: "组织",
+          }
         : null,
   });
   const menuStore = createMenuStore();
@@ -74,6 +80,18 @@ function contextWithSession(
 const location = { href: "/members?tab=active", pathname: "/members" };
 
 describe("route access guards", () => {
+  it("rejects platform business routes before loading or resolving organization menus", async () => {
+    const getAuthorizedMenus = vi.fn();
+    const resolveMenuRoute = vi.fn();
+    const context = contextWithSession({ getAuthorizedMenus, resolveMenuRoute });
+    context.session.authStore.setState({ accessScope: "platform", currentOrganization: null });
+    await expect(requireRegisteredRouteAccess(context, location, "Members")).rejects.toMatchObject({
+      options: { to: "/forbidden" },
+    });
+    expect(getAuthorizedMenus).not.toHaveBeenCalled();
+    expect(resolveMenuRoute).not.toHaveBeenCalled();
+  });
+
   it("redirects an anonymous request to login with the original href", () => {
     const context = contextWithSession({ status: "anonymous" });
 

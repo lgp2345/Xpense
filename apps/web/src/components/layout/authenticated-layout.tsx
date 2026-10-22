@@ -44,6 +44,7 @@ export function AuthenticatedLayout({
           routeKey,
         }
       : null;
+  const accessScope = useStore(session.authStore, (state) => state.accessScope);
   const authStatus = useStore(session.authStore, (state) => state.status);
   const userId = useStore(session.authStore, (state) => state.currentUser?.id ?? null);
   const organizationId = useStore(
@@ -78,6 +79,8 @@ export function AuthenticatedLayout({
   if (authStatus !== "authenticated") {
     return <LayoutStatus>正在验证登录状态...</LayoutStatus>;
   }
+
+  if (accessScope === "platform") return <Outlet />;
 
   const isMenuReady =
     !requiresMenuBootstrap || (menuStatus === "ready" && menuOrganizationId === organizationId);

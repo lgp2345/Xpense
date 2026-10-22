@@ -5,7 +5,15 @@ import { didRentalScopeChange } from "./rental-cache-scope";
 
 function authState(status: AuthStatus, organizationId: string | null) {
   return createAuthStore({
-    currentOrganization: organizationId ? { id: organizationId, name: organizationId } : null,
+    currentOrganization: organizationId
+      ? {
+          status: "active",
+          baseCurrency: "CNY",
+          timezone: "Asia/Shanghai",
+          id: organizationId,
+          name: organizationId,
+        }
+      : null,
     status,
   }).getState();
 }

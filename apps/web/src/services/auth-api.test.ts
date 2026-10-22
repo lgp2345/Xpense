@@ -8,14 +8,22 @@ import { type ApiClient, createApiClient } from "./api-client";
 import { createAuthApi } from "./auth-api";
 
 const currentUserContext: CurrentUserResponse = {
+  accessScope: "organization",
   user: {
+    initialPasswordUnchanged: true,
     id: "user-1",
     email: "owner@example.com",
     phone: null,
     isSuperAdmin: false,
     status: "active",
   },
-  organization: { id: "org-1", name: "个人账本" },
+  organization: {
+    status: "active",
+    baseCurrency: "CNY",
+    timezone: "Asia/Shanghai",
+    id: "org-1",
+    name: "个人账本",
+  },
   role: { id: "role-1", key: "owner", name: "所有者" },
   permissions: ["members:read"],
   session: { id: "session-1", clientType: "web_pc" },
@@ -173,7 +181,13 @@ describe("createAuthApi", () => {
     const request = createAuthApi(client).getCurrentUser();
     const newerContext: CurrentUserResponse = {
       ...currentUserContext,
-      organization: { id: "org-2", name: "家庭账本" },
+      organization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
+        id: "org-2",
+        name: "家庭账本",
+      },
     };
 
     store.getState().setAccessToken("new-access");

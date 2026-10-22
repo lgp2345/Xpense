@@ -628,7 +628,9 @@ describe("Auth e2e", () => {
 
     expect(response.statusCode).toBe(200);
     expect(parseJson<{ data: unknown }>(response).data).toMatchObject({
+      accessScope: "organization",
       user: {
+        initialPasswordUnchanged: true,
         id: testIds.managerUser,
         email: "manager@example.com",
         phone: "13800000002",
@@ -636,6 +638,9 @@ describe("Auth e2e", () => {
         status: "active",
       },
       organization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
         id: testIds.organization,
         name: "Acme",
       },

@@ -66,13 +66,20 @@ function createSession(
   const authStore = createAuthStore({
     accessToken: "access-token",
     currentUser: {
+      initialPasswordUnchanged: true,
       id: "user-1",
       email: "owner@example.com",
       phone: null,
       isSuperAdmin: false,
       status: "active",
     },
-    currentOrganization: { id: "org-bookkeeping", name: "个人账本" },
+    currentOrganization: {
+      status: "active",
+      baseCurrency: "CNY",
+      timezone: "Asia/Shanghai",
+      id: "org-bookkeeping",
+      name: "个人账本",
+    },
     role: { id: "role-1", key: "owner", name: "所有者" },
     permissions,
     session: { id: "session-1", clientType: "web_pc" },

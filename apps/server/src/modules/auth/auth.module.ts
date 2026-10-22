@@ -6,6 +6,7 @@ import { AuditModule } from "../audit/audit.module.js";
 import { AccessRepository } from "../iam/access.repository.js";
 import { AccessService } from "../iam/access.service.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
+import { SessionAuthGuard } from "../iam/guards/session-auth.guard.js";
 import { AuthController } from "./auth.controller.js";
 import { AuthRepository } from "./auth.repository.js";
 import { AuthService } from "./auth.service.js";
@@ -23,6 +24,7 @@ import { TokenService } from "./token.service.js";
     AccessRepository,
     AccessService,
     AuthGuard,
+    SessionAuthGuard,
     OptionalAuthGuard,
     AuthRepository,
     AuthService,
@@ -37,6 +39,6 @@ import { TokenService } from "./token.service.js";
     PasswordService,
     TokenService,
   ],
-  exports: [AuthService, TokenService, PasswordService],
+  exports: [SessionAuthGuard, AuthService, TokenService, PasswordService],
 })
 export class AuthModule {}

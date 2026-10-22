@@ -2,10 +2,11 @@ import { ForbiddenException } from "@nestjs/common";
 import { permissionKeys } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AuthContext } from "../../common/auth/auth-context.js";
+import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import { UserService } from "./user.service.js";
 
-const authContext: AuthContext = {
+const authContext: SessionAuthContext = {
+  accessScope: "organization",
   userId: "user-1",
   sessionId: "session-1",
   organizationId: "org-1",
@@ -17,7 +18,9 @@ describe("UserService", () => {
   function createHarness() {
     const repository = {
       findCurrentUserContext: vi.fn().mockResolvedValue({
+        accessScope: "organization",
         user: {
+          initialPasswordUnchanged: true,
           id: "user-1",
           email: "a@example.com",
           phone: null,
@@ -25,6 +28,9 @@ describe("UserService", () => {
           status: "active",
         },
         organization: {
+          status: "active",
+          baseCurrency: "CNY",
+          timezone: "Asia/Shanghai",
           id: "org-1",
           name: "Org",
         },
@@ -49,7 +55,9 @@ describe("UserService", () => {
     const { service } = createHarness();
 
     await expect(service.getCurrentUser(authContext)).resolves.toEqual({
+      accessScope: "organization",
       user: {
+        initialPasswordUnchanged: true,
         id: "user-1",
         email: "a@example.com",
         phone: null,
@@ -57,6 +65,9 @@ describe("UserService", () => {
         status: "active",
       },
       organization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
         id: "org-1",
         name: "Org",
       },
@@ -76,7 +87,9 @@ describe("UserService", () => {
   it("returns all permissions for a super_admin active member", async () => {
     const { repository, service } = createHarness();
     repository.findCurrentUserContext.mockResolvedValue({
+      accessScope: "organization",
       user: {
+        initialPasswordUnchanged: true,
         id: "user-1",
         email: "root@example.com",
         phone: null,
@@ -84,6 +97,9 @@ describe("UserService", () => {
         status: "active",
       },
       organization: {
+        status: "active",
+        baseCurrency: "CNY",
+        timezone: "Asia/Shanghai",
         id: "org-1",
         name: "Org",
       },

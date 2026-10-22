@@ -116,7 +116,7 @@ export async function restoreWebSession(
     store.getState().setAccessToken(accessToken);
     const currentUser = await api.getCurrentUser();
     store.getState().setCurrentUserContext(currentUser);
-    await loadOrganizationMenus(menus, currentUser.organization.id);
+    await loadOrganizationMenus(menus, currentUser.organization?.id ?? null);
 
     return true;
   } catch {
@@ -155,7 +155,7 @@ export async function loginWebSession(
     store.getState().setAccessToken(accessToken);
     const currentUser = await api.getCurrentUser();
     store.getState().setCurrentUserContext(currentUser);
-    await loadOrganizationMenus(menus, currentUser.organization.id);
+    await loadOrganizationMenus(menus, currentUser.organization?.id ?? null);
   } catch (error) {
     if (didCreateSession) {
       await api.logout().catch(() => undefined);
@@ -267,7 +267,7 @@ async function performOrganizationSwitch(
     }
 
     store.getState().setCurrentUserContext(currentUser);
-    await loadOrganizationMenus(menuBootstrap, currentUser.organization.id);
+    await loadOrganizationMenus(menuBootstrap, currentUser.organization?.id ?? null);
   } catch (error) {
     if (!isCurrentSwitch(coordinator, operationId)) {
       return;

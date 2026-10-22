@@ -106,13 +106,20 @@ function createAuthenticatedStore(permissions: PermissionKey[] = [], isSuperAdmi
   return createAuthStore({
     accessToken: "access-token",
     currentUser: {
+      initialPasswordUnchanged: true,
       id: "user-1",
       email: "owner@example.com",
       phone: null,
       isSuperAdmin,
       status: "active",
     },
-    currentOrganization: { id: "org-1", name: "个人账本" },
+    currentOrganization: {
+      status: "active",
+      baseCurrency: "CNY",
+      timezone: "Asia/Shanghai",
+      id: "org-1",
+      name: "个人账本",
+    },
     role: { id: "role-1", key: "owner", name: "所有者" },
     permissions,
     session: { id: "session-1", clientType: "web_pc" },
@@ -532,7 +539,13 @@ describe("generated router integration gate", () => {
     act(() => {
       harness.store.setState((state) => ({
         ...state,
-        currentOrganization: { id: "org-2", name: "家庭账本" },
+        currentOrganization: {
+          status: "active",
+          baseCurrency: "CNY",
+          timezone: "Asia/Shanghai",
+          id: "org-2",
+          name: "家庭账本",
+        },
       }));
     });
     await waitFor(() => expect(loadMenus).toHaveBeenCalledOnce());

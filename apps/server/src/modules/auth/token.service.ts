@@ -8,7 +8,7 @@ import { ServerConfigService } from "../../config/config.service.js";
 export type AccessTokenPayload = {
   userId: string;
   sessionId: string;
-  organizationId: string;
+  organizationId: string | null;
 };
 
 @Injectable()
@@ -32,7 +32,7 @@ export class TokenService {
     if (
       typeof payload.userId !== "string" ||
       typeof payload.sessionId !== "string" ||
-      typeof payload.organizationId !== "string"
+      (payload.organizationId !== null && typeof payload.organizationId !== "string")
     ) {
       throw new UnauthorizedException("访问令牌载荷无效");
     }

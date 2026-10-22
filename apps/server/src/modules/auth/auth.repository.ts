@@ -32,7 +32,7 @@ export type AuthRefreshSession = {
 
 export type CreateRefreshSessionInput = {
   userId: string;
-  currentOrganizationId: string;
+  currentOrganizationId: string | null;
   clientType: ClientType;
   deviceIdHash?: string;
   deviceName?: string;

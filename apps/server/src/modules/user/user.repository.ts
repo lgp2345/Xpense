@@ -1,8 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { ClientType, PermissionKey } from "@xpense/shared";
-import { and, eq, gt } from "drizzle-orm";
+import type { CurrentUserResponse, PermissionKey } from "@xpense/shared";
+import { and, eq, gt, isNull } from "drizzle-orm";
 
-import type { AuthContext } from "../../common/auth/auth-context.js";
+import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import type { AppDb } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import {
@@ -15,34 +15,26 @@ import {
   users,
 } from "../../db/schema.js";
 
-export type CurrentUserContextRecord = {
-  user: {
-    id: string;
-    email: string | null;
-    phone: string | null;
-    isSuperAdmin: boolean;
-    status: "active" | "disabled";
-  };
-  organization: {
-    id: string;
-    name: string;
-  };
-  role: {
-    id: string;
-    key: string;
-    name: string;
-  };
-  session: {
-    id: string;
-    clientType: ClientType;
-  };
-};
+export type CurrentUserContextRecord = Omit<
+  CurrentUserResponse,
+  "permissions" | "accessScope" | "organization" | "role"
+> &
+  (
+    | { accessScope: "platform"; organization: null; role: null }
+    | {
+        accessScope: "organization";
+        organization: NonNullable<CurrentUserResponse["organization"]>;
+        role: CurrentUserResponse["role"];
+      }
+  );
 
 @Injectable()
 export class UserRepository {
   constructor(@Inject(DB) private readonly db: AppDb) {}
 
-  async findCurrentUserContext(authContext: AuthContext): Promise<CurrentUserContextRecord | null> {
+  async findCurrentUserContext(
+    authContext: SessionAuthContext,
+  ): Promise<CurrentUserContextRecord | null> {
     const [record] = await this.db
       .select({
         user: {
@@ -50,11 +42,15 @@ export class UserRepository {
           email: users.email,
           phone: users.phone,
           isSuperAdmin: users.isSuperAdmin,
+          initialPasswordUnchanged: users.initialPasswordUnchanged,
           status: users.status,
         },
         organization: {
           id: organizations.id,
           name: organizations.name,
+          status: organizations.status,
+          baseCurrency: organizations.baseCurrency,
+          timezone: organizations.timezone,
         },
         role: {
           id: roles.id,
@@ -72,16 +68,21 @@ export class UserRepository {
         and(
           eq(refreshSessions.id, authContext.sessionId),
           eq(refreshSessions.userId, users.id),
-          eq(refreshSessions.currentOrganizationId, authContext.organizationId),
+          authContext.organizationId === null
+            ? isNull(refreshSessions.currentOrganizationId)
+            : eq(refreshSessions.currentOrganizationId, authContext.organizationId),
           eq(refreshSessions.status, "active"),
           gt(refreshSessions.expiresAt, new Date()),
         ),
       )
-      .innerJoin(
+      .leftJoin(
         organizations,
-        and(eq(organizations.id, authContext.organizationId), eq(organizations.status, "active")),
+        and(
+          eq(organizations.id, refreshSessions.currentOrganizationId),
+          eq(organizations.status, "active"),
+        ),
       )
-      .innerJoin(
+      .leftJoin(
         organizationMemberships,
         and(
           eq(organizationMemberships.userId, users.id),
@@ -89,11 +90,24 @@ export class UserRepository {
           eq(organizationMemberships.status, "active"),
         ),
       )
-      .innerJoin(roles, eq(organizationMemberships.roleId, roles.id))
+      .leftJoin(roles, eq(organizationMemberships.roleId, roles.id))
       .where(and(eq(users.id, authContext.userId), eq(users.status, "active")))
       .limit(1);
 
-    return record ?? null;
+    if (!record) return null;
+    if (authContext.accessScope === "platform") {
+      return record.user.isSuperAdmin
+        ? {
+            user: record.user,
+            session: record.session,
+            accessScope: "platform",
+            organization: null,
+            role: null,
+          }
+        : null;
+    }
+    if (!record.organization || (!record.user.isSuperAdmin && !record.role)) return null;
+    return { ...record, accessScope: "organization", organization: record.organization };
   }
 
   async listPermissionKeysForRole(roleId: string): Promise<PermissionKey[]> {

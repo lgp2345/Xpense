@@ -6,7 +6,15 @@ import { didBookkeepingScopeChange } from "./bookkeeping-cache-scope";
 /** 构造只改变缓存隔离字段的真实认证 store 状态。 */
 function authState(status: AuthStatus, organizationId: string | null) {
   return createAuthStore({
-    currentOrganization: organizationId ? { id: organizationId, name: organizationId } : null,
+    currentOrganization: organizationId
+      ? {
+          status: "active",
+          baseCurrency: "CNY",
+          timezone: "Asia/Shanghai",
+          id: organizationId,
+          name: organizationId,
+        }
+      : null,
     status,
   }).getState();
 }

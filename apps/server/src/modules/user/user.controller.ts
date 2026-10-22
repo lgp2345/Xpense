@@ -1,19 +1,20 @@
 import { Controller, Get, UseGuards } from "@nestjs/common";
 import type { CurrentUserResponse } from "@xpense/shared";
-
-import type { AuthContext } from "../../common/auth/auth-context.js";
-import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
-import { AuthGuard } from "../iam/guards/auth.guard.js";
+import { CurrentSessionContext } from "../../common/auth/current-session-context.decorator.js";
+import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
+import { SessionAuthGuard } from "../iam/guards/session-auth.guard.js";
 import { UserService } from "./user.service.js";
 
 @Controller("user")
-@UseGuards(AuthGuard, RbacGuard)
+@UseGuards(SessionAuthGuard, RbacGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
-  getCurrentUser(@CurrentAuthContext() authContext: AuthContext): Promise<CurrentUserResponse> {
+  getCurrentUser(
+    @CurrentSessionContext() authContext: SessionAuthContext,
+  ): Promise<CurrentUserResponse> {
     return this.userService.getCurrentUser(authContext);
   }
 }

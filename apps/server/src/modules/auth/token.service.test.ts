@@ -28,6 +28,14 @@ describe("TokenService", () => {
     });
   });
 
+  it("round-trips explicit null organization for platform tokens", async () => {
+    const service = createService();
+    const payload = { userId: "user-1", sessionId: "session-1", organizationId: null };
+    expect(await service.verifyAccessToken(await service.signAccessToken(payload))).toEqual(
+      payload,
+    );
+  });
+
   it("creates opaque refresh tokens and hashes", async () => {
     const service = createService();
 

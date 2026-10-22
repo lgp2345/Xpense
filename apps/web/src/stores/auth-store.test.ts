@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import { createAuthStore } from "./auth-store";
 
 const currentUserContext: CurrentUserResponse = {
+  accessScope: "organization",
   user: {
+    initialPasswordUnchanged: true,
     id: "user-1",
     email: "owner@example.com",
     phone: null,
@@ -12,6 +14,9 @@ const currentUserContext: CurrentUserResponse = {
     status: "active",
   },
   organization: {
+    status: "active",
+    baseCurrency: "CNY",
+    timezone: "Asia/Shanghai",
     id: "org-1",
     name: "Acme",
   },
