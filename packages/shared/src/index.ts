@@ -37,7 +37,9 @@ export function makeHelloMessage(): string {
 export * from "./api-response.js";
 export * from "./auth.js";
 export * from "./bookkeeping.js";
+export * from "./currencies.js";
 export * from "./menu.js";
+export * from "./organizations.js";
 export * from "./rbac.js";
 export * from "./rental.js";
 export * from "./rental-bills.js";
