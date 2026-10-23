@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import { ChevronsUpDown, Landmark } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "zustand";
@@ -22,28 +23,36 @@ type Organization = { id: string; name: string };
 
 export function TeamSwitcher({ session }: { session: WebSessionDependency }) {
   const { authApi, authStore } = session;
-  const isMobile = useSidebar().isMobile;
+  const { isMobile, setOpenMobile } = useSidebar();
+  const navigate = useNavigate();
   const currentOrganization = useStore(authStore, (state) => state.currentOrganization);
   const currentOrganizationId = currentOrganization?.id ?? null;
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadVersion, setReloadVersion] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 组织变化和用户重试都需要重新加载可选组织。
   useEffect(() => {
-    if (!currentOrganizationId) {
-      setOrganizations([]);
-      return;
-    }
     let active = true;
+    setIsLoading(true);
+    setLoadFailed(false);
     void authApi
       .listOrganizations()
       .then((items) => {
         if (active) setOrganizations(items.map(({ id, name }) => ({ id, name })));
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active) setLoadFailed(true);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
     return () => {
       active = false;
     };
-  }, [authApi, currentOrganizationId]);
+  }, [authApi, currentOrganizationId, reloadVersion]);
 
   const availableOrganizations = useMemo(
     () =>
@@ -54,9 +63,14 @@ export function TeamSwitcher({ session }: { session: WebSessionDependency }) {
   );
   async function handleSwitch(organizationId: string) {
     if (isSwitching || organizationId === currentOrganizationId) return;
+    const wasPlatform = authStore.getState().accessScope === "platform";
     setIsSwitching(true);
     try {
       await switchWebOrganization(authApi, authStore, organizationId);
+      if (authStore.getState().currentOrganization?.id === organizationId) {
+        setOpenMobile(false);
+        if (wasPlatform) void navigate({ to: "/" });
+      }
     } catch (error) {
       toast.error(error, "切换组织失败，请稍后重试。");
     } finally {
@@ -90,6 +104,17 @@ export function TeamSwitcher({ session }: { session: WebSessionDependency }) {
           >
             <DropdownMenuLabel>切换组织</DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {isLoading ? <DropdownMenuLabel>正在加载组织…</DropdownMenuLabel> : null}
+            {loadFailed ? (
+              <>
+                <DropdownMenuLabel>加载组织失败，请重试。</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setReloadVersion((version) => version + 1)}>
+                  重试加载组织
+                </DropdownMenuItem>
+              </>
+            ) : !isLoading && availableOrganizations.length === 0 ? (
+              <DropdownMenuLabel>暂无可切换的组织</DropdownMenuLabel>
+            ) : null}
             {availableOrganizations.map((organization) => (
               <DropdownMenuItem
                 key={organization.id}

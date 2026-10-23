@@ -28,6 +28,7 @@ function setup(path: string) {
   const store = createAuthStore({ accessToken: "platform-token" });
   store.getState().setCurrentUserContext(context);
   const session = createWebSession({ authStore: store });
+  vi.spyOn(session.authApi, "listOrganizations").mockResolvedValue([]);
   const list = vi
     .spyOn(session.organizationsApi, "list")
     .mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 });
@@ -39,7 +40,7 @@ function setup(path: string) {
   return { store, session, list, menu, router };
 }
 describe("platform file routes", () => {
-  it("restores URL filters and renders static platform navigation without organization requests", async () => {
+  it("restores URL filters and renders the organization switcher without business menu requests", async () => {
     const h = setup("/platform/organizations?page=2&pageSize=50&status=disabled&name=test");
     render(
       <AppProviders
@@ -58,6 +59,7 @@ describe("platform file routes", () => {
       }),
     );
     expect(h.menu).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /未选择组织/ })).toBeVisible();
     expect(screen.getByRole("link", { name: "菜单恢复" })).toBeVisible();
   });
   it("returns from details to the real list URL and restores its filters", async () => {
