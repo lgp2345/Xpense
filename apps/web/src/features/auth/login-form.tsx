@@ -101,7 +101,11 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
           captchaId,
           captchaText: value.captchaText.trim(),
         });
-        await onAuthenticated(getSafeRedirectPath(redirectPath));
+        await onAuthenticated(
+          authStore.getState().accessScope === "platform"
+            ? "/platform/organizations"
+            : getSafeRedirectPath(redirectPath),
+        );
       } catch (error) {
         setSubmitError(resolveSubmitError(error));
         form.setFieldValue("captchaText", "");

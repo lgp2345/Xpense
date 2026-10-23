@@ -7,8 +7,8 @@ import {
 import { Test } from "@nestjs/testing";
 import type { PermissionKey } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
-
 import type { AuthContext } from "../../common/auth/auth-context.js";
+import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import { menus, organizations } from "../../db/schema.js";
 import { AuditService } from "../audit/audit.service.js";
 import { addMenuSchema } from "./dto/add-menu.dto.js";
@@ -41,7 +41,8 @@ vi.mock("@xpense/shared", async (importOriginal) => {
 const organizationId = "organization-1";
 const otherOrganizationId = "organization-2";
 
-const authContext: AuthContext = {
+const authContext: AuthContext & SessionAuthContext = {
+  accessScope: "organization",
   userId: "user-1",
   sessionId: "session-1",
   organizationId,

@@ -8,10 +8,6 @@ import { type AddMenuDto, addMenuSchema } from "./dto/add-menu.dto.js";
 import { type DeleteMenuDto, deleteMenuSchema } from "./dto/delete-menu.dto.js";
 import { type EditMenuDto, editMenuSchema } from "./dto/edit-menu.dto.js";
 import { type EditMenuOrderDto, editMenuOrderSchema } from "./dto/edit-menu-order.dto.js";
-import {
-  type ResetOrganizationMenusDto,
-  resetOrganizationMenusSchema,
-} from "./dto/reset-organization-menus.dto.js";
 import { type ResolveMenuDto, resolveMenuSchema } from "./dto/resolve-menu.dto.js";
 import { AuthGuard } from "./guards/auth.guard.js";
 import { RbacGuard } from "./guards/rbac.guard.js";
@@ -84,14 +80,5 @@ export class MenuController {
     @Body({ schema: editMenuOrderSchema }) dto: EditMenuOrderDto,
   ): Promise<void> {
     return this.menuService.editMenuOrder(authContext, dto);
-  }
-
-  @Post("organizations/menus/reset")
-  @HttpCode(200)
-  resetOrganizationMenus(
-    @CurrentAuthContext() authContext: AuthContext,
-    @Body({ schema: resetOrganizationMenusSchema }) dto: ResetOrganizationMenusDto,
-  ): Promise<void> {
-    return this.menuService.resetOrganizationMenus(authContext, dto);
   }
 }

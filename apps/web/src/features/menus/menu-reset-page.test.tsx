@@ -75,6 +75,14 @@ function createHarness() {
   });
   const menuStore = createMenuStore();
   const session = {
+    organizationsApi: {
+      list: vi.fn().mockResolvedValue({
+        items: organizations,
+        total: organizations.length,
+        page: 1,
+        pageSize: 20,
+      }),
+    } as unknown as WebSessionDependency["organizationsApi"],
     authApi: {
       listOrganizations: vi.fn().mockResolvedValue(organizations),
     },

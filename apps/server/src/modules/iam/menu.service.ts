@@ -13,8 +13,8 @@ import {
   ROUTE_DEFINITIONS,
   type RouteKey,
 } from "@xpense/shared";
-
 import type { AuthContext } from "../../common/auth/auth-context.js";
+import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import type { AppDbTransaction } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import type { AddMenuDto } from "./dto/add-menu.dto.js";
@@ -243,7 +243,7 @@ export class MenuService {
   }
 
   async resetOrganizationMenus(
-    authContext: AuthContext,
+    authContext: SessionAuthContext,
     dto: ResetOrganizationMenusDto,
   ): Promise<void> {
     if (!authContext.isSuperAdmin) {

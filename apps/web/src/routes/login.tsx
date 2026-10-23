@@ -9,7 +9,12 @@ export const Route = createFileRoute("/login")({
   }),
   beforeLoad: ({ context, search }) => {
     if (context.session.authStore.getState().status === "authenticated") {
-      throw redirect({ href: getSafeRedirectPath(search.redirect) });
+      throw redirect({
+        href:
+          context.session.authStore.getState().accessScope === "platform"
+            ? "/platform/organizations"
+            : getSafeRedirectPath(search.redirect),
+      });
     }
   },
   component: LoginRoutePage,

@@ -12,6 +12,7 @@ import { didRentalScopeChange } from "@/routes/-shared/rental-cache-scope";
 import { RouteAccessPending } from "@/routes/-shared/status";
 import { routeTree } from "./routeTree.gen";
 import { clearBookkeepingQueries } from "./services/bookkeeping-query";
+import { clearOrganizationsQueries } from "./services/organizations-query";
 import { clearRentalQueries } from "./services/rental-query";
 import { type WebSessionDependency, webSession } from "./services/web-session";
 import type { AuthStoreApi } from "./stores/auth-store";
@@ -93,6 +94,7 @@ export function AppRouter({
 
     clearBookkeepingQueries(queryClient);
     clearRentalQueries(queryClient);
+    clearOrganizationsQueries(queryClient);
 
     if (
       !restore ||
@@ -120,6 +122,18 @@ export function AppRouter({
 
   useEffect(() => {
     const unsubscribeAuth = activeSession.authStore.subscribe((state, previousState) => {
+      if (
+        state.currentUser?.id !== previousState.currentUser?.id ||
+        !state.currentUser?.isSuperAdmin
+      )
+        clearOrganizationsQueries(queryClient);
+      if (
+        state.accessScope === "platform" &&
+        previousState.currentOrganization &&
+        previousState.currentUser &&
+        activePageWorkspaceStorage
+      )
+        clearPageWorkspacesForUser(activePageWorkspaceStorage, previousState.currentUser.id);
       if (
         previousState.status === "authenticated" &&
         state.status !== "authenticated" &&
@@ -185,6 +199,7 @@ function didAuthenticatedRouteBoundaryChange(
   }
 
   if (
+    state.accessScope !== previousState.accessScope ||
     state.currentUser?.isSuperAdmin !== previousState.currentUser?.isSuperAdmin ||
     state.currentOrganization?.id !== previousState.currentOrganization?.id
   ) {

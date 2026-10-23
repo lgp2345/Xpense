@@ -67,6 +67,8 @@ export function createAuthApi(client: ApiClient) {
         { organizationId },
         { authFailure: "ignore" },
       ),
+    returnToPlatform: () =>
+      client.post<AuthTokensResponse>("/auth/platform", undefined, { authFailure: "ignore" }),
     listSessions: () => client.get<SessionResponse[]>("/auth/sessions"),
     revokeSession: (sessionId: string) =>
       client.post<void>(`/auth/sessions/${encodeURIComponent(sessionId)}/revoke`),

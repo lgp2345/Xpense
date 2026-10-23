@@ -80,10 +80,10 @@ export function AuthenticatedLayout({
     return <LayoutStatus>正在验证登录状态...</LayoutStatus>;
   }
 
-  if (accessScope === "platform") return <Outlet />;
-
   const isMenuReady =
-    !requiresMenuBootstrap || (menuStatus === "ready" && menuOrganizationId === organizationId);
+    accessScope === "platform" ||
+    !requiresMenuBootstrap ||
+    (menuStatus === "ready" && menuOrganizationId === organizationId);
   const isMenuError =
     requiresMenuBootstrap && menuStatus === "error" && menuOrganizationId === organizationId;
   const registeredMenu =
@@ -135,22 +135,28 @@ export function AuthenticatedLayout({
     <SidebarProvider className="h-dvh min-h-0 overflow-hidden">
       <AppSidebar session={session} />
       <SidebarInset className="min-h-0 min-w-0 overflow-hidden">
-        <Header />
+        <Header session={session} />
         <main id="main-content" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <PageCacheHost
-            activePage={activePage}
-            authorizationVersion={isMenuReady ? authorizedRoutes : null}
-            cacheableMenuIds={cacheableMenuIds}
-            cacheableMenus={cacheableMenus}
-            fallback={fallback}
-            navigate={navigateToHref}
-            scopeKey={organizationId}
-            storage={storage}
-            workspaceScope={workspaceScope}
-          />
+          {accessScope === "platform" ? (
+            <div className="min-h-0 flex-1 overflow-auto">
+              <Outlet />
+            </div>
+          ) : (
+            <PageCacheHost
+              activePage={activePage}
+              authorizationVersion={isMenuReady ? authorizedRoutes : null}
+              cacheableMenuIds={cacheableMenuIds}
+              cacheableMenus={cacheableMenus}
+              fallback={fallback}
+              navigate={navigateToHref}
+              scopeKey={organizationId}
+              storage={storage}
+              workspaceScope={workspaceScope}
+            />
+          )}
         </main>
       </SidebarInset>
-      <CommandMenu session={session} />
+      {accessScope !== "platform" ? <CommandMenu session={session} /> : null}
     </SidebarProvider>
   );
 }

@@ -10,6 +10,7 @@ import { createMenuStore } from "../../../../stores/menu-store";
 
 function createSession(isSuperAdmin = false): WebSessionDependency {
   return {
+    organizationsApi: {} as WebSessionDependency["organizationsApi"],
     authApi: {} as WebSessionDependency["authApi"],
     authStore: createAuthStore({
       accessToken: "access-token",

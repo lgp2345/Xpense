@@ -142,6 +142,28 @@ describe("LoginPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("尝试过于频繁，请稍后重试");
   });
 
+  it("lands a fresh non-member super admin on platform management despite a business redirect", async () => {
+    const user = userEvent.setup();
+    const session = createLoginTestSession();
+    vi.mocked(session.authApi.getCurrentUser).mockResolvedValue({
+      ...currentUserContext,
+      accessScope: "platform",
+      organization: null,
+      role: null,
+      permissions: [],
+      user: { ...currentUserContext.user, isSuperAdmin: true },
+    });
+    const onAuthenticated = vi.fn();
+    const menus = vi.spyOn(session.iamApi, "getAuthorizedMenus");
+    renderLoginPage({ redirectPath: "/members", session, onAuthenticated });
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), "13800000006");
+    await user.type(screen.getByLabelText("密码"), "password");
+    await user.type(screen.getByRole("textbox", { name: "验证码" }), "abcd");
+    await user.click(screen.getByRole("button", { name: "登录" }));
+    await waitFor(() => expect(onAuthenticated).toHaveBeenCalledWith("/platform/organizations"));
+    expect(menus).not.toHaveBeenCalled();
+  });
+
   it("submits phone and captcha and redirects only to a safe path after login", async () => {
     const user = userEvent.setup();
     const session = createLoginTestSession();

@@ -164,6 +164,7 @@ function renderRouter(router: ReturnType<typeof createAppRouter>, queryClient = 
 
 function createSession(): WebSessionDependency {
   return {
+    organizationsApi: {} as WebSessionDependency["organizationsApi"],
     authApi: {} as WebSessionDependency["authApi"],
     authStore: createAuthStore(),
     bookkeepingApi: {} as WebSessionDependency["bookkeepingApi"],

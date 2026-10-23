@@ -13,6 +13,7 @@ import { IamService } from "./iam.service.js";
 import { MenuController } from "./menu.controller.js";
 import { MenuRepository } from "./menu.repository.js";
 import { MenuService } from "./menu.service.js";
+import { MenuPlatformController } from "./menu-platform.controller.js";
 import { OrganizationOwnerRepository } from "./organization-owner.repository.js";
 import { OrganizationOwnerPolicyService } from "./organization-owner-policy.service.js";
 import { PermissionSyncService } from "./permission-sync.service.js";
@@ -20,7 +21,7 @@ import { PermissionTreeService } from "./permission-tree.service.js";
 
 @Module({
   imports: [AuditModule, AuthModule, DbModule],
-  controllers: [IamController, MenuController],
+  controllers: [IamController, MenuController, MenuPlatformController],
   providers: [
     AccessRepository,
     AccessService,

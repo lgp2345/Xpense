@@ -7,7 +7,11 @@ import { createAuthStore } from "@/stores/auth-store";
 import { createMenuStore } from "@/stores/menu-store";
 
 import type { AppRouterContext } from "../__root";
-import { requireAuthenticatedRouteAccess, requireRegisteredRouteAccess } from "./access";
+import {
+  requireAuthenticatedRouteAccess,
+  requirePlatformRouteAccess,
+  requireRegisteredRouteAccess,
+} from "./access";
 
 function authorizedMenu(routeKey: RouteKey, id = 1): AuthorizedMenuNode {
   return {
@@ -80,13 +84,18 @@ function contextWithSession(
 const location = { href: "/members?tab=active", pathname: "/members" };
 
 describe("route access guards", () => {
+  it("rejects ordinary accounts from platform routes before any API is called", () => {
+    const context = contextWithSession();
+    expect(() => requirePlatformRouteAccess(context, location)).toThrow();
+  });
+
   it("rejects platform business routes before loading or resolving organization menus", async () => {
     const getAuthorizedMenus = vi.fn();
     const resolveMenuRoute = vi.fn();
     const context = contextWithSession({ getAuthorizedMenus, resolveMenuRoute });
     context.session.authStore.setState({ accessScope: "platform", currentOrganization: null });
     await expect(requireRegisteredRouteAccess(context, location, "Members")).rejects.toMatchObject({
-      options: { to: "/forbidden" },
+      options: { to: "/platform/organizations" },
     });
     expect(getAuthorizedMenus).not.toHaveBeenCalled();
     expect(resolveMenuRoute).not.toHaveBeenCalled();

@@ -34,7 +34,7 @@ export async function requireRegisteredRouteAccess(
 
   const { session } = context;
   if (session.authStore.getState().accessScope === "platform") {
-    throw redirect({ to: "/forbidden" });
+    throw redirect({ to: "/platform/organizations", search: { page: 1, pageSize: 20 } });
   }
   const organizationId = session.authStore.getState().currentOrganization?.id ?? null;
   let menuState = session.menuStore.getState();
@@ -78,4 +78,13 @@ export async function requireRegisteredRouteAccess(
     }
     throw error;
   }
+}
+
+export function requirePlatformRouteAccess(
+  context: Pick<AppRouterContext, "session">,
+  location: RouteGuardLocation,
+): void {
+  requireAuthenticatedRouteAccess(context, location);
+  if (!context.session.authStore.getState().currentUser?.isSuperAdmin)
+    throw redirect({ to: "/forbidden" });
 }

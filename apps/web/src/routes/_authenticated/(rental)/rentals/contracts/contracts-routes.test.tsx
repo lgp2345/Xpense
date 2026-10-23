@@ -85,6 +85,7 @@ function session(
     error: null,
   });
   return {
+    organizationsApi: {} as WebSessionDependency["organizationsApi"],
     authApi: { listOrganizations: vi.fn().mockResolvedValue([]) } as never,
     authStore: createAuthStore({
       status: "authenticated",

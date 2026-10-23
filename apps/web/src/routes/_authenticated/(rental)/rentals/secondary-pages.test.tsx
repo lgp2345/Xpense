@@ -102,6 +102,10 @@ function createSession(mode: "pending" | "error" = "pending"): WebSessionDepende
       : Promise.reject(new ApiError(404, "NOT_FOUND", "missing"));
   const emptyPage = { items: [], total: 0, page: 1, pageSize: 20 };
   return {
+    organizationsApi: {
+      list: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
+      detail: vi.fn(),
+    },
     authApi: { listOrganizations: vi.fn().mockResolvedValue([]) } as never,
     authStore: createAuthStore({
       status: "authenticated",

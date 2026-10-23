@@ -1378,13 +1378,13 @@ describe("IAM e2e", () => {
     expectApiError(response, 403, "FORBIDDEN");
   });
 
-  it("POST /organizations/menus/reset lets a super admin reset another organization", async () => {
+  it("POST /organizations/menus/reset lets a non-member platform super admin reset another organization", async () => {
     const { app, state } = await createHarness();
     const superMember = state.members.get(testIds.superMember);
     const superPermissions = superMember
       ? (state.roles.get(superMember.roleId)?.permissions ?? [])
       : [];
-    const { accessToken } = await loginSuperInOrganization();
+    const { accessToken } = await login(app, "13800000006");
 
     expect(superPermissions.filter((permission) => permission.startsWith("menus:"))).toEqual([]);
 

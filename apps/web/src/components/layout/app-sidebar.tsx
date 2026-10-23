@@ -1,4 +1,4 @@
-import { Link, useMatches } from "@tanstack/react-router";
+import { Link, useMatches, useRouterState } from "@tanstack/react-router";
 import type { RouteKey } from "@xpense/shared";
 import { ChevronRight } from "lucide-react";
 import { type ComponentProps, useMemo } from "react";
@@ -31,6 +31,8 @@ import { NavUser } from "./nav-user";
 import { TeamSwitcher } from "./team-switcher";
 
 export function AppSidebar({ session }: { session: WebSessionDependency }) {
+  const platformPath = useRouterState({ select: (state) => state.location.pathname });
+  const platform = useStore(session.authStore, (state) => state.accessScope === "platform");
   const menus = useStore(session.menuStore, (state) => state.tree);
   const { setOpenMobile } = useSidebar();
   const activeRouteKey = useMatches({
@@ -55,65 +57,95 @@ export function AppSidebar({ session }: { session: WebSessionDependency }) {
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarHeader>
-        <TeamSwitcher session={session} />
+        {platform ? (
+          <div className="px-3 py-3">
+            <p className="text-sm font-semibold">Xpense 平台</p>
+            <p className="text-xs text-muted-foreground">组织管理</p>
+          </div>
+        ) : (
+          <TeamSwitcher session={session} />
+        )}
       </SidebarHeader>
       <SidebarContent>
-        {navigationGroups.map((group) => (
-          <SidebarGroup key={group.id}>
-            <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
+        {platform ? (
+          <SidebarGroup>
+            <SidebarGroupLabel>平台管理</SidebarGroupLabel>
             <SidebarMenu>
-              {group.entries.map((entry) =>
-                entry.kind === "menu" ? (
-                  <SidebarMenuItem key={entry.id}>
-                    <SidebarMenuButton
-                      isActive={highlightedMenuId === entry.id}
-                      tooltip={entry.title}
-                      render={
-                        <NavigationAnchor item={entry} onNavigate={() => setOpenMobile(false)} />
-                      }
-                    />
-                  </SidebarMenuItem>
-                ) : (
-                  <Collapsible
-                    key={entry.id}
-                    className="group/collapsible"
-                    defaultOpen={entry.items.some((item) => item.id === highlightedMenuId)}
+              {[
+                { href: "/platform/organizations", title: "组织管理" },
+                { href: "/system/menu-reset", title: "菜单恢复" },
+              ].map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    isActive={platformPath.startsWith(item.href)}
                     render={
-                      <SidebarMenuItem>
-                        <CollapsibleTrigger
-                          render={
-                            <SidebarMenuButton tooltip={entry.title}>
-                              <entry.icon />
-                              <span>{entry.title}</span>
-                              <ChevronRight className="ml-auto transition-transform group-data-open/collapsible:rotate-90" />
-                            </SidebarMenuButton>
-                          }
-                        />
-                        <CollapsibleContent>
-                          <SidebarMenuSub>
-                            {entry.items.map((item) => (
-                              <SidebarMenuSubItem key={item.id}>
-                                <SidebarMenuSubButton
-                                  isActive={highlightedMenuId === item.id}
-                                  render={
-                                    <NavigationAnchor
-                                      item={item}
-                                      onNavigate={() => setOpenMobile(false)}
-                                    />
-                                  }
-                                />
-                              </SidebarMenuSubItem>
-                            ))}
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </SidebarMenuItem>
+                      <Link to={item.href} onClick={() => setOpenMobile(false)}>
+                        {item.title}
+                      </Link>
                     }
                   />
-                ),
-              )}
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroup>
-        ))}
+        ) : (
+          navigationGroups.map((group) => (
+            <SidebarGroup key={group.id}>
+              <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
+              <SidebarMenu>
+                {group.entries.map((entry) =>
+                  entry.kind === "menu" ? (
+                    <SidebarMenuItem key={entry.id}>
+                      <SidebarMenuButton
+                        isActive={highlightedMenuId === entry.id}
+                        tooltip={entry.title}
+                        render={
+                          <NavigationAnchor item={entry} onNavigate={() => setOpenMobile(false)} />
+                        }
+                      />
+                    </SidebarMenuItem>
+                  ) : (
+                    <Collapsible
+                      key={entry.id}
+                      className="group/collapsible"
+                      defaultOpen={entry.items.some((item) => item.id === highlightedMenuId)}
+                      render={
+                        <SidebarMenuItem>
+                          <CollapsibleTrigger
+                            render={
+                              <SidebarMenuButton tooltip={entry.title}>
+                                <entry.icon />
+                                <span>{entry.title}</span>
+                                <ChevronRight className="ml-auto transition-transform group-data-open/collapsible:rotate-90" />
+                              </SidebarMenuButton>
+                            }
+                          />
+                          <CollapsibleContent>
+                            <SidebarMenuSub>
+                              {entry.items.map((item) => (
+                                <SidebarMenuSubItem key={item.id}>
+                                  <SidebarMenuSubButton
+                                    isActive={highlightedMenuId === item.id}
+                                    render={
+                                      <NavigationAnchor
+                                        item={item}
+                                        onNavigate={() => setOpenMobile(false)}
+                                      />
+                                    }
+                                  />
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        </SidebarMenuItem>
+                      }
+                    />
+                  ),
+                )}
+              </SidebarMenu>
+            </SidebarGroup>
+          ))
+        )}
       </SidebarContent>
       <SidebarFooter>
         <NavUser session={session} />

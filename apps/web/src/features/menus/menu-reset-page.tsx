@@ -5,6 +5,7 @@ import {
   SecondaryPageLayout,
   type SecondaryPageNavigation,
 } from "@/components/layout/secondary-page-layout";
+import { Pagination } from "@/components/pagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,8 @@ export function MenuResetPage({
   const setSelectedOrganizationId = (value: typeof selectedOrganizationId) =>
     form.setFieldValue("selectedOrganizationId", value);
   const [organizations, setOrganizations] = useState<UserOrganization[]>([]);
+  const [organizationPage, setOrganizationPage] = useState(1);
+  const [organizationTotal, setOrganizationTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -55,11 +58,14 @@ export function MenuResetPage({
   useEffect(() => {
     let isActive = true;
 
-    void session.authApi
-      .listOrganizations()
-      .then((items) => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    void session.organizationsApi
+      .list({ page: organizationPage, pageSize: 20, status: "active" })
+      .then((page) => {
         if (isActive) {
-          setOrganizations(items.filter((organization) => organization.status === "active"));
+          setOrganizationTotal(page.total);
+          setOrganizations(page.items.filter((organization) => organization.status === "active"));
         }
       })
       .catch(() => {
@@ -76,7 +82,7 @@ export function MenuResetPage({
     return () => {
       isActive = false;
     };
-  }, [session.authApi]);
+  }, [session.organizationsApi, organizationPage]);
 
   async function handleReset() {
     const selectedId = organizationIdSchema.safeParse(selectedOrganizationId);
@@ -147,6 +153,17 @@ export function MenuResetPage({
               <FieldError id="menu-reset-error">{errorMessage}</FieldError>
             </Field>
 
+            {organizationTotal > 20 ? (
+              <Pagination
+                page={organizationPage}
+                pageSize={20}
+                total={organizationTotal}
+                onPageChange={(page) => {
+                  setSelectedOrganizationId("");
+                  setOrganizationPage(page);
+                }}
+              />
+            ) : null}
             <AlertDialog>
               <AlertDialogTrigger
                 render={

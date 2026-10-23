@@ -10,6 +10,7 @@ import { createMenuStore } from "../stores/menu-store";
 
 function createSession(): WebSessionDependency {
   return {
+    organizationsApi: {} as WebSessionDependency["organizationsApi"],
     authApi: {} as WebSessionDependency["authApi"],
     authStore: createAuthStore(),
     bookkeepingApi: {} as WebSessionDependency["bookkeepingApi"],

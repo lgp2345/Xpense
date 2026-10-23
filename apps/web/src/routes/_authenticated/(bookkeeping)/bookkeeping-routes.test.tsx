@@ -116,6 +116,7 @@ function createSession(
   } as unknown as BookkeepingApi;
 
   return {
+    organizationsApi: {} as WebSessionDependency["organizationsApi"],
     authApi: {
       listOrganizations: vi.fn().mockResolvedValue([]),
     } as unknown as WebSessionDependency["authApi"],

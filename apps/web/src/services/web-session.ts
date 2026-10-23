@@ -12,6 +12,7 @@ import { ApiError, createApiClient } from "./api-client";
 import { type AuthApi, createAuthApi, type LoginRequest, type UserOrganization } from "./auth-api";
 import { type BookkeepingApi, createBookkeepingApi } from "./bookkeeping-api";
 import { createIamApi, type IamApi } from "./iam-api";
+import { createOrganizationsApi, type OrganizationsApi } from "./organizations-api";
 import { createRentalApi, type RentalApi } from "./rental-api";
 import { createRentalBillsApi, type RentalBillsApi } from "./rental-bills-api";
 import { createRentalFinanceApi, type RentalFinanceApi } from "./rental-finance-api";
@@ -37,6 +38,7 @@ export type WebSessionDependency = {
   authStore: AuthStoreApi;
   bookkeepingApi: BookkeepingApi;
   iamApi: IamApi;
+  organizationsApi: OrganizationsApi;
   menuStore: MenuStoreApi;
   rentalApi: RentalApi;
   rentalBillsApi: RentalBillsApi;
@@ -184,6 +186,38 @@ export function switchWebOrganization(
   organizationId: string,
   menuBootstrap?: MenuBootstrapDependency,
 ): Promise<void> {
+  return runWebContextSwitch(
+    {
+      getCurrentUser: api.getCurrentUser,
+      switchContext: () => api.switchOrganization(organizationId),
+    },
+    store,
+    menuBootstrap,
+  );
+}
+
+type ContextSwitchApi = {
+  getCurrentUser: () => Promise<CurrentUserResponse>;
+  switchContext: () => Promise<AuthTokensResponse>;
+};
+
+/** 返回平台沿用组织切换的去重及失效校验，避免旧组织结果覆盖平台上下文。 */
+export function returnWebSessionToPlatform(session: WebSessionDependency): Promise<void> {
+  return runWebContextSwitch(
+    {
+      getCurrentUser: session.authApi.getCurrentUser,
+      switchContext: () => session.authApi.returnToPlatform(),
+    },
+    session.authStore,
+    session,
+  );
+}
+
+function runWebContextSwitch(
+  api: ContextSwitchApi,
+  store: AuthStoreApi,
+  menuBootstrap?: MenuBootstrapDependency,
+): Promise<void> {
   const coordinator = getSessionMutationCoordinator(store);
 
   if (coordinator.activeSwitch) {
@@ -203,7 +237,6 @@ export function switchWebOrganization(
     operationId,
     startingAccessToken,
     startingOrganizationId,
-    organizationId,
     menus,
   ).finally(() => {
     if (coordinator.activeSwitch?.id === operationId) {
@@ -222,19 +255,18 @@ export function switchWebOrganization(
  * 仅在该令牌仍是当前令牌时清理本地认证，避免令牌与权限上下文不一致。
  */
 async function performOrganizationSwitch(
-  api: WebOrganizationAuthApi,
+  api: ContextSwitchApi,
   store: AuthStoreApi,
   coordinator: SessionMutationCoordinator,
   operationId: symbol,
   startingAccessToken: string | null,
   startingOrganizationId: string | null,
-  organizationId: string,
   menuBootstrap: MenuBootstrapDependency | undefined,
 ): Promise<void> {
   let accessToken: string;
 
   try {
-    ({ accessToken } = await api.switchOrganization(organizationId));
+    ({ accessToken } = await api.switchContext());
   } catch (error) {
     if (
       !isCurrentSwitch(coordinator, operationId) ||
@@ -366,6 +398,10 @@ function bindMenuBootstrap(store: AuthStoreApi, menuBootstrap: MenuBootstrapDepe
         return;
       }
 
+      if (state.accessScope === "platform") {
+        activeMenus.menuStore.getState().clearMenus();
+        return;
+      }
       const organizationId = state.currentOrganization?.id ?? null;
       const previousOrganizationId = previousState.currentOrganization?.id ?? null;
 
@@ -460,6 +496,7 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
     authStore: options.authStore,
     bookkeepingApi,
     iamApi,
+    organizationsApi: createOrganizationsApi(apiClient),
     menuStore: sessionMenuStore,
     rentalApi,
     rentalBillsApi,

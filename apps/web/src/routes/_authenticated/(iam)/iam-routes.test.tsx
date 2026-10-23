@@ -74,6 +74,7 @@ function createSession(overrides: Partial<WebSessionDependency> = {}): WebSessio
     error: null,
   });
   return {
+    organizationsApi: {} as WebSessionDependency["organizationsApi"],
     authApi: {
       listOrganizations: vi.fn().mockResolvedValue([]),
       listSessions: vi.fn().mockResolvedValue([]),

@@ -35,6 +35,8 @@ import { Route as AuthenticatedrentalRentalsPropertiesPropertyIdRouteImport } fr
 import { Route as AuthenticatedrentalRentalsSettlementsContractIdRouteImport } from './routes/_authenticated/(rental)/rentals/settlements/$contractId'
 import { Route as AuthenticatedrentalRentalsTenantsIndexRouteImport } from './routes/_authenticated/(rental)/rentals/tenants/index'
 import { Route as AuthenticatedrentalRentalsTenantsTenantIdRouteImport } from './routes/_authenticated/(rental)/rentals/tenants/$tenantId'
+import { Route as SessionShellPlatformOrganizationsIndexRouteImport } from './routes/_session/_shell/platform/organizations/index'
+import { Route as SessionShellPlatformOrganizationsOrganizationIdRouteImport } from './routes/_session/_shell/platform/organizations/$organizationId'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -179,6 +181,18 @@ const AuthenticatedrentalRentalsTenantsTenantIdRoute =
     path: '/rentals/tenants/$tenantId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const SessionShellPlatformOrganizationsIndexRoute =
+  SessionShellPlatformOrganizationsIndexRouteImport.update({
+    id: '/platform/organizations/',
+    path: '/platform/organizations/',
+    getParentRoute: () => SessionShellRoute,
+  } as any)
+const SessionShellPlatformOrganizationsOrganizationIdRoute =
+  SessionShellPlatformOrganizationsOrganizationIdRouteImport.update({
+    id: '/platform/organizations/$organizationId',
+    path: '/platform/organizations/$organizationId',
+    getParentRoute: () => SessionShellRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedcoreIndexRoute
@@ -200,10 +214,12 @@ export interface FileRoutesByFullPath {
   '/rentals/properties/$propertyId': typeof AuthenticatedrentalRentalsPropertiesPropertyIdRoute
   '/rentals/settlements/$contractId': typeof AuthenticatedrentalRentalsSettlementsContractIdRoute
   '/rentals/tenants/$tenantId': typeof AuthenticatedrentalRentalsTenantsTenantIdRoute
+  '/platform/organizations/$organizationId': typeof SessionShellPlatformOrganizationsOrganizationIdRoute
   '/rentals/bills/': typeof AuthenticatedrentalRentalsBillsIndexRoute
   '/rentals/contracts/': typeof AuthenticatedrentalRentalsContractsIndexRoute
   '/rentals/properties/': typeof AuthenticatedrentalRentalsPropertiesIndexRoute
   '/rentals/tenants/': typeof AuthenticatedrentalRentalsTenantsIndexRoute
+  '/platform/organizations/': typeof SessionShellPlatformOrganizationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedcoreIndexRoute
@@ -225,10 +241,12 @@ export interface FileRoutesByTo {
   '/rentals/properties/$propertyId': typeof AuthenticatedrentalRentalsPropertiesPropertyIdRoute
   '/rentals/settlements/$contractId': typeof AuthenticatedrentalRentalsSettlementsContractIdRoute
   '/rentals/tenants/$tenantId': typeof AuthenticatedrentalRentalsTenantsTenantIdRoute
+  '/platform/organizations/$organizationId': typeof SessionShellPlatformOrganizationsOrganizationIdRoute
   '/rentals/bills': typeof AuthenticatedrentalRentalsBillsIndexRoute
   '/rentals/contracts': typeof AuthenticatedrentalRentalsContractsIndexRoute
   '/rentals/properties': typeof AuthenticatedrentalRentalsPropertiesIndexRoute
   '/rentals/tenants': typeof AuthenticatedrentalRentalsTenantsIndexRoute
+  '/platform/organizations': typeof SessionShellPlatformOrganizationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -254,10 +272,12 @@ export interface FileRoutesById {
   '/_authenticated/(rental)/rentals/properties/$propertyId': typeof AuthenticatedrentalRentalsPropertiesPropertyIdRoute
   '/_authenticated/(rental)/rentals/settlements/$contractId': typeof AuthenticatedrentalRentalsSettlementsContractIdRoute
   '/_authenticated/(rental)/rentals/tenants/$tenantId': typeof AuthenticatedrentalRentalsTenantsTenantIdRoute
+  '/_session/_shell/platform/organizations/$organizationId': typeof SessionShellPlatformOrganizationsOrganizationIdRoute
   '/_authenticated/(rental)/rentals/bills/': typeof AuthenticatedrentalRentalsBillsIndexRoute
   '/_authenticated/(rental)/rentals/contracts/': typeof AuthenticatedrentalRentalsContractsIndexRoute
   '/_authenticated/(rental)/rentals/properties/': typeof AuthenticatedrentalRentalsPropertiesIndexRoute
   '/_authenticated/(rental)/rentals/tenants/': typeof AuthenticatedrentalRentalsTenantsIndexRoute
+  '/_session/_shell/platform/organizations/': typeof SessionShellPlatformOrganizationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -281,10 +301,12 @@ export interface FileRouteTypes {
     | '/rentals/properties/$propertyId'
     | '/rentals/settlements/$contractId'
     | '/rentals/tenants/$tenantId'
+    | '/platform/organizations/$organizationId'
     | '/rentals/bills/'
     | '/rentals/contracts/'
     | '/rentals/properties/'
     | '/rentals/tenants/'
+    | '/platform/organizations/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -306,10 +328,12 @@ export interface FileRouteTypes {
     | '/rentals/properties/$propertyId'
     | '/rentals/settlements/$contractId'
     | '/rentals/tenants/$tenantId'
+    | '/platform/organizations/$organizationId'
     | '/rentals/bills'
     | '/rentals/contracts'
     | '/rentals/properties'
     | '/rentals/tenants'
+    | '/platform/organizations'
   id:
     | '__root__'
     | '/_authenticated'
@@ -334,10 +358,12 @@ export interface FileRouteTypes {
     | '/_authenticated/(rental)/rentals/properties/$propertyId'
     | '/_authenticated/(rental)/rentals/settlements/$contractId'
     | '/_authenticated/(rental)/rentals/tenants/$tenantId'
+    | '/_session/_shell/platform/organizations/$organizationId'
     | '/_authenticated/(rental)/rentals/bills/'
     | '/_authenticated/(rental)/rentals/contracts/'
     | '/_authenticated/(rental)/rentals/properties/'
     | '/_authenticated/(rental)/rentals/tenants/'
+    | '/_session/_shell/platform/organizations/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -531,6 +557,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedrentalRentalsTenantsTenantIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_session/_shell/platform/organizations/': {
+      id: '/_session/_shell/platform/organizations/'
+      path: '/platform/organizations'
+      fullPath: '/platform/organizations/'
+      preLoaderRoute: typeof SessionShellPlatformOrganizationsIndexRouteImport
+      parentRoute: typeof SessionShellRoute
+    }
+    '/_session/_shell/platform/organizations/$organizationId': {
+      id: '/_session/_shell/platform/organizations/$organizationId'
+      path: '/platform/organizations/$organizationId'
+      fullPath: '/platform/organizations/$organizationId'
+      preLoaderRoute: typeof SessionShellPlatformOrganizationsOrganizationIdRouteImport
+      parentRoute: typeof SessionShellRoute
+    }
   }
 }
 
@@ -596,10 +636,16 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 interface SessionShellRouteChildren {
   SessionShellSystemMenuResetRoute: typeof SessionShellSystemMenuResetRoute
+  SessionShellPlatformOrganizationsOrganizationIdRoute: typeof SessionShellPlatformOrganizationsOrganizationIdRoute
+  SessionShellPlatformOrganizationsIndexRoute: typeof SessionShellPlatformOrganizationsIndexRoute
 }
 
 const SessionShellRouteChildren: SessionShellRouteChildren = {
   SessionShellSystemMenuResetRoute: SessionShellSystemMenuResetRoute,
+  SessionShellPlatformOrganizationsOrganizationIdRoute:
+    SessionShellPlatformOrganizationsOrganizationIdRoute,
+  SessionShellPlatformOrganizationsIndexRoute:
+    SessionShellPlatformOrganizationsIndexRoute,
 }
 
 const SessionShellRouteWithChildren = SessionShellRoute._addFileChildren(
