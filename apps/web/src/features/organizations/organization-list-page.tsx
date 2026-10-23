@@ -107,7 +107,7 @@ export function OrganizationListPage({
         </div>
       ) : (
         <>
-          <Table>
+          <Table className="min-w-160">
             <TableHeader>
               <TableRow>
                 {["组织名称", "币种", "状态", "负责人", "操作"].map((name) => (

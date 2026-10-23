@@ -191,7 +191,7 @@ it("房产入口、多页、Sheet、生成回填、其他空间继续，缓存�
   await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
   await userEvent.click(screen.getByRole("button", { name: "确认生成" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-  expect(screen.getByRole("row", { name: /总收费合计/ })).toHaveTextContent("CNY 123.45");
+  expect(screen.getByRole("row", { name: /总收费合计/ })).toHaveTextContent("¥123.45");
   expect(router.state.location.href).toBe(url);
   await userEvent.click(screen.getByRole("button", { name: /生成账单 302/ }));
   await screen.findByLabelText("水表读数");
@@ -204,7 +204,7 @@ it("房产入口、多页、Sheet、生成回填、其他空间继续，缓存�
   await screen.findByRole("heading", { name: "房产管理" });
   await userEvent.click(screen.getByRole("button", { name: "账单" }));
   await screen.findByRole("button", { name: billFixture.billNumber });
-  expect(screen.getByRole("row", { name: /总收费合计/ })).toHaveTextContent("CNY 123.45");
+  expect(screen.getByRole("row", { name: /总收费合计/ })).toHaveTextContent("¥123.45");
 });
 it.each(
   rentalPropertyBillingPermissions,

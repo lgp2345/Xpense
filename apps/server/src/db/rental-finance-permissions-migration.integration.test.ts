@@ -49,7 +49,8 @@ describe.skipIf(!url)("租赁财务权限与菜单增量迁移", () => {
       const existing = await client`SELECT * FROM menus ORDER BY id`;
       const customGrants = await client`SELECT * FROM role_permissions WHERE role_id=${customRole}`;
 
-      await applyMigrations();
+      // 本用例验证这一段增量；后续组织唯一约束和设置菜单各有独立迁移回归。
+      await applyMigrations("20261018155703_rental_finance_permission_menus");
 
       const nodes = await client`SELECT * FROM menus ORDER BY id`;
       const expected = [

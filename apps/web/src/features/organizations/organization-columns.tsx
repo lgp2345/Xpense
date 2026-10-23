@@ -63,7 +63,7 @@ export function OrganizationRow({
 }) {
   return (
     <TableRow>
-      <TableCell className="max-w-72 whitespace-normal break-words font-medium">
+      <TableCell className="min-w-48 max-w-72 whitespace-normal break-words font-medium">
         {organization.name}
       </TableCell>
       <TableCell>{organization.baseCurrency}</TableCell>
@@ -72,7 +72,7 @@ export function OrganizationRow({
           {organization.status === "active" ? "启用" : "停用"}
         </Badge>
       </TableCell>
-      <TableCell className="max-w-64 whitespace-normal break-words">
+      <TableCell className="min-w-36 max-w-64 whitespace-normal break-words">
         {organization.owners
           .map((owner) => owner.phone ?? owner.email ?? "未填写联系方式")
           .join("、") || "无有效负责人"}

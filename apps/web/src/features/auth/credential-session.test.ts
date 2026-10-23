@@ -74,9 +74,9 @@ describe("credential login notification boundary", () => {
     auth.login.mockReturnValue(wait.promise);
     const store = createAuthStore();
     const login = loginWebSession(auth, store, input, undefined, vi.fn());
-    await logoutWebSession(auth, store);
+    const logout = logoutWebSession(auth, store);
     wait.resolve({ accessToken: "stale-token" });
-    await login;
+    await Promise.all([login, logout]);
     expect(store.getState().status).toBe("anonymous");
     expect(store.getState().accessToken).toBeNull();
     expect(warning).not.toHaveBeenCalled();
@@ -106,10 +106,75 @@ describe("password session coordination", () => {
       currentPassword: "old-password",
       newPassword: "new-password",
     });
-    await logoutWebSession(session.authApi, store);
+    const logout = logoutWebSession(session.authApi, store);
     pending.resolve({ accessToken: "delayed-token" });
-    await change;
+    await Promise.all([change, logout]);
     expect(store.getState().status).toBe("anonymous");
     expect(session.authApi.getCurrentUser).not.toHaveBeenCalled();
+  });
+});
+
+describe("Cookie response ordering around logout", () => {
+  it("cleans a late password Cookie before completing logout", async () => {
+    const store = createAuthStore({ status: "authenticated", accessToken: "old-token" });
+    const session = createWebSession({ authStore: store });
+    const pending = deferred<{ accessToken: string }>();
+    let browserCookie: string | null = "old-cookie";
+    Object.assign(session.authApi, {
+      changePassword: vi.fn().mockImplementation(async () => {
+        const response = await pending.promise;
+        browserCookie = "late-password-cookie";
+        return response;
+      }),
+      logout: vi.fn().mockImplementation(async () => {
+        browserCookie = null;
+      }),
+      getCurrentUser: vi.fn().mockResolvedValue(context),
+    });
+    const password = changeOwnPassword(session, {
+      currentPassword: "old-password",
+      newPassword: "new-password",
+    });
+    const logout = logoutWebSession(session.authApi, store);
+    expect(store.getState().status).toBe("anonymous");
+    pending.resolve({ accessToken: "discarded-password-token" });
+    await Promise.all([password, logout]);
+    expect(browserCookie).toBeNull();
+    expect(store.getState().accessToken).toBeNull();
+  });
+  it("waits for outstanding Cookie responses and logout cleanup before sending a new credential login", async () => {
+    const store = createAuthStore({ status: "authenticated", accessToken: "old-token" });
+    const session = createWebSession({ authStore: store });
+    const pending = deferred<{ accessToken: string }>();
+    let browserCookie: string | null = "old-cookie";
+    Object.assign(session.authApi, {
+      changePassword: vi.fn().mockImplementation(async () => {
+        const response = await pending.promise;
+        browserCookie = "discarded-cookie";
+        return response;
+      }),
+      logout: vi.fn().mockImplementation(async () => {
+        browserCookie = null;
+      }),
+      login: vi.fn().mockImplementation(async () => {
+        browserCookie = "new-login-cookie";
+        return { accessToken: "new-login-token" };
+      }),
+      getCurrentUser: vi
+        .fn()
+        .mockResolvedValue({ ...context, user: { ...context.user, id: "new-user" } }),
+    });
+    const password = changeOwnPassword(session, {
+      currentPassword: "old-password",
+      newPassword: "new-password",
+    });
+    const logout = logoutWebSession(session.authApi, store);
+    const login = loginWebSession(session.authApi, store, input);
+    expect(session.authApi.login).not.toHaveBeenCalled();
+    pending.resolve({ accessToken: "discarded-password-token" });
+    await Promise.all([password, logout, login]);
+    expect(browserCookie).toBe("new-login-cookie");
+    expect(store.getState().currentUser?.id).toBe("new-user");
+    expect(store.getState().accessToken).toBe("new-login-token");
   });
 });

@@ -91,6 +91,8 @@ type SwitchOperation = {
 };
 
 type SessionMutationCoordinator = {
+  cookieRequests?: Set<Promise<unknown>>;
+  logoutPromise?: Promise<void>;
   activeIdentity?: symbol;
   activeSwitch?: SwitchOperation;
   observesAuthContext?: boolean;
@@ -115,19 +117,33 @@ export async function restoreWebSession(
   menuBootstrap?: MenuBootstrapDependency,
 ): Promise<boolean> {
   invalidateOrganizationSwitch(store);
-  getSessionMutationCoordinator(store).activeIdentity = undefined;
+  const coordinator = getSessionMutationCoordinator(store);
+  const identity = Symbol("restore-session");
+  coordinator.activeIdentity = identity;
+  const current = () => coordinator.activeIdentity === identity;
   const menus = resolveMenuBootstrap(store, menuBootstrap);
   menus?.menuStore.getState().clearMenus();
 
   try {
-    const { accessToken } = await api.refresh();
+    const boundary = [...(coordinator.cookieRequests ?? [])];
+    if (coordinator.logoutPromise) boundary.push(coordinator.logoutPromise);
+    if (boundary.length) await Promise.allSettled(boundary);
+    if (!current()) return false;
+    const { accessToken } = await trackCookieRequest(store, () => api.refresh());
+    if (!current()) return false;
     store.getState().setAccessToken(accessToken);
     const currentUser = await api.getCurrentUser();
+    if (!current() || store.getState().accessToken !== accessToken) return false;
     store.getState().setCurrentUserContext(currentUser);
     await loadOrganizationMenus(menus, currentUser.organization?.id ?? null);
 
-    return true;
+    return (
+      current() &&
+      store.getState().accessToken === accessToken &&
+      store.getState().status === "authenticated"
+    );
   } catch {
+    if (!current()) return false;
     store.getState().clearAuth();
     menus?.menuStore.getState().clearMenus();
 
@@ -162,7 +178,13 @@ export async function loginWebSession(
   const menus = resolveMenuBootstrap(store, menuBootstrap);
   menus?.menuStore.getState().clearMenus();
   try {
-    const { accessToken } = await api.login({ ...input, clientType: "web_pc" });
+    const boundary = [...(coordinator.cookieRequests ?? [])];
+    if (coordinator.logoutPromise) boundary.push(coordinator.logoutPromise);
+    if (boundary.length) await Promise.allSettled(boundary);
+    if (!current()) return false;
+    const { accessToken } = await trackCookieRequest(store, () =>
+      api.login({ ...input, clientType: "web_pc" }),
+    );
     if (!current()) return false;
     didCreateSession = true;
     store.getState().setAccessToken(accessToken);
@@ -247,7 +269,8 @@ export async function changeOwnPassword(
   await runWebContextSwitch(
     {
       getCurrentUser: session.authApi.getCurrentUser,
-      switchContext: () => session.authApi.changePassword(input),
+      switchContext: () =>
+        trackCookieRequest(session.authStore, () => session.authApi.changePassword(input)),
     },
     session.authStore,
     session,
@@ -360,7 +383,8 @@ async function performOrganizationSwitch(
 
 /**
  * 先使在途组织切换失效并清理菜单，再用当前令牌发起远端退出。
- * 请求发起后立即清理本地认证，不等待网络响应；远端失败仍会向调用方抛出。
+ * 请求发起后立即清理本地认证；在途 Cookie 响应结束后补一次远端清理，之后才允许新登录。
+ * 任一次远端退出失败仍向调用方抛出。
  *
  * @param api 提供远端退出能力的认证接口。
  * @param store 要退出的认证状态。
@@ -372,7 +396,9 @@ export async function logoutWebSession(
   menuBootstrap?: MenuBootstrapDependency,
 ): Promise<void> {
   invalidateOrganizationSwitch(store);
-  getSessionMutationCoordinator(store).activeIdentity = undefined;
+  const coordinator = getSessionMutationCoordinator(store);
+  coordinator.activeIdentity = undefined;
+  const cookieRequests = [...(coordinator.cookieRequests ?? [])];
   clearInitialPasswordNotice();
   const menus = resolveMenuBootstrap(store, menuBootstrap);
   menus?.menuStore.getState().clearMenus();
@@ -382,12 +408,33 @@ export async function logoutWebSession(
   try {
     logoutRequest = api.logout();
   } catch (error) {
-    store.getState().clearAuth();
-    throw error;
+    logoutRequest = Promise.reject(error);
   }
-
+  const initial = Promise.allSettled([logoutRequest]);
   store.getState().clearAuth();
-  await logoutRequest;
+  const completion = (async () => {
+    if (cookieRequests.length) {
+      await Promise.allSettled(cookieRequests);
+      // 迟到的登录、刷新或改密响应可能重写 HttpOnly Cookie；再次退出再允许新登录。
+      await api.logout();
+    }
+    const [result] = await initial;
+    if (result?.status === "rejected") throw result.reason;
+  })().finally(() => {
+    if (coordinator.logoutPromise === completion) coordinator.logoutPromise = undefined;
+  });
+  coordinator.logoutPromise = completion;
+  await completion;
+}
+
+/** 只追踪会写入刷新 Cookie 的在途请求，不保存凭据或持久化登录状态。 */
+function trackCookieRequest<T>(store: AuthStoreApi, operation: () => Promise<T>): Promise<T> {
+  const coordinator = getSessionMutationCoordinator(store);
+  const pending = coordinator.cookieRequests ?? new Set<Promise<unknown>>();
+  coordinator.cookieRequests = pending;
+  const request = operation().finally(() => pending.delete(request));
+  pending.add(request);
+  return request;
 }
 
 function getSessionMutationCoordinator(store: AuthStoreApi): SessionMutationCoordinator {
@@ -513,11 +560,14 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
       }
     },
     refreshAccessToken: async (requestAccessToken) => {
-      const { accessToken } = await apiClient.post<AuthTokensResponse>("/auth/refresh", undefined, {
-        authFailure: "ignore",
-        authRefresh: "ignore",
-        errorFeedback: "ignore",
-      });
+      if (options.authStore.getState().accessToken !== requestAccessToken) return null;
+      const { accessToken } = await trackCookieRequest(options.authStore, () =>
+        apiClient.post<AuthTokensResponse>("/auth/refresh", undefined, {
+          authFailure: "ignore",
+          authRefresh: "ignore",
+          errorFeedback: "ignore",
+        }),
+      );
 
       if (options.authStore.getState().accessToken !== requestAccessToken) {
         return null;
