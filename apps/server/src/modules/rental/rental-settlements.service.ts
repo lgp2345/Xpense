@@ -24,6 +24,7 @@ import { financeRequestHash, isFinanceRequestReplay } from "./rental-finance-req
 import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
 import { proposeSettlementReadings } from "./rental-settlement-readings.rules.js";
 import { RentalSettlementsRepository } from "./rental-settlements.repository.js";
+import { assertSettlementCurrency } from "./settlement-currency.rules.js";
 import { SettlementWriteService } from "./settlement-write.service.js";
 
 const action = "rental_settlement.confirm";
@@ -52,6 +53,7 @@ export class RentalSettlementsService {
       const scope = await this.lock(auth, input.contractId, tx);
       const source = await this.sources.read(scope, tx);
       if (!source.settlement) return { settlement: null };
+      this.calculate(() => assertSettlementCurrency(source));
       const [facts] = await this.projectionSources.readMany(
         auth.organizationId,
         [input.contractId],
@@ -92,6 +94,7 @@ export class RentalSettlementsService {
       const hash = financeRequestHash(action, input);
       const previous = await this.requests.find(scope, input.idempotencyKey, tx);
       const source = await this.sources.read(scope, tx);
+      this.calculate(() => assertSettlementCurrency(source));
       if (previous) {
         if (
           !isFinanceRequestReplay(previous, { ...scope, action, requestHash: hash }) ||
@@ -146,6 +149,8 @@ export class RentalSettlementsService {
     this.permissions(auth, false);
     return this.transactions.run(async (tx) => {
       const scope = await this.lock(auth, input.contractId, tx);
+      const source = await this.sources.read(scope, tx);
+      this.calculate(() => assertSettlementCurrency(source));
       const page = await this.settlements.history(scope, input, tx);
       return {
         ...page,

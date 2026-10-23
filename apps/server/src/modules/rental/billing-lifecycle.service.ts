@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDbTransaction } from "../../db/db.module.js";
@@ -13,6 +13,7 @@ import type { MutableContractAggregate } from "./contract-lifecycle.service.js";
 import type { TerminateContractDto } from "./dto/terminate-contract.dto.js";
 import { buildPeriodSettlementPlan } from "./period-settlement.rules.js";
 import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
+import { assertSettlementCurrency } from "./settlement-currency.rules.js";
 import { SettlementWriteService } from "./settlement-write.service.js";
 
 type BillingComparable = {
@@ -163,6 +164,21 @@ export class BillingLifecycleService {
         code: apiErrorCodes.conflict,
         message: "已确认结算不能取消合同",
       });
+    const hasReceipts = source.cashEntries.some(
+      (entry) => entry.revokedAt === null && entry.kind === "receipt",
+    );
+    if (hasReceipts) {
+      try {
+        assertSettlementCurrency(source);
+      } catch (error) {
+        if (error instanceof RangeError)
+          throw new BadRequestException({
+            code: apiErrorCodes.validationFailed,
+            message: error.message,
+          });
+        throw error;
+      }
+    }
     const ids = source.bills.filter((bill) => bill.status === "active").map((bill) => bill.id);
     if (ids.length) {
       this.access.assertPermission(auth, "rental_period_bills:void");
@@ -173,7 +189,7 @@ export class BillingLifecycleService {
         tx,
       );
     }
-    if (source.cashEntries.some((entry) => entry.revokedAt === null && entry.kind === "receipt")) {
+    if (hasReceipts) {
       this.access.assertPermission(auth, "rental_settlements:confirm");
       const plan = buildPeriodSettlementPlan(
         {

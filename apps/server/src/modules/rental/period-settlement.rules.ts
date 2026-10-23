@@ -18,6 +18,7 @@ import { billingPeriods } from "./period-schedule.rules.js";
 import type { RentalFinanceSnapshot } from "./rental-finance.types.js";
 import { financeSourceVersion } from "./rental-finance-request.rules.js";
 import { proposeSettlementReadings } from "./rental-settlement-readings.rules.js";
+import { assertSettlementCurrency } from "./settlement-currency.rules.js";
 export type PeriodSettlementPlan = {
   effectiveEndDate: string;
   periodCharges: Array<{
@@ -82,6 +83,7 @@ export function buildPeriodSettlementPlan(
   source: RentalFinanceSnapshot,
   input: PreviewRentalSettlementRequest,
 ): PeriodSettlementPlan {
+  assertSettlementCurrency(source);
   const event = settlementEvent(source);
   const cash = settlementCashTotals(source);
   const billIds = source.bills.map((bill) => bill.id).toSorted();

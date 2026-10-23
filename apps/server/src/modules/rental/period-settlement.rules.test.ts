@@ -33,6 +33,7 @@ it("提前退租按舍入日单价计算结算租金，普通账单原金额保�
   value.bills = [
     {
       id: "bill",
+      currencyCode: "CNY",
       type: "period",
       status: "active",
       ...original.period,
@@ -73,6 +74,7 @@ it("尾期只收最后有效账单之后20水量，不改普通账单", () => {
   value.bills = [
     {
       id: "bill",
+      currencyCode: "CNY",
       type: "period",
       status: "active",
       periodStart: plan.period.periodStart,
@@ -135,6 +137,7 @@ it("未来已出账固定费不自动退，未来未出账不补固定费", () =
   value.bills = [
     {
       id: "future",
+      currencyCode: "CNY",
       type: "period",
       status: "active",
       periodStart: "2026-11-05",
@@ -186,6 +189,7 @@ it("结算事项标识不得重复或覆盖仍有效账单事项", () => {
   value.bills = [
     {
       id: "bill",
+      currencyCode: "CNY",
       type: "period",
       status: "active",
       periodStart: "2026-10-05",

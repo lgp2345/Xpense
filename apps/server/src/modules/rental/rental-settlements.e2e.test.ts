@@ -158,4 +158,102 @@ describe("独立账期结算HTTP", () => {
       ).statusCode,
     ).toBe(400);
   });
+  it.each([
+    "mixed",
+    "foreign",
+  ])("%s historical currencies cannot bypass settlement preview/confirm", async (scenario) => {
+    await s.generate("3600");
+    await s.generate("3680");
+    const input = s.settlementInput();
+    const preview = await s.previewSettlement(input);
+    const bills = s.h.state.rental.bills;
+    const [first, second] = bills;
+    if (!first || !second) throw new Error("测试账单未生成");
+    first.currencyCode = "USD";
+    if (scenario === "foreign") second.currencyCode = "USD";
+    const before = cloneRentalTestState(s.h.state.rental);
+    for (const [url, payload] of [
+      ["/rental-settlements/preview", input],
+      [
+        "/rental-settlements/confirm",
+        { ...input, expectedVersion: preview.version, idempotencyKey: randomUUID() },
+      ],
+    ] as const) {
+      const result = await s.h.request(url, payload);
+      expect(result.statusCode, result.payload).toBe(400);
+      expect(result.payload).toContain("币种");
+    }
+    expect(cloneRentalTestState(s.h.state.rental)).toEqual(before);
+    // A standalone bill still displays its own historical snapshot.
+    expect((await s.detail(first.id)).currencyCode).toBe("USD");
+  });
+  it("ambiguous confirmed settlements reject detail/history and cash writes", async () => {
+    const generated = await s.generate("3600");
+    const receipt = await s.receipt(generated.bill.id, 100);
+    await s.generate("3680");
+    const input = s.settlementInput();
+    const preview = await s.previewSettlement(input);
+    const settlement = await s.ok<RentalSettlementDetail>("/rental-settlements/confirm", {
+      ...input,
+      expectedVersion: preview.version,
+      idempotencyKey: randomUUID(),
+    });
+    const [first] = s.h.state.rental.bills;
+    if (!first) throw new Error("测试账单未生成");
+    first.currencyCode = "USD";
+    const before = cloneRentalTestState(s.h.state.rental);
+    for (const action of ["detail", "history"]) {
+      const result = await s.h.request(
+        `/rental-settlements/${action}?contractId=${s.id}`,
+        undefined,
+        undefined,
+        "GET",
+      );
+      expect(result.statusCode, result.payload).toBe(400);
+      expect(result.payload).toContain("币种");
+    }
+    for (const url of ["/rental-receipts/create", "/rental-refunds/create"]) {
+      const result = await s.h.request(url, {
+        target: { kind: "settlement", settlementId: settlement.id },
+        ...(url.includes("receipts") ? { amountMinor: 100 } : {}),
+        occurredOn: "2026-12-04",
+        expectedVersion: settlement.version,
+        idempotencyKey: randomUUID(),
+      });
+      expect(result.statusCode, result.payload).toBe(400);
+      expect(result.payload).toContain("币种");
+    }
+    const revoke = await s.h.request("/rental-receipts/revoke", {
+      entryId: receipt.id,
+      reason: "核对退款",
+      expectedVersion: settlement.version,
+      idempotencyKey: randomUUID(),
+    });
+    expect(revoke.statusCode, revoke.payload).toBe(400);
+    expect(revoke.payload).toContain("币种");
+    const cashList = await s.h.request(
+      `/rental-cash/list?kind=settlement&settlementId=${settlement.id}`,
+      undefined,
+      undefined,
+      "GET",
+    );
+    expect(cashList.statusCode, cashList.payload).toBe(400);
+    expect(cashList.payload).toContain("币种");
+    expect(cloneRentalTestState(s.h.state.rental)).toEqual(before);
+  });
+  it("USD bills and settlement costs keep normal preview and confirmation", async () => {
+    s.h.source.currencyCode = "USD";
+    const first = await s.generate("3600");
+    await s.generate("3680");
+    const input = s.settlementInput();
+    const preview = await s.previewSettlement(input);
+    expect(first.bill.currencyCode).toBe("USD");
+    expect(preview.canConfirm).toBe(true);
+    const settlement = await s.ok<RentalSettlementDetail>("/rental-settlements/confirm", {
+      ...input,
+      expectedVersion: preview.version,
+      idempotencyKey: randomUUID(),
+    });
+    expect(settlement.finalCostMinor).toBe(680000);
+  });
 });

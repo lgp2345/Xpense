@@ -1,4 +1,4 @@
-import { ConflictException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { expect, it, vi } from "vitest";
 import { rentalBillingSource } from "../../test/rental-billing-fixtures.js";
@@ -129,7 +129,9 @@ it("预约终止与撤销不改写账单，确认结算之后拒绝生命周期�
 });
 it("起租前取消保留收款事实并形成零成本退款结算", async () => {
   const h = await harness();
-  h.finance.bills = [{ id: "deposit", type: "deposit", status: "active" }] as never;
+  h.finance.bills = [
+    { id: "deposit", currencyCode: "CNY", type: "deposit", status: "active" },
+  ] as never;
   h.finance.cashEntries = [
     { id: "receipt", kind: "receipt", amountMinor: 5000, revokedAt: null },
   ] as never;
@@ -148,5 +150,26 @@ it("起租前取消保留收款事实并形成零成本退款结算", async () =
     expect.anything(),
   );
   expect(h.finance.cashEntries).toHaveLength(1);
+  await h.module.close();
+});
+
+it("取消产生退款结算时在作废账单前拒绝无法解释的历史币种", async () => {
+  const h = await harness();
+  h.finance.bills = [
+    { id: "deposit", currencyCode: "USD", type: "deposit", status: "active" },
+  ] as never;
+  h.finance.cashEntries = [
+    { id: "receipt", kind: "receipt", amountMinor: 5000, revokedAt: null },
+  ] as never;
+  await expect(
+    h.service.onCancel(
+      rentalFinanceAuth as never,
+      h.source,
+      { ...h.source, cancelledOn: "2025-12-31" },
+      {} as never,
+    ),
+  ).rejects.toBeInstanceOf(BadRequestException);
+  expect(h.voidBills).not.toHaveBeenCalled();
+  expect(h.persist).not.toHaveBeenCalled();
   await h.module.close();
 });

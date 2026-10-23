@@ -88,6 +88,8 @@ type WebLoginInput = Pick<LoginRequest, "phone" | "password" | "captchaId" | "ca
 type SwitchOperation = {
   id: symbol;
   promise: Promise<void>;
+  accessToken: string | null;
+  passwordPending: boolean;
 };
 
 type SessionMutationCoordinator = {
@@ -207,7 +209,8 @@ export async function loginWebSession(
     return true;
   } catch (error) {
     if (!current()) return false;
-    if (didCreateSession) await api.logout().catch(() => undefined);
+    if (didCreateSession)
+      await trackCookieRequest(store, () => api.logout()).catch(() => undefined);
     if (!current()) return false;
     store.getState().clearAuth();
     menus?.menuStore.getState().clearMenus();
@@ -274,6 +277,7 @@ export async function changeOwnPassword(
     },
     session.authStore,
     session,
+    true,
   );
   if (session.authStore.getState().currentUser?.initialPasswordUnchanged === false)
     clearInitialPasswordNotice();
@@ -283,6 +287,7 @@ function runWebContextSwitch(
   api: ContextSwitchApi,
   store: AuthStoreApi,
   menuBootstrap?: MenuBootstrapDependency,
+  passwordPending = false,
 ): Promise<void> {
   const coordinator = getSessionMutationCoordinator(store);
 
@@ -297,21 +302,28 @@ function runWebContextSwitch(
   const operationId = Symbol("switch-organization");
   const startingAccessToken = store.getState().accessToken;
   const startingOrganizationId = store.getState().currentOrganization?.id ?? null;
+  const operation: SwitchOperation = {
+    id: operationId,
+    promise: Promise.resolve(),
+    accessToken: startingAccessToken,
+    passwordPending,
+  };
+  coordinator.activeSwitch = operation;
   const promise = performOrganizationSwitch(
     api,
     store,
     coordinator,
     operationId,
-    startingAccessToken,
     startingOrganizationId,
     menus,
+    passwordPending,
   ).finally(() => {
     if (coordinator.activeSwitch?.id === operationId) {
       coordinator.activeSwitch = undefined;
     }
   });
 
-  coordinator.activeSwitch = { id: operationId, promise };
+  operation.promise = promise;
 
   return promise;
 }
@@ -326,19 +338,22 @@ async function performOrganizationSwitch(
   store: AuthStoreApi,
   coordinator: SessionMutationCoordinator,
   operationId: symbol,
-  startingAccessToken: string | null,
   startingOrganizationId: string | null,
   menuBootstrap: MenuBootstrapDependency | undefined,
+  passwordPending: boolean,
 ): Promise<void> {
   let accessToken: string;
 
   try {
+    if (passwordPending) {
+      // 先接收此前发出的刷新 Cookie，再允许改密响应写入替换 Cookie。
+      const pending = [...(coordinator.cookieRequests ?? [])];
+      if (pending.length) await Promise.allSettled(pending);
+      if (!isCurrentSwitchContext(coordinator, operationId, store)) return;
+    }
     ({ accessToken } = await api.switchContext());
   } catch (error) {
-    if (
-      !isCurrentSwitch(coordinator, operationId) ||
-      store.getState().accessToken !== startingAccessToken
-    ) {
+    if (!isCurrentSwitchContext(coordinator, operationId, store)) {
       return;
     }
 
@@ -346,22 +361,19 @@ async function performOrganizationSwitch(
     throw new WebOrganizationSwitchError(error);
   }
 
-  if (
-    !isCurrentSwitch(coordinator, operationId) ||
-    store.getState().accessToken !== startingAccessToken
-  ) {
+  if (!isCurrentSwitchContext(coordinator, operationId, store)) {
     return;
   }
 
+  const operation = coordinator.activeSwitch;
+  operation.accessToken = accessToken;
+  operation.passwordPending = false;
   store.getState().setAccessToken(accessToken);
 
   try {
     const currentUser = await api.getCurrentUser();
 
-    if (
-      !isCurrentSwitch(coordinator, operationId) ||
-      store.getState().accessToken !== accessToken
-    ) {
+    if (!isCurrentSwitchContext(coordinator, operationId, store)) {
       return;
     }
 
@@ -372,7 +384,7 @@ async function performOrganizationSwitch(
       return;
     }
 
-    if (store.getState().accessToken === accessToken) {
+    if (isCurrentSwitchContext(coordinator, operationId, store)) {
       store.getState().clearAuth();
       menuBootstrap?.menuStore.getState().clearMenus();
     }
@@ -395,8 +407,9 @@ export async function logoutWebSession(
   store: AuthStoreApi,
   menuBootstrap?: MenuBootstrapDependency,
 ): Promise<void> {
-  invalidateOrganizationSwitch(store);
   const coordinator = getSessionMutationCoordinator(store);
+  if (coordinator.logoutPromise) return coordinator.logoutPromise;
+  invalidateOrganizationSwitch(store);
   coordinator.activeIdentity = undefined;
   const cookieRequests = [...(coordinator.cookieRequests ?? [])];
   clearInitialPasswordNotice();
@@ -516,6 +529,18 @@ function isCurrentSwitch(coordinator: SessionMutationCoordinator, operationId: s
   return coordinator.activeSwitch?.id === operationId;
 }
 
+/** 同一会话的自动刷新可以推进令牌，其他身份写入仍会使该操作失效。 */
+function isCurrentSwitchContext(
+  coordinator: SessionMutationCoordinator,
+  operationId: symbol,
+  store: AuthStoreApi,
+): coordinator is SessionMutationCoordinator & { activeSwitch: SwitchOperation } {
+  return (
+    isCurrentSwitch(coordinator, operationId) &&
+    store.getState().accessToken === coordinator.activeSwitch?.accessToken
+  );
+}
+
 /** 使旧切换结果失效；这里只撤销本地任务标识，不取消已发出的 HTTP 请求。 */
 function invalidateOrganizationSwitch(store: AuthStoreApi): void {
   getSessionMutationCoordinator(store).activeSwitch = undefined;
@@ -554,12 +579,17 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
     getAccessToken: () => options.authStore.getState().accessToken,
     instance: options.instance,
     onAuthFailure: (_error, requestAccessToken) => {
+      if (getSessionMutationCoordinator(options.authStore).activeSwitch?.passwordPending) return;
       if (options.authStore.getState().accessToken === requestAccessToken) {
         options.authStore.getState().clearAuth();
         sessionMenuStore.getState().clearMenus();
       }
     },
+    canRefreshAccessToken: (requestPath) =>
+      !getSessionMutationCoordinator(options.authStore).activeSwitch?.passwordPending ||
+      requestPath === "/auth/password/update",
     refreshAccessToken: async (requestAccessToken) => {
+      const coordinator = getSessionMutationCoordinator(options.authStore);
       if (options.authStore.getState().accessToken !== requestAccessToken) return null;
       const { accessToken } = await trackCookieRequest(options.authStore, () =>
         apiClient.post<AuthTokensResponse>("/auth/refresh", undefined, {
@@ -573,6 +603,8 @@ export function createWebSession(options: CreateWebSessionOptions): WebSessionDe
         return null;
       }
 
+      const active = coordinator.activeSwitch;
+      if (active?.accessToken === requestAccessToken) active.accessToken = accessToken;
       options.authStore.getState().setAccessToken(accessToken);
 
       return accessToken;

@@ -33,6 +33,8 @@ export type ApiClientOptions = {
   onAuthFailure?: (error: ApiError, requestAccessToken: string | null) => void;
   /** 刷新并保存新令牌；会话已变化等情况下返回 null，放弃本次认证重放。 */
   refreshAccessToken?: (requestAccessToken: string) => Promise<string | null>;
+  /** 会话替换期间可拒绝无关请求启动或共享刷新，由会话层判断归属。 */
+  canRefreshAccessToken?: (requestPath: string) => boolean;
 };
 
 /** 单次请求策略；认证重放与网络错误重试分别控制。 */
@@ -286,6 +288,7 @@ export function createApiClient(options: ApiClientOptions) {
             !hasRetriedAuth &&
             token !== null &&
             options.refreshAccessToken !== undefined &&
+            options.canRefreshAccessToken?.(path) !== false &&
             requestOptions.authRefresh !== "ignore" &&
             !isAuthRoute(path)
           ) {

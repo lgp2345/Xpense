@@ -33,6 +33,7 @@ import type { FinanceScope, RentalFinanceSnapshot } from "./rental-finance.types
 import { financeRequestHash, isFinanceRequestReplay } from "./rental-finance-request.rules.js";
 import { RentalFinanceSourceService } from "./rental-finance-source.service.js";
 import { RentalSettlementsRepository } from "./rental-settlements.repository.js";
+import { assertSettlementCurrency } from "./settlement-currency.rules.js";
 import { SettlementProjectionService } from "./settlement-projection.service.js";
 
 type CashRequest = {
@@ -232,6 +233,7 @@ export class RentalCashService {
       const source = await this.sources.read(scope, tx);
       this.assertSnapshotScope(scope, source);
       const resolvedTarget = this.requireWriteTarget(source, target);
+      if (source.settlement) this.requireSettlementCurrency(source);
       const replay = await this.findReplay(scope, source, action, request, tx);
       if (replay) return replay;
       const facts = await this.readFacts(scope, tx);
@@ -291,6 +293,7 @@ export class RentalCashService {
       const scope = await this.lockContract(auth.organizationId, contractId, tx);
       const source = await this.sources.read(scope, tx);
       this.assertSnapshotScope(scope, source);
+      if (source.settlement) this.requireSettlementCurrency(source);
       const entry = source.cashEntries.find((item) => item.id === request.entryId);
       if (!entry) throw this.notFound();
       this.assertTargetReadPermission(auth, entry.target);
@@ -477,7 +480,17 @@ export class RentalCashService {
       return { kind: "bill", bill, amountMinor: bill.amountMinor, dueDate: bill.dueDate };
     }
     if (!source.settlement || source.settlement.id !== target.settlementId) throw this.notFound();
+    this.requireSettlementCurrency(source);
     return { kind: "settlement", amountMinor: source.settlement.finalCostMinor, dueDate: null };
+  }
+
+  private requireSettlementCurrency(source: RentalFinanceSnapshot): void {
+    try {
+      assertSettlementCurrency(source);
+    } catch (error) {
+      if (error instanceof RangeError) throw this.badRequest(error.message);
+      throw error;
+    }
   }
 
   private assertActiveBill(bill: RentalFinanceSnapshot["bills"][number]) {
