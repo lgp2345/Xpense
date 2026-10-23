@@ -13,11 +13,13 @@ export function OrganizationDetailPage({
   organizationId,
   onBack,
   onEntered,
+  onManageOwners,
 }: {
   session: WebSessionDependency;
   organizationId: string;
   onBack: () => void;
   onEntered: () => void;
+  onManageOwners?: () => void;
 }) {
   const userId = useStore(session.authStore, (state) => state.currentUser?.id ?? "");
   const isPlatformAdmin = useStore(
@@ -29,12 +31,15 @@ export function OrganizationDetailPage({
     enabled: Boolean(userId) && isPlatformAdmin,
   });
   const [pending, setPending] = useState(false);
-  async function enter() {
+  async function enter(manageOwners = false) {
     if (pending) return;
     setPending(true);
     try {
       await switchWebOrganization(session.authApi, session.authStore, organizationId, session);
-      if (session.authStore.getState().currentOrganization?.id === organizationId) onEntered();
+      if (session.authStore.getState().currentOrganization?.id === organizationId) {
+        if (manageOwners && onManageOwners) onManageOwners();
+        else onEntered();
+      }
     } catch (error) {
       toast.error(error, "进入组织失败，请稍后重试。");
     } finally {
@@ -90,6 +95,15 @@ export function OrganizationDetailPage({
           </section>
           <section className="space-y-3">
             <h2 className="text-base font-semibold">组织负责人</h2>
+            {onManageOwners ? (
+              <Button
+                variant="outline"
+                disabled={pending || org.status !== "active"}
+                onClick={() => void enter(true)}
+              >
+                进入组织管理负责人
+              </Button>
+            ) : null}
             {org.owners.length ? (
               org.owners.map((owner) => (
                 <p key={owner.userId} className="break-words text-sm">

@@ -25,6 +25,11 @@ export const organizationsKeys = {
   detail: (userId: string, id: string) => ["platform-organizations", userId, "detail", id] as const,
 };
 export const organizationsQueryOptions = {
+  settings: (api: OrganizationsApi, userId: string, orgId: string) =>
+    queryOptions({
+      queryKey: ["organization-settings", userId, orgId],
+      queryFn: () => api.settings(),
+    }),
   list: (api: OrganizationsApi, userId: string, query: OrganizationListQuery) =>
     queryOptions({
       queryKey: organizationsKeys.list(userId, query),
@@ -36,4 +41,9 @@ export const organizationsQueryOptions = {
 export function clearOrganizationsQueries(client: QueryClient): void {
   void client.cancelQueries({ queryKey: organizationsKeys.root });
   client.removeQueries({ queryKey: organizationsKeys.root });
+}
+
+export function clearOrganizationSettingsQueries(client: QueryClient): void {
+  void client.cancelQueries({ queryKey: ["organization-settings"] });
+  client.removeQueries({ queryKey: ["organization-settings"] });
 }

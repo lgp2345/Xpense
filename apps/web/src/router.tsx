@@ -12,7 +12,10 @@ import { didRentalScopeChange } from "@/routes/-shared/rental-cache-scope";
 import { RouteAccessPending } from "@/routes/-shared/status";
 import { routeTree } from "./routeTree.gen";
 import { clearBookkeepingQueries } from "./services/bookkeeping-query";
-import { clearOrganizationsQueries } from "./services/organizations-query";
+import {
+  clearOrganizationSettingsQueries,
+  clearOrganizationsQueries,
+} from "./services/organizations-query";
 import { clearRentalQueries } from "./services/rental-query";
 import { type WebSessionDependency, webSession } from "./services/web-session";
 import type { AuthStoreApi } from "./stores/auth-store";
@@ -95,6 +98,7 @@ export function AppRouter({
     clearBookkeepingQueries(queryClient);
     clearRentalQueries(queryClient);
     clearOrganizationsQueries(queryClient);
+    clearOrganizationSettingsQueries(queryClient);
 
     if (
       !restore ||
@@ -142,6 +146,11 @@ export function AppRouter({
       ) {
         clearPageWorkspacesForUser(activePageWorkspaceStorage, previousState.currentUser.id);
       }
+      if (
+        didBookkeepingScopeChange(state, previousState) ||
+        state.role?.key !== previousState.role?.key
+      )
+        clearOrganizationSettingsQueries(queryClient);
       if (didBookkeepingScopeChange(state, previousState)) {
         clearBookkeepingQueries(queryClient);
       }

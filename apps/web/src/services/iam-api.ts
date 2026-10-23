@@ -10,6 +10,9 @@ import type {
 import type { ApiClient } from "./api-client";
 
 export type IamMember = {
+  /** 仅成员列表返回，同一次查询中的有效负责人总数。 */
+  effectiveOwnerCount?: number;
+  userStatus?: "active" | "disabled";
   id: string;
   organizationId: string;
   userId: string;

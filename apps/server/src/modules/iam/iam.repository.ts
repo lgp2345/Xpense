@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { PermissionKey } from "@xpense/shared";
-import { and, count, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import type { AppDb, AppDbExecutor, AppDbTransaction } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
@@ -35,7 +35,14 @@ export class IamRepository {
 
   async listMembers(organizationId: string): Promise<IamMember[]> {
     return this.db
-      .select(memberSelectFields)
+      .select({
+        ...memberSelectFields,
+        userStatus: users.status,
+        effectiveOwnerCount:
+          sql<number>`count(*) FILTER (WHERE ${roles.key}='owner' AND ${roles.isSystem}=true AND ${users.status}='active' AND ${organizationMemberships.status}='active') OVER ()`.mapWith(
+            Number,
+          ),
+      })
       .from(organizationMemberships)
       .innerJoin(users, eq(organizationMemberships.userId, users.id))
       .innerJoin(roles, eq(organizationMemberships.roleId, roles.id))

@@ -4,10 +4,15 @@ import type {
   OrganizationListQuery,
   OrganizationListResponse,
   OrganizationOwnerCandidate,
+  OrganizationProfile,
+  UpdateOrganizationProfileInput,
 } from "@xpense/shared";
 import type { ApiClient } from "./api-client";
 export function createOrganizationsApi(client: ApiClient) {
   return {
+    settings: () => client.get<OrganizationProfile>("/organizations/settings/detail"),
+    updateSettings: (input: UpdateOrganizationProfileInput) =>
+      client.post<OrganizationProfile>("/organizations/settings/update", input),
     create: (input: CreateOrganizationInput) =>
       client.post<OrganizationDetail>("/organizations/create", input),
     resolveOwner: (phone: string) =>

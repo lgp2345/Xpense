@@ -19,6 +19,7 @@ const MenuManagementPage = lazyRouteComponent(
 );
 
 const ROUTE_LABELS = {
+  OrganizationSettings: "组织设置",
   Dashboard: "仪表盘",
   Members: "成员管理",
   Roles: "角色管理",

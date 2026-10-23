@@ -24,6 +24,7 @@ import type { IamMember, IamRole } from "../../services/iam-api";
 
 type MemberActionsProps = {
   isMutating: boolean;
+  canManageOwners?: boolean;
   member: IamMember;
   permissions: readonly PermissionKey[];
   roles: IamRole[];
@@ -33,6 +34,7 @@ type MemberActionsProps = {
 
 export function MemberActions({
   isMutating,
+  canManageOwners = false,
   member,
   permissions,
   roles,
@@ -44,9 +46,34 @@ export function MemberActions({
   const canEnable = permissions.includes("members:enable");
   const isActive = member.status === "active";
 
+  const account = member.email ?? member.phone ?? "未填写";
+  const protectedOwner = member.roleKey === "owner";
+  const reason =
+    protectedOwner && !canManageOwners
+      ? "仅组织负责人或平台超级管理员可管理负责人"
+      : protectedOwner &&
+          member.status === "active" &&
+          member.userStatus !== "disabled" &&
+          (member.effectiveOwnerCount ?? 0) <= 1
+        ? "至少保留一位有效组织负责人"
+        : null;
+  const disabledButton = (label: string, why: string) => (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button variant="outline" disabled focusableWhenDisabled>
+            {label}
+          </Button>
+        }
+      />
+      <TooltipContent>{why}</TooltipContent>
+    </Tooltip>
+  );
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {canUpdateRole ? (
+      {canUpdateRole && reason ? (
+        disabledButton(`变更 ${account} 的角色`, reason)
+      ) : canUpdateRole ? (
         <Select
           value={member.roleId}
           disabled={isMutating}
@@ -56,23 +83,27 @@ export function MemberActions({
             }
           }}
         >
-          <SelectTrigger aria-label={`变更 ${member.email} 的角色`} className="w-44">
+          <SelectTrigger aria-label={`变更 ${account} 的角色`} className="w-44">
             <SelectValue placeholder="选择角色" />
           </SelectTrigger>
           <SelectContent>
-            {roles.map((role) => (
-              <SelectItem key={role.id} value={role.id}>
-                {role.name}
-              </SelectItem>
-            ))}
+            {roles
+              .filter((role) => canManageOwners || role.key !== "owner")
+              .map((role) => (
+                <SelectItem key={role.id} value={role.id}>
+                  {role.name}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
       ) : null}
 
-      {canDisable ? (
+      {canDisable && reason ? (
+        disabledButton(`禁用 ${account}`, reason)
+      ) : canDisable ? (
         isActive ? (
           <AlertDialog>
-            <AlertDialogTrigger render={<Button variant="outline">禁用 {member.email}</Button>} />
+            <AlertDialogTrigger render={<Button variant="outline">禁用 {account}</Button>} />
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>确认禁用成员</AlertDialogTitle>
@@ -97,7 +128,7 @@ export function MemberActions({
               render={
                 <span>
                   <Button variant="outline" disabled>
-                    禁用 {member.email}
+                    禁用 {account}
                   </Button>
                 </span>
               }
@@ -107,14 +138,16 @@ export function MemberActions({
         )
       ) : null}
 
-      {canEnable ? (
+      {canEnable && protectedOwner && !canManageOwners ? (
+        disabledButton(`启用 ${account}`, "仅组织负责人或平台超级管理员可管理负责人")
+      ) : canEnable ? (
         isActive ? (
           <Tooltip>
             <TooltipTrigger
               render={
                 <span>
                   <Button variant="outline" disabled>
-                    启用 {member.email}
+                    启用 {account}
                   </Button>
                 </span>
               }
@@ -127,7 +160,7 @@ export function MemberActions({
             variant="outline"
             onClick={() => void onStatusChange("active")}
           >
-            启用 {member.email}
+            启用 {account}
           </Button>
         )
       ) : null}

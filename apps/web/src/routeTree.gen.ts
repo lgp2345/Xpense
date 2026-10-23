@@ -22,6 +22,7 @@ import { Route as AuthenticatedcoreIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatediamAuditLogsRouteImport } from './routes/_authenticated/(iam)/audit-logs'
 import { Route as AuthenticatediamMembersRouteImport } from './routes/_authenticated/(iam)/members'
 import { Route as AuthenticatediamMenusRouteImport } from './routes/_authenticated/(iam)/menus'
+import { Route as AuthenticatediamOrganizationSettingsRouteImport } from './routes/_authenticated/(iam)/organization-settings'
 import { Route as AuthenticatediamRolesRouteImport } from './routes/_authenticated/(iam)/roles'
 import { Route as AuthenticatediamSessionsRouteImport } from './routes/_authenticated/(iam)/sessions'
 import { Route as SessionShellSystemMenuResetRouteImport } from './routes/_session/_shell/system/menu-reset'
@@ -105,6 +106,12 @@ const AuthenticatediamMenusRoute = AuthenticatediamMenusRouteImport.update({
   path: '/menus',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatediamOrganizationSettingsRoute =
+  AuthenticatediamOrganizationSettingsRouteImport.update({
+    id: '/(iam)/organization-settings',
+    path: '/organization-settings',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatediamRolesRoute = AuthenticatediamRolesRouteImport.update({
   id: '/(iam)/roles',
   path: '/roles',
@@ -212,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/audit-logs': typeof AuthenticatediamAuditLogsRoute
   '/members': typeof AuthenticatediamMembersRoute
   '/menus': typeof AuthenticatediamMenusRoute
+  '/organization-settings': typeof AuthenticatediamOrganizationSettingsRoute
   '/roles': typeof AuthenticatediamRolesRoute
   '/sessions': typeof AuthenticatediamSessionsRoute
   '/system/menu-reset': typeof SessionShellSystemMenuResetRoute
@@ -240,6 +248,7 @@ export interface FileRoutesByTo {
   '/audit-logs': typeof AuthenticatediamAuditLogsRoute
   '/members': typeof AuthenticatediamMembersRoute
   '/menus': typeof AuthenticatediamMenusRoute
+  '/organization-settings': typeof AuthenticatediamOrganizationSettingsRoute
   '/roles': typeof AuthenticatediamRolesRoute
   '/sessions': typeof AuthenticatediamSessionsRoute
   '/system/menu-reset': typeof SessionShellSystemMenuResetRoute
@@ -271,6 +280,7 @@ export interface FileRoutesById {
   '/_authenticated/(iam)/audit-logs': typeof AuthenticatediamAuditLogsRoute
   '/_authenticated/(iam)/members': typeof AuthenticatediamMembersRoute
   '/_authenticated/(iam)/menus': typeof AuthenticatediamMenusRoute
+  '/_authenticated/(iam)/organization-settings': typeof AuthenticatediamOrganizationSettingsRoute
   '/_authenticated/(iam)/roles': typeof AuthenticatediamRolesRoute
   '/_authenticated/(iam)/sessions': typeof AuthenticatediamSessionsRoute
   '/_authenticated/(core)/': typeof AuthenticatedcoreIndexRoute
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/members'
     | '/menus'
+    | '/organization-settings'
     | '/roles'
     | '/sessions'
     | '/system/menu-reset'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/members'
     | '/menus'
+    | '/organization-settings'
     | '/roles'
     | '/sessions'
     | '/system/menu-reset'
@@ -360,6 +372,7 @@ export interface FileRouteTypes {
     | '/_authenticated/(iam)/audit-logs'
     | '/_authenticated/(iam)/members'
     | '/_authenticated/(iam)/menus'
+    | '/_authenticated/(iam)/organization-settings'
     | '/_authenticated/(iam)/roles'
     | '/_authenticated/(iam)/sessions'
     | '/_authenticated/(core)/'
@@ -477,6 +490,13 @@ declare module '@tanstack/react-router' {
       path: '/menus'
       fullPath: '/menus'
       preLoaderRoute: typeof AuthenticatediamMenusRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/(iam)/organization-settings': {
+      id: '/_authenticated/(iam)/organization-settings'
+      path: '/organization-settings'
+      fullPath: '/organization-settings'
+      preLoaderRoute: typeof AuthenticatediamOrganizationSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/(iam)/roles': {
@@ -601,6 +621,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatediamAuditLogsRoute: typeof AuthenticatediamAuditLogsRoute
   AuthenticatediamMembersRoute: typeof AuthenticatediamMembersRoute
   AuthenticatediamMenusRoute: typeof AuthenticatediamMenusRoute
+  AuthenticatediamOrganizationSettingsRoute: typeof AuthenticatediamOrganizationSettingsRoute
   AuthenticatediamRolesRoute: typeof AuthenticatediamRolesRoute
   AuthenticatediamSessionsRoute: typeof AuthenticatediamSessionsRoute
   AuthenticatedcoreIndexRoute: typeof AuthenticatedcoreIndexRoute
@@ -625,6 +646,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatediamAuditLogsRoute: AuthenticatediamAuditLogsRoute,
   AuthenticatediamMembersRoute: AuthenticatediamMembersRoute,
   AuthenticatediamMenusRoute: AuthenticatediamMenusRoute,
+  AuthenticatediamOrganizationSettingsRoute:
+    AuthenticatediamOrganizationSettingsRoute,
   AuthenticatediamRolesRoute: AuthenticatediamRolesRoute,
   AuthenticatediamSessionsRoute: AuthenticatediamSessionsRoute,
   AuthenticatedcoreIndexRoute: AuthenticatedcoreIndexRoute,

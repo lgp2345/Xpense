@@ -17,6 +17,9 @@ type MembersApi = Pick<IamApi, "listMembers" | "createMember" | "updateMember" |
 
 type MembersPageProps = {
   api?: MembersApi;
+  actorRoleKey?: string;
+  isSuperAdmin?: boolean;
+  onMembersChanged?: () => Promise<void>;
   members?: IamMember[];
   permissions: PermissionKey[];
   roles?: IamRole[];
@@ -29,7 +32,16 @@ function loadMembersData(api: MembersApi, canReadRoles: boolean) {
   ]);
 }
 
-export function MembersPage({ api = webIamApi, members, permissions, roles }: MembersPageProps) {
+export function MembersPage({
+  api = webIamApi,
+  members,
+  permissions,
+  roles,
+  actorRoleKey,
+  isSuperAdmin = false,
+  onMembersChanged,
+}: MembersPageProps) {
+  const canManageOwners = isSuperAdmin || actorRoleKey === "owner";
   const canReadRoles = permissions.includes("roles:read");
   const hasInitialData = members !== undefined && (!canReadRoles || roles !== undefined);
   const [memberItems, setMemberItems] = useState(() => members ?? []);
@@ -81,6 +93,7 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
     try {
       await operation();
       await refreshMembers();
+      await onMembersChanged?.();
       return true;
     } catch {
       setErrorMessage(error);
@@ -143,6 +156,7 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
     memberItems,
     createMemberColumns({
       isMutating,
+      canManageOwners,
       permissions: memberActionPermissions,
       roles: roleItems,
       onRoleChange: handleRoleChange,
@@ -157,7 +171,12 @@ export function MembersPage({ api = webIamApi, members, permissions, roles }: Me
           <h1 className="text-2xl font-medium tracking-tight">成员管理</h1>
           <p className="text-sm text-muted-foreground">组织访问控制</p>
         </div>
-        {canCreate ? <MemberFormDialog roles={roleItems} onSubmit={handleCreate} /> : null}
+        {canCreate ? (
+          <MemberFormDialog
+            roles={roleItems.filter((role) => canManageOwners || role.key !== "owner")}
+            onSubmit={handleCreate}
+          />
+        ) : null}
       </header>
 
       {errorMessage ? (

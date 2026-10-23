@@ -103,6 +103,8 @@ function createSession(mode: "pending" | "error" = "pending"): WebSessionDepende
   const emptyPage = { items: [], total: 0, page: 1, pageSize: 20 };
   return {
     organizationsApi: {
+      settings: vi.fn(),
+      updateSettings: vi.fn(),
       create: vi.fn(),
       resolveOwner: vi.fn(),
       list: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),

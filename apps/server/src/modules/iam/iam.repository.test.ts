@@ -93,3 +93,26 @@ describe("IamRepository permission locks", () => {
     expect(forUpdate).toHaveBeenCalledWith("update", { of: rolePermissions });
   });
 });
+
+describe("成员负责人数量查询", () => {
+  it("returns a count filtered by account and membership activity in the same organization query", async () => {
+    let selected: Record<string, unknown> = {};
+    const where = vi.fn().mockResolvedValue([{ effectiveOwnerCount: 1, userStatus: "active" }]);
+    const joined = { innerJoin: vi.fn().mockReturnThis(), where };
+    const db = {
+      select: vi.fn().mockImplementation((fields) => {
+        selected = fields;
+        return { from: () => joined };
+      }),
+    };
+    const rows = await new IamRepository(db as never).listMembers("org-1");
+    expect(rows[0]?.effectiveOwnerCount).toBe(1);
+    const { users, organizationMemberships } = await import("../../db/schema.js");
+    expect(containsReference(selected.effectiveOwnerCount, users.status)).toBe(true);
+    expect(containsReference(selected.effectiveOwnerCount, organizationMemberships.status)).toBe(
+      true,
+    );
+    expect(containsReference(selected.effectiveOwnerCount, roles.isSystem)).toBe(true);
+    expect(containsReference(where.mock.calls[0]?.[0], "org-1")).toBe(true);
+  });
+});

@@ -10,6 +10,15 @@ import { buildPermissionTree, completePermissionSelection } from "./permission-t
 import { RENTAL_MENU_TEMPLATE } from "./rental-menu-template.js";
 
 describe("DEFAULT_MENU_TEMPLATE", () => {
+  it("includes organization settings and its independent update action", () => {
+    expect(DEFAULT_MENU_TEMPLATE.find((n) => n.routeKey === "OrganizationSettings")).toMatchObject({
+      permissionCode: "organization_settings:read",
+      keepAlive: false,
+    });
+    expect(
+      DEFAULT_MENU_TEMPLATE.find((n) => n.permissionCode === "organization_settings:update"),
+    ).toMatchObject({ parentTemplateKey: "organization-settings", type: "button" });
+  });
   it("adds independent bill read, generate and adjustment entries", () => {
     expect(RENTAL_MENU_TEMPLATE.find((node) => node.routeKey === "RentalBills")).toMatchObject({
       parentTemplateKey: "rental",
@@ -199,6 +208,7 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       "RentalBills",
       "RentalBillDetail",
       "RentalSettlement",
+      "OrganizationSettings",
       "Members",
       "Roles",
       "Menus",
@@ -599,6 +609,7 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
       "rental_receipts:revoke",
       "rental_refunds:create",
       "rental_refunds:revoke",
+      "organization_settings:update",
       "members:create",
       "members:update",
       "members:disable",

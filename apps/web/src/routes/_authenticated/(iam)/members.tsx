@@ -35,5 +35,21 @@ export const Route = createFileRoute("/_authenticated/(iam)/members")({
 function MembersRoutePage({ session }: { session: WebSessionDependency }) {
   const permissions = useStore(session.authStore, (state) => state.permissions);
 
-  return <MembersPage api={session.iamApi} permissions={permissions} />;
+  const actorRoleKey = useStore(session.authStore, (state) => state.role?.key);
+  const isSuperAdmin = useStore(
+    session.authStore,
+    (state) => state.currentUser?.isSuperAdmin ?? false,
+  );
+  return (
+    <MembersPage
+      api={session.iamApi}
+      permissions={permissions}
+      actorRoleKey={actorRoleKey}
+      isSuperAdmin={isSuperAdmin}
+      onMembersChanged={async () => {
+        const ctx = await session.authApi.getCurrentUser();
+        session.authStore.getState().setCurrentUserContext(ctx);
+      }}
+    />
+  );
 }

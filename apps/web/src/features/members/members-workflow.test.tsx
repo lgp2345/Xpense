@@ -67,10 +67,12 @@ function renderMembersPage(
     api?: Pick<IamApi, "listMembers" | "createMember" | "updateMember" | "listRoles">;
     members?: IamMember[];
     pageRoles?: IamRole[];
+    actorRoleKey?: string;
   } = {},
 ) {
   render(
     <MembersPage
+      actorRoleKey={options.actorRoleKey}
       api={options.api}
       members={options.members ?? [member]}
       permissions={["roles:read", ...permissions]}
@@ -320,7 +322,7 @@ describe("MembersPage", () => {
   it("updates the member role from the row select", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
-    renderMembersPage(["members:read", "members:update"], { api });
+    renderMembersPage(["members:read", "members:update"], { api, actorRoleKey: "owner" });
 
     await user.click(screen.getByRole("combobox", { name: /变更 member@example\.com 的角色/ }));
     await user.click(await screen.findByRole("option", { name: "所有者" }));
@@ -361,5 +363,56 @@ describe("MembersPage", () => {
 
     expect(await screen.findByText("member@example.com")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  });
+});
+
+describe("负责人操作保护", () => {
+  const ownerMember = {
+    ...member,
+    roleId: "role-owner",
+    roleKey: "owner",
+    roleName: "组织负责人",
+    effectiveOwnerCount: 1,
+  };
+  it.each([
+    "admin",
+    "custom-full",
+  ])("blocks %s from managing an owner despite full permissions", async (roleKey) => {
+    const user = userEvent.setup();
+    const api = createIamApi();
+    render(
+      <MembersPage
+        api={api}
+        members={[ownerMember]}
+        roles={roles}
+        permissions={["roles:read", "members:update", "members:disable"]}
+        actorRoleKey={roleKey}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "禁用 member@example.com" });
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    button.focus();
+    await user.keyboard("{Enter} ");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "仅组织负责人或平台超级管理员可管理负责人",
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(api.updateMember).not.toHaveBeenCalled();
+  });
+  it("protects the final effective owner even for a platform administrator", async () => {
+    const user = userEvent.setup();
+    render(
+      <MembersPage
+        members={[ownerMember]}
+        roles={roles}
+        permissions={["roles:read", "members:update", "members:disable"]}
+        isSuperAdmin
+      />,
+    );
+    const button = screen.getByRole("button", { name: "禁用 member@example.com" });
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    button.focus();
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("至少保留一位有效组织负责人");
   });
 });

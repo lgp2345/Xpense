@@ -18,6 +18,7 @@ function OrganizationDetailRoute() {
       session={session}
       organizationId={organizationId}
       onBack={onBack}
+      onManageOwners={() => void navigate({ to: "/members" })}
       onEntered={() => void navigate({ to: "/" })}
     />
   );

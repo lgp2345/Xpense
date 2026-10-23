@@ -2,6 +2,7 @@ import type { PermissionKey } from "./rbac.js";
 
 export const ROUTE_DEFINITIONS = {
   Dashboard: { path: "/" },
+  OrganizationSettings: { path: "/organization-settings" },
   Members: { path: "/members" },
   Roles: { path: "/roles" },
   Sessions: { path: "/sessions" },

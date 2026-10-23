@@ -58,6 +58,7 @@ vi.mock("@/pages/dashboard-page", () => {
 });
 
 const routePermissions = {
+  OrganizationSettings: "organization_settings:read",
   Dashboard: "dashboard:read",
   Members: "members:read",
   Roles: "roles:read",

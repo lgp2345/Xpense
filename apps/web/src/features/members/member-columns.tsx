@@ -7,6 +7,7 @@ import { MemberActions } from "./member-actions";
 
 type MemberColumnsOptions = {
   isMutating: boolean;
+  canManageOwners: boolean;
   permissions: readonly PermissionKey[];
   roles: IamRole[];
   onRoleChange: (memberId: string, roleId: string) => Promise<void>;
@@ -17,6 +18,7 @@ type MemberColumnDef = ClientColumnDef<IamMember>;
 
 export function createMemberColumns({
   isMutating,
+  canManageOwners,
   permissions,
   roles,
   onRoleChange,
@@ -65,6 +67,7 @@ export function createMemberColumns({
         <div className="text-right">
           <MemberActions
             isMutating={isMutating}
+            canManageOwners={canManageOwners}
             member={row.original}
             permissions={permissions}
             roles={roles}
