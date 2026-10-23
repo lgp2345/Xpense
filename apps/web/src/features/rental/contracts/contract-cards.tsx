@@ -1,5 +1,6 @@
 import type { RentalContractSummary } from "@xpense/shared";
 import { Card, CardContent } from "@/components/ui/card";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { formatContractDateTime } from "./contract-date-time";
 import { ContractStatusBadge } from "./contract-status";
 import { ContractLink, formatMoney } from "./contract-table";
@@ -11,6 +12,8 @@ export function ContractCards({
   items: RentalContractSummary[];
   onNavigate: (contractId: string) => void;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   return (
     <div data-testid="contract-cards" className="grid gap-3">
       {items.map((item) => (
@@ -27,7 +30,7 @@ export function ContractCards({
               {formatContractDateTime(item.startDate) ?? "未开始"} 至{" "}
               {formatContractDateTime(item.endDate) ?? "未结束"}
             </p>
-            <p>租金：{formatMoney(item.rentAmountMinor)}</p>
+            <p>租金：{formatMoney(item.rentAmountMinor, currencyCode)}</p>
             <p>承租方：{item.tenantNames.join("、") || "未指定承租方"}</p>
           </CardContent>
         </Card>

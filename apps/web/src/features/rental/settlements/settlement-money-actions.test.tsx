@@ -1,14 +1,15 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import type { RentalSettlementDetail } from "@xpense/shared";
 import { expect, it } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { SettlementMoneySummary } from "./settlement-money-actions";
 
 it("分别显示结算实际收退与仍待退款状态", () => {
   render(<SettlementMoneySummary settlement={settlementFixture()} />);
 
-  expect(screen.getByText("已收 3,000.00 · 已退 0.00")).toBeInTheDocument();
+  expect(screen.getByText("已收 ¥3000.00 · 已退 ¥0.00")).toBeInTheDocument();
   expect(
-    screen.getByText(/结算已确认（2026-09-30）；合同空间已按日期结束，仍待退款 2,800.00。/),
+    screen.getByText(/结算已确认（2026-09-30）；合同空间已按日期结束，仍待退款 ¥2800.00。/),
   ).toBeInTheDocument();
 });
 

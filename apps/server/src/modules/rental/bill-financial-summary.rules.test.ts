@@ -404,3 +404,70 @@ describe("匹配账单的未结算财务对象汇总", () => {
     ).toThrow("超出安全整数范围");
   });
 });
+
+describe("按账单快照币种汇总", () => {
+  it("separates historical CNY and current USD balances without netting currencies", async () => {
+    const { calculateBillFinancialTotalsByCurrency } = await import(
+      "./bill-financial-summary.rules.js"
+    );
+    const rows = [
+      { id: "cny", contractId: "cn", currencyCode: "CNY" },
+      { id: "usd", contractId: "us", currencyCode: "USD" },
+    ];
+    const facts = rows.map((row) =>
+      projectionFacts({
+        contractId: row.contractId,
+        bills: [bill({ ...row, amountMinor: 101 })],
+        cashEntries: [
+          cash({ ...row, id: `cash-${row.id}`, billId: row.id, kind: "receipt", amountMinor: 1 }),
+        ],
+      }),
+    );
+    expect(calculateBillFinancialTotalsByCurrency(rows, facts, "org", "2026-10-01")).toEqual([
+      {
+        currencyCode: "CNY",
+        receivedMinor: 1,
+        refundedMinor: 0,
+        outstandingMinor: 100,
+        refundableMinor: 0,
+      },
+      {
+        currencyCode: "USD",
+        receivedMinor: 1,
+        refundedMinor: 0,
+        outstandingMinor: 100,
+        refundableMinor: 0,
+      },
+    ]);
+  });
+});
+
+it("refuses an ambiguous settlement spanning linked bill currencies instead of double counting its cash", async () => {
+  const { calculateBillFinancialTotalsByCurrency } = await import(
+    "./bill-financial-summary.rules.js"
+  );
+  const rows = [
+    { id: "cny", contractId: "contract", currencyCode: "CNY" },
+    { id: "usd", contractId: "contract", currencyCode: "USD" },
+  ];
+  const facts = projectionFacts({
+    contractId: "contract",
+    bills: rows.map((row) => ({
+      ...bill({ ...row, amountMinor: 100 }),
+      currencyCode: row.currencyCode,
+    })),
+    settlement: {
+      id: "settlement",
+      eventId: "event",
+      kind: "termination",
+      effectiveEndDate: "2026-10-01",
+      revision: 1,
+      finalCostMinor: 200,
+      status: "pending_collection",
+    },
+    settlementBillIds: ["cny", "usd"],
+  });
+  expect(() => calculateBillFinancialTotalsByCurrency(rows, [facts], "org", "2026-10-01")).toThrow(
+    "结算包含不同币种账单",
+  );
+});

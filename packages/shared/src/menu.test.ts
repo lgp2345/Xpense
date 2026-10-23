@@ -100,6 +100,7 @@ describe("organization menu shared contract", () => {
   it("declares every statically registered internal route without Web components", () => {
     expect(Object.keys(ROUTE_DEFINITIONS)).toEqual([
       "Dashboard",
+      "OrganizationSettings",
       "Members",
       "Roles",
       "Sessions",
@@ -119,6 +120,7 @@ describe("organization menu shared contract", () => {
       "RentalBillDetail",
       "RentalSettlement",
     ]);
+    expect(ROUTE_DEFINITIONS.OrganizationSettings.path).toBe("/organization-settings");
     expect(ROUTE_DEFINITIONS.Menus.path).toBe("/menus");
     expect(ROUTE_DEFINITIONS.Transactions.path).toBe("/transactions");
     expect(ROUTE_DEFINITIONS.Accounts.path).toBe("/accounts");

@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RentalBillDetail, RentalCashEntry, RentalFinancialBalance } from "@xpense/shared";
 import { expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { BillReceiptDialog } from "./bill-receipt-dialog";
 import { billFixture, billsApiFixture, financeApiFixture } from "./bill-test-fixtures";
 
@@ -97,7 +98,7 @@ it("统一发生日期，逐项核对押金全额及普通账单金额，二次�
   await review();
   expect(screen.getByRole("alertdialog")).toHaveTextContent("确认批量收款");
   expect(within(screen.getByRole("alertdialog")).getByLabelText("总共收费")).toHaveTextContent(
-    "CNY 75.00",
+    "¥75.00",
   );
   expect(api.recordReceipt).not.toHaveBeenCalled();
   expect(api.confirmDepositReceipt).not.toHaveBeenCalled();
@@ -133,8 +134,8 @@ it("确认总额按币种分别汇总，大额相加保持整数分精度", asyn
   ]);
   await review();
   const total = within(screen.getByRole("alertdialog")).getByLabelText("总共收费");
-  expect(total).toHaveTextContent("CNY 180,143,985,094,819.82");
-  expect(total).toHaveTextContent("USD 80.00");
+  expect(total).toHaveTextContent("¥180143985094819.82");
+  expect(total).toHaveTextContent("$80.00");
 });
 
 it("部分失败后可重试失败项，已成功项不会重复登记", async () => {

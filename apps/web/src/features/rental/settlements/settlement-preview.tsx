@@ -6,6 +6,7 @@ import { useId } from "react";
 import { z } from "zod";
 import { DatePickerInput } from "@/components/date-picker";
 import { Input } from "@/components/ui/input";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { formatBillAmount } from "../bills/bill-format";
 import { parseSignedMoneyMinor } from "../bills/period-bill-form";
 
@@ -55,6 +56,8 @@ const missingFieldLabels: Record<string, string> = {
 };
 
 export function SettlementPreview({ preview }: { preview: RentalSettlementPreviewData }) {
+  const currencyCode = useOrganizationCurrency();
+
   const periodLines = preview.periodCharges.flatMap((charge) =>
     charge.lines.map((line) => ({
       month: `${charge.period.periodStart} 至 ${charge.period.periodEnd}`,
@@ -83,10 +86,12 @@ export function SettlementPreview({ preview }: { preview: RentalSettlementPrevie
         固定费用不自动退款。负费用减少结算成本，实际退款仍需单独登记。
       </p>
       <div className="flex flex-wrap gap-x-5 gap-y-2 border-t pt-3 text-sm tabular-nums">
-        <span>最终费用 {formatBillAmount(preview.finalCostMinor)}</span>
-        <span>实际收款 {formatBillAmount(preview.receivedMinor)}</span>
-        <span>实际退款 {formatBillAmount(preview.refundedMinor)}</span>
-        <span className="font-semibold">最终差额 {formatBillAmount(preview.differenceMinor)}</span>
+        <span>最终费用 {formatBillAmount(preview.finalCostMinor, currencyCode)}</span>
+        <span>实际收款 {formatBillAmount(preview.receivedMinor, currencyCode)}</span>
+        <span>实际退款 {formatBillAmount(preview.refundedMinor, currencyCode)}</span>
+        <span className="font-semibold">
+          最终差额 {formatBillAmount(preview.differenceMinor, currencyCode)}
+        </span>
       </div>
     </section>
   );
@@ -99,6 +104,8 @@ function FeeGroup({
   title: string;
   items: Array<{ month: string; line: RentalBillLine }>;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   return (
     <section className="space-y-2" aria-label={title}>
       <h3 className="text-sm font-medium">{title}</h3>
@@ -112,7 +119,9 @@ function FeeGroup({
               <span>
                 {month} · {line.label}
               </span>
-              <span className="tabular-nums">{formatBillAmount(line.amountMinor)}</span>
+              <span className="tabular-nums">
+                {formatBillAmount(line.amountMinor, currencyCode)}
+              </span>
             </li>
           ))}
         </ul>

@@ -145,7 +145,20 @@ describe("月度账单列表投影", () => {
           from: (table: unknown) => ({
             where: () =>
               selectedTotals
-                ? Promise.resolve([{ total: 1, rent: "10200", deposit: "500", monthly: "12300" }])
+                ? {
+                    groupBy: () => ({
+                      orderBy: () =>
+                        Promise.resolve([
+                          {
+                            currencyCode: "CNY",
+                            total: 1,
+                            rent: "10200",
+                            deposit: "500",
+                            monthly: "12300",
+                          },
+                        ]),
+                    }),
+                  }
                 : {
                     orderBy: () => ({
                       limit: () => ({ offset: async () => (table === rentalBills ? [bill] : []) }),
@@ -319,7 +332,7 @@ describe("全筛选财务账单身份查询", () => {
     ).resolves.toEqual(rows);
 
     expect(selected).toHaveLength(1);
-    expect(Object.keys(selected[0] ?? {}).sort()).toEqual(["contractId", "id"]);
+    expect(Object.keys(selected[0] ?? {}).sort()).toEqual(["contractId", "currencyCode", "id"]);
     const query = new PgDialect().sqlToQuery(conditions[0] as never);
     expect(query.params).toEqual(
       expect.arrayContaining([

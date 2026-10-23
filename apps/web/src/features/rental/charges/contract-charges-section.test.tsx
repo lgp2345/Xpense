@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { chargeTermsFixture, financeApiFixture } from "../bills/bill-test-fixtures";
 import { ContractChargesSection } from "./contract-charges-section";
 
@@ -19,8 +20,8 @@ describe("合同收费与入住底数", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByText("水费单价 CNY 3.0000 / 立方米")).toBeInTheDocument();
-    expect(screen.getByText("电费单价 CNY 4.0000 / 度")).toBeInTheDocument();
+    expect(await screen.findByText("水费单价 ¥3.0000 / 立方米")).toBeInTheDocument();
+    expect(screen.getByText("电费单价 ¥4.0000 / 度")).toBeInTheDocument();
     expect(screen.getByText("入住水表底数 100")).toBeInTheDocument();
     expect(screen.getByText("入住电表底数 250")).toBeInTheDocument();
   });

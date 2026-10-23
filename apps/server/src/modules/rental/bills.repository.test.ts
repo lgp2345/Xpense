@@ -190,7 +190,7 @@ describe("账单仓储作用域及原子编号", () => {
     ).resolves.toEqual(rows);
 
     expect(selections).toHaveLength(1);
-    expect(Object.keys(selections[0] ?? {}).sort()).toEqual(["contractId", "id"]);
+    expect(Object.keys(selections[0] ?? {}).sort()).toEqual(["contractId", "currencyCode", "id"]);
     const query = dialect.sqlToQuery(condition as never);
     expect(query.params).toEqual(
       expect.arrayContaining([

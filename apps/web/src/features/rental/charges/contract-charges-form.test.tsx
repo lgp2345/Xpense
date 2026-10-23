@@ -1,6 +1,7 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { ApiError } from "../../../services/api-client";
 import { chargeTermsFixture, financeApiFixture } from "../bills/bill-test-fixtures";
 import { ContractChargesForm } from "./contract-charges-form";
@@ -18,8 +19,8 @@ describe("合同收费标准表单", () => {
         onSaved={vi.fn()}
       />,
     );
-    await user.clear(screen.getByLabelText("水费单价（元）"));
-    await user.type(screen.getByLabelText("水费单价（元）"), "3.25");
+    await user.clear(screen.getByLabelText("水费单价（CNY）"));
+    await user.type(screen.getByLabelText("水费单价（CNY）"), "3.25");
     await user.type(screen.getByLabelText("收费标准变更原因"), "供应商调价");
     await user.click(screen.getByRole("button", { name: "保存收费标准" }));
 

@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  formatDecimalMoney,
+  useOrganizationCurrency,
+} from "@/features/organizations/organization-currency";
 import type { ContractChargeFormValues } from "./contract-charge-form";
 
 const presetFeeNames = ["管理费", "网费", "清洁费"];
@@ -24,6 +28,8 @@ export function ContractChargeFields({
   showBaselines?: boolean;
   confirmRemoval?: boolean;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   const prefix = useId();
   const [removing, setRemoving] = useState<string | null>(null);
   const duplicateErrors = Object.fromEntries(
@@ -90,7 +96,9 @@ export function ContractChargeFields({
                 {enabled ? (
                   <>
                     <div className="space-y-2">
-                      <Label htmlFor={`${prefix}-${priceKey}`}>{label}费单价（元）</Label>
+                      <Label htmlFor={`${prefix}-${priceKey}`}>
+                        {label}费单价（{currencyCode}）
+                      </Label>
                       <Input
                         id={`${prefix}-${priceKey}`}
                         {...feedback(priceKey)}
@@ -238,6 +246,8 @@ export function ContractChargeFields({
 
 /** 复核页展示与输入共用同一数据，不计算正式应收金额。 */
 export function ContractChargeSummary({ value }: { value: ContractChargeFormValues | null }) {
+  const currencyCode = useOrganizationCurrency();
+
   if (!value) return null;
   return (
     <div className="space-y-1 text-sm break-words">
@@ -246,13 +256,13 @@ export function ContractChargeSummary({ value }: { value: ContractChargeFormValu
         <p key={kind}>
           {kind === "water" ? "水费" : "电费"}：
           {value[`${kind}CollectionEnabled`]
-            ? `${value[`${kind}UnitPrice`]} 元 · ${value[`${kind}Reading`] ? `入住底数 ${value[`${kind}Reading`]}` : "底数待补"}`
+            ? `${formatDecimalMoney(value[`${kind}UnitPrice`], currencyCode)} · ${value[`${kind}Reading`] ? `入住底数 ${value[`${kind}Reading`]}` : "底数待补"}`
             : "不代收"}
         </p>
       ))}
       {value.fixedFees.map((fee) => (
         <p key={fee.id} className="tabular-nums">
-          {fee.name}：{fee.amount} 元/期
+          {fee.name}：{formatDecimalMoney(fee.amount, currencyCode)}/期
         </p>
       ))}
     </div>

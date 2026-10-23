@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { ContractFieldErrorsContext, ContractFieldFocusContext } from "./contract-field-feedback";
 import { defaultContractFormValues } from "./contract-form-schema";
 import { ContractTermsStep } from "./steps/contract-terms-step";
@@ -15,7 +16,7 @@ describe("contract field feedback", () => {
       </ContractFieldFocusContext>
     );
     const { rerender } = render(view({ rentAmountText: "租金无效", endDate: "日期无效" }, true));
-    const rent = screen.getByRole("textbox", { name: "月租（元）" });
+    const rent = screen.getByRole("textbox", { name: "月租（CNY）" });
     rent.focus();
     rerender(view({ endDate: "日期无效" }, false));
     expect(rent).toHaveFocus();

@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RentalCashEntry } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { BillReceiptDialog } from "./bill-receipt-dialog";
 import { billFixture, financeApiFixture } from "./bill-test-fixtures";
 
@@ -45,7 +46,7 @@ describe("账单收退款", () => {
     const api = financeApiFixture();
     renderDialog(monthlyBill, api);
     fireEvent.change(screen.getByLabelText("收款日期"), { target: { value: "2026-08-31" } });
-    await user.type(screen.getByLabelText("本次收款金额（元）"), "250");
+    await user.type(screen.getByLabelText("本次收款金额（CNY）"), "250");
     await user.click(screen.getByRole("button", { name: "登记本次收款" }));
 
     await waitFor(() =>
@@ -74,7 +75,7 @@ describe("账单收退款", () => {
     expect(
       await screen.findByText("请输入不超过待收金额的有效收款金额。", { selector: "[role=alert]" }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("本次收款金额（元）")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("本次收款金额（CNY）")).toHaveAttribute("aria-invalid", "true");
   });
 
   it("按 Enter 提交有效收款", async () => {
@@ -82,7 +83,7 @@ describe("账单收退款", () => {
     const api = financeApiFixture();
     renderDialog(monthlyBill, api);
     fireEvent.change(screen.getByLabelText("收款日期"), { target: { value: "2026-08-31" } });
-    const amountInput = screen.getByLabelText("本次收款金额（元）");
+    const amountInput = screen.getByLabelText("本次收款金额（CNY）");
     await user.type(amountInput, "250");
     await user.type(amountInput, "{Enter}");
 
@@ -102,7 +103,7 @@ describe("账单收退款", () => {
     await user.click(screen.getByRole("button", { name: "确认全额退款" }));
 
     expect(screen.getByRole("alertdialog")).toHaveTextContent(
-      /将全额退还当前可退款金额\s*CNY 100\.00，\s*请确认到账日期和备注无误。/,
+      /将全额退还当前可退款金额\s*¥100\.00，\s*请确认到账日期和备注无误。/,
     );
   });
 
@@ -118,7 +119,7 @@ describe("账单收退款", () => {
       api,
     );
     fireEvent.change(screen.getByLabelText("收款日期"), { target: { value: "2026-08-31" } });
-    expect(screen.queryByLabelText("本次收款金额（元）")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("本次收款金额（CNY）")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "确认押金全额收款" }));
     await waitFor(() =>
       expect(api.confirmDepositReceipt).toHaveBeenCalledWith(
@@ -149,7 +150,7 @@ describe("账单收退款", () => {
     expect(screen.queryByRole("button", { name: "登记本次收款" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "确认全额退款" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("收款日期")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("本次收款金额（元）")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("本次收款金额（CNY）")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("备注")).not.toBeInTheDocument();
     expect(api.recordReceipt).not.toHaveBeenCalled();
     expect(api.confirmRefund).not.toHaveBeenCalled();
@@ -176,7 +177,7 @@ describe("账单收退款", () => {
     );
 
     fireEvent.change(screen.getByLabelText("收款日期"), { target: { value: "2026-08-31" } });
-    await user.type(screen.getByLabelText("本次收款金额（元）"), "250");
+    await user.type(screen.getByLabelText("本次收款金额（CNY）"), "250");
     await user.click(screen.getByRole("button", { name: "登记本次收款" }));
     await waitFor(() => expect(api.recordReceipt).toHaveBeenCalledOnce());
 
@@ -213,7 +214,7 @@ describe("账单收退款", () => {
       </QueryClientProvider>,
     );
     fireEvent.change(screen.getByLabelText("收款日期"), { target: { value: "2026-08-31" } });
-    await user.type(screen.getByLabelText("本次收款金额（元）"), "250");
+    await user.type(screen.getByLabelText("本次收款金额（CNY）"), "250");
     await user.click(screen.getByRole("button", { name: "登记本次收款" }));
     await waitFor(() => expect(api.recordReceipt).toHaveBeenCalledOnce());
     view.unmount();
@@ -234,7 +235,7 @@ describe("账单收退款", () => {
     });
     renderDialog(monthlyBill, api);
     fireEvent.change(screen.getByLabelText("收款日期"), { target: { value: "2026-08-31" } });
-    const amount = screen.getByLabelText("本次收款金额（元）");
+    const amount = screen.getByLabelText("本次收款金额（CNY）");
     await user.type(amount, "250");
     await user.click(screen.getByRole("button", { name: "登记本次收款" }));
     expect(await screen.findByText("操作结果暂未确认，可重试原请求。")).toBeInTheDocument();

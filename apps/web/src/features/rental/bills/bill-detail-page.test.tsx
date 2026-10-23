@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RentalCashEntry } from "@xpense/shared";
 import { expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { ApiError } from "../../../services/api-client";
 import { BillDetailPage } from "./bill-detail-page";
 import { billFixture, billsApiFixture, financeApiFixture } from "./bill-test-fixtures";
@@ -157,9 +158,7 @@ it("押金全额登记成功后刷新余额并立即隐藏登记入口", async (
   fireEvent.change(date, { target: { value: "2026-10-06" } });
   fireEvent.blur(date);
   await userEvent.click(screen.getByRole("button", { name: "确认押金全额收款" }));
-  await waitFor(() =>
-    expect(screen.getByText("已收").parentElement).toHaveTextContent("CNY 1,000.00"),
-  );
+  await waitFor(() => expect(screen.getByText("已收").parentElement).toHaveTextContent("¥1000.00"));
   await waitFor(() =>
     expect(screen.queryByRole("button", { name: "登记收退款" })).not.toBeInTheDocument(),
   );
@@ -310,7 +309,7 @@ it("隐藏生成快照和批次，保留合同入口、费用和差额，不推�
   expect(contract).toHaveAttribute("href", "/rentals/contracts/contract");
   expect(screen.queryByText("生成时房产")).not.toBeInTheDocument();
   expect(screen.queryByText("生成时来源快照")).not.toBeInTheDocument();
-  expect(screen.getByText("CNY -4,000.00")).toBeInTheDocument();
+  expect(screen.getByText("-¥4000.00")).toBeInTheDocument();
   expect(screen.getByText("到期日已过")).toHaveAttribute("data-slot", "badge");
   expect(screen.queryByText(/本阶段仅记录应收/)).not.toBeInTheDocument();
   expect(screen.getByText(/合同修正/)).toBeInTheDocument();
@@ -469,8 +468,8 @@ it("v2综合账单显示服务端实际收款余额，不套用legacy未知收�
     </QueryClientProvider>,
   );
 
-  expect((await screen.findByText("已收")).parentElement).toHaveTextContent("CNY 400.00");
-  expect(screen.getByText("待收").parentElement).toHaveTextContent("CNY 500.00");
+  expect((await screen.findByText("已收")).parentElement).toHaveTextContent("¥400.00");
+  expect(screen.getByText("待收").parentElement).toHaveTextContent("¥500.00");
   expect(screen.queryByText("当前补收、退款以合同结算为准。")).not.toBeInTheDocument();
   expect(screen.queryByText(/收款情况尚未登记/)).not.toBeInTheDocument();
   expect(screen.getByText("备注：上月多收冲减")).toBeInTheDocument();
@@ -552,9 +551,9 @@ it("关联结算的有效账单保留原目标资金历史但不显示独立待�
   );
 
   expect(await screen.findByText("当前补收、退款以合同结算为准。")).toBeInTheDocument();
-  expect(screen.getByText("本账单已收").parentElement).toHaveTextContent("CNY 300.00");
-  expect(screen.getByText("本账单已退").parentElement).toHaveTextContent("CNY 0.00");
-  expect(await screen.findByText(/收款 · CNY 300\.00 · 2026-09-30/)).toBeInTheDocument();
+  expect(screen.getByText("本账单已收").parentElement).toHaveTextContent("¥300.00");
+  expect(screen.getByText("本账单已退").parentElement).toHaveTextContent("¥0.00");
+  expect(await screen.findByText(/收款 · ¥300\.00 · 2026-09-30/)).toBeInTheDocument();
   expect(screen.getByText("已纳入退租结算（settlement-a）")).toBeInTheDocument();
   expect(screen.queryByText("待收")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "查看退租结算" })).not.toBeInTheDocument();
@@ -600,8 +599,8 @@ it("关联结算的作废账单保留本账单已收已退并隐藏独立可退�
   );
 
   expect(await screen.findByText("当前补收、退款以合同结算为准。")).toBeInTheDocument();
-  expect(screen.getByText("本账单已收").parentElement).toHaveTextContent("CNY 300.00");
-  expect(screen.getByText("本账单已退").parentElement).toHaveTextContent("CNY 0.00");
+  expect(screen.getByText("本账单已收").parentElement).toHaveTextContent("¥300.00");
+  expect(screen.getByText("本账单已退").parentElement).toHaveTextContent("¥0.00");
   expect(screen.getByRole("button", { name: "查看退租结算" })).toBeInTheDocument();
   expect(screen.queryByText("可退")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "登记收退款" })).not.toBeInTheDocument();

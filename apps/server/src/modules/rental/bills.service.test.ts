@@ -454,3 +454,19 @@ describe("全租期预览与幂等写入", () => {
     await h.module.close();
   });
 });
+
+it("keeps the currency snapshot of an existing deposit in a preview after organization currency differs", async () => {
+  const h = await harness();
+  await h.service.generate(authorized(), await h.ready());
+  const existing = h.state.bills[0];
+  if (!existing) throw new Error("缺少已生成账单 fixture");
+  existing.currencyCode = "USD";
+  h.input.depositDueDates = {};
+  const preview = await h.preview();
+  expect(preview.items.find((item) => item.existingBillId === h.state.bills[0]?.id)).toMatchObject({
+    currencyCode: "USD",
+  });
+  expect(preview.totals).not.toHaveProperty("depositAmountMinor");
+  expect(preview.totals.byCurrency?.map((group) => group.currencyCode)).toEqual(["CNY", "USD"]);
+  await h.module.close();
+});

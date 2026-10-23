@@ -143,3 +143,39 @@ function addSelectedCash(
 ): void {
   if (entry.revokedAt === null) selectedCashById.set(entry.id, entry);
 }
+
+/** 依账单快照分币种返回金额，禁止把不同币种相加。 */
+export function calculateBillFinancialTotalsByCurrency(
+  matchingBills: readonly BillFinanceSummaryRow[],
+  facts: readonly RentalCashProjectionFacts[],
+  organizationId: string,
+  today: string,
+): Array<RentalBillFinancialTotals & { currencyCode: string }> {
+  const groups = new Map<string, BillFinanceSummaryRow[]>();
+  for (const row of matchingBills) {
+    if (!row.currencyCode) throw new Error("账单币种快照缺失");
+    const rows = groups.get(row.currencyCode) ?? [];
+    rows.push(row);
+    groups.set(row.currencyCode, rows);
+  }
+  const matchingBillIds = new Set(matchingBills.map((row) => row.id));
+  for (const item of facts) {
+    if (!item.settlement || !item.settlementBillIds.some((id) => matchingBillIds.has(id))) continue;
+    const cashBillIds = new Set(
+      item.cashEntries.filter((entry) => entry.revokedAt === null).map((entry) => entry.billId),
+    );
+    const linkedCurrencies = new Set(
+      item.bills
+        .filter((bill) => item.settlementBillIds.includes(bill.id) || cashBillIds.has(bill.id))
+        .map((bill) => bill.currencyCode),
+    );
+    if (linkedCurrencies.size > 1) throw new Error("结算包含不同币种账单，无法解释合同现金合计");
+  }
+  return [...groups]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([currencyCode, rows]) => {
+      const total = calculateBillFinancialTotals(rows, facts, organizationId, today);
+      if (!total) throw new Error("账单财务汇总缺失");
+      return { currencyCode, ...total };
+    });
+}

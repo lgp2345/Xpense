@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   PermissionKey,
@@ -8,6 +8,7 @@ import type {
 } from "@xpense/shared";
 import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
@@ -244,7 +245,7 @@ describe("ContractDetailPage", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByText("水费单价 CNY 3.0000 / 立方米")).toBeInTheDocument();
+    expect(await screen.findByText("水费单价 ¥3.0000 / 立方米")).toBeInTheDocument();
     expect(screen.getByText("入住水表底数 100")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "生成下一张账单" })).toBeInTheDocument();
     expect(screen.queryByText("本阶段仅记录应收，收款情况尚未登记")).not.toBeInTheDocument();
@@ -282,7 +283,7 @@ describe("ContractDetailPage", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByText("水费单价 CNY 3.0000 / 立方米")).toBeInTheDocument();
+    expect(await screen.findByText("水费单价 ¥3.0000 / 立方米")).toBeInTheDocument();
     expect(screen.getByText("入住水表底数 100")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "编辑收费标准" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "登记底数" })).not.toBeInTheDocument();
@@ -350,7 +351,7 @@ describe("ContractDetailPage", () => {
     expect(section.getByText("门禁卡")).toBeInTheDocument();
     expect(section.getByText("钥匙")).toBeInTheDocument();
     expect(section.getAllByText("押金金额")).toHaveLength(3);
-    expect(section.getByText("¥12,000.00")).toBeInTheDocument();
+    expect(section.getByText("¥12000.00")).toBeInTheDocument();
     expect(section.getByText("¥500.00")).toBeInTheDocument();
     expect(section.getByText("¥300.00")).toBeInTheDocument();
     expect(section.queryByText("计算方式")).not.toBeInTheDocument();

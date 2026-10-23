@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RentalCashEntry } from "@xpense/shared";
 import { describe, expect, it } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { BillCashHistory } from "./bill-cash-history";
 import { billFixture, financeApiFixture } from "./bill-test-fixtures";
 
@@ -108,7 +109,7 @@ describe("账单收退款历史", () => {
         />
       </QueryClientProvider>,
     );
-    expect(await screen.findByText(/收款 · CNY 400.00 · 2026-08-15/)).toBeInTheDocument();
+    expect(await screen.findByText(/收款 · ¥400.00 · 2026-08-15/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "撤销收款" }));
     await user.click(screen.getByRole("button", { name: "确认撤销" }));
     expect(
@@ -143,7 +144,7 @@ describe("账单收退款历史", () => {
         />
       </QueryClientProvider>,
     );
-    expect(await screen.findByText(/收款 · CNY 400.00/)).toBeInTheDocument();
+    expect(await screen.findByText(/收款 · ¥400.00/)).toBeInTheDocument();
     expect(api.listCash).toHaveBeenCalledWith(
       expect.objectContaining({ target: { kind: "bill", billId: bill.id } }),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),

@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import type { RentalBillLine, RentalSettlementPreview } from "@xpense/shared";
 import { expect, it } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { SettlementPreview } from "./settlement-preview";
 
 const line = (
@@ -55,9 +56,9 @@ it("分别显示账期费用、尾期水电、手动退款事项与真实资金"
     expect(screen.getByRole("heading", { name })).toBeInTheDocument();
   expect(screen.getByText(/管理费退款/)).toBeInTheDocument();
   expect(screen.getByText(/固定费用不自动退款/)).toBeInTheDocument();
-  expect(screen.getByText("实际收款 200.00")).toBeInTheDocument();
-  expect(screen.getByText("实际退款 0.00")).toBeInTheDocument();
-  expect(screen.getByText("最终差额 -130.00")).toBeInTheDocument();
+  expect(screen.getByText("实际收款 ¥200.00")).toBeInTheDocument();
+  expect(screen.getByText("实际退款 ¥0.00")).toBeInTheDocument();
+  expect(screen.getByText("最终差额 -¥130.00")).toBeInTheDocument();
   expect(screen.queryByText(/本次撤回/)).not.toBeInTheDocument();
 });
 it("有缺失终读数时明确列出尚未补齐项目", () => {

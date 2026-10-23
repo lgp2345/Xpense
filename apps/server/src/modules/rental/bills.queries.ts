@@ -136,8 +136,9 @@ export async function queryBillPage(
     .orderBy(desc(rentalBills.createdAt), desc(rentalBills.id))
     .limit(pageSize)
     .offset((page - 1) * pageSize);
-  const [totals] = await executor
+  const totals = await executor
     .select({
+      currencyCode: rentalBills.currencyCode,
       total: count(),
       rent: sql<string>`coalesce(sum(case
         when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'period' then (
@@ -154,17 +155,29 @@ export async function queryBillPage(
       monthly: sql<string>`coalesce(sum(case when ${rentalBills.status} = 'active' and ${rentalBills.type} = 'period' then ${rentalBills.amountMinor} else 0 end), 0)`,
     })
     .from(rentalBills)
-    .where(condition);
+    .where(condition)
+    .groupBy(rentalBills.currencyCode)
+    .orderBy(asc(rentalBills.currencyCode));
+  const byCurrency = totals.map((row) => ({
+    currencyCode: row.currencyCode,
+    rentAmountMinor: safeSqlAmount(row.rent),
+    depositAmountMinor: safeSqlAmount(row.deposit),
+    periodAmountMinor: safeSqlAmount(row.monthly),
+  }));
   return {
     items: items.map(toBillSummary),
-    total: totals?.total ?? 0,
+    total: totals.reduce((sum, row) => sum + row.total, 0),
     page,
     pageSize,
-    totals: {
-      rentAmountMinor: safeSqlAmount(totals?.rent ?? null),
-      depositAmountMinor: safeSqlAmount(totals?.deposit ?? null),
-      periodAmountMinor: safeSqlAmount(totals?.monthly ?? null),
-    },
+    totals:
+      byCurrency.length <= 1
+        ? {
+            rentAmountMinor: byCurrency[0]?.rentAmountMinor ?? 0,
+            depositAmountMinor: byCurrency[0]?.depositAmountMinor ?? 0,
+            periodAmountMinor: byCurrency[0]?.periodAmountMinor ?? 0,
+            byCurrency,
+          }
+        : { byCurrency },
     coverage: null,
   };
 }
@@ -172,11 +185,12 @@ export async function queryBillPage(
 export function queryMatchingFinancialBills(
   condition: SQL,
   executor: AppDbExecutor,
-): Promise<Array<Pick<BillRecord, "id" | "contractId">>> {
+): Promise<Array<Pick<BillRecord, "id" | "contractId" | "currencyCode">>> {
   return executor
     .select({
       id: rentalBills.id,
       contractId: rentalBills.contractId,
+      currencyCode: rentalBills.currencyCode,
     })
     .from(rentalBills)
     .where(condition);

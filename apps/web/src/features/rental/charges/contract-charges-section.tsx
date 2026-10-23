@@ -1,11 +1,16 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PermissionKey } from "@xpense/shared";
+import { formatMinorMoney } from "@xpense/shared";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  formatDecimalMoney,
+  useOrganizationCurrency,
+} from "@/features/organizations/organization-currency";
 import type { RentalFinanceApi } from "../../../services/rental-finance-api";
 import { invalidateRentalFinance, rentalFinanceKeys } from "../../../services/rental-finance-query";
-import { fixedFeeAmountText } from "./contract-charge-form";
+
 import { ContractChargesForm } from "./contract-charges-form";
 import { MeterBaselineForm } from "./meter-baseline-form";
 
@@ -22,6 +27,8 @@ export function ContractChargesSection({
   permissions: readonly PermissionKey[];
   canEdit: boolean;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   const queryClient = useQueryClient();
   const [editCharges, setEditCharges] = useState(false);
   const [editBaseline, setEditBaseline] = useState(false);
@@ -73,17 +80,17 @@ export function ContractChargesSection({
               <div className="space-y-1 text-sm">
                 <p className="tabular-nums">
                   {terms.data.waterCollectionEnabled
-                    ? `水费单价 CNY ${terms.data.waterUnitPrice} / 立方米`
+                    ? `水费单价 ${formatDecimalMoney(terms.data.waterUnitPrice ?? "未设置", currencyCode)} / 立方米`
                     : "水费：不代收"}
                 </p>
                 <p className="tabular-nums">
                   {terms.data.electricityCollectionEnabled
-                    ? `电费单价 CNY ${terms.data.electricityUnitPrice} / 度`
+                    ? `电费单价 ${formatDecimalMoney(terms.data.electricityUnitPrice ?? "未设置", currencyCode)} / 度`
                     : "电费：不代收"}
                 </p>
                 {terms.data.fixedFees.map((fee) => (
                   <p className="tabular-nums" key={fee.id}>
-                    {fee.name} {fixedFeeAmountText(fee.periodAmountMinor)} 元/期
+                    {fee.name} {formatMinorMoney(fee.periodAmountMinor, currencyCode)}/期
                   </p>
                 ))}
                 {terms.data.fixedFees.length === 0 ? (

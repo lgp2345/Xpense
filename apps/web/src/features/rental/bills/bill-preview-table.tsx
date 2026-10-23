@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { BillCalculationLines } from "./bill-calculation-lines";
 import { formatBillAmount as formatMoney } from "./bill-format";
 export function BillPreviewTable({
@@ -19,6 +20,8 @@ export function BillPreviewTable({
   onPageChange: (page: number) => void;
   disabled: boolean;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   return (
     <div className="min-w-0 space-y-3">
       <div className="overflow-x-auto">
@@ -44,7 +47,10 @@ export function BillPreviewTable({
                       <summary className="cursor-pointer text-xs text-muted-foreground">
                         查看计算依据
                       </summary>
-                      <BillCalculationLines lines={item.lines} />
+                      <BillCalculationLines
+                        lines={item.lines}
+                        currencyCode={item.currencyCode ?? currencyCode}
+                      />
                     </details>
                   ) : null}
                 </TableCell>
@@ -52,7 +58,9 @@ export function BillPreviewTable({
                   {item.periodStart ?? "—"} {item.periodEnd ? `至 ${item.periodEnd}` : ""}
                 </TableCell>
                 <TableCell>{item.dueDate ?? "待填写"}</TableCell>
-                <TableCell className="tabular-nums">{formatMoney(item.amountMinor)}</TableCell>
+                <TableCell className="tabular-nums">
+                  {formatMoney(item.amountMinor, item.currencyCode ?? currencyCode)}
+                </TableCell>
                 <TableCell>
                   {item.disposition === "existing" ? "已存在，保持原值" : "将新增"}
                 </TableCell>

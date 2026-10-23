@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PermissionKey, RentalSettlementDetail } from "@xpense/shared";
 import { expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { invalidateRentalFinance, rentalFinanceKeys } from "../../../services/rental-finance-query";
 import { chargeTermsFixture, financeApiFixture } from "../bills/bill-test-fixtures";
 import { SettlementPage } from "./settlement-page";
@@ -57,15 +58,15 @@ it("结算确认不等同退款；可退金额按全额确认并刷新为已结�
   renderPage(api, ["rental_settlements:read", "rental_receipts:create", "rental_refunds:create"]);
 
   expect(await screen.findByText(/结算已确认.*仍待退款/)).toBeInTheDocument();
-  await userEvent.click(screen.getByRole("button", { name: "确认已退 ¥2,800.00" }));
+  await userEvent.click(screen.getByRole("button", { name: "确认已退 ¥2800.00" }));
 
   expect(api.confirmRefund).not.toHaveBeenCalled();
   expect(await screen.findByRole("alertdialog", { name: "确认全额退款" })).toHaveTextContent(
-    "¥2,800.00",
+    "¥2800.00",
   );
   await userEvent.click(screen.getByRole("button", { name: "返回" }));
   expect(api.confirmRefund).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole("button", { name: "确认已退 ¥2,800.00" }));
+  await userEvent.click(screen.getByRole("button", { name: "确认已退 ¥2800.00" }));
   await userEvent.click(screen.getByRole("button", { name: "确认登记退款" }));
 
   expect(api.confirmRefund).toHaveBeenCalledExactlyOnceWith(
@@ -176,7 +177,7 @@ it("更正费用后刷新服务端余额并重新显示应退金额", async () =
   });
 
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "确认已退 ¥2,800.00" })).toBeInTheDocument(),
+    expect(screen.getByRole("button", { name: "确认已退 ¥2800.00" })).toBeInTheDocument(),
   );
 });
 

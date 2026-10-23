@@ -157,8 +157,12 @@ export type ListRentalBillsQuery = Partial<{
   page: number;
   pageSize: number;
 }>;
+/** 列表混合币种时只返回分组，顶层合计仅兼容单币种响应。 */
+export type RentalBillListTotals = Partial<RentalBillTotals> & {
+  byCurrency?: Array<RentalBillTotals & { currencyCode: string }>;
+};
 export type RentalBillPage = PageResult<RentalBillSummary> & {
-  totals: RentalBillTotals;
+  totals: RentalBillListTotals;
   coverage: RentalBillCoverage | null;
 };
 /** 确认整张终止当期应收，允许零；不扣除任何推断的已收金额。 */
@@ -180,6 +184,8 @@ export type GenerateRentalBillsRequest = RentalBillGenerationInput & {
   idempotencyKey: string;
 };
 export type RentalBillPreviewItem = {
+  /** 已生成项保留账单币种，新建项取组织币种。 */
+  currencyCode?: string;
   type: RentalBillType;
   sourceKey: string;
   periodStart: string | null;
@@ -202,7 +208,7 @@ export type RentalBillPreview = PageResult<RentalBillPreviewItem> & {
   canGenerate: boolean;
   createCount: number;
   existingCount: number;
-  totals: RentalBillTotals;
+  totals: RentalBillListTotals;
   createTotals: RentalBillTotals;
   missingDepositSourceKeys: string[];
   /** 整个计划的新增押金输入，不受展示分页影响；可选以兼容旧响应。 */

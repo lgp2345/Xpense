@@ -1,4 +1,8 @@
 import { Button } from "@/components/ui/button";
+import {
+  formatDecimalMoney,
+  useOrganizationCurrency,
+} from "@/features/organizations/organization-currency";
 import { ContractChargeSummary } from "../../charges/contract-charge-fields";
 import { formatContractDateTime } from "../contract-date-time";
 import type { ContractFormValues } from "../contract-form-schema";
@@ -19,6 +23,8 @@ export function ContractLocalReviewStep({
   onConfirm: () => void;
   onEdit: (step: 0 | 1 | 2) => void;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   const payer = values.parties.find((party) => party.isPrimaryPayer);
   const depositLabels = {
     rental: "租赁押金",
@@ -38,7 +44,7 @@ export function ContractLocalReviewStep({
           {values.spaces
             .map(
               (space) =>
-                `${names[space.spaceId] ?? space.spaceId}${space.rentAllocationText ? `（分摊 ${space.rentAllocationText} 元）` : ""}`,
+                `${names[space.spaceId] ?? space.spaceId}${space.rentAllocationText ? `（分摊 ${formatDecimalMoney(space.rentAllocationText, currencyCode)}）` : ""}`,
             )
             .join("、")}
         </p>
@@ -52,7 +58,7 @@ export function ContractLocalReviewStep({
           租期：{formatContractDateTime(values.startDate)} 至{" "}
           {formatContractDateTime(values.endDate)}
         </p>
-        <p>月租：{values.rentAmountText} 元</p>
+        <p>月租：{formatDecimalMoney(values.rentAmountText, currencyCode)}</p>
         <p>
           计费：{values.billingAnchor === "calendar_month" ? "自然月" : "合同起始日"} · 每{" "}
           {values.paymentIntervalMonths} 个月 · 提前 {values.dueDaysBeforeText} 天
@@ -63,7 +69,7 @@ export function ContractLocalReviewStep({
             ? values.deposits
                 .map(
                   (deposit) =>
-                    `${deposit.type === "other" ? deposit.customName : depositLabels[deposit.type]}（${deposit.fixedAmountText} 元）`,
+                    `${deposit.type === "other" ? deposit.customName : depositLabels[deposit.type]}（${formatDecimalMoney(deposit.fixedAmountText, currencyCode)}）`,
                 )
                 .join("、")
             : "无"}

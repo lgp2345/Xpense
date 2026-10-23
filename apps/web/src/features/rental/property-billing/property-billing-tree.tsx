@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { formatBillAmount } from "../bills/bill-format";
 import {
   type PropertyBillingNode,
@@ -34,6 +35,8 @@ export function PropertyBillingTree({
   onSelect: (candidate: RentalPropertyBillingCandidate, trigger: HTMLButtonElement) => void;
   disabledReason?: string;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
     setCollapsed((old) => {
@@ -128,7 +131,7 @@ export function PropertyBillingTree({
                       {formatBillAmount(total.amountMinor, total.currencyCode)}
                     </p>
                   ))
-                : formatBillAmount(0)}
+                : formatBillAmount(0, currencyCode)}
             </TableCell>
             <TableCell colSpan={2} />
           </TableRow>

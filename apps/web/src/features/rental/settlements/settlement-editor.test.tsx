@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RentalSettlementDetail, RentalSettlementPreview } from "@xpense/shared";
 import { expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { financeApiFixture } from "../bills/bill-test-fixtures";
 import { SettlementEditor } from "./settlement-editor";
 
@@ -70,7 +71,7 @@ it("服务器预览缺少终读数时阻止确认，补齐后使用同一版本�
 
   fireEvent.change(screen.getByLabelText("水表终读数"), { target: { value: "125.5" } });
   await userEvent.click(screen.getByRole("button", { name: "预览结算" }));
-  expect(await screen.findByText("最终差额 1,000.00")).toBeInTheDocument();
+  expect(await screen.findByText("最终差额 ¥1000.00")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "确认结算" }));
 
   expect(api.confirmSettlement).toHaveBeenCalledExactlyOnceWith(
@@ -163,7 +164,7 @@ it("预览在途时改变费用，迟到的旧预览不能复活确认或提交�
   renderEditor(api);
   await userEvent.click(screen.getByRole("button", { name: "预览结算" }));
   await userEvent.type(screen.getByLabelText("退租补充费用"), "新费用");
-  await userEvent.type(screen.getByLabelText("补充费用金额（元）"), "100");
+  await userEvent.type(screen.getByLabelText("补充费用金额（CNY）"), "100");
   await act(async () => {
     resolvePreview(ready);
   });
@@ -187,7 +188,7 @@ it("预览在途时改变费用，迟到的旧预览不能复活确认或提交�
 it("只填补充费用金额时就近显示名称配对错误且不发送预览", async () => {
   const api = financeApiFixture();
   renderEditor(api);
-  await userEvent.type(screen.getByLabelText("补充费用金额（元）"), "12");
+  await userEvent.type(screen.getByLabelText("补充费用金额（CNY）"), "12");
   await userEvent.click(screen.getByRole("button", { name: "预览结算" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("补充费用名称和金额需要同时填写。");
   expect(screen.getByLabelText("退租补充费用")).toHaveAttribute("aria-invalid", "true");
@@ -227,8 +228,8 @@ it("确认在途时锁定草稿和新预览，未知失败后只重试原确认�
   await userEvent.click(screen.getByRole("button", { name: "确认结算" }));
   expect(screen.getByRole("textbox", { name: "退租补充费用" })).toBeDisabled();
   await userEvent.type(screen.getByRole("textbox", { name: "退租补充费用" }), "新费用");
-  await userEvent.type(screen.getByLabelText("补充费用金额（元）"), "100");
-  expect(screen.getByLabelText("补充费用金额（元）")).toHaveValue("");
+  await userEvent.type(screen.getByLabelText("补充费用金额（CNY）"), "100");
+  expect(screen.getByLabelText("补充费用金额（CNY）")).toHaveValue("");
   expect(previewButton).toBeDisabled();
   await userEvent.click(previewButton);
   await userEvent.click(screen.getByRole("button", { name: "确认结算" }));

@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RentalCashEntry, RentalSettlementDetail } from "@xpense/shared";
 import { expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import type { RentalFinanceSettlementHistoryItem } from "../../../services/rental-finance-api";
 import { financeApiFixture } from "../bills/bill-test-fixtures";
 import { SettlementCashHistory, SettlementHistory } from "./settlement-history";
@@ -55,7 +56,7 @@ it("显示合同结算版本历史并按合同读取", async () => {
   );
 
   expect(await screen.findByText("第 2 次结算余额更新 · 2026-09-30 · 已结清")).toBeInTheDocument();
-  expect(screen.getByText("最终费用 1,250.00")).toBeInTheDocument();
+  expect(screen.getByText("最终费用 ¥1250.00")).toBeInTheDocument();
   expect(api.settlementHistory).toHaveBeenCalledExactlyOnceWith(
     { contractId: "contract-a", page: 1, pageSize: 20 },
     expect.objectContaining({ signal: expect.any(AbortSignal) }),
@@ -93,7 +94,7 @@ it("按结算目标读取资金流水，并使用结算余额版本撤销原收�
     </QueryClientProvider>,
   );
 
-  expect(await screen.findByText(/收款 · 500.00 · 2026-09-30/)).toBeInTheDocument();
+  expect(await screen.findByText(/收款 · ¥500.00 · 2026-09-30/)).toBeInTheDocument();
   expect(api.listCash).toHaveBeenCalledWith(
     { target: { kind: "settlement", settlementId: "settlement-a" }, page: 1, pageSize: 20 },
     expect.objectContaining({ signal: expect.any(AbortSignal) }),

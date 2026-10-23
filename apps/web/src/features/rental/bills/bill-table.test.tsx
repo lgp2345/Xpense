@@ -1,6 +1,7 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { BillTable } from "./bill-table";
 import { billFixture } from "./bill-test-fixtures";
 
@@ -39,10 +40,10 @@ it("在账单标识旁体现真实结清状态，并展示每张已收和待收�
   const paidRow = screen.getByText(paid.billNumber).closest("tr");
   if (!paidRow) throw new Error("账单行缺失");
   expect(within(paidRow).getByText("已结清")).toBeInTheDocument();
-  expect(within(paidRow).getByText("已收 CNY 1,000.00")).toBeInTheDocument();
-  expect(within(paidRow).getByText("待收 CNY 0.00")).toBeInTheDocument();
+  expect(within(paidRow).getByText("已收 ¥1000.00")).toBeInTheDocument();
+  expect(within(paidRow).getByText("待收 ¥0.00")).toBeInTheDocument();
   expect(screen.getByText("待收款")).toBeInTheDocument();
-  expect(screen.getByText("待收 CNY 300.00")).toBeInTheDocument();
+  expect(screen.getByText("待收 ¥300.00")).toBeInTheDocument();
 });
 
 it("按当前页可操作账单多选，已结清账单不能再选中登记", async () => {
@@ -89,7 +90,7 @@ it("纳入合同结算的账单展示收退事实，不展示独立待收或可�
     />,
   );
   expect(screen.getByText("已纳入结算")).toBeInTheDocument();
-  expect(screen.getByText("已收 CNY 100.00")).toBeInTheDocument();
+  expect(screen.getByText("已收 ¥100.00")).toBeInTheDocument();
   expect(screen.getByText("收退由合同结算处理")).toBeInTheDocument();
   expect(screen.queryByText(/待收 CNY/)).not.toBeInTheDocument();
   expect(screen.queryByText(/可退 CNY/)).not.toBeInTheDocument();

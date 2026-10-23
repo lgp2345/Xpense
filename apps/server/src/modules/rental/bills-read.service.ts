@@ -5,7 +5,10 @@ import type { AuthContext } from "../../common/auth/auth-context.js";
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import { AccessService } from "../iam/access.service.js";
-import { calculateBillFinancialTotals } from "./bill-financial-summary.rules.js";
+import {
+  calculateBillFinancialTotals,
+  calculateBillFinancialTotalsByCurrency,
+} from "./bill-financial-summary.rules.js";
 import { withBillFinancial } from "./bills.queries.js";
 import { BillsRepository } from "./bills.repository.js";
 import { ContractsPolicyService } from "./contracts-policy.service.js";
@@ -69,15 +72,29 @@ export class BillsReadService {
       ) {
         throw new Error("Rental bill finance facts do not match the requested scope");
       }
-      const financialTotals = calculateBillFinancialTotals(
-        matchingBills,
-        facts,
-        auth.organizationId,
-        today,
+      const byCurrency = page.totals.byCurrency
+        ? calculateBillFinancialTotalsByCurrency(matchingBills, facts, auth.organizationId, today)
+        : undefined;
+      const financialTotals =
+        !byCurrency || byCurrency.length <= 1
+          ? calculateBillFinancialTotals(matchingBills, facts, auth.organizationId, today)
+          : null;
+      const financialByCurrency = new Map(
+        byCurrency?.map(({ currencyCode, ...financial }) => [currencyCode, financial] as const),
       );
+      const groupedTotals = byCurrency
+        ? page.totals.byCurrency?.map((group) => ({
+            ...group,
+            financial: financialByCurrency.get(group.currencyCode),
+          }))
+        : undefined;
       return {
         ...page,
-        totals: financialTotals ? { ...page.totals, financial: financialTotals } : page.totals,
+        totals: {
+          ...page.totals,
+          ...(financialTotals ? { financial: financialTotals } : {}),
+          ...(groupedTotals ? { byCurrency: groupedTotals } : {}),
+        },
         coverage: null,
         items: page.items.map((bill) => {
           const contractFacts = factsByContract.get(bill.contractId);

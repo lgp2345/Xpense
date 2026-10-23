@@ -47,6 +47,7 @@ export class RentalCashProjectionRepository {
           organizationId: rentalBills.organizationId,
           contractId: rentalBills.contractId,
           id: rentalBills.id,
+          currencyCode: rentalBills.currencyCode,
           type: rentalBills.type,
           status: rentalBills.status,
           periodStart: rentalBills.periodStart,

@@ -1,5 +1,6 @@
 import type { RentalMeterKind, RentalMeterReadingInput } from "@xpense/shared";
 import { Input } from "@/components/ui/input";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { formatBillAmount } from "./bill-format";
 import type { MeterCollection, PeriodBillDraft } from "./period-bill-form";
 
@@ -29,6 +30,8 @@ export function MeterReadingFields({
     onPriceChange: (kind: RentalMeterKind, value: string) => void;
   };
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   return (
     <fieldset disabled={disabled} className="grid gap-3 sm:grid-cols-2">
       <legend className="mb-2 text-sm font-medium">{billing ? "本期水电费" : title}</legend>
@@ -53,7 +56,7 @@ export function MeterReadingFields({
                 </div>
                 <div className="space-y-1 text-sm">
                   <label htmlFor={priceId}>
-                    本期{feeName}单价（元/{unit}）
+                    本期{feeName}单价（{currencyCode}/{unit}）
                   </label>
                   <Input
                     id={priceId}
@@ -104,7 +107,7 @@ export function MeterReadingFields({
                   {billing.busy
                     ? "正在计算…"
                     : billing.amounts[kind] !== undefined
-                      ? `${formatBillAmount(billing.amounts[kind] ?? 0)} 元`
+                      ? `${formatBillAmount(billing.amounts[kind] ?? 0, currencyCode)}`
                       : readings[kind].reading
                         ? "等待有效预览"
                         : "请填写本期读数"}

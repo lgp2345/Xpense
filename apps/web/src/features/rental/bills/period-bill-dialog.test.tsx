@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { ApiError } from "../../../services/api-client";
 import { financeApiFixture, periodContextFixture } from "./bill-test-fixtures";
 import { PeriodBillDialog } from "./period-bill-dialog";
@@ -138,14 +139,14 @@ it("关闭再打开不调用生成，切换合同读取独立上下文", async (
 it("收费事项合并录入，名称和金额错误就近显示", async () => {
   setup();
   await screen.findByLabelText("水表读数");
-  expect(screen.getByLabelText("本期物业费金额（元）")).toHaveValue("500.00");
+  expect(screen.getByLabelText("本期物业费金额（CNY）")).toHaveValue("500.00");
   expect(screen.getByLabelText("本期水费单价")).toHaveValue("3.0000");
   expect(screen.getByLabelText("本期电费单价")).toHaveValue("4.0000");
   expect(screen.getByText("上期水表读数")).toBeInTheDocument();
   expect(screen.queryByText("调整本期收费（可选）")).not.toBeInTheDocument();
   expect(screen.queryByText("额外费用")).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "添加收费事项" }));
-  fireEvent.change(screen.getByLabelText("新增事项金额（元） 1"), { target: { value: "-20" } });
+  fireEvent.change(screen.getByLabelText("新增事项金额（CNY） 1"), { target: { value: "-20" } });
   expect(screen.getByText("请输入额外费用名称。")).toBeInTheDocument();
   expect(screen.queryByText("请输入额外费用备注。")).not.toBeInTheDocument();
 });
@@ -154,10 +155,10 @@ it("本期单价和事项可修改，备注与新增费用随确认请求提交"
   await screen.findByLabelText("本期水费单价");
   fireEvent.change(screen.getByLabelText("本期水费单价"), { target: { value: "5" } });
   expect(screen.getByText("调整本期金额或单价时，请在备注中说明原因。")).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("本期物业费金额（元）"), { target: { value: "490.50" } });
+  fireEvent.change(screen.getByLabelText("本期物业费金额（CNY）"), { target: { value: "490.50" } });
   await userEvent.click(screen.getByRole("button", { name: "添加收费事项" }));
   fireEvent.change(screen.getByLabelText("新增事项名称 1"), { target: { value: "清洁费" } });
-  fireEvent.change(screen.getByLabelText("新增事项金额（元） 1"), { target: { value: "20.25" } });
+  fireEvent.change(screen.getByLabelText("新增事项金额（CNY） 1"), { target: { value: "20.25" } });
   fireEvent.change(screen.getByLabelText("备注"), { target: { value: "本期协商收费" } });
   await waitFor(() => expect(screen.getByRole("button", { name: "确认生成" })).toBeEnabled());
   await userEvent.click(screen.getByRole("button", { name: "确认生成" }));

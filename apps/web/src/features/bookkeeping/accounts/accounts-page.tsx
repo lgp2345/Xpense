@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AccountSummary, PermissionKey } from "@xpense/shared";
+import { formatMinorMoney } from "@xpense/shared";
 import { useState } from "react";
 import { ListPageSkeleton, ListRefreshIndicator } from "@/components/list-loading-state";
 import {
@@ -23,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { toast } from "@/lib/toast";
 import type {
   BookkeepingApi,
@@ -56,6 +58,7 @@ export function AccountsPage({
   organizationId,
   permissions,
 }: AccountsPageProps) {
+  const currencyCode = useOrganizationCurrency();
   const queryClient = useQueryClient();
   const accountsQuery = useQuery(
     bookkeepingQueryOptions.accounts(api as BookkeepingApi, organizationId),
@@ -157,7 +160,7 @@ export function AccountsPage({
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{accountTypeLabels[item.type]}</TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatCny(item.balanceMinor)}
+                      {formatMinorMoney(item.balanceMinor, currencyCode)}
                     </TableCell>
                     {canUpdate || canDelete ? (
                       <TableCell className="flex justify-end gap-2">
@@ -222,14 +225,4 @@ function DeleteAccountButton({
       </AlertDialogContent>
     </AlertDialog>
   );
-}
-
-/** 使用整数拆分格式化人民币，避免安全整数边界在除法时丢失分位。 */
-function formatCny(amountMinor: number): string {
-  const minor = BigInt(amountMinor);
-  const isNegative = minor < 0n;
-  const absolute = isNegative ? -minor : minor;
-  const yuan = (absolute / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  const cents = (absolute % 100n).toString().padStart(2, "0");
-  return `${isNegative ? "-" : ""}¥${yuan}.${cents}`;
 }

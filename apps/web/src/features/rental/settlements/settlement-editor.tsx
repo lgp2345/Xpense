@@ -9,6 +9,7 @@ import type {
 import { useEffect, useRef, useState } from "react";
 import type { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { ApiError } from "../../../services/api-client";
 import {
   createRentalFinanceAttempt,
@@ -35,6 +36,8 @@ export function SettlementEditor({
   permissions: readonly PermissionKey[];
   api: RentalFinanceApi;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   const queryClient = useQueryClient();
   const canConfirm = permissions.includes("rental_settlements:confirm");
   const canReadCharges = permissions.includes("rental_charges:read");
@@ -235,7 +238,7 @@ export function SettlementEditor({
             <form.Field name="extraAmount">
               {(field) => (
                 <FieldInput
-                  label="补充费用金额（元）"
+                  label={`补充费用金额（${currencyCode}）`}
                   value={field.state.value}
                   error={
                     field.state.meta.isTouched

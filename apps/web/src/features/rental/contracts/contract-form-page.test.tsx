@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
-import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   PermissionKey,
@@ -11,6 +11,7 @@ import type {
 } from "@xpense/shared";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
 import {
@@ -300,7 +301,7 @@ async function fillNewContractToReview(user: ReturnType<typeof userEvent.setup>)
   await user.click(await screen.findByRole("option", { name: /张三/ }));
   await user.click(screen.getByRole("button", { name: "下一步" }));
   await screen.findByRole("heading", { name: "设置合同条款" });
-  await user.type(screen.getByLabelText("月租（元）"), "8000");
+  await user.type(screen.getByLabelText("月租（CNY）"), "8000");
   await user.click(screen.getByRole("button", { name: "租期范围" }));
   await screen.findByRole("grid");
   const now = new Date();
@@ -365,7 +366,7 @@ describe("ContractFormPage", () => {
     );
     await screen.findByRole("heading", { name: "复核并确认" });
     expect(screen.getByText(/入住底数 0/)).toBeInTheDocument();
-    expect(screen.getByText(/管理费：50.00 元\/期/)).toBeInTheDocument();
+    expect(screen.getByText(/管理费：¥50.00\/期/)).toBeInTheDocument();
     expect(screen.getByText(/电费：不代收/)).toBeInTheDocument();
   });
 
@@ -1174,7 +1175,7 @@ describe("ContractFormPage route leave protection", () => {
     expect(screen.getByText("房产：阳光公寓")).toBeInTheDocument();
     expect(screen.getByText("空间：101")).toBeInTheDocument();
     expect(screen.getByText("承租方：张三")).toBeInTheDocument();
-    expect(screen.getByText("月租：8000 元")).toBeInTheDocument();
+    expect(screen.getByText("月租：¥8000")).toBeInTheDocument();
     expect(api.createConfirmedContract).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "创建合同" }));
     await waitFor(() =>
@@ -1729,7 +1730,7 @@ it("财务权限撤销后清除已回填的收费设置，不提交不可见收�
     </QueryClientProvider>
   );
   const view = render(page(perms));
-  expect(await screen.findByText("权限撤销测试费：50.00 元/期")).toBeInTheDocument();
+  expect(await screen.findByText("权限撤销测试费：¥50.00/期")).toBeInTheDocument();
   view.rerender(page(perms.filter((p) => !p.startsWith("rental_charges:"))));
   await waitFor(() => expect(screen.queryByText(/权限撤销测试费/)).not.toBeInTheDocument());
 });

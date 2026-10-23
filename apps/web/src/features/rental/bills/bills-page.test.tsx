@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { billFixture, billsApiFixture } from "./bill-test-fixtures";
 import { BillsPage } from "./bills-page";
 
@@ -176,10 +177,10 @@ it.each([1, 9])("第 %i 页保留全筛选收退款汇总，空页也不丢失�
 
   expect(await screen.findByRole("region", { name: "收退款汇总" })).toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "费用构成汇总" })).not.toBeInTheDocument();
-  expect(screen.getByText("累计已收 1,000.00")).toBeInTheDocument();
-  expect(screen.getByText("累计已退 900.00")).toBeInTheDocument();
-  expect(screen.getByText("待收 40.00")).toBeInTheDocument();
-  expect(screen.getByText("待退 70.00")).toBeInTheDocument();
+  expect(screen.getByText("累计已收 ¥1000.00")).toBeInTheDocument();
+  expect(screen.getByText("累计已退 ¥900.00")).toBeInTheDocument();
+  expect(screen.getByText("待收 ¥40.00")).toBeInTheDocument();
+  expect(screen.getByText("待退 ¥70.00")).toBeInTheDocument();
   expect(
     screen.getByText("当前筛选结果汇总。已纳入结算的收退与余额按整个合同统计。"),
   ).toBeInTheDocument();

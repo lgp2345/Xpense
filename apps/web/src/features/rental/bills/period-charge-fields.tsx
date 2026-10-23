@@ -1,8 +1,9 @@
-import type { RentalChargeTerms } from '@xpense/shared'
-import { PlusIcon, Trash2Icon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import type { PeriodBillDraft } from './period-bill-form'
+import type { RentalChargeTerms } from "@xpense/shared";
+import { PlusIcon, Trash2Icon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
+import type { PeriodBillDraft } from "./period-bill-form";
 
 /** 合同事项与临时事项在同一区域录入，修改只用于本张账单。 */
 export function PeriodChargeFields({
@@ -11,21 +12,20 @@ export function PeriodChargeFields({
   errors,
   onChange,
 }: {
-  draft: PeriodBillDraft
-  terms: RentalChargeTerms
-  errors: ReadonlyMap<string, string>
-  onChange: <K extends keyof PeriodBillDraft>(
-    key: K,
-    value: PeriodBillDraft[K],
-  ) => void
+  draft: PeriodBillDraft;
+  terms: RentalChargeTerms;
+  errors: ReadonlyMap<string, string>;
+  onChange: <K extends keyof PeriodBillDraft>(key: K, value: PeriodBillDraft[K]) => void;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   return (
     <fieldset className="border-t space-y-3 min-w-0 pt-4">
       <legend className="font-medium text-sm px-0">本期收费事项</legend>
       {draft.overrideFixedFees.map((fee, index) => {
-        const name = terms.fixedFees.find((item) => item.id === fee.id)?.name
-        const error = errors.get(`overrideFixedFees.${index}.amount`)
-        const id = `period-fee-${fee.id}`
+        const name = terms.fixedFees.find((item) => item.id === fee.id)?.name;
+        const error = errors.get(`overrideFixedFees.${index}.amount`);
+        const id = `period-fee-${fee.id}`;
         return (
           <div
             key={fee.id}
@@ -33,89 +33,75 @@ export function PeriodChargeFields({
           >
             <div className="space-y-1 text-sm">
               <p className="text-xs text-muted-foreground">合同事项</p>
-              <p className="flex font-medium min-h-9 items-center break-words">
-                {name}
-              </p>
+              <p className="flex font-medium min-h-9 items-center break-words">{name}</p>
             </div>
             <div className="space-y-1 text-sm">
-              <label htmlFor={id}>金额（元/期）</label>
+              <label htmlFor={id}>金额（{currencyCode}/期）</label>
               <Input
                 id={id}
-                aria-label={`本期${name}金额（元）`}
+                aria-label={`本期${name}金额（${currencyCode}）`}
                 inputMode="decimal"
                 value={fee.amount}
                 aria-invalid={Boolean(error)}
                 aria-describedby={error ? `${id}-error` : undefined}
                 onChange={(event) =>
                   onChange(
-                    'overrideFixedFees',
+                    "overrideFixedFees",
                     draft.overrideFixedFees.map((item) =>
-                      item.id === fee.id
-                        ? { ...item, amount: event.target.value }
-                        : item,
+                      item.id === fee.id ? { ...item, amount: event.target.value } : item,
                     ),
                   )
                 }
               />
               {error ? (
-                <p
-                  id={`${id}-error`}
-                  role="alert"
-                  className="text-xs text-destructive"
-                >
+                <p id={`${id}-error`} role="alert" className="text-xs text-destructive">
                   {error}
                 </p>
               ) : null}
             </div>
           </div>
-        )
+        );
       })}
       {draft.extraFees.map((fee, index) => (
         <div
           key={fee.id}
           className="min-w-0 grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem_2.25rem] sm:items-start"
         >
-          {(['name', 'amount'] as const).map((field) => {
+          {(["name", "amount"] as const).map((field) => {
             const label =
-              field === 'name'
+              field === "name"
                 ? `新增事项名称 ${index + 1}`
-                : `新增事项金额（元） ${index + 1}`
-            const id = `period-extra-${fee.id}-${field}`
-            const error = errors.get(`extraFees.${index}.${field}`)
+                : `新增事项金额（${currencyCode}） ${index + 1}`;
+            const id = `period-extra-${fee.id}-${field}`;
+            const error = errors.get(`extraFees.${index}.${field}`);
             return (
               <div key={field} className="space-y-1 text-sm">
                 <label htmlFor={id}>
-                  {field === 'name' ? '事项名称' : '金额（元）'}
+                  {field === "name" ? "事项名称" : `金额（${currencyCode}）`}
                 </label>
                 <Input
                   id={id}
                   aria-label={label}
                   value={fee[field]}
-                  inputMode={field === 'amount' ? 'decimal' : undefined}
+                  inputMode={field === "amount" ? "decimal" : undefined}
                   aria-invalid={Boolean(error)}
                   aria-describedby={error ? `${id}-error` : undefined}
                   onChange={(event) =>
                     onChange(
-                      'extraFees',
+                      "extraFees",
                       draft.extraFees.map((item) =>
-                        item.id === fee.id
-                          ? { ...item, [field]: event.target.value }
-                          : item,
+                        item.id === fee.id ? { ...item, [field]: event.target.value } : item,
                       ),
                     )
                   }
                 />
                 {error ? (
-                  <p
-                    id={`${id}-error`}
-                    role="alert"
-                    className="text-xs text-destructive"
-                  >
+                  <p id={`${id}-error`} role="alert" className="text-xs text-destructive">
                     {error}
                   </p>
                 ) : null}
               </div>
-            )
+            );
           })}
           <Button
             type="button"
@@ -125,7 +111,7 @@ export function PeriodChargeFields({
             aria-label={`移除收费事项 ${index + 1}`}
             onClick={() =>
               onChange(
-                'extraFees',
+                "extraFees",
                 draft.extraFees.filter((item) => item.id !== fee.id),
               )
             }
@@ -135,18 +121,16 @@ export function PeriodChargeFields({
         </div>
       ))}
       {!draft.overrideFixedFees.length && !draft.extraFees.length ? (
-        <p className="text-sm text-muted-foreground">
-          合同暂无固定收费事项，可添加本期费用。
-        </p>
+        <p className="text-sm text-muted-foreground">合同暂无固定收费事项，可添加本期费用。</p>
       ) : null}
       <Button
         type="button"
         variant="outline"
         size="sm"
         onClick={() =>
-          onChange('extraFees', [
+          onChange("extraFees", [
             ...draft.extraFees,
-            { id: crypto.randomUUID(), name: '', amount: '', note: '' },
+            { id: crypto.randomUUID(), name: "", amount: "", note: "" },
           ])
         }
       >
@@ -154,5 +138,5 @@ export function PeriodChargeFields({
         添加收费事项
       </Button>
     </fieldset>
-  )
+  );
 }

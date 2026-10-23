@@ -1,4 +1,4 @@
-import type { RentalBillTotals } from "@xpense/shared";
+import type { RentalBillListTotals, RentalBillTotals } from "@xpense/shared";
 import type { BillingDraft, BillingSource } from "./billing.types.js";
 import { sumBillingAmounts } from "./billing-period.rules.js";
 import { billingDigest } from "./billing-source.rules.js";
@@ -30,4 +30,20 @@ export function billingDraftMatches(
     (draft.type === "deposit" || draft.dueDate === bill.dueDate) &&
     billingDigest(draft.lines) === billingDigest(bill.lines)
   );
+}
+
+/** 押金核对可能同时含历史币种和新建币种，按快照分别汇总。 */
+export function billingTotalsByCurrency(
+  drafts: Array<Pick<BillingDraft, "type" | "amountMinor"> & { currencyCode: string }>,
+): RentalBillListTotals {
+  const groups = new Map<string, typeof drafts>();
+  for (const item of drafts) {
+    const group = groups.get(item.currencyCode) ?? [];
+    group.push(item);
+    groups.set(item.currencyCode, group);
+  }
+  const byCurrency = [...groups]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([currencyCode, items]) => ({ currencyCode, ...billingTotals(items) }));
+  return byCurrency.length <= 1 ? { ...billingTotals(drafts), byCurrency } : { byCurrency };
 }

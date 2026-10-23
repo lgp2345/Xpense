@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import type { BookkeepingApi } from "../../../services/bookkeeping-api";
 
 import {
@@ -60,6 +61,7 @@ export function TransactionTable({
   onDelete,
   onUpdate,
 }: TransactionTableProps) {
+  const currencyCode = useOrganizationCurrency();
   return (
     <Card>
       <CardContent className="overflow-x-auto p-0">
@@ -102,7 +104,7 @@ export function TransactionTable({
                           : "text-right tabular-nums"
                     }
                   >
-                    {formatTransactionAmount(item.amountMinor, item.type)}
+                    {formatTransactionAmount(item.amountMinor, item.type, currencyCode)}
                   </TableCell>
                   {canUpdate || canDelete ? (
                     <TableCell>

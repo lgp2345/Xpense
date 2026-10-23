@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { rentalBillsKeys } from "../../../services/rental-bills-query";
 import {
   billFixture,
@@ -43,7 +44,7 @@ describe("合同应收覆盖", () => {
         />
       </QueryClientProvider>,
     );
-    expect(await screen.findByText(/有效普通账单 9,000.00/)).toBeInTheDocument();
+    expect(await screen.findByText(/有效普通账单 ¥9000.00/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("combobox", { name: "合同账单费用" }));
     expect(await screen.findByRole("listbox")).toBeInTheDocument();
     await userEvent.click(await screen.findByRole("option", { name: "押金" }));
@@ -55,7 +56,7 @@ describe("合同应收覆盖", () => {
       ),
     );
     expect(await screen.findByText(/押金.*作废/)).toBeInTheDocument();
-    expect(screen.getByText(/有效普通账单 9,000.00/)).toBeInTheDocument();
+    expect(screen.getByText(/有效普通账单 ¥9000.00/)).toBeInTheDocument();
   });
   it("只读用户查看缺失数量，不能发起生成预览", async () => {
     const api = billsApiFixture();
@@ -168,7 +169,7 @@ describe("合同应收覆盖", () => {
       </QueryClientProvider>,
     );
     expect(await screen.findByText("尚无符合条件的账期账单。")).toBeInTheDocument();
-    expect(screen.getByText(/有效普通账单 9,000.00/)).toBeInTheDocument();
+    expect(screen.getByText(/有效普通账单 ¥9000.00/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "预览并生成" })).not.toBeInTheDocument();
   });
 
@@ -254,8 +255,8 @@ describe("合同应收覆盖", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByText(/有效普通账单 1,000.00/)).toBeInTheDocument();
-    expect(screen.getByText(/已收 300.00 · 待收 700.00/)).toBeInTheDocument();
+    expect(await screen.findByText(/有效普通账单 ¥1000.00/)).toBeInTheDocument();
+    expect(screen.getByText(/已收 ¥300.00 · 待收 ¥700.00/)).toBeInTheDocument();
     expect(screen.queryByText(/收款情况尚未登记/)).not.toBeInTheDocument();
     await user.click(screen.getByRole("combobox", { name: "合同账单费用" }));
     expect(screen.queryByRole("option", { name: "租金" })).not.toBeInTheDocument();

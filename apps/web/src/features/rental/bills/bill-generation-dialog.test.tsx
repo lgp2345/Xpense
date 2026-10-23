@@ -134,7 +134,7 @@ describe("完整计划确认", () => {
       generationId: "batch",
       createdCount: 101,
       existingCount: 0,
-      totals: previewFixture.totals,
+      totals: previewFixture.createTotals,
       replayed: false,
     });
     await waitFor(() => expect(onGenerated).toHaveBeenCalledOnce());

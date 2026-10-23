@@ -1,13 +1,19 @@
 import type { RentalBillLine } from "@xpense/shared";
+import {
+  formatDecimalMoney,
+  useOrganizationCurrency,
+} from "@/features/organizations/organization-currency";
 import { formatBillAmount } from "./bill-format";
 /** 同时展示实际片段和完整参考区间，不将跨月片段伪装成自然月。 */
 export function BillCalculationLines({
   lines,
-  currencyCode,
+  currencyCode: billCurrencyCode,
 }: {
   lines: RentalBillLine[];
   currencyCode?: string;
 }) {
+  const currentCurrencyCode = useOrganizationCurrency();
+  const currencyCode = billCurrencyCode ?? currentCurrencyCode;
   return (
     <ul className="min-w-0 space-y-3 py-3 text-sm">
       {lines.map((line) => (
@@ -37,7 +43,8 @@ export function BillCalculationLines({
           {line.feeSnapshot?.kind === "water" || line.feeSnapshot?.kind === "electricity" ? (
             <p className="text-xs text-muted-foreground">
               {line.feeSnapshot.kind === "water" ? "水表" : "电表"} {line.feeSnapshot.startReading}{" "}
-              → {line.feeSnapshot.endReading} · 单价 {line.feeSnapshot.unitPrice}
+              → {line.feeSnapshot.endReading} · 单价{" "}
+              {formatDecimalMoney(line.feeSnapshot.unitPrice, currencyCode)}
               {line.feeSnapshot.overrideReason
                 ? ` · 本期改价原因：${line.feeSnapshot.overrideReason}`
                 : ""}

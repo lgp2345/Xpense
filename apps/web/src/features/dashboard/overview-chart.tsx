@@ -1,4 +1,8 @@
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import {
+  formatDecimalMoney,
+  useOrganizationCurrency,
+} from "@/features/organizations/organization-currency";
 
 import { overviewData } from "./dashboard-data";
 
@@ -7,6 +11,7 @@ const prefersReducedMotion =
 const overviewLabel = overviewData.map(({ month, total }) => `${month}: ${total}`).join("，");
 
 export function OverviewChart() {
+  const currencyCode = useOrganizationCurrency();
   return (
     <div aria-label={`月度收入趋势，${overviewLabel}`} role="img">
       <ResponsiveContainer height={350} width="100%">
@@ -15,7 +20,7 @@ export function OverviewChart() {
           <YAxis
             axisLine={false}
             fontSize={12}
-            tickFormatter={(value: number) => `¥${value}`}
+            tickFormatter={(value: number) => formatDecimalMoney(String(value), currencyCode)}
             tickLine={false}
             width={56}
           />

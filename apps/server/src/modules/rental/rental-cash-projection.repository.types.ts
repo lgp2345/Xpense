@@ -16,6 +16,7 @@ export type RentalCashProjectionFacts = {
     cancelledAt: Date | null;
   };
   bills: Array<{
+    currencyCode?: string;
     id: string;
     type: string;
     status: string;

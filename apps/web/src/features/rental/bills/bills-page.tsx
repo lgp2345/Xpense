@@ -1,17 +1,18 @@
-import { useQuery } from '@tanstack/react-query'
-import type { ListRentalBillsQuery, PermissionKey } from '@xpense/shared'
-import { Pagination } from '@/components/pagination'
-import { Button } from '@/components/ui/button'
-import { ApiError } from '../../../services/api-client'
-import type { RentalBillsApi } from '../../../services/rental-bills-api'
+import { useQuery } from "@tanstack/react-query";
+import type { ListRentalBillsQuery, PermissionKey } from "@xpense/shared";
+import { Pagination } from "@/components/pagination";
+import { Button } from "@/components/ui/button";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
+import { ApiError } from "../../../services/api-client";
+import type { RentalBillsApi } from "../../../services/rental-bills-api";
 import {
   normalizeRentalBillsQuery,
   rentalBillsQueryOptions,
-} from '../../../services/rental-bills-query'
-import type { RentalFinanceApi } from '../../../services/rental-finance-api'
-import { BillFilters } from './bill-filters'
-import { formatBillAmount } from './bill-format'
-import { BillListCashActions } from './bill-list-cash-actions'
+} from "../../../services/rental-bills-query";
+import type { RentalFinanceApi } from "../../../services/rental-finance-api";
+import { BillFilters } from "./bill-filters";
+import { formatBillAmount } from "./bill-format";
+import { BillListCashActions } from "./bill-list-cash-actions";
 export function BillsPage({
   organizationId,
   api,
@@ -21,44 +22,46 @@ export function BillsPage({
   onSearchChange,
   onNavigate,
 }: {
-  organizationId: string
-  api: RentalBillsApi
-  financeApi?: RentalFinanceApi
-  permissions: readonly PermissionKey[]
-  search: ListRentalBillsQuery
-  onSearchChange: (search: ListRentalBillsQuery) => void
-  onNavigate: (billId: string) => void
+  organizationId: string;
+  api: RentalBillsApi;
+  financeApi?: RentalFinanceApi;
+  permissions: readonly PermissionKey[];
+  search: ListRentalBillsQuery;
+  onSearchChange: (search: ListRentalBillsQuery) => void;
+  onNavigate: (billId: string) => void;
 }) {
-  const read = permissions.includes('rental_bills:read')
-  const normalized = normalizeRentalBillsQuery(search)
+  const currencyCode = useOrganizationCurrency();
+
+  const read = permissions.includes("rental_bills:read");
+  const normalized = normalizeRentalBillsQuery(search);
   const query = useQuery({
     ...rentalBillsQueryOptions.list(api, organizationId, normalized),
     enabled: read && Boolean(organizationId),
-  })
+  });
+  const financialGroups =
+    query.data?.totals.byCurrency?.flatMap((group) =>
+      group.financial ? [{ currencyCode: group.currencyCode, ...group.financial }] : [],
+    ) ?? (query.data?.totals.financial ? [{ currencyCode, ...query.data.totals.financial }] : []);
   if (!read)
     return (
       <main className="p-4">
         <p>你没有查看账单的权限。</p>
       </main>
-    )
+    );
   return (
     <main className="mx-auto space-y-5 w-full max-w-7xl p-4 sm:p-6 lg:p-8">
       <header>
         <h1 className="font-bold text-2xl">租赁账单</h1>
       </header>
-      <BillFilters
-        key={organizationId}
-        search={search}
-        onChange={onSearchChange}
-      />
+      <BillFilters key={organizationId} search={search} onChange={onSearchChange} />
       {query.isPending ? (
         <p role="status">正在读取账单…</p>
       ) : query.isError ? (
         <div role="alert" className="space-y-2">
           <p>
             {query.error instanceof ApiError && query.error.status === 403
-              ? '你没有查看账单的权限。'
-              : '账单读取失败，请重试。'}
+              ? "你没有查看账单的权限。"
+              : "账单读取失败，请重试。"}
           </p>
           <Button variant="outline" onClick={() => void query.refetch()}>
             重试
@@ -66,34 +69,20 @@ export function BillsPage({
         </div>
       ) : (
         <>
-          {query.data.totals.financial ? (
-            <section
-              className="border rounded-lg space-y-3 text-sm p-4"
-              aria-label="收退款汇总"
-            >
+          {financialGroups.length ? (
+            <section className="border rounded-lg space-y-3 text-sm p-4" aria-label="收退款汇总">
               <h2 className="font-medium">实际收退与余额</h2>
-              <div className="flex flex-wrap gap-x-6 gap-y-2 tabular-nums">
-                <span>
-                  累计已收{' '}
-                  {formatBillAmount(query.data.totals.financial.receivedMinor)}
-                </span>
-                <span>
-                  累计已退{' '}
-                  {formatBillAmount(query.data.totals.financial.refundedMinor)}
-                </span>
-                <span>
-                  待收{' '}
-                  {formatBillAmount(
-                    query.data.totals.financial.outstandingMinor,
-                  )}
-                </span>
-                <span>
-                  待退{' '}
-                  {formatBillAmount(
-                    query.data.totals.financial.refundableMinor,
-                  )}
-                </span>
-              </div>
+              {financialGroups.map((total) => (
+                <div
+                  key={total.currencyCode}
+                  className="flex flex-wrap gap-x-6 gap-y-2 tabular-nums"
+                >
+                  <span>累计已收 {formatBillAmount(total.receivedMinor, total.currencyCode)}</span>
+                  <span>累计已退 {formatBillAmount(total.refundedMinor, total.currencyCode)}</span>
+                  <span>待收 {formatBillAmount(total.outstandingMinor, total.currencyCode)}</span>
+                  <span>待退 {formatBillAmount(total.refundableMinor, total.currencyCode)}</span>
+                </div>
+              ))}
               <p className="text-xs text-muted-foreground">
                 当前筛选结果汇总。已纳入结算的收退与余额按整个合同统计。
               </p>
@@ -112,9 +101,7 @@ export function BillsPage({
               onUpdated={() => void query.refetch()}
             />
           ) : (
-            <p className="text-center text-sm text-muted-foreground py-8">
-              没有符合条件的账单。
-            </p>
+            <p className="text-center text-sm text-muted-foreground py-8">没有符合条件的账单。</p>
           )}
           <Pagination
             page={normalized.page ?? 1}
@@ -122,12 +109,10 @@ export function BillsPage({
             total={query.data.total}
             pending={query.isFetching}
             onPageChange={(page) => onSearchChange({ ...search, page })}
-            onPageSizeChange={(pageSize) =>
-              onSearchChange({ ...search, page: 1, pageSize })
-            }
+            onPageSizeChange={(pageSize) => onSearchChange({ ...search, page: 1, pageSize })}
           />
         </>
       )}
     </main>
-  )
+  );
 }

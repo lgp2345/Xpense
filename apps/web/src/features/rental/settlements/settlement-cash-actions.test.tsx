@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RentalSettlementDetail } from "@xpense/shared";
 import { expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { financeApiFixture } from "../bills/bill-test-fixtures";
 import { SettlementCashActions } from "./settlement-cash-actions";
 
@@ -21,7 +22,7 @@ it("按当前结算目标分次登记补款并读取该结算流水", async () =
       />
     </QueryClientProvider>,
   );
-  await userEvent.type(await screen.findByLabelText("本次补款金额（元）"), "250.00");
+  await userEvent.type(await screen.findByLabelText("本次补款金额（CNY）"), "250.00");
   await userEvent.click(screen.getByRole("button", { name: "登记补款" }));
 
   expect(api.recordReceipt).toHaveBeenCalledExactlyOnceWith(
@@ -66,7 +67,7 @@ it("待退款只提供服务端全额确认，不接收客户输入的退款金�
     </QueryClientProvider>,
   );
 
-  expect(screen.getByRole("button", { name: "确认已退 ¥2,800.00" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "确认已退 ¥2800.00" })).toBeEnabled();
   expect(screen.queryByLabelText(/退款金额/)).not.toBeInTheDocument();
 });
 
@@ -93,18 +94,18 @@ it("退款二次确认后未知失败重试保留原请求，改备注后生成�
       />
     </QueryClientProvider>,
   );
-  await userEvent.click(screen.getByRole("button", { name: "确认已退 ¥2,800.00" }));
+  await userEvent.click(screen.getByRole("button", { name: "确认已退 ¥2800.00" }));
   expect(confirmRefund).not.toHaveBeenCalled();
   screen.getByRole("button", { name: "确认登记退款" }).focus();
   await userEvent.keyboard("{Enter}");
   expect(await screen.findByRole("alert")).toHaveTextContent("操作结果暂未确认");
-  await userEvent.click(screen.getByRole("button", { name: "确认已退 ¥2,800.00" }));
+  await userEvent.click(screen.getByRole("button", { name: "确认已退 ¥2800.00" }));
   await userEvent.click(screen.getByRole("button", { name: "确认登记退款" }));
   expect(confirmRefund).toHaveBeenCalledTimes(2);
   expect(confirmRefund.mock.calls[1]?.[0]).toEqual(confirmRefund.mock.calls[0]?.[0]);
   expect(confirmRefund.mock.calls[0]?.[0]).not.toHaveProperty("amountMinor");
   await userEvent.type(screen.getByLabelText("退款备注"), "银行转账");
-  await userEvent.click(screen.getByRole("button", { name: "确认已退 ¥2,800.00" }));
+  await userEvent.click(screen.getByRole("button", { name: "确认已退 ¥2800.00" }));
   await userEvent.click(screen.getByRole("button", { name: "确认登记退款" }));
   expect(confirmRefund).toHaveBeenCalledTimes(3);
   expect(confirmRefund.mock.calls[2]?.[0]).toMatchObject({ note: "银行转账" });

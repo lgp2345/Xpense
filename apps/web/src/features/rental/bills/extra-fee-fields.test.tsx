@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { ExtraFeeFields } from "./extra-fee-fields";
 
 describe("月度账单额外费用字段", () => {
@@ -8,7 +9,7 @@ describe("月度账单额外费用字段", () => {
     const onChange = vi.fn();
     render(<ExtraFeeFields fees={fees} onChange={onChange} />);
 
-    fireEvent.change(screen.getByLabelText("额外费用金额（元） 1"), {
+    fireEvent.change(screen.getByLabelText("额外费用金额（CNY） 1"), {
       target: { value: "-125.50" },
     });
     expect(onChange).toHaveBeenCalledWith([

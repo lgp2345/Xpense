@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { formatMinorMoney } from "@xpense/shared";
 import { ArrowDownRight, ArrowUpRight, Scale } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,19 +45,25 @@ export function Dashboard({ api, organizationId }: DashboardProps) {
             <MetricCard
               icon={ArrowUpRight}
               label="本月收入"
-              value={formatMoney(statisticsQuery.data.incomeMinor, statisticsQuery.data.currency)}
+              value={formatMinorMoney(
+                statisticsQuery.data.incomeMinor,
+                statisticsQuery.data.currency,
+              )}
               tone="income"
             />
             <MetricCard
               icon={ArrowDownRight}
               label="本月支出"
-              value={formatMoney(statisticsQuery.data.expenseMinor, statisticsQuery.data.currency)}
+              value={formatMinorMoney(
+                statisticsQuery.data.expenseMinor,
+                statisticsQuery.data.currency,
+              )}
               tone="expense"
             />
             <MetricCard
               icon={Scale}
               label="本月净额"
-              value={formatMoney(statisticsQuery.data.netMinor, statisticsQuery.data.currency)}
+              value={formatMinorMoney(statisticsQuery.data.netMinor, statisticsQuery.data.currency)}
               tone="neutral"
             />
           </section>
@@ -81,7 +88,7 @@ export function Dashboard({ api, organizationId }: DashboardProps) {
                       />
                     </div>
                     <p className="text-right text-xs tabular-nums text-muted-foreground">
-                      {formatMoney(category.amountMinor, statisticsQuery.data.currency)}
+                      {formatMinorMoney(category.amountMinor, statisticsQuery.data.currency)}
                     </p>
                   </div>
                 ))
@@ -129,15 +136,4 @@ function MetricCard({
 function currentCalendarMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-/** 使用 bigint 拆分安全整数金额，避免除法导致分位丢失。 */
-function formatMoney(amountMinor: number, currency: string): string {
-  const amount = BigInt(amountMinor);
-  const negative = amount < 0n;
-  const absolute = negative ? -amount : amount;
-  const whole = (absolute / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  const cents = (absolute % 100n).toString().padStart(2, "0");
-  const symbol = currency === "CNY" ? "¥" : `${currency} `;
-  return `${negative ? "-" : ""}${symbol}${whole}.${cents}`;
 }

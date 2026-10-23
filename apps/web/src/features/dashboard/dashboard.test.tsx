@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import type { MonthlyStatistics } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 
 import type { BookkeepingApi } from "../../services/bookkeeping-api";
 import { Dashboard } from "./dashboard";
@@ -50,9 +51,9 @@ describe("Dashboard", () => {
     });
     resolve(statistics);
 
-    expect(await screen.findByText("¥4,567.89")).toBeInTheDocument();
-    expect(screen.getByText("¥1,234.56")).toBeInTheDocument();
-    expect(screen.getByText("¥3,333.33")).toBeInTheDocument();
+    expect(await screen.findByText("¥4567.89")).toBeInTheDocument();
+    expect(screen.getByText("¥1234.56")).toBeInTheDocument();
+    expect(screen.getByText("¥3333.33")).toBeInTheDocument();
     expect(screen.getByText("餐饮")).toBeInTheDocument();
     expect(screen.getByText("64.8%")).toBeInTheDocument();
     expect(screen.queryByText(/预算|预测/)).not.toBeInTheDocument();

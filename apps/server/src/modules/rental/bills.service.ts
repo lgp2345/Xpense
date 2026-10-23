@@ -12,7 +12,11 @@ import type { AppDbTransaction } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
 import { AccessService } from "../iam/access.service.js";
 import type { BillingSource, PersistableBillingDraft } from "./billing.types.js";
-import { billingDraftMatches, billingTotals } from "./billing-plan.rules.js";
+import {
+  billingDraftMatches,
+  billingTotals,
+  billingTotalsByCurrency,
+} from "./billing-plan.rules.js";
 import { billingFingerprint, buildDepositDrafts } from "./billing-source.rules.js";
 import { BillingSourceService } from "./billing-source.service.js";
 import { BillsRepository } from "./bills.repository.js";
@@ -207,6 +211,7 @@ export class BillsService {
         throw this.conflict("有效押金账单与当前合同约定不一致");
       if (!bill) creates.push(draft);
       return {
+        currencyCode: bill?.currencyCode ?? source.currencyCode,
         type: draft.type,
         sourceKey: draft.sourceKey,
         periodStart: draft.periodStart,
@@ -231,7 +236,7 @@ export class BillsService {
       missingDepositSourceKeys,
       requiresTerminationConfirmation: false,
       terminationReference: null,
-      totals: billingTotals(items),
+      totals: billingTotalsByCurrency(items),
       createTotals: billingTotals(creates),
     };
   }

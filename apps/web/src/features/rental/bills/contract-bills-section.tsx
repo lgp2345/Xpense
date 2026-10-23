@@ -4,6 +4,7 @@ import type { PermissionKey } from "@xpense/shared";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import type { RentalBillsApi } from "../../../services/rental-bills-api";
 import { rentalBillsQueryOptions } from "../../../services/rental-bills-query";
 import type { RentalFinanceApi } from "../../../services/rental-finance-api";
@@ -35,6 +36,8 @@ export function ContractBillsSection({
   onNavigate,
   canGenerate: billingOpen = true,
 }: Props) {
+  const currencyCode = useOrganizationCurrency();
+
   const [open, setOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const form = useForm({
@@ -106,7 +109,10 @@ export function ContractBillsSection({
         {query.data && list.data ? (
           <>
             <p className="text-sm tabular-nums">
-              有效普通账单 {formatMoney(query.data.totals.periodAmountMinor ?? 0)}
+              有效普通账单{" "}
+              {query.data.totals.byCurrency
+                ?.map((group) => formatMoney(group.periodAmountMinor ?? 0, group.currencyCode))
+                .join(" · ") ?? formatMoney(query.data.totals.periodAmountMinor ?? 0, currencyCode)}
             </p>
             {list.data.items.length ? (
               <ul className="divide-y">
@@ -136,11 +142,11 @@ export function ContractBillsSection({
                       </p>
                     </div>
                     <div className="space-y-1 text-right tabular-nums">
-                      <p>应收 {formatMoney(bill.amountMinor)}</p>
+                      <p>应收 {formatMoney(bill.amountMinor, bill.currencyCode)}</p>
                       {bill.financial ? (
                         <p>
-                          已收 {formatMoney(bill.financial.receivedMinor)} · 待收{" "}
-                          {formatMoney(bill.financial.outstandingMinor)}
+                          已收 {formatMoney(bill.financial.receivedMinor, bill.currencyCode)} · 待收{" "}
+                          {formatMoney(bill.financial.outstandingMinor, bill.currencyCode)}
                         </p>
                       ) : null}
                     </div>

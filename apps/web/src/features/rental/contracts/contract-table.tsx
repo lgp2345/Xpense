@@ -1,4 +1,5 @@
-import type { RentalContractSummary } from "@xpense/shared";
+import { formatMinorMoney, type RentalContractSummary } from "@xpense/shared";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { formatContractDateTime } from "./contract-date-time";
 
 import { ContractStatusBadge } from "./contract-status";
@@ -10,6 +11,8 @@ export function ContractTable({
   items: RentalContractSummary[];
   onNavigate: (contractId: string) => void;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   return (
     <div data-testid="contract-table" className="overflow-x-auto rounded-lg border">
       <table className="w-full text-left text-sm">
@@ -36,7 +39,7 @@ export function ContractTable({
                 {formatContractDateTime(item.startDate) ?? "未开始"} 至{" "}
                 {formatContractDateTime(item.endDate) ?? "未结束"}
               </td>
-              <td className="p-3">{formatMoney(item.rentAmountMinor)}</td>
+              <td className="p-3">{formatMoney(item.rentAmountMinor, currencyCode)}</td>
               <td className="p-3">{item.tenantNames.join("、") || "未指定承租方"}</td>
               <td className="p-3">
                 <ContractStatusBadge status={item.displayStatus} />
@@ -70,8 +73,6 @@ export function ContractLink({
   );
 }
 
-export function formatMoney(amount: number | null): string {
-  return amount === null
-    ? "未设置"
-    : `¥${(amount / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2 })}`;
+export function formatMoney(amount: number | null, currencyCode: string): string {
+  return amount === null ? "未设置" : formatMinorMoney(amount, currencyCode);
 }

@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { ApiError } from "../../../services/api-client";
 import {
   createRentalFinanceAttempt,
@@ -56,6 +57,8 @@ export function SettlementCashActions({
   api: RentalFinanceApi;
   permissions: readonly PermissionKey[];
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,7 +169,7 @@ export function SettlementCashActions({
           <receiptForm.Field name="amount">
             {(field) => (
               <MoneyField
-                label="本次补款金额（元）"
+                label={`本次补款金额（${currencyCode}）`}
                 value={field.state.value}
                 error={field.state.meta.isTouched ? field.state.meta.errors[0]?.message : undefined}
                 onChange={(value) => {
@@ -241,7 +244,7 @@ export function SettlementCashActions({
             )}
           </refundForm.Field>
           <Button type="submit" disabled={busy}>
-            确认已退 ¥{formatBillAmount(settlement.balance.refundableMinor)}
+            确认已退 {formatBillAmount(settlement.balance.refundableMinor, currencyCode)}
           </Button>
         </form>
       ) : null}
@@ -256,7 +259,8 @@ export function SettlementCashActions({
           <AlertDialogHeader>
             <AlertDialogTitle>确认全额退款</AlertDialogTitle>
             <AlertDialogDescription>
-              请确认已向当前合同的租客退还 ¥{formatBillAmount(refundConfirmation?.amountMinor ?? 0)}
+              请确认已向当前合同的租客退还{" "}
+              {formatBillAmount(refundConfirmation?.amountMinor ?? 0, currencyCode)}
               ，退款日期为 {refundConfirmation?.occurredOn}。确认后将登记这笔退款。
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import type { PeriodBillExtraFeeDraft } from "./period-bill-form";
 
 export function ExtraFeeFields({
@@ -13,6 +14,8 @@ export function ExtraFeeFields({
   disabled?: boolean;
   errorsById?: ReadonlyMap<string, Partial<Record<"name" | "amount" | "note", string>>>;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   return (
     <fieldset disabled={disabled} className="space-y-3">
       <legend className="font-medium text-sm">额外费用</legend>
@@ -29,7 +32,7 @@ export function ExtraFeeFields({
           />
           <FeeInput
             id={`extra-fee-amount-${fee.id}`}
-            label={`额外费用金额（元） ${index + 1}`}
+            label={`额外费用金额（${currencyCode}） ${index + 1}`}
             value={fee.amount}
             error={errorsById?.get(fee.id)?.amount}
             inputMode="decimal"

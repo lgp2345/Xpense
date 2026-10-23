@@ -1,4 +1,4 @@
-import type { TransactionRecord } from "@xpense/shared";
+import { formatMinorMoney, type TransactionRecord } from "@xpense/shared";
 
 import { formatIsoForLocalDateTime } from "./transaction-date-time";
 
@@ -17,12 +17,10 @@ export function transactionTypeLabel(type: TransactionRecord["type"]): string {
 export function formatTransactionAmount(
   amountMinor: number,
   type: TransactionRecord["type"],
+  currencyCode: string,
 ): string {
-  const amount = BigInt(amountMinor);
-  const yuan = amount / 100n;
-  const cents = (amount % 100n).toString().padStart(2, "0");
   const prefix = type === "expense" ? "-" : type === "income" ? "+" : "";
-  return `${prefix}¥${yuan}.${cents}`;
+  return `${prefix}${formatMinorMoney(amountMinor, currencyCode)}`;
 }
 
 /** 将 ISO 时间压缩为桌面表格可扫描的年月日与时分。 */

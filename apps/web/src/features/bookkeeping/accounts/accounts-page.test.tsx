@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { screen, render as testingRender, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AccountSummary } from "@xpense/shared";
 import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { render as testingRender } from "@/test/render-with-currency";
 
 import type { BookkeepingApi } from "../../../services/bookkeeping-api";
 import { parseDecimalAmountToMinor } from "./account-form-schema";
@@ -115,8 +116,8 @@ describe("AccountsPage", () => {
 
     render(<AccountsPage api={api} organizationId="org-a" permissions={["accounts:read"]} />);
 
-    expect(await screen.findByText("¥90,071,992,547,409.91")).toBeInTheDocument();
-    expect(screen.getByText("-¥90,071,992,547,409.91")).toBeInTheDocument();
+    expect(await screen.findByText("¥90071992547409.91")).toBeInTheDocument();
+    expect(screen.getByText("-¥90071992547409.91")).toBeInTheDocument();
   });
 
   it("creates an account with a string-parsed opening balance and refreshes", async () => {

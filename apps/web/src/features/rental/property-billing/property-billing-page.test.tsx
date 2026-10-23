@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { rentalPropertyBillingPermissions } from "@xpense/shared";
 import { expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { billFixture, financeApiFixture, periodContextFixture } from "../bills/bill-test-fixtures";
 import { PropertyBillingPage } from "./property-billing-page";
 import {
@@ -108,7 +109,7 @@ it("空间下列出历史账单和押金，待出账行居末，合计不受折�
   expect(within(billRow).queryByText("301")).not.toBeInTheDocument();
   expect(within(billRow).queryByText("RC-2026-000009")).not.toBeInTheDocument();
   expect(within(billRow).getByText("部分收款")).toBeInTheDocument();
-  expect(within(billRow).getByText("CNY 2,000.00")).toBeInTheDocument();
+  expect(within(billRow).getByText("¥2000.00")).toBeInTheDocument();
   expect(within(billRow).getByText("2026-09-01 至 2026-09-30")).toBeInTheDocument();
   await userEvent.click(within(billRow).getByRole("button", { name: "RB-2026-000009" }));
   expect(h.props.onNavigateBill).toHaveBeenCalledWith("old-bill");
@@ -118,14 +119,14 @@ it("空间下列出历史账单和押金，待出账行居末，合计不受折�
   expect(rows.at(-2)).toHaveTextContent("待出账");
   expect(rows.at(-2)).not.toHaveTextContent("张三");
   expect(rows.at(-2)).not.toHaveTextContent("301");
-  expect(rows.at(-1)).toHaveTextContent("CNY 2,500.00");
+  expect(rows.at(-1)).toHaveTextContent("¥2500.00");
   await userEvent.click(screen.getByRole("button", { name: "折叠 301" }));
   expect(screen.queryByRole("button", { name: "RB-2026-000009" })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "查看合同 RC-2026-000009" })).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "展开 301" }));
   await userEvent.click(screen.getByRole("button", { name: "折叠 一号楼" }));
   expect(screen.queryByRole("button", { name: /生成账单 301/ })).not.toBeInTheDocument();
-  expect(rows.at(-1)).toHaveTextContent("CNY 2,500.00");
+  expect(rows.at(-1)).toHaveTextContent("¥2500.00");
 });
 it("没有待出账期仍显示原租户的历史未收账单", async () => {
   setup({
@@ -200,7 +201,7 @@ it("生成成功自动更新下一期，再次生成使用下一期表单及独�
   expect(generate.mock.calls[0]?.[0].idempotencyKey).not.toBe(
     generate.mock.calls[1]?.[0].idempotencyKey,
   );
-  expect(screen.getByRole("row", { name: /总收费合计/ })).toHaveTextContent("CNY 246.90");
+  expect(screen.getByRole("row", { name: /总收费合计/ })).toHaveTextContent("¥246.90");
   expect(h.api.generatePeriodBill).toHaveBeenCalledTimes(2);
 });
 it("生成成功但列表读取失败保留结果，不再次生成旧账期，重试后恢复下一期", async () => {

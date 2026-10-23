@@ -323,9 +323,9 @@ function ReceiptSession({
                               : undefined;
                             return (
                               <label className="space-y-1 text-sm" htmlFor="receipt-amount">
-                                <span>本次收款金额（元）</span>
+                                <span>本次收款金额（{bill.currencyCode}）</span>
                                 <Input
-                                  aria-label="本次收款金额（元）"
+                                  aria-label={`本次收款金额（${bill.currencyCode}）`}
                                   id="receipt-amount"
                                   inputMode="decimal"
                                   value={field.state.value}

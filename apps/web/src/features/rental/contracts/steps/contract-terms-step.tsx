@@ -3,6 +3,7 @@ import { DateRangePicker } from "@/components/date-range-picker";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { ContractChargeFields } from "../../charges/contract-charge-fields";
 import {
   ContractFieldErrorsContext,
@@ -24,6 +25,8 @@ export function ContractTermsStep({
   canEditMeters?: boolean;
   onChange: (values: ContractFormValues) => void;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   const errors = useContext(ContractFieldErrorsContext);
   const rentFeedback = useContractFieldFeedback("rentAmountText", "spaces");
   const dateFeedback = useContractFieldFeedback("startDate", "endDate");
@@ -53,7 +56,7 @@ export function ContractTermsStep({
           <Field
             data-invalid={contractFeedbackProps(errors, "rentAmountText", "spaces")["aria-invalid"]}
           >
-            <FieldLabel htmlFor="contract-rent-amount">月租（元）</FieldLabel>
+            <FieldLabel htmlFor="contract-rent-amount">月租（{currencyCode}）</FieldLabel>
             <Input
               id="contract-rent-amount"
               {...rentFeedback}

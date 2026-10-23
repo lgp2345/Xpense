@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { ApiError } from "../../../services/api-client";
 import {
   createRentalFinanceAttempt,
@@ -28,6 +29,8 @@ export function SettlementHistory({
   contractId: string;
   api: RentalFinanceApi;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   const query = useQuery({
     queryKey: rentalFinanceKeys.settlementHistory(organizationId, contractId, {
       page: 1,
@@ -59,7 +62,7 @@ export function SettlementHistory({
                 {statusLabels[item.settlement.status]}
               </span>
               <span className="tabular-nums">
-                最终费用 {formatBillAmount(item.settlement.finalCostMinor)}
+                最终费用 {formatBillAmount(item.settlement.finalCostMinor, currencyCode)}
               </span>
             </li>
           ))}
@@ -85,6 +88,8 @@ export function SettlementCashHistory({
   api: RentalFinanceApi;
   permissions: readonly PermissionKey[];
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   const queryClient = useQueryClient();
   const cash = useQuery({
     queryKey: rentalFinanceKeys.settlementCash(
@@ -187,8 +192,8 @@ export function SettlementCashHistory({
               key={entry.id}
             >
               <span className="tabular-nums">
-                {entry.kind === "receipt" ? "收款" : "退款"} · {formatBillAmount(entry.amountMinor)}{" "}
-                · {entry.occurredOn}
+                {entry.kind === "receipt" ? "收款" : "退款"} ·{" "}
+                {formatBillAmount(entry.amountMinor, currencyCode)} · {entry.occurredOn}
                 {entry.revokedAt ? ` · 已撤销（${entry.revokeReason ?? "未提供原因"}）` : ""}
               </span>
               {!entry.revokedAt && permissions.includes(revokePermission(entry)) ? (

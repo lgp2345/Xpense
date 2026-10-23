@@ -6,6 +6,7 @@ import {
   type SecondaryPageNavigation,
 } from "@/components/layout/secondary-page-layout";
 import { Button } from "@/components/ui/button";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import type { RentalFinanceApi } from "../../../services/rental-finance-api";
 import { rentalFinanceKeys } from "../../../services/rental-finance-query";
 import { formatBillAmount } from "../bills/bill-format";
@@ -31,6 +32,8 @@ export function SettlementPage({
   permissions: readonly PermissionKey[];
   api: RentalFinanceApi;
 }) {
+  const currencyCode = useOrganizationCurrency();
+
   const canRead = permissions.includes("rental_settlements:read");
   const settlementQuery = useQuery({
     queryKey: rentalFinanceKeys.settlement(organizationId, contractId),
@@ -72,7 +75,9 @@ export function SettlementPage({
         <>
           <section className="space-y-2 rounded-lg border p-4" aria-label="最终费用">
             <h2 className="font-semibold">费用明细</h2>
-            <p className="text-sm">最终结算费用 {formatBillAmount(settlement.finalCostMinor)}</p>
+            <p className="text-sm">
+              最终结算费用 {formatBillAmount(settlement.finalCostMinor, currencyCode)}
+            </p>
             <p className="text-xs text-muted-foreground">月度费用及更正记录可在合同账单中查看。</p>
             <a
               className="text-sm underline"

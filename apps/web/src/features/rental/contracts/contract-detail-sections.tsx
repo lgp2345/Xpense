@@ -1,10 +1,13 @@
 import type { RentalContractDetail } from "@xpense/shared";
 import { Building2, History, type LucideIcon, WalletCards } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { formatContractDateTime } from "./contract-date-time";
 import { formatMoney } from "./contract-table";
 
 export function Overview({ contract }: { contract: RentalContractDetail }) {
+  const currencyCode = useOrganizationCurrency();
+
   return (
     <Card className="gap-0 overflow-hidden py-0 shadow-none">
       <CardContent className="p-0">
@@ -12,7 +15,7 @@ export function Overview({ contract }: { contract: RentalContractDetail }) {
           <div className="min-w-0 space-y-2 border-b p-5 md:border-r md:border-b-0">
             <p className="text-sm text-muted-foreground">租金</p>
             <p className="break-words text-3xl font-semibold tracking-tight tabular-nums">
-              {formatMoney(contract.rentAmountMinor)}
+              {formatMoney(contract.rentAmountMinor, currencyCode)}
             </p>
           </div>
           <div className="grid gap-5 p-5 sm:grid-cols-2">
@@ -64,6 +67,8 @@ export function Overview({ contract }: { contract: RentalContractDetail }) {
   );
 }
 export function SpaceSection({ contract }: { contract: RentalContractDetail }) {
+  const currencyCode = useOrganizationCurrency();
+
   return (
     <Section title="空间快照" icon={Building2}>
       {contract.spaces.length === 0 ? (
@@ -87,7 +92,7 @@ export function SpaceSection({ contract }: { contract: RentalContractDetail }) {
               <div className="min-w-0 text-sm sm:text-right">
                 <p className="text-xs text-muted-foreground">租金分摊</p>
                 <p className="mt-1 break-words font-medium tabular-nums">
-                  {formatMoney(space.rentAllocationMinor)}
+                  {formatMoney(space.rentAllocationMinor, currencyCode)}
                 </p>
               </div>
             </div>
@@ -98,6 +103,8 @@ export function SpaceSection({ contract }: { contract: RentalContractDetail }) {
   );
 }
 export function DepositSection({ contract }: { contract: RentalContractDetail }) {
+  const currencyCode = useOrganizationCurrency();
+
   return (
     <Section title="押金" icon={WalletCards}>
       <div className="divide-y">
@@ -115,7 +122,7 @@ export function DepositSection({ contract }: { contract: RentalContractDetail })
               <div className="min-w-0 sm:text-right">
                 <p className="text-xs text-muted-foreground">押金金额</p>
                 <p className="mt-1 break-words text-xl font-semibold tracking-tight tabular-nums">
-                  {formatMoney(term.finalAmountMinor)}
+                  {formatMoney(term.finalAmountMinor, currencyCode)}
                 </p>
               </div>
             </div>

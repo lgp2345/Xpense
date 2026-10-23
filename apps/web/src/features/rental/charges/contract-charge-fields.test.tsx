@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { ContractChargeFields, ContractChargeSummary } from "./contract-charge-fields";
 import { type ContractChargeFormValues, defaultContractChargeValues } from "./contract-charge-form";
 
@@ -26,8 +27,8 @@ describe("共用月度收费字段", () => {
         }}
       />,
     );
-    expect(screen.getByText("水费：5 元 · 入住底数 192")).toBeInTheDocument();
-    expect(screen.getByText("电费：1 元 · 入住底数 4356")).toBeInTheDocument();
+    expect(screen.getByText("水费：¥5 · 入住底数 192")).toBeInTheDocument();
+    expect(screen.getByText("电费：¥1 · 入住底数 4356")).toBeInTheDocument();
   });
 
   it("入住底数可直接录入，无需填写抄表日期", async () => {
@@ -113,9 +114,9 @@ describe("共用月度收费字段", () => {
   it("分别切换代收并动态添加常用月费", async () => {
     const user = userEvent.setup();
     render(<Harness />);
-    expect(screen.getByLabelText("水费单价（元）")).toBeInTheDocument();
+    expect(screen.getByLabelText("水费单价（CNY）")).toBeInTheDocument();
     await user.click(screen.getByRole("checkbox", { name: "房东代收水费" }));
-    expect(screen.queryByLabelText("水费单价（元）")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("水费单价（CNY）")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "管理费" }));
     expect(screen.getByLabelText("事项名称 1")).toHaveValue("管理费");
     await user.type(screen.getByLabelText("每期金额 1"), "50");

@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RentalBillPreview, RentalBillPreviewItem } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
+import { render } from "@/test/render-with-currency";
 import { BillGenerationDialog } from "./bill-generation-dialog";
 import { billsApiFixture, previewFixture } from "./bill-test-fixtures";
 
@@ -66,11 +67,11 @@ describe("押金账单核对与日期填写", () => {
   it("每项押金在同一处展示名称、金额和日期，不再重复展示租金账期表格", async () => {
     openDialog();
     const row = await screen.findByRole("group", { name: "租赁押金" });
-    expect(within(row).getByText("1,000.00")).toBeInTheDocument();
+    expect(within(row).getByText("¥1000.00")).toBeInTheDocument();
     expect(within(row).getByRole("textbox", { name: /租赁押金.*到期日/ })).toBeInTheDocument();
     expect(screen.getAllByText("租赁押金")).toHaveLength(1);
     expect(screen.getByText("本次应收押金")).toBeInTheDocument();
-    expect(screen.getByText("1,350.00")).toBeInTheDocument();
+    expect(screen.getByText("¥1350.00")).toBeInTheDocument();
     expect(screen.getByText("还有 3 项未填写到期日")).toBeInTheDocument();
     expect(screen.queryByText("原付款账期")).not.toBeInTheDocument();
     expect(screen.queryByText(/本次新增租金/)).not.toBeInTheDocument();
@@ -128,7 +129,7 @@ describe("押金账单核对与日期填写", () => {
     expect(screen.getByText("新增 3 张押金账单")).toBeInTheDocument();
     await userEvent.click(screen.getByText("查看已生成账单（1）"));
     const existing = screen.getByRole("region", { name: "已生成的押金账单" });
-    expect(within(existing).getByText("60.00")).toBeInTheDocument();
+    expect(within(existing).getByText("¥60.00")).toBeInTheDocument();
     expect(within(existing).getByText("2026-10-01")).toBeInTheDocument();
     expect(within(existing).queryByRole("textbox")).not.toBeInTheDocument();
     const unified = screen.getByLabelText("统一押金到期日");
@@ -222,7 +223,7 @@ describe("押金账单核对与日期填写", () => {
     await userEvent.click(screen.getByRole("button", { name: "下一页" }));
     expect(await screen.findByRole("group", { name: "水电押金" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /水电押金.*到期日/ })).toHaveValue("2026-10-15");
-    expect(screen.getByText("300.00")).toBeInTheDocument();
+    expect(screen.getByText("¥300.00")).toBeInTheDocument();
     expect(api.previewBills).toHaveBeenLastCalledWith(
       expect.objectContaining({ page: 2, expectedVersion: "v1" }),
     );

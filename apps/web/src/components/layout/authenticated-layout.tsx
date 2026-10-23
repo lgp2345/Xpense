@@ -2,10 +2,10 @@ import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { RouteKey } from "@xpense/shared";
 import { type JSX, useCallback, useMemo } from "react";
 import { useStore } from "zustand";
-
 import { CommandMenu } from "@/components/command-menu";
 import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { OrganizationCurrencyProvider } from "@/features/organizations/organization-currency";
 import type { AppRouterContext } from "@/routes/__root";
 import type { WebSessionDependency } from "@/services/web-session";
 
@@ -47,6 +47,10 @@ export function AuthenticatedLayout({
   const accessScope = useStore(session.authStore, (state) => state.accessScope);
   const authStatus = useStore(session.authStore, (state) => state.status);
   const userId = useStore(session.authStore, (state) => state.currentUser?.id ?? null);
+  const currencyCode = useStore(
+    session.authStore,
+    (state) => state.currentOrganization?.baseCurrency ?? null,
+  );
   const organizationId = useStore(
     session.authStore,
     (state) => state.currentOrganization?.id ?? null,
@@ -132,32 +136,34 @@ export function AuthenticatedLayout({
   );
 
   return (
-    <SidebarProvider className="h-dvh min-h-0 overflow-hidden">
-      <AppSidebar session={session} />
-      <SidebarInset className="min-h-0 min-w-0 overflow-hidden">
-        <Header session={session} />
-        <main id="main-content" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          {accessScope === "platform" ? (
-            <div className="min-h-0 flex-1 overflow-auto">
-              <Outlet />
-            </div>
-          ) : (
-            <PageCacheHost
-              activePage={activePage}
-              authorizationVersion={isMenuReady ? authorizedRoutes : null}
-              cacheableMenuIds={cacheableMenuIds}
-              cacheableMenus={cacheableMenus}
-              fallback={fallback}
-              navigate={navigateToHref}
-              scopeKey={organizationId}
-              storage={storage}
-              workspaceScope={workspaceScope}
-            />
-          )}
-        </main>
-      </SidebarInset>
-      {accessScope !== "platform" ? <CommandMenu session={session} /> : null}
-    </SidebarProvider>
+    <OrganizationCurrencyProvider currencyCode={currencyCode}>
+      <SidebarProvider className="h-dvh min-h-0 overflow-hidden">
+        <AppSidebar session={session} />
+        <SidebarInset className="min-h-0 min-w-0 overflow-hidden">
+          <Header session={session} />
+          <main id="main-content" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            {accessScope === "platform" ? (
+              <div className="min-h-0 flex-1 overflow-auto">
+                <Outlet />
+              </div>
+            ) : (
+              <PageCacheHost
+                activePage={activePage}
+                authorizationVersion={isMenuReady ? authorizedRoutes : null}
+                cacheableMenuIds={cacheableMenuIds}
+                cacheableMenus={cacheableMenus}
+                fallback={fallback}
+                navigate={navigateToHref}
+                scopeKey={organizationId}
+                storage={storage}
+                workspaceScope={workspaceScope}
+              />
+            )}
+          </main>
+        </SidebarInset>
+        {accessScope !== "platform" ? <CommandMenu session={session} /> : null}
+      </SidebarProvider>
+    </OrganizationCurrencyProvider>
   );
 }
 
