@@ -189,3 +189,29 @@ describe("LoginPage", () => {
     });
   });
 });
+
+it("shows a single actionable initial-password notice through a credential login in StrictMode", async () => {
+  const { StrictMode } = await import("react");
+  const { toast } = await import("@/lib/toast");
+  const warning = vi.spyOn(toast, "warning");
+  const onChangePassword = vi.fn();
+  const session = createLoginTestSession();
+  const user = userEvent.setup();
+  render(
+    <StrictMode>
+      <ThemeProvider>
+        <LoginPage session={session} onChangePassword={onChangePassword} />
+      </ThemeProvider>
+    </StrictMode>,
+  );
+  await user.type(screen.getByRole("textbox", { name: "手机号" }), "13800000001");
+  await user.type(screen.getByLabelText("密码"), "custom-initial");
+  await user.type(screen.getByRole("textbox", { name: "验证码" }), "abcd");
+  await user.click(screen.getByRole("button", { name: "登录" }));
+  await waitFor(() => expect(warning).toHaveBeenCalledOnce());
+  const action = warning.mock.calls[0]?.[1]?.action;
+  if (action && typeof action === "object" && "onClick" in action) action.onClick({} as never);
+  expect(onChangePassword).toHaveBeenCalledOnce();
+  warning.mockRestore();
+  toast.dismiss();
+});

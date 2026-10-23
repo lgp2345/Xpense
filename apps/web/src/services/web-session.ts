@@ -1,5 +1,9 @@
-import type { AuthTokensResponse, CurrentUserResponse } from "@xpense/shared";
+import type { AuthTokensResponse, ChangePasswordInput, CurrentUserResponse } from "@xpense/shared";
 import type { AxiosInstance } from "axios";
+import {
+  clearInitialPasswordNotice,
+  showInitialPasswordNotice,
+} from "@/features/auth/initial-password-notice";
 import { toast } from "@/lib/toast";
 import { API_BASE_URL } from "../lib/env";
 import { type AuthStoreApi, authStore } from "../stores/auth-store";
@@ -87,6 +91,7 @@ type SwitchOperation = {
 };
 
 type SessionMutationCoordinator = {
+  activeIdentity?: symbol;
   activeSwitch?: SwitchOperation;
   observesAuthContext?: boolean;
   menuBootstrap?: MenuBootstrapDependency;
@@ -110,6 +115,7 @@ export async function restoreWebSession(
   menuBootstrap?: MenuBootstrapDependency,
 ): Promise<boolean> {
   invalidateOrganizationSwitch(store);
+  getSessionMutationCoordinator(store).activeIdentity = undefined;
   const menus = resolveMenuBootstrap(store, menuBootstrap);
   menus?.menuStore.getState().clearMenus();
 
@@ -145,24 +151,42 @@ export async function loginWebSession(
   store: AuthStoreApi,
   input: WebLoginInput,
   menuBootstrap?: MenuBootstrapDependency,
-): Promise<void> {
+  onChangePassword?: () => void,
+): Promise<boolean> {
   invalidateOrganizationSwitch(store);
+  const coordinator = getSessionMutationCoordinator(store);
+  const identity = Symbol("credential-login");
+  coordinator.activeIdentity = identity;
+  const current = () => coordinator.activeIdentity === identity;
   let didCreateSession = false;
   const menus = resolveMenuBootstrap(store, menuBootstrap);
   menus?.menuStore.getState().clearMenus();
-
   try {
     const { accessToken } = await api.login({ ...input, clientType: "web_pc" });
+    if (!current()) return false;
     didCreateSession = true;
     store.getState().setAccessToken(accessToken);
-    const currentUser = await api.getCurrentUser();
-    store.getState().setCurrentUserContext(currentUser);
-    await loadOrganizationMenus(menus, currentUser.organization?.id ?? null);
+    const user = await api.getCurrentUser();
+    if (!current() || store.getState().accessToken !== accessToken) return false;
+    store.getState().setCurrentUserContext(user);
+    await loadOrganizationMenus(menus, user.organization?.id ?? null);
+    if (
+      !current() ||
+      store.getState().accessToken !== accessToken ||
+      store.getState().status !== "authenticated"
+    )
+      return false;
+    if (onChangePassword)
+      showInitialPasswordNotice({
+        sessionId: user.session.id,
+        initialPasswordUnchanged: user.user.initialPasswordUnchanged,
+        onChangePassword,
+      });
+    return true;
   } catch (error) {
-    if (didCreateSession) {
-      await api.logout().catch(() => undefined);
-    }
-
+    if (!current()) return false;
+    if (didCreateSession) await api.logout().catch(() => undefined);
+    if (!current()) return false;
     store.getState().clearAuth();
     menus?.menuStore.getState().clearMenus();
     throw new WebLoginError(getLoginFailureKind(error, didCreateSession), error);
@@ -213,6 +237,25 @@ export function returnWebSessionToPlatform(session: WebSessionDependency): Promi
   );
 }
 
+/** 改密响应已写入刷新 Cookie，随后用同一协调器采用新令牌和上下文。 */
+export async function changeOwnPassword(
+  session: WebSessionDependency,
+  input: ChangePasswordInput,
+): Promise<void> {
+  if (getSessionMutationCoordinator(session.authStore).activeSwitch)
+    throw new Error("会话正在切换，请稍后重试");
+  await runWebContextSwitch(
+    {
+      getCurrentUser: session.authApi.getCurrentUser,
+      switchContext: () => session.authApi.changePassword(input),
+    },
+    session.authStore,
+    session,
+  );
+  if (session.authStore.getState().currentUser?.initialPasswordUnchanged === false)
+    clearInitialPasswordNotice();
+}
+
 function runWebContextSwitch(
   api: ContextSwitchApi,
   store: AuthStoreApi,
@@ -224,6 +267,7 @@ function runWebContextSwitch(
     return coordinator.activeSwitch.promise;
   }
 
+  coordinator.activeIdentity = undefined;
   const menus = resolveMenuBootstrap(store, menuBootstrap);
   menus?.menuStore.getState().clearMenus();
 
@@ -328,6 +372,8 @@ export async function logoutWebSession(
   menuBootstrap?: MenuBootstrapDependency,
 ): Promise<void> {
   invalidateOrganizationSwitch(store);
+  getSessionMutationCoordinator(store).activeIdentity = undefined;
+  clearInitialPasswordNotice();
   const menus = resolveMenuBootstrap(store, menuBootstrap);
   menus?.menuStore.getState().clearMenus();
 

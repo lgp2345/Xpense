@@ -66,6 +66,7 @@ async function copyRequestId(
 /** WEB 全局提示入口，共享 Toaster 的位置、主题和样式。 */
 export const toast = {
   success: sonnerToast.success,
+  warning: sonnerToast.warning,
   error: showErrorToast,
   dismiss: sonnerToast.dismiss,
 };

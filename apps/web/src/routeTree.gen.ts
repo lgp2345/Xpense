@@ -25,6 +25,7 @@ import { Route as AuthenticatediamMenusRouteImport } from './routes/_authenticat
 import { Route as AuthenticatediamOrganizationSettingsRouteImport } from './routes/_authenticated/(iam)/organization-settings'
 import { Route as AuthenticatediamRolesRouteImport } from './routes/_authenticated/(iam)/roles'
 import { Route as AuthenticatediamSessionsRouteImport } from './routes/_authenticated/(iam)/sessions'
+import { Route as SessionShellAccountPasswordRouteImport } from './routes/_session/_shell/account/password'
 import { Route as SessionShellSystemMenuResetRouteImport } from './routes/_session/_shell/system/menu-reset'
 import { Route as AuthenticatedrentalRentalsBillsIndexRouteImport } from './routes/_authenticated/(rental)/rentals/bills/index'
 import { Route as AuthenticatedrentalRentalsBillsBillIdRouteImport } from './routes/_authenticated/(rental)/rentals/bills/$billId'
@@ -122,6 +123,12 @@ const AuthenticatediamSessionsRoute =
     id: '/(iam)/sessions',
     path: '/sessions',
     getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const SessionShellAccountPasswordRoute =
+  SessionShellAccountPasswordRouteImport.update({
+    id: '/account/password',
+    path: '/account/password',
+    getParentRoute: () => SessionShellRoute,
   } as any)
 const SessionShellSystemMenuResetRoute =
   SessionShellSystemMenuResetRouteImport.update({
@@ -222,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/organization-settings': typeof AuthenticatediamOrganizationSettingsRoute
   '/roles': typeof AuthenticatediamRolesRoute
   '/sessions': typeof AuthenticatediamSessionsRoute
+  '/account/password': typeof SessionShellAccountPasswordRoute
   '/system/menu-reset': typeof SessionShellSystemMenuResetRoute
   '/rentals/bills/$billId': typeof AuthenticatedrentalRentalsBillsBillIdRoute
   '/rentals/contracts/$contractId': typeof AuthenticatedrentalRentalsContractsContractIdRoute
@@ -251,6 +259,7 @@ export interface FileRoutesByTo {
   '/organization-settings': typeof AuthenticatediamOrganizationSettingsRoute
   '/roles': typeof AuthenticatediamRolesRoute
   '/sessions': typeof AuthenticatediamSessionsRoute
+  '/account/password': typeof SessionShellAccountPasswordRoute
   '/system/menu-reset': typeof SessionShellSystemMenuResetRoute
   '/rentals/bills/$billId': typeof AuthenticatedrentalRentalsBillsBillIdRoute
   '/rentals/contracts/$contractId': typeof AuthenticatedrentalRentalsContractsContractIdRoute
@@ -284,6 +293,7 @@ export interface FileRoutesById {
   '/_authenticated/(iam)/roles': typeof AuthenticatediamRolesRoute
   '/_authenticated/(iam)/sessions': typeof AuthenticatediamSessionsRoute
   '/_authenticated/(core)/': typeof AuthenticatedcoreIndexRoute
+  '/_session/_shell/account/password': typeof SessionShellAccountPasswordRoute
   '/_session/_shell/system/menu-reset': typeof SessionShellSystemMenuResetRoute
   '/_authenticated/(rental)/rentals/bills/$billId': typeof AuthenticatedrentalRentalsBillsBillIdRoute
   '/_authenticated/(rental)/rentals/contracts/$contractId': typeof AuthenticatedrentalRentalsContractsContractIdRoute
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
     | '/organization-settings'
     | '/roles'
     | '/sessions'
+    | '/account/password'
     | '/system/menu-reset'
     | '/rentals/bills/$billId'
     | '/rentals/contracts/$contractId'
@@ -344,6 +355,7 @@ export interface FileRouteTypes {
     | '/organization-settings'
     | '/roles'
     | '/sessions'
+    | '/account/password'
     | '/system/menu-reset'
     | '/rentals/bills/$billId'
     | '/rentals/contracts/$contractId'
@@ -376,6 +388,7 @@ export interface FileRouteTypes {
     | '/_authenticated/(iam)/roles'
     | '/_authenticated/(iam)/sessions'
     | '/_authenticated/(core)/'
+    | '/_session/_shell/account/password'
     | '/_session/_shell/system/menu-reset'
     | '/_authenticated/(rental)/rentals/bills/$billId'
     | '/_authenticated/(rental)/rentals/contracts/$contractId'
@@ -512,6 +525,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sessions'
       preLoaderRoute: typeof AuthenticatediamSessionsRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/_session/_shell/account/password': {
+      id: '/_session/_shell/account/password'
+      path: '/account/password'
+      fullPath: '/account/password'
+      preLoaderRoute: typeof SessionShellAccountPasswordRouteImport
+      parentRoute: typeof SessionShellRoute
     }
     '/_session/_shell/system/menu-reset': {
       id: '/_session/_shell/system/menu-reset'
@@ -678,6 +698,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 )
 
 interface SessionShellRouteChildren {
+  SessionShellAccountPasswordRoute: typeof SessionShellAccountPasswordRoute
   SessionShellSystemMenuResetRoute: typeof SessionShellSystemMenuResetRoute
   SessionShellPlatformOrganizationsOrganizationIdRoute: typeof SessionShellPlatformOrganizationsOrganizationIdRoute
   SessionShellPlatformOrganizationsNewRoute: typeof SessionShellPlatformOrganizationsNewRoute
@@ -685,6 +706,7 @@ interface SessionShellRouteChildren {
 }
 
 const SessionShellRouteChildren: SessionShellRouteChildren = {
+  SessionShellAccountPasswordRoute: SessionShellAccountPasswordRoute,
   SessionShellSystemMenuResetRoute: SessionShellSystemMenuResetRoute,
   SessionShellPlatformOrganizationsOrganizationIdRoute:
     SessionShellPlatformOrganizationsOrganizationIdRoute,

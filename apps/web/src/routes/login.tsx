@@ -27,6 +27,7 @@ function LoginRoutePage() {
 
   return (
     <LoginPage
+      onChangePassword={() => void navigate({ to: "/account/password" })}
       redirectPath={redirectPath}
       session={session}
       onAuthenticated={(path) => navigate({ href: path, replace: true })}

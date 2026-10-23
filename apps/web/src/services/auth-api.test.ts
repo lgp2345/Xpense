@@ -202,3 +202,17 @@ describe("createAuthApi", () => {
     });
   });
 });
+
+it("sends own password change in the POST body and leaves rejection cleanup to the session coordinator", async () => {
+  const client = { post: vi.fn().mockResolvedValue({ accessToken: "replacement-token" }) };
+  const api = createAuthApi(client as never);
+  await api.changePassword({
+    currentPassword: "test-old-password",
+    newPassword: "test-new-password",
+  });
+  expect(client.post).toHaveBeenCalledWith(
+    "/auth/password/update",
+    { currentPassword: "test-old-password", newPassword: "test-new-password" },
+    { authFailure: "ignore" },
+  );
+});

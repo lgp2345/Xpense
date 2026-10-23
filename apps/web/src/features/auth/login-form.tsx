@@ -19,6 +19,7 @@ type LoginFormProps = {
   onAuthenticated: (path: string) => void | Promise<void>;
   redirectPath: string;
   session: WebSessionDependency;
+  onChangePassword?: () => void;
 };
 
 function getValidationMessage(error: unknown): string | undefined {
@@ -66,7 +67,12 @@ function resolveSubmitError(error: unknown): string {
   return "服务暂时不可用，请稍后重试";
 }
 
-export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormProps) {
+export function LoginForm({
+  onAuthenticated,
+  redirectPath,
+  session,
+  onChangePassword,
+}: LoginFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { authApi, authStore } = session;
   const {
@@ -95,12 +101,19 @@ export function LoginForm({ onAuthenticated, redirectPath, session }: LoginFormP
       }
 
       try {
-        await loginWebSession(authApi, authStore, {
-          phone: value.phone.trim(),
-          password: value.password,
-          captchaId,
-          captchaText: value.captchaText.trim(),
-        });
+        const loggedIn = await loginWebSession(
+          authApi,
+          authStore,
+          {
+            phone: value.phone.trim(),
+            password: value.password,
+            captchaId,
+            captchaText: value.captchaText.trim(),
+          },
+          undefined,
+          onChangePassword,
+        );
+        if (!loggedIn) return;
         await onAuthenticated(
           authStore.getState().accessScope === "platform"
             ? "/platform/organizations"

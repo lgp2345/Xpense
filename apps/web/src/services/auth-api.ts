@@ -1,6 +1,7 @@
 import type {
   AuthTokensResponse,
   CaptchaChallengeResponse,
+  ChangePasswordInput,
   ClientType,
   CurrentUserResponse,
 } from "@xpense/shared";
@@ -49,6 +50,8 @@ export type SessionResponse = {
  */
 export function createAuthApi(client: ApiClient) {
   return {
+    changePassword: (input: ChangePasswordInput) =>
+      client.post<AuthTokensResponse>("/auth/password/update", input, { authFailure: "ignore" }),
     login: (input: LoginRequest) => client.post<AuthTokensResponse>("/auth/login", input),
     getCaptcha: () => client.get<CaptchaChallengeResponse>("/auth/captcha"),
     /** 刷新接口自身不递归刷新或通知清理认证，错误交给调用它的会话流程处理。 */

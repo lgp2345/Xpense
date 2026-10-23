@@ -10,6 +10,7 @@ import { type WebSessionDependency, webSession } from "../services/web-session";
 export type LoginPageProps = {
   onAuthenticated?: (path: string) => void | Promise<void>;
   redirectPath?: string;
+  onChangePassword?: () => void;
   session?: WebSessionDependency;
 };
 
@@ -17,6 +18,7 @@ export function LoginPage({
   redirectPath = "/",
   session = webSession,
   onAuthenticated = () => undefined,
+  onChangePassword,
 }: LoginPageProps) {
   const { setTheme, theme } = useTheme();
 
@@ -55,6 +57,7 @@ export function LoginPage({
               </p>
             </header>
             <LoginForm
+              onChangePassword={onChangePassword}
               onAuthenticated={onAuthenticated}
               redirectPath={redirectPath}
               session={session}

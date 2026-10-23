@@ -109,3 +109,19 @@ describe("公共 Toast", () => {
     await waitFor(() => expect(screen.getByText("没有此操作权限")).toBeInTheDocument());
   });
 });
+
+it("supports a dismissible initial-password warning and keyboard action through the shared toaster", async () => {
+  const user = userEvent.setup();
+  mount();
+  const onClick = vi.fn();
+  act(() =>
+    toast.warning("您尚未修改初始密码，请及时修改。", {
+      closeButton: true,
+      action: { label: "修改密码", onClick },
+    }),
+  );
+  const action = await screen.findByRole("button", { name: "修改密码" });
+  action.focus();
+  await user.keyboard("{Enter}");
+  expect(onClick).toHaveBeenCalledOnce();
+});

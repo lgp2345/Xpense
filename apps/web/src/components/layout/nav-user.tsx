@@ -1,4 +1,4 @@
-import { ChevronsUpDown, LogOut, RefreshCw } from "lucide-react";
+import { ChevronsUpDown, KeyRound, LogOut, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useStore } from "zustand";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -23,7 +23,13 @@ function initials(email: string) {
   return email.slice(0, 2).toUpperCase();
 }
 
-export function NavUser({ session }: { session: WebSessionDependency }) {
+export function NavUser({
+  session,
+  onChangePassword,
+}: {
+  session: WebSessionDependency;
+  onChangePassword?: () => void;
+}) {
   const { authApi, authStore } = session;
   const isMobile = useSidebar().isMobile;
   const user = useStore(authStore, (state) => state.currentUser);
@@ -82,6 +88,10 @@ export function NavUser({ session }: { session: WebSessionDependency }) {
           >
             <DropdownMenuLabel>{email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onChangePassword}>
+              <KeyRound />
+              修改密码
+            </DropdownMenuItem>
             <DropdownMenuItem
               disabled={isRefreshing}
               onClick={() => void handleRefreshPermissions()}

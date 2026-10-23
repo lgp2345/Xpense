@@ -1,4 +1,4 @@
-import { Link, useMatches, useRouterState } from "@tanstack/react-router";
+import { Link, useMatches, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { RouteKey } from "@xpense/shared";
 import { ChevronRight } from "lucide-react";
 import { type ComponentProps, useMemo } from "react";
@@ -31,6 +31,7 @@ import { NavUser } from "./nav-user";
 import { TeamSwitcher } from "./team-switcher";
 
 export function AppSidebar({ session }: { session: WebSessionDependency }) {
+  const navigate = useNavigate();
   const platformPath = useRouterState({ select: (state) => state.location.pathname });
   const platform = useStore(session.authStore, (state) => state.accessScope === "platform");
   const menus = useStore(session.menuStore, (state) => state.tree);
@@ -148,7 +149,13 @@ export function AppSidebar({ session }: { session: WebSessionDependency }) {
         )}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser session={session} />
+        <NavUser
+          session={session}
+          onChangePassword={() => {
+            setOpenMobile(false);
+            void navigate({ to: "/account/password" });
+          }}
+        />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
