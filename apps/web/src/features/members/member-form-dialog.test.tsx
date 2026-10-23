@@ -9,12 +9,16 @@ describe("MemberFormDialog field feedback", () => {
     const onLookupAccount = vi.fn().mockResolvedValue(null);
     render(<MemberFormDialog roles={[]} onLookupAccount={onLookupAccount} onSubmit={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: "新增成员" }));
+    await user.click(screen.getByRole("combobox", { name: "状态" }));
+    await user.click(await screen.findByRole("option", { name: "已禁用" }));
     await user.type(screen.getByLabelText("手机号"), "13800000009");
     await user.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(onLookupAccount).not.toHaveBeenCalled();
+
     await user.click(screen.getByRole("button", { name: "新增成员" }));
+    expect(onLookupAccount).not.toHaveBeenCalled();
     expect(screen.getByLabelText("手机号")).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "状态" })).toHaveTextContent("已启用");
   });
   it("renders phone, username, and role validation beside their fields", async () => {
     const user = userEvent.setup();
@@ -120,6 +124,7 @@ describe("MemberFormDialog field feedback", () => {
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(roleInput).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "状态" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "取消" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "正在添加..." })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "正在添加..." }));

@@ -52,7 +52,7 @@ export type CreateMemberInput = {
   userId: string;
   roleId: string;
   roleIds?: string[];
-  status: "active";
+  status: "active" | "disabled";
 };
 
 export type UpdateMemberInput = {

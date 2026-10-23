@@ -13,6 +13,13 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import MultipleSelector from "@/components/ui/multi-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { IamMemberAccount, IamRole } from "../../services/iam-api";
 import {
   type MemberAccountLookupState,
@@ -76,6 +83,7 @@ export function MemberFormDialog({ roles, onLookupAccount, onSubmit }: MemberFor
       phone: "",
       username: "",
       roleIds: [] as string[],
+      status: "active" as MemberFormValues["status"],
     },
     validators: {
       onChange: memberFormSchema,
@@ -172,7 +180,7 @@ export function MemberFormDialog({ roles, onLookupAccount, onSubmit }: MemberFor
       >
         <DialogHeader>
           <DialogTitle>新增成员</DialogTitle>
-          <DialogDescription>输入手机号查询账号，再选择用户名和角色。</DialogDescription>
+          <DialogDescription>输入手机号查询账号，再设置用户名、角色和状态。</DialogDescription>
         </DialogHeader>
 
         <form
@@ -291,6 +299,37 @@ export function MemberFormDialog({ roles, onLookupAccount, onSubmit }: MemberFor
                   </Field>
                 );
               }}
+            </form.Field>
+
+            <form.Field name="status">
+              {(field) => (
+                <Field>
+                  <FieldLabel htmlFor="member-status">状态</FieldLabel>
+                  <form.Subscribe selector={(state) => state.isSubmitting}>
+                    {(isSubmitting) => (
+                      <Select
+                        value={field.state.value}
+                        onValueChange={(value) =>
+                          field.handleChange(value as MemberFormValues["status"])
+                        }
+                        disabled={isSubmitting}
+                      >
+                        <SelectTrigger
+                          id="member-status"
+                          className="w-full"
+                          onBlur={field.handleBlur}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">已启用</SelectItem>
+                          <SelectItem value="disabled">已禁用</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </form.Subscribe>
+                </Field>
+              )}
             </form.Field>
 
             {submitError ? (

@@ -6,6 +6,7 @@ describe("memberFormSchema", () => {
     const input = {
       phone: "13800000001",
       username: "lin",
+      status: "active",
       roleIds: ["role-member", "role-member"],
     };
     const result = memberFormSchema.safeParse(input);

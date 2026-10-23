@@ -4,6 +4,7 @@ import { z } from "zod";
 export const memberFormSchema = z.object({
   phone: chinaPhoneSchema,
   username: z.string().trim().min(1, "请输入用户名").max(100, "用户名不能超过 100 个字符"),
+  status: z.enum(["active", "disabled"]),
   roleIds: z
     .array(z.string().min(1))
     .min(1, "至少选择一个角色")

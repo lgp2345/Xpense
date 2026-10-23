@@ -60,10 +60,11 @@ export class IamService {
       );
       if (existingMember) throw this.conflict("用户已属于当前组织");
       const roleId = roleIds[0];
+      const status = dto.status ?? "active";
       await this.ownerPolicy.assertMemberMutation(
         authContext,
         null,
-        { userId, roleId, status: "active" },
+        { userId, roleId, status },
         transaction,
       );
       const member = await this.repository.createMember(
@@ -72,7 +73,7 @@ export class IamService {
           userId,
           roleId,
           roleIds,
-          status: "active",
+          status,
         },
         transaction,
       );

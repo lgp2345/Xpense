@@ -10,7 +10,11 @@ describe("member input", () => {
   it("接受手机号、裁剪后的用户名和多个角色", () => {
     expect(createMemberSchema.parse(input)).toEqual({ ...input, username: "同名用户" });
   });
+  it.each(["active", "disabled"])("接受成员状态 %s", (status) => {
+    expect(createMemberSchema.parse({ ...input, status }).status).toBe(status);
+  });
   it.each([
+    { status: "unknown" },
     { username: " " },
     { phone: "123" },
     { roleIds: [] },

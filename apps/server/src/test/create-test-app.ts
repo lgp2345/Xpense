@@ -945,6 +945,7 @@ function createIamRepository(state: TestState): Partial<IamRepository> {
       const roleIds = input.roleIds ?? [input.roleId];
       const member = createMember(id, input.userId, roleIds[0] ?? input.roleId);
       member.roleIds = roleIds;
+      member.status = input.status;
       state.members.set(id, member);
       const iamMember = toIamMember(state, member);
 

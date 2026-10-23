@@ -39,6 +39,7 @@ export type IamMemberAccount = {
 };
 
 export type CreateMemberRequest = {
+  status?: "active" | "disabled";
   phone: string;
   username: string;
   roleIds: string[];

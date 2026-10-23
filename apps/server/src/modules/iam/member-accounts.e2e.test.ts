@@ -26,6 +26,24 @@ describe("member account and multiple role HTTP flow", () => {
     roleIds: [testIds.managerRole, testIds.viewerRole],
   };
 
+  it.each([
+    "active",
+    "disabled",
+  ] as const)("创建时保存 %s 成员状态，账号保持启用", async (status) => {
+    const headers = await setup();
+    const response = await harness.app.inject({
+      method: "POST",
+      url: "/api/members/create",
+      headers,
+      payload: { ...input, status },
+    });
+    expect(response.statusCode).toBe(200);
+    const member = response.json().data;
+    expect(member.status).toBe(status);
+    expect(harness.state.members.get(member.id)?.status).toBe(status);
+    expect(harness.state.users.get(member.userId)?.status).toBe("active");
+  });
+
   it("鉴权使用全部角色的权限并集，移除附加角色后旧会话失效并撤权", async () => {
     const headers = await setup();
     const created = await harness.app.inject({
@@ -176,6 +194,7 @@ describe("member account and multiple role HTTP flow", () => {
   it("拒绝无效输入和禁用账号，并在审计失败时回滚新账号与成员", async () => {
     const headers = await setup();
     for (const override of [
+      { status: "unknown" },
       { username: " " },
       { phone: "123" },
       { roleIds: [] },

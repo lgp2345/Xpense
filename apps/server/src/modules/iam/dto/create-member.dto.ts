@@ -7,10 +7,12 @@ export const memberRoleIdsSchema = z
   .min(1)
   .refine((ids) => new Set(ids).size === ids.length);
 
+/** 创建组织成员；可指定初始状态，未传时沿用默认启用行为。 */
 export const createMemberSchema = z.strictObject({
   phone: chinaPhoneSchema,
   username: z.string().trim().min(1).max(100),
   roleIds: memberRoleIdsSchema,
+  status: z.enum(["active", "disabled"]).optional(),
 });
 
 /** 经过 createMemberSchema 校验并转换后的业务输入。 */

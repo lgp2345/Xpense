@@ -302,6 +302,26 @@ describe("IamService", () => {
     expect(repository.listMembers).toHaveBeenCalledWith("org-1");
   });
 
+  it("uses the selected initial status for owner policy and persistence", async () => {
+    const { repository, service, transaction, ownerPolicy } = createHarness();
+    await service.createMember(authContext, {
+      phone: "13800000009",
+      username: "成员",
+      roleIds: ["role-custom"],
+      status: "disabled",
+    });
+    expect(ownerPolicy.assertMemberMutation).toHaveBeenCalledWith(
+      authContext,
+      null,
+      { userId: "user-1", roleId: "role-custom", status: "disabled" },
+      transaction,
+    );
+    expect(repository.createMember).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "disabled" }),
+      transaction,
+    );
+  });
+
   it("creates a member in the current organization and rejects duplicates", async () => {
     const { auditService, repository, service, transaction } = createHarness();
 

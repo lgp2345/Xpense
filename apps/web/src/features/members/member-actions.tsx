@@ -58,11 +58,11 @@ export function MemberActions({
           (member.effectiveOwnerCount ?? 0) <= 1
         ? "至少保留一位有效组织负责人"
         : null;
-  const disabledButton = (label: string, why: string) => (
+  const disabledButton = (label: string, why: string, accessibleLabel: string) => (
     <Tooltip>
       <TooltipTrigger
         render={
-          <Button variant="outline" disabled focusableWhenDisabled>
+          <Button variant="outline" disabled focusableWhenDisabled aria-label={accessibleLabel}>
             {label}
           </Button>
         }
@@ -73,7 +73,7 @@ export function MemberActions({
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       {canUpdateRole && reason ? (
-        disabledButton(`变更 ${account} 的角色`, reason)
+        disabledButton("变更角色", reason, `变更 ${account} 的角色`)
       ) : canUpdateRole ? (
         <MultipleSelector
           className="w-44"
@@ -89,11 +89,17 @@ export function MemberActions({
       ) : null}
 
       {canDisable && reason ? (
-        disabledButton(`禁用 ${account}`, reason)
+        disabledButton("禁用", reason, `禁用 ${account}`)
       ) : canDisable ? (
         isActive ? (
           <AlertDialog>
-            <AlertDialogTrigger render={<Button variant="outline">禁用 {account}</Button>} />
+            <AlertDialogTrigger
+              render={
+                <Button variant="outline" aria-label={`禁用 ${account}`}>
+                  禁用
+                </Button>
+              }
+            />
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>确认禁用成员</AlertDialogTitle>
@@ -117,8 +123,8 @@ export function MemberActions({
             <TooltipTrigger
               render={
                 <span>
-                  <Button variant="outline" disabled>
-                    禁用 {account}
+                  <Button variant="outline" disabled aria-label={`禁用 ${account}`}>
+                    禁用
                   </Button>
                 </span>
               }
@@ -129,15 +135,15 @@ export function MemberActions({
       ) : null}
 
       {canEnable && protectedOwner && !canManageOwners ? (
-        disabledButton(`启用 ${account}`, "仅组织负责人或平台超级管理员可管理负责人")
+        disabledButton("启用", "仅组织负责人或平台超级管理员可管理负责人", `启用 ${account}`)
       ) : canEnable ? (
         isActive ? (
           <Tooltip>
             <TooltipTrigger
               render={
                 <span>
-                  <Button variant="outline" disabled>
-                    启用 {account}
+                  <Button variant="outline" disabled aria-label={`启用 ${account}`}>
+                    启用
                   </Button>
                 </span>
               }
@@ -147,10 +153,11 @@ export function MemberActions({
         ) : (
           <Button
             disabled={isMutating}
+            aria-label={`启用 ${account}`}
             variant="outline"
             onClick={() => void onStatusChange("active")}
           >
-            启用 {account}
+            启用
           </Button>
         )
       ) : null}

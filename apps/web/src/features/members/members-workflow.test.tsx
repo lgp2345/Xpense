@@ -191,6 +191,12 @@ describe("MembersPage", () => {
     });
 
     expect(await screen.findByText("member@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "禁用 member@example.com" })).toHaveTextContent(
+      /^禁用$/,
+    );
+    expect(screen.getByRole("button", { name: "启用 disabled@example.com" })).toHaveTextContent(
+      /^启用$/,
+    );
     // 活跃成员：禁用按钮可点击，启用按钮 disabled + tooltip
     expect(screen.getByRole("button", { name: "禁用 member@example.com" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "启用 member@example.com" })).toBeDisabled();
@@ -321,7 +327,10 @@ describe("MembersPage", () => {
     expect(api.createMember).not.toHaveBeenCalled();
   });
 
-  it("creates a member, closes the dialog, and refreshes the list", async () => {
+  it.each([
+    "active",
+    "disabled",
+  ] as const)("creates a %s member, closes the dialog, and refreshes the list", async (status) => {
     const user = userEvent.setup();
     const newMember: IamMember = {
       ...member,
@@ -329,6 +338,7 @@ describe("MembersPage", () => {
       username: "new-user",
       email: "new-member@example.com",
       phone: validPhone,
+      status,
     };
     const api = createIamApi({
       createMember: vi.fn().mockResolvedValue(newMember),
@@ -343,11 +353,17 @@ describe("MembersPage", () => {
     await user.type(screen.getByRole("textbox", { name: "用户名" }), "new-user");
     await user.click(screen.getByRole("combobox", { name: "角色" }));
     await user.click(await screen.findByRole("option", { name: "普通成员" }));
+    expect(screen.getByRole("combobox", { name: "状态" })).toHaveTextContent("已启用");
+    if (status === "disabled") {
+      await user.click(screen.getByRole("combobox", { name: "状态" }));
+      await user.click(await screen.findByRole("option", { name: "已禁用" }));
+    }
     await user.click(screen.getByRole("button", { name: "添加成员" }));
 
     expect(await screen.findByText("new-member@example.com")).toBeInTheDocument();
     expect(api.createMember).toHaveBeenCalledWith({
       phone: validPhone,
+      status,
       username: "new-user",
       roleIds: ["role-member"],
     });
@@ -401,6 +417,7 @@ describe("MembersPage", () => {
         phone: validPhone,
         username: "existing-user",
         roleIds: ["role-member"],
+        status: "active",
       }),
     );
   });
@@ -451,6 +468,7 @@ describe("MembersPage", () => {
       phone: validPhone,
       username: "new-user",
       roleIds: ["role-member"],
+      status: "active",
     });
   });
 
