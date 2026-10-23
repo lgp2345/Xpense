@@ -13,7 +13,10 @@ import { MemberFormDialog } from "./member-form-dialog";
 import type { MemberFormValues } from "./member-form-schema";
 import { MemberTable } from "./member-table";
 
-type MembersApi = Pick<IamApi, "listMembers" | "createMember" | "updateMember" | "listRoles">;
+type MembersApi = Pick<
+  IamApi,
+  "listMembers" | "createMember" | "updateMember" | "listRoles" | "listMemberAccounts"
+>;
 
 type MembersPageProps = {
   api?: MembersApi;
@@ -115,9 +118,9 @@ export function MembersPage({
     }
   }
 
-  async function handleRoleChange(memberId: string, roleId: string) {
+  async function handleRoleChange(memberId: string, roleIds: string[]) {
     const succeeded = await runMutation(
-      () => api.updateMember(memberId, { roleId }),
+      () => api.updateMember(memberId, { roleIds }),
       "更新成员角色失败，请稍后重试。",
     );
 
@@ -174,6 +177,7 @@ export function MembersPage({
         {canCreate ? (
           <MemberFormDialog
             roles={roleItems.filter((role) => canManageOwners || role.key !== "owner")}
+            onLookupAccount={api.listMemberAccounts}
             onSubmit={handleCreate}
           />
         ) : null}
@@ -199,15 +203,15 @@ export function MembersPage({
         <>
           <DataTableToolbar
             table={table}
-            searchKey="email"
-            searchPlaceholder="搜索邮箱或手机号..."
+            searchKey="account"
+            searchPlaceholder="搜索邮箱、手机号或用户名..."
             filters={[
               {
                 columnId: "roleName",
                 title: "角色",
                 options: roleItems.map((role) => ({
                   label: role.name,
-                  value: role.name,
+                  value: role.id,
                 })),
               },
               {

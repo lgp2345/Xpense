@@ -73,7 +73,11 @@ export class AccessService {
       organizationId: payload.organizationId,
       isSuperAdmin: user.isSuperAdmin,
       permissions: membership
-        ? await this.repository.listPermissionKeysForRole(membership.roleId, executor)
+        ? [
+            ...new Set(
+              await this.repository.listPermissionKeysForMembership(membership.id, executor),
+            ),
+          ]
         : [],
     };
   }

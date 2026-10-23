@@ -25,9 +25,16 @@ describe.skipIf(!url)("组织管理完整 HTTP 生命周期", () => {
           existingId = randomUUID();
         const hash = await app.get(PasswordService).hash("test-existing-password");
         await pg.db.insert(users).values([
-          { id: platformId, phone: "13800000006", passwordHash: hash, isSuperAdmin: true },
+          {
+            id: platformId,
+            username: "platform-admin",
+            phone: "13800000006",
+            passwordHash: hash,
+            isSuperAdmin: true,
+          },
           {
             id: existingId,
+            username: "existing-owner",
             phone: "13800000002",
             passwordHash: hash,
             initialPasswordUnchanged: false,

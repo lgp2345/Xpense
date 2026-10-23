@@ -25,6 +25,7 @@ import type { UpdateMemberDto } from "./dto/update-member.dto.js";
 import type { UpdateRoleDto } from "./dto/update-role.dto.js";
 import { IamRepository } from "./iam.repository.js";
 import type { IamMember, IamPermission, IamRole, IamRoleWithPermissions } from "./iam.types.js";
+import { MemberAccountsService } from "./member-accounts.service.js";
 import { MenuRepository } from "./menu.repository.js";
 import { type AuthorizedMenuTreeNode, buildAuthorizedMenuTree } from "./menu-tree.js";
 import { OrganizationOwnerPolicyService } from "./organization-owner-policy.service.js";
@@ -40,6 +41,7 @@ export class IamService {
     private readonly accessService: AccessService,
     private readonly menuRepository: MenuRepository,
     private readonly ownerPolicy: OrganizationOwnerPolicyService,
+    private readonly accounts: MemberAccountsService,
   ) {}
 
   listMembers(authContext: AuthContext): Promise<IamMember[]> {
@@ -49,29 +51,27 @@ export class IamService {
   async createMember(authContext: AuthContext, dto: CreateMemberDto): Promise<IamMember> {
     return this.transactions.run(async (transaction) => {
       await this.ownerPolicy.lockOrganization(authContext.organizationId, transaction);
+      const roleIds = await this.prepareMemberRoles(authContext, dto.roleIds, transaction);
+      const userId = await this.accounts.resolve(dto.phone, dto.username, transaction);
       const existingMember = await this.repository.findMemberByOrganizationAndUser(
         authContext.organizationId,
-        dto.userId,
+        userId,
         transaction,
       );
       if (existingMember) throw this.conflict("用户已属于当前组织");
-      await this.ensureRoleInCurrentOrganization(
-        authContext.organizationId,
-        dto.roleId,
-        transaction,
-      );
-      await this.assertRoleWithinPermissionCeiling(authContext, dto.roleId, transaction);
+      const roleId = roleIds[0];
       await this.ownerPolicy.assertMemberMutation(
         authContext,
         null,
-        { ...dto, status: "active" },
+        { userId, roleId, status: "active" },
         transaction,
       );
       const member = await this.repository.createMember(
         {
           organizationId: authContext.organizationId,
-          userId: dto.userId,
-          roleId: dto.roleId,
+          userId,
+          roleId,
+          roleIds,
           status: "active",
         },
         transaction,
@@ -86,8 +86,9 @@ export class IamService {
           targetId: member.id,
           result: "succeeded",
           metadata: {
-            userId: dto.userId,
-            roleTo: dto.roleId,
+            userId,
+            roleTo: roleId,
+            rolesTo: roleIds,
           },
         },
         transaction,
@@ -97,10 +98,14 @@ export class IamService {
     });
   }
 
+  listMemberAccounts(phone: string) {
+    return this.accounts.findCandidate(phone);
+  }
+
   async updateMember(authContext: AuthContext, dto: UpdateMemberDto): Promise<IamMember> {
     const memberId = dto.id;
 
-    if (dto.roleId !== undefined) {
+    if (dto.roleId !== undefined || dto.roleIds !== undefined) {
       this.accessService.assertPermission(authContext, "members:update");
     }
 
@@ -114,14 +119,11 @@ export class IamService {
 
     return this.transactions.run(async (transaction) => {
       await this.ownerPolicy.lockOrganization(authContext.organizationId, transaction);
-      if (dto.roleId) {
-        await this.ensureRoleInCurrentOrganization(
-          authContext.organizationId,
-          dto.roleId,
-          transaction,
-        );
-        await this.assertRoleWithinPermissionCeiling(authContext, dto.roleId, transaction);
-      }
+      const requestedRoleIds = dto.roleIds ?? (dto.roleId ? [dto.roleId] : undefined);
+      const roleIds = requestedRoleIds
+        ? await this.prepareMemberRoles(authContext, requestedRoleIds, transaction)
+        : undefined;
+      const roleId = roleIds?.[0];
       const member = await this.repository.findMemberById(
         authContext.organizationId,
         memberId,
@@ -133,22 +135,30 @@ export class IamService {
         throw this.notFound("组织成员不存在");
       }
 
-      await this.ownerPolicy.assertMemberMutation(authContext, member, dto, transaction);
+      const previousRoleIds = member.roles?.map((role) => role.id) ?? [member.roleId];
+      const roleChanged =
+        roleIds !== undefined &&
+        (roleIds.length !== previousRoleIds.length ||
+          roleIds.some((id) => !previousRoleIds.includes(id)));
+      await this.ownerPolicy.assertMemberMutation(
+        authContext,
+        member,
+        { roleId, status: dto.status },
+        transaction,
+      );
 
       const updatedMember = await this.repository.updateMember(
         {
           organizationId: authContext.organizationId,
           memberId,
-          roleId: dto.roleId,
+          roleId,
+          ...(dto.roleIds ? { roleIds } : {}),
           status: dto.status,
         },
         transaction,
       );
 
-      if (
-        (member.status === "active" && dto.status === "disabled") ||
-        (dto.roleId !== undefined && dto.roleId !== member.roleId)
-      ) {
+      if ((member.status === "active" && dto.status === "disabled") || roleChanged) {
         await this.repository.revokeActiveSessionsForUserInOrganization(
           member.userId,
           authContext.organizationId,
@@ -156,7 +166,7 @@ export class IamService {
         );
       }
 
-      if (dto.roleId && dto.roleId !== member.roleId) {
+      if (roleChanged) {
         await this.auditService.appendRequired(
           {
             organizationId: authContext.organizationId,
@@ -168,7 +178,9 @@ export class IamService {
             metadata: {
               userId: member.userId,
               roleFrom: member.roleId,
-              roleTo: dto.roleId,
+              roleTo: roleId,
+              rolesFrom: previousRoleIds,
+              rolesTo: roleIds,
             },
           },
           transaction,
@@ -394,6 +406,23 @@ export class IamService {
 
   listPermissions(_authContext: AuthContext): Promise<IamPermission[]> {
     return this.repository.listPermissions();
+  }
+
+  /** 逐个检查组织范围与授权上限，并将负责人置为主角色以沿用负责人保护。 */
+  private async prepareMemberRoles(
+    ctx: AuthContext,
+    ids: string[],
+    tx: AppDbExecutor,
+  ): Promise<[string, ...string[]]> {
+    let ownerId: string | undefined;
+    for (const id of ids) {
+      const role = await this.ensureRoleInCurrentOrganization(ctx.organizationId, id, tx);
+      if (role.key === "owner" && !role.isSystem) throw this.notFound("角色不存在");
+      await this.assertRoleWithinPermissionCeiling(ctx, id, tx);
+      if (role.key === "owner") ownerId = id;
+    }
+    const ordered = ownerId ? [ownerId, ...ids.filter((id) => id !== ownerId)] : ids;
+    return ordered as [string, ...string[]];
   }
 
   private async ensureRoleInCurrentOrganization(

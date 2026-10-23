@@ -19,6 +19,7 @@ describe("UserService", () => {
     const repository = {
       findCurrentUserContext: vi.fn().mockResolvedValue({
         accessScope: "organization",
+        membershipId: "member-1",
         user: {
           initialPasswordUnchanged: true,
           id: "user-1",
@@ -45,6 +46,9 @@ describe("UserService", () => {
         },
       }),
       listPermissionKeysForRole: vi.fn().mockResolvedValue(["roles:read"]),
+      listPermissionKeysForMembership: vi
+        .fn()
+        .mockResolvedValue(["roles:read", "members:read", "roles:read"]),
     };
     const service = new UserService(repository as never);
 
@@ -52,7 +56,7 @@ describe("UserService", () => {
   }
 
   it("returns current organization permission context for a normal user", async () => {
-    const { service } = createHarness();
+    const { repository, service } = createHarness();
 
     await expect(service.getCurrentUser(authContext)).resolves.toEqual({
       accessScope: "organization",
@@ -76,18 +80,20 @@ describe("UserService", () => {
         key: "admin",
         name: "Admin",
       },
-      permissions: ["roles:read"],
+      permissions: ["roles:read", "members:read"],
       session: {
         id: "session-1",
         clientType: "web_pc",
       },
     });
+    expect(repository.listPermissionKeysForMembership).toHaveBeenCalledWith("member-1");
   });
 
   it("returns all permissions for a super_admin active member", async () => {
     const { repository, service } = createHarness();
     repository.findCurrentUserContext.mockResolvedValue({
       accessScope: "organization",
+      membershipId: "member-1",
       user: {
         initialPasswordUnchanged: true,
         id: "user-1",

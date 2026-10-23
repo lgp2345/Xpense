@@ -19,8 +19,9 @@ describe("createIamApi", () => {
     const { api, client } = createHarness();
 
     await api.listMembers();
-    await api.createMember({ userId: "user-1", roleId: "role-1" });
-    await api.updateMember("member-1", { status: "disabled" });
+    await api.listMemberAccounts("13800000001");
+    await api.createMember({ phone: "13800000001", username: "lin", roleIds: ["role-1"] });
+    await api.updateMember("member-1", { roleIds: ["role-1", "role-2"] });
     await api.listRoles();
     await api.createRole({ key: "bookkeeper", name: "Bookkeeper", permissionKeys: [] });
     await api.updateRole("role-1", { permissionKeys: ["roles:read"] });
@@ -28,15 +29,17 @@ describe("createIamApi", () => {
     await api.listPermissions();
 
     expect(client.get).toHaveBeenNthCalledWith(1, "/members/list");
+    expect(client.get).toHaveBeenNthCalledWith(2, "/members/accounts/list?phone=13800000001");
     expect(client.post).toHaveBeenNthCalledWith(1, "/members/create", {
-      userId: "user-1",
-      roleId: "role-1",
+      phone: "13800000001",
+      username: "lin",
+      roleIds: ["role-1"],
     });
     expect(client.post).toHaveBeenNthCalledWith(2, "/members/update", {
       id: "member-1",
-      status: "disabled",
+      roleIds: ["role-1", "role-2"],
     });
-    expect(client.get).toHaveBeenNthCalledWith(2, "/roles/list");
+    expect(client.get).toHaveBeenNthCalledWith(3, "/roles/list");
     expect(client.post).toHaveBeenNthCalledWith(3, "/roles/create", {
       key: "bookkeeper",
       name: "Bookkeeper",
@@ -47,7 +50,7 @@ describe("createIamApi", () => {
       permissionKeys: ["roles:read"],
     });
     expect(client.post).toHaveBeenNthCalledWith(5, "/roles/delete", { id: "role-1" });
-    expect(client.get).toHaveBeenNthCalledWith(3, "/permissions/list");
+    expect(client.get).toHaveBeenNthCalledWith(4, "/permissions/list");
   });
 
   it("wraps audit query filters as query parameters", async () => {

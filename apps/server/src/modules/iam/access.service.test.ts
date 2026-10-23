@@ -25,11 +25,15 @@ describe("AccessService", () => {
         id: "org-1",
       }),
       findActiveMembership: vi.fn().mockResolvedValue({
+        id: "member-1",
         userId: "user-1",
         organizationId: "org-1",
         roleId: "role-1",
       }),
       listPermissionKeysForRole: vi.fn().mockResolvedValue(["roles:update"]),
+      listPermissionKeysForMembership: vi
+        .fn()
+        .mockResolvedValue(["roles:update", "members:read", "roles:update"]),
     };
     const service = new AccessService(repository as never);
 
@@ -37,15 +41,16 @@ describe("AccessService", () => {
   }
 
   it("resolves auth context for an active member with role permissions", async () => {
-    const { service } = createHarness();
+    const { repository, service } = createHarness();
 
     await expect(service.resolveAuthContext(payload)).resolves.toEqual({
       userId: "user-1",
       sessionId: "session-1",
       organizationId: "org-1",
       isSuperAdmin: false,
-      permissions: ["roles:update"],
+      permissions: ["roles:update", "members:read"],
     });
+    expect(repository.listPermissionKeysForMembership).toHaveBeenCalledWith("member-1", undefined);
   });
 
   it("allows active member with required permission", async () => {

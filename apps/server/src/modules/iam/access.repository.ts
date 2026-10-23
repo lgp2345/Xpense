@@ -1,10 +1,11 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { PermissionKey } from "@xpense/shared";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 
 import type { AppDb, AppDbExecutor } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import {
+  organizationMembershipRoles,
   organizationMemberships,
   organizations,
   permissions,
@@ -30,6 +31,7 @@ export type ActiveOrganization = {
 };
 
 export type ActiveMembership = {
+  id: string;
   userId: string;
   organizationId: string;
   roleId: string;
@@ -104,6 +106,7 @@ export class AccessRepository {
   ): Promise<ActiveMembership | null> {
     const [membership] = await executor
       .select({
+        id: organizationMemberships.id,
         userId: organizationMemberships.userId,
         organizationId: organizationMemberships.organizationId,
         roleId: organizationMemberships.roleId,
@@ -132,6 +135,30 @@ export class AccessRepository {
       .from(rolePermissions)
       .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
       .where(eq(rolePermissions.roleId, roleId));
+
+    return rows.map((row) => row.key as PermissionKey);
+  }
+
+  async listPermissionKeysForMembership(
+    membershipId: string,
+    executor: AppDbExecutor = this.db,
+  ): Promise<PermissionKey[]> {
+    const rows = await executor
+      .selectDistinct({ key: permissions.key })
+      .from(organizationMemberships)
+      .leftJoin(
+        organizationMembershipRoles,
+        eq(organizationMembershipRoles.membershipId, organizationMemberships.id),
+      )
+      .innerJoin(
+        rolePermissions,
+        or(
+          eq(rolePermissions.roleId, organizationMemberships.roleId),
+          eq(rolePermissions.roleId, organizationMembershipRoles.roleId),
+        ),
+      )
+      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+      .where(eq(organizationMemberships.id, membershipId));
 
     return rows.map((row) => row.key as PermissionKey);
   }

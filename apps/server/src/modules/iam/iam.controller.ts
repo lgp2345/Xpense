@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, Query, UseGuards } from "@nestjs/common";
 
 import type { PermissionTreeNode } from "@xpense/shared";
 
@@ -12,6 +12,10 @@ import {
   type EditRolePermissionsDto,
   editRolePermissionsSchema,
 } from "./dto/edit-role-permissions.dto.js";
+import {
+  type MemberAccountQueryDto,
+  memberAccountQuerySchema,
+} from "./dto/member-account-query.dto.js";
 import { type UpdateMemberDto, updateMemberSchema } from "./dto/update-member.dto.js";
 import { type UpdateRoleDto, updateRoleSchema } from "./dto/update-role.dto.js";
 import { AuthGuard } from "./guards/auth.guard.js";
@@ -42,6 +46,12 @@ export class IamController {
     @Body({ schema: createMemberSchema }) dto: CreateMemberDto,
   ): Promise<IamMember> {
     return this.iamService.createMember(authContext, dto);
+  }
+
+  @Get("members/accounts/list")
+  @RequirePermission("members:create")
+  listMemberAccounts(@Query({ schema: memberAccountQuerySchema }) query: MemberAccountQueryDto) {
+    return this.iamService.listMemberAccounts(query.phone);
   }
 
   @Post("members/update")

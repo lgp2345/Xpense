@@ -29,14 +29,21 @@ describe.skipIf(!url)("organization management HTTP and real transactions", () =
           disabledId = randomUUID();
         const hash = await app.get(PasswordService).hash("existing-test-password");
         await pg.db.insert(tables.users).values([
-          { id: platformId, passwordHash: hash, isSuperAdmin: true },
+          { id: platformId, username: "platform-admin", passwordHash: hash, isSuperAdmin: true },
           {
             id: existingId,
+            username: "existing-owner",
             passwordHash: hash,
             phone: "13800000002",
             initialPasswordUnchanged: false,
           },
-          { id: disabledId, passwordHash: hash, phone: "13800000003", status: "disabled" },
+          {
+            id: disabledId,
+            username: "disabled-owner",
+            passwordHash: hash,
+            phone: "13800000003",
+            status: "disabled",
+          },
         ]);
         const token = async (userId: string, organizationId: string | null = null) => {
           const session = await app.get(AuthRepository).createRefreshSession({
@@ -76,6 +83,11 @@ describe.skipIf(!url)("organization management HTTP and real transactions", () =
         });
         expect(org.owners).toHaveLength(2);
         expect(JSON.stringify(org)).not.toContain("password");
+        const [newOwner] = await pg.db
+          .select()
+          .from(tables.users)
+          .where(eq(tables.users.phone, "13800000001"));
+        expect(newOwner?.username).toBe("13800000001");
         const existing = (
           await pg.db.select().from(tables.users).where(eq(tables.users.id, existingId))
         )[0];
@@ -183,7 +195,9 @@ describe.skipIf(!url)("organization management HTTP and real transactions", () =
         )[0];
         if (!ordinaryRole) throw new Error("缺少管理员角色");
         const ordinary = randomUUID();
-        await pg.db.insert(tables.users).values({ id: ordinary, passwordHash: hash });
+        await pg.db
+          .insert(tables.users)
+          .values({ id: ordinary, username: "ordinary-user", passwordHash: hash });
         await pg.db
           .insert(tables.organizationMemberships)
           .values({ organizationId: org.id, userId: ordinary, roleId: ordinaryRole.id });

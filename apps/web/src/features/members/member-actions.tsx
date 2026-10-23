@@ -12,13 +12,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import MultipleSelector from "@/components/ui/multi-select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { IamMember, IamRole } from "../../services/iam-api";
 
@@ -28,7 +22,7 @@ type MemberActionsProps = {
   member: IamMember;
   permissions: readonly PermissionKey[];
   roles: IamRole[];
-  onRoleChange: (roleId: string) => Promise<void>;
+  onRoleChange: (roleIds: string[]) => Promise<void>;
   onStatusChange: (status: "active" | "disabled") => Promise<void>;
 };
 
@@ -47,6 +41,13 @@ export function MemberActions({
   const isActive = member.status === "active";
 
   const account = member.email ?? member.phone ?? "未填写";
+  const assignedRoles = member.roles?.length
+    ? member.roles
+    : [{ id: member.roleId, key: member.roleKey, name: member.roleName }];
+  const selectedRoleOptions = assignedRoles.map((role) => ({ value: role.id, label: role.name }));
+  const roleOptions = roles
+    .filter((role) => canManageOwners || role.key !== "owner")
+    .map((role) => ({ value: role.id, label: role.name }));
   const protectedOwner = member.roleKey === "owner";
   const reason =
     protectedOwner && !canManageOwners
@@ -74,28 +75,17 @@ export function MemberActions({
       {canUpdateRole && reason ? (
         disabledButton(`变更 ${account} 的角色`, reason)
       ) : canUpdateRole ? (
-        <Select
-          value={member.roleId}
+        <MultipleSelector
+          className="w-44"
+          commandProps={{ label: `变更 ${account} 的角色` }}
           disabled={isMutating}
-          onValueChange={(roleId) => {
-            if (roleId && roleId !== member.roleId) {
-              void onRoleChange(roleId);
-            }
-          }}
-        >
-          <SelectTrigger aria-label={`变更 ${account} 的角色`} className="w-44">
-            <SelectValue placeholder="选择角色" />
-          </SelectTrigger>
-          <SelectContent>
-            {roles
-              .filter((role) => canManageOwners || role.key !== "owner")
-              .map((role) => (
-                <SelectItem key={role.id} value={role.id}>
-                  {role.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
+          inputProps={{ "aria-label": `变更 ${account} 的角色` }}
+          options={roleOptions}
+          placeholder="选择角色"
+          value={selectedRoleOptions}
+          onChange={(selected) => void onRoleChange(selected.map((role) => role.value))}
+          badgeClassName="max-w-full"
+        />
       ) : null}
 
       {canDisable && reason ? (

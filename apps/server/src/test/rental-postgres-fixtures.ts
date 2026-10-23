@@ -25,8 +25,20 @@ export async function insertRentalPostgresFixture(
   const actor = { createdByUserId: userId, updatedByUserId: userId };
   const scope = { organizationId, contractId };
   // 历史迁移用例需要在组织管理字段出现前建数据，只写所有版本共有的列。
-  await db.execute(sql`INSERT INTO users (id, email, password_hash)
-    VALUES (${userId}, ${`${userId}@example.invalid`}, 'unused-test-hash')`);
+  const userColumns = Array.from(
+    await db.execute(sql`
+      SELECT column_name AS "columnName"
+      FROM information_schema.columns
+      WHERE table_schema = current_schema() AND table_name = 'users'
+    `),
+  ) as Array<{ columnName: string }>;
+  const username = `rental-${userId.slice(0, 8)}`;
+  if (userColumns.some(({ columnName }) => columnName === "username"))
+    await db.execute(sql`INSERT INTO users (id, username, email, password_hash)
+      VALUES (${userId}, ${username}, ${`${userId}@example.invalid`}, 'unused-test-hash')`);
+  else
+    await db.execute(sql`INSERT INTO users (id, email, password_hash)
+      VALUES (${userId}, ${`${userId}@example.invalid`}, 'unused-test-hash')`);
   await db.execute(sql`INSERT INTO organizations (id, name, created_by_user_id)
     VALUES (${organizationId}, ${`隔离租赁测试-${organizationId}`}, ${userId})`);
   await db.insert(tables.ledgers).values({

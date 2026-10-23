@@ -10,6 +10,8 @@ import { RbacGuard } from "./guards/rbac.guard.js";
 import { IamController } from "./iam.controller.js";
 import { IamRepository } from "./iam.repository.js";
 import { IamService } from "./iam.service.js";
+import { MemberAccountsRepository } from "./member-accounts.repository.js";
+import { MemberAccountsService } from "./member-accounts.service.js";
 import { MenuController } from "./menu.controller.js";
 import { MenuRepository } from "./menu.repository.js";
 import { MenuService } from "./menu.service.js";
@@ -28,6 +30,8 @@ import { PermissionTreeService } from "./permission-tree.service.js";
     AuthGuard,
     IamRepository,
     IamService,
+    MemberAccountsRepository,
+    MemberAccountsService,
     OrganizationOwnerRepository,
     OrganizationOwnerPolicyService,
     MenuRepository,

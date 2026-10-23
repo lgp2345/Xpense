@@ -33,6 +33,7 @@ export const users = snakeCase.table(
   "users",
   {
     id: uuid().primaryKey().defaultRandom(),
+    username: text().notNull(),
     email: text(),
     phone: text(),
     passwordHash: text().notNull(),
@@ -132,6 +133,23 @@ export const organizationMemberships = snakeCase.table(
     uniqueIndex("memberships_organization_user_unique").on(table.organizationId, table.userId),
     index("memberships_organization_idx").on(table.organizationId),
     index("memberships_user_idx").on(table.userId),
+  ],
+);
+
+/** 主角色保留在成员记录；本表保存其余角色，负责人始终为主角色。 */
+export const organizationMembershipRoles = snakeCase.table(
+  "organization_membership_roles",
+  {
+    membershipId: uuid()
+      .notNull()
+      .references(() => organizationMemberships.id),
+    roleId: uuid()
+      .notNull()
+      .references(() => roles.id),
+  },
+  (table) => [
+    primaryKey({ columns: [table.membershipId, table.roleId] }),
+    index("membership_roles_role_idx").on(table.roleId),
   ],
 );
 

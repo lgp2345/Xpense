@@ -16,22 +16,37 @@ export type IamMember = {
   id: string;
   organizationId: string;
   userId: string;
+  username: string;
   email: string | null;
   phone: string | null;
   roleId: string;
   roleKey: string;
   roleName: string;
+  roles?: IamMemberRole[];
   status: "active" | "disabled";
   joinedAt: string;
 };
 
+export type IamMemberRole = {
+  id: string;
+  key: string;
+  name: string;
+};
+
+export type IamMemberAccount = {
+  username: string;
+  status: "active" | "disabled";
+};
+
 export type CreateMemberRequest = {
-  userId: string;
-  roleId: string;
+  phone: string;
+  username: string;
+  roleIds: string[];
 };
 
 export type UpdateMemberRequest = {
   roleId?: string;
+  roleIds?: string[];
   status?: "active" | "disabled";
 };
 
@@ -161,6 +176,10 @@ export type ListAuditLogsQuery = {
 export function createIamApi(client: ApiClient) {
   return {
     listMembers: () => client.get<IamMember[]>("/members/list"),
+    listMemberAccounts: (phone: string) =>
+      client.get<IamMemberAccount | null>(
+        `/members/accounts/list?phone=${encodeURIComponent(phone)}`,
+      ),
     createMember: (input: CreateMemberRequest) => client.post<IamMember>("/members/create", input),
     updateMember: (memberId: string, input: UpdateMemberRequest) =>
       client.post<IamMember>("/members/update", { id: memberId, ...input }),

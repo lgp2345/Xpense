@@ -54,6 +54,7 @@ async function run(action: "refresh" | "switch", passwordFirst: boolean) {
       const originalHash = await passwords.hash("test-original-password");
       await pg.db.insert(tables.users).values({
         id: userId,
+        username: "session-user",
         phone: "13800000001",
         passwordHash: originalHash,
         lastOrganizationId: first,

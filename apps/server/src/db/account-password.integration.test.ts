@@ -23,9 +23,12 @@ describe.skipIf(!url)("password database transactions", () => {
       const userId = randomUUID();
       const passwords = new PasswordService();
       const originalHash = await passwords.hash("test-original-password");
-      await db
-        .insert(tables.users)
-        .values({ id: userId, isSuperAdmin: true, passwordHash: originalHash });
+      await db.insert(tables.users).values({
+        id: userId,
+        username: "password-account",
+        isSuperAdmin: true,
+        passwordHash: originalHash,
+      });
       const auth = new AuthRepository(db),
         repository = new AccountPasswordRepository(db);
       const config = {

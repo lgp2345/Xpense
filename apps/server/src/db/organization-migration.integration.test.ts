@@ -32,13 +32,13 @@ describe.skipIf(!url)("组织管理数据迁移", () => {
         await client`SELECT initial_password_unchanged, last_organization_id FROM users WHERE id=${fixture.userId}`;
       expect(historical).toEqual({ initial_password_unchanged: false, last_organization_id: null });
       const fresh =
-        await client`INSERT INTO users (email, password_hash) VALUES (NULL, 'unused-test-hash'), (NULL, 'unused-test-hash') RETURNING email, initial_password_unchanged`;
+        await client`INSERT INTO users (username, email, password_hash) VALUES ('fresh-user-a', NULL, 'unused-test-hash'), ('fresh-user-b', NULL, 'unused-test-hash') RETURNING email, initial_password_unchanged`;
       expect(fresh).toEqual([
         { email: null, initial_password_unchanged: true },
         { email: null, initial_password_unchanged: true },
       ]);
       await expect(
-        client`INSERT INTO users (email, password_hash) VALUES (${beforeUsers[0]?.email}, 'unused-test-hash')`,
+        client`INSERT INTO users (username, email, password_hash) VALUES ('duplicate-email', ${beforeUsers[0]?.email}, 'unused-test-hash')`,
       ).rejects.toMatchObject({ code: "23505" });
       await client`UPDATE organizations SET status='disabled' WHERE id=${fixture.organizationId}`;
       await expect(

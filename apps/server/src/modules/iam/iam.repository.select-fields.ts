@@ -4,6 +4,7 @@ export const memberSelectFields = {
   id: organizationMemberships.id,
   organizationId: organizationMemberships.organizationId,
   userId: organizationMemberships.userId,
+  username: users.username,
   email: users.email,
   phone: users.phone,
   roleId: roles.id,

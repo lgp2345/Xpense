@@ -19,15 +19,17 @@ export class UserService {
       });
     }
 
+    const { membershipId, ...userContext } = currentContext;
+
     return {
-      ...currentContext,
+      ...userContext,
       permissions:
         currentContext.accessScope === "platform"
           ? []
           : currentContext.user.isSuperAdmin
             ? [...permissionKeys]
-            : currentContext.role
-              ? await this.repository.listPermissionKeysForRole(currentContext.role.id)
+            : membershipId
+              ? [...new Set(await this.repository.listPermissionKeysForMembership(membershipId))]
               : [],
     };
   }

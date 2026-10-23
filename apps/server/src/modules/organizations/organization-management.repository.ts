@@ -60,7 +60,7 @@ export class OrganizationManagementRepository {
   ): Promise<string> {
     const [user] = await tx
       .insert(users)
-      .values({ ...input, initialPasswordUnchanged: true })
+      .values({ ...input, username: input.phone, initialPasswordUnchanged: true })
       .returning({ id: users.id });
     if (!user) throw new Error("负责人账号创建失败");
     return user.id;

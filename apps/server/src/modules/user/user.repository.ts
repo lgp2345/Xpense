@@ -1,11 +1,12 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { CurrentUserResponse, PermissionKey } from "@xpense/shared";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 
 import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
 import type { AppDb } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import {
+  organizationMembershipRoles,
   organizationMemberships,
   organizations,
   permissions,
@@ -18,8 +19,7 @@ import {
 export type CurrentUserContextRecord = Omit<
   CurrentUserResponse,
   "permissions" | "accessScope" | "organization" | "role"
-> &
-  (
+> & { membershipId: string | null } & (
     | { accessScope: "platform"; organization: null; role: null }
     | {
         accessScope: "organization";
@@ -57,6 +57,7 @@ export class UserRepository {
           key: roles.key,
           name: roles.name,
         },
+        membershipId: organizationMemberships.id,
         session: {
           id: refreshSessions.id,
           clientType: refreshSessions.clientType,
@@ -101,6 +102,7 @@ export class UserRepository {
             user: record.user,
             session: record.session,
             accessScope: "platform",
+            membershipId: record.membershipId,
             organization: null,
             role: null,
           }
@@ -118,6 +120,27 @@ export class UserRepository {
       .from(rolePermissions)
       .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
       .where(eq(rolePermissions.roleId, roleId));
+
+    return rows.map((row) => row.key as PermissionKey);
+  }
+
+  async listPermissionKeysForMembership(membershipId: string): Promise<PermissionKey[]> {
+    const rows = await this.db
+      .selectDistinct({ key: permissions.key })
+      .from(organizationMemberships)
+      .leftJoin(
+        organizationMembershipRoles,
+        eq(organizationMembershipRoles.membershipId, organizationMemberships.id),
+      )
+      .innerJoin(
+        rolePermissions,
+        or(
+          eq(rolePermissions.roleId, organizationMemberships.roleId),
+          eq(rolePermissions.roleId, organizationMembershipRoles.roleId),
+        ),
+      )
+      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+      .where(eq(organizationMemberships.id, membershipId));
 
     return rows.map((row) => row.key as PermissionKey);
   }

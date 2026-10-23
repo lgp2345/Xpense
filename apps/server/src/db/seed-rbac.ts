@@ -438,6 +438,7 @@ async function upsertBootstrapUser(
   const [insertedUser] = await db
     .insert(users)
     .values({
+      username: "bootstrap-admin",
       email,
       phone,
       passwordHash: await argon2.hash(password, { type: argon2.argon2id }),

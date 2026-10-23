@@ -1,6 +1,12 @@
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it, vi } from "vitest";
 import type { SessionAuthContext } from "../../common/auth/session-auth-context.js";
+import {
+  organizationMembershipRoles,
+  organizationMemberships,
+  permissions,
+  rolePermissions,
+} from "../../db/schema.js";
 import { UserRepository } from "./user.repository.js";
 
 const user = {
@@ -30,17 +36,36 @@ function harness(record: unknown) {
   };
   for (const key of ["from", "innerJoin", "leftJoin", "where"] as const)
     query[key].mockReturnValue(query);
+  const permissionQuery = {
+    from: vi.fn().mockReturnThis(),
+    innerJoin: vi.fn().mockReturnThis(),
+    leftJoin: vi.fn().mockReturnThis(),
+    where: vi.fn().mockResolvedValue([{ key: "roles:read" }, { key: "members:read" }]),
+  };
   const select = vi.fn().mockReturnValue(query);
-  return { query, repository: new UserRepository({ select } as never) };
+  const selectDistinct = vi.fn().mockReturnValue(permissionQuery);
+  return {
+    query,
+    permissionQuery,
+    selectDistinct,
+    repository: new UserRepository({ select, selectDistinct } as never),
+  };
 }
 
 describe("UserRepository", () => {
   it("returns a platform profile without organization or membership joins filtering the user", async () => {
-    const { repository, query } = harness({ user, session, organization: null, role: null });
+    const { repository, query } = harness({
+      membershipId: null,
+      user,
+      session,
+      organization: null,
+      role: null,
+    });
     expect(await repository.findCurrentUserContext(platform)).toEqual({
       user,
       session,
       accessScope: "platform",
+      membershipId: null,
       organization: null,
       role: null,
     });
@@ -67,6 +92,7 @@ describe("UserRepository", () => {
         timezone: "UTC",
       },
       role: null,
+      membershipId: null,
     };
     const { repository } = harness(record);
     const result = await repository.findCurrentUserContext({
@@ -91,11 +117,41 @@ describe("UserRepository", () => {
 
   it("rejects a platform profile when the live super-admin flag was revoked", async () => {
     const { repository } = harness({
+      membershipId: null,
       user: { ...user, isSuperAdmin: false },
       session,
       organization: null,
       role: null,
     });
     expect(await repository.findCurrentUserContext(platform)).toBeNull();
+  });
+
+  it("loads permissions through both primary and attached roles for a membership", async () => {
+    const { repository, permissionQuery, selectDistinct } = harness(null);
+
+    await expect(repository.listPermissionKeysForMembership("member-1")).resolves.toEqual([
+      "roles:read",
+      "members:read",
+    ]);
+
+    expect(selectDistinct).toHaveBeenCalledWith({ key: permissions.key });
+    expect(permissionQuery.from).toHaveBeenCalledWith(organizationMemberships);
+    expect(permissionQuery.leftJoin).toHaveBeenCalledWith(
+      organizationMembershipRoles,
+      expect.anything(),
+    );
+    expect(permissionQuery.innerJoin).toHaveBeenNthCalledWith(
+      1,
+      rolePermissions,
+      expect.anything(),
+    );
+    expect(permissionQuery.innerJoin).toHaveBeenNthCalledWith(2, permissions, expect.anything());
+    const rolePermissionJoin = permissionQuery.innerJoin.mock.calls[0]?.[1];
+    expect(rolePermissionJoin).toBeDefined();
+    expect(new PgDialect().sqlToQuery(rolePermissionJoin).sql).toContain(
+      '"organization_membership_roles"',
+    );
+    const condition = permissionQuery.where.mock.calls[0]?.[0];
+    expect(new PgDialect().sqlToQuery(condition).params).toContain("member-1");
   });
 });

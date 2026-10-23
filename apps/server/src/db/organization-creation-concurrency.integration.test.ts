@@ -60,10 +60,11 @@ describe.skipIf(!url)("organization creation races", () => {
         actorB = randomUUID(),
         owner = randomUUID();
       await pg.db.insert(tables.users).values([
-        { id: actorA, passwordHash: "unused-hash", isSuperAdmin: true },
-        { id: actorB, passwordHash: "unused-hash", isSuperAdmin: true },
+        { id: actorA, username: "actor-a", passwordHash: "unused-hash", isSuperAdmin: true },
+        { id: actorB, username: "actor-b", passwordHash: "unused-hash", isSuperAdmin: true },
         {
           id: owner,
+          username: "existing-owner",
           phone: "13800000001",
           passwordHash: "existing-hash",
           initialPasswordUnchanged: false,
@@ -134,7 +135,7 @@ describe.skipIf(!url)("organization creation races", () => {
         actor = randomUUID();
       await pg.db
         .insert(tables.users)
-        .values({ id: actor, passwordHash: "unused-hash", isSuperAdmin: true });
+        .values({ id: actor, username: "actor", passwordHash: "unused-hash", isSuperAdmin: true });
       const a = service(pg.db),
         checked = gate(),
         release = gate();
@@ -156,6 +157,7 @@ describe.skipIf(!url)("organization creation races", () => {
       await checked.promise;
       try {
         await worker.db.insert(tables.users).values({
+          username: "registered-racer",
           phone: "13800000007",
           passwordHash: "winner-hash",
           initialPasswordUnchanged: false,

@@ -4,10 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import type { AuthContext } from "../common/auth/auth-context.js";
 import { AuditRepository } from "../modules/audit/audit.repository.js";
 import { AuditService } from "../modules/audit/audit.service.js";
+import { PasswordService } from "../modules/auth/password.service.js";
 import { AccessRepository } from "../modules/iam/access.repository.js";
 import { AccessService } from "../modules/iam/access.service.js";
 import { IamRepository } from "../modules/iam/iam.repository.js";
 import { IamService } from "../modules/iam/iam.service.js";
+import { MemberAccountsRepository } from "../modules/iam/member-accounts.repository.js";
+import { MemberAccountsService } from "../modules/iam/member-accounts.service.js";
 import { MenuRepository } from "../modules/iam/menu.repository.js";
 import { OrganizationOwnerRepository } from "../modules/iam/organization-owner.repository.js";
 import { OrganizationOwnerPolicyService } from "../modules/iam/organization-owner-policy.service.js";
@@ -38,6 +41,7 @@ function services(db: AppDb) {
       new AccessService(new AccessRepository(db)),
       new MenuRepository(db),
       new OrganizationOwnerPolicyService(ownerRepository),
+      new MemberAccountsService(new MemberAccountsRepository(db), new PasswordService()),
     ),
   };
 }
@@ -59,8 +63,8 @@ describe.skipIf(!url)("real organization owner concurrency", () => {
         memberA = randomUUID(),
         memberB = randomUUID();
       await pg.db.insert(tables.users).values([
-        { id: userA, passwordHash: "unused-test-hash" },
-        { id: userB, passwordHash: "unused-test-hash" },
+        { id: userA, username: "owner-a", passwordHash: "unused-test-hash" },
+        { id: userB, username: "owner-b", passwordHash: "unused-test-hash" },
       ]);
       await pg.db
         .insert(tables.organizations)

@@ -503,8 +503,9 @@ describe("IAM e2e", () => {
         authorization: `Bearer ${accessToken}`,
       },
       payload: {
-        userId: testIds.outsiderUser,
-        roleId: testIds.viewerRole,
+        phone: "13800000005",
+        username: "不修改原用户名",
+        roleIds: [testIds.viewerRole],
       },
     });
 
@@ -548,8 +549,9 @@ describe("IAM e2e", () => {
         authorization: `Bearer ${accessToken}`,
       },
       payload: {
-        userId: testIds.outsiderUser,
-        roleId: testIds.managerRole,
+        phone: "13800000005",
+        username: "不修改原用户名",
+        roleIds: [testIds.managerRole],
       },
     });
 

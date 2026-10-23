@@ -10,11 +10,17 @@ type MemberColumnsOptions = {
   canManageOwners: boolean;
   permissions: readonly PermissionKey[];
   roles: IamRole[];
-  onRoleChange: (memberId: string, roleId: string) => Promise<void>;
+  onRoleChange: (memberId: string, roleIds: string[]) => Promise<void>;
   onStatusChange: (memberId: string, status: "active" | "disabled") => Promise<void>;
 };
 
 type MemberColumnDef = ClientColumnDef<IamMember>;
+
+function getAssignedRoles(member: IamMember) {
+  return member.roles?.length
+    ? member.roles
+    : [{ id: member.roleId, key: member.roleKey, name: member.roleName }];
+}
 
 export function createMemberColumns({
   isMutating,
@@ -26,24 +32,38 @@ export function createMemberColumns({
 }: MemberColumnsOptions): MemberColumnDef[] {
   return [
     {
-      id: "email",
-      accessorFn: (member) => member.email ?? member.phone ?? "未填写",
+      id: "account",
+      accessorFn: (member) => member.email ?? member.phone ?? member.username,
       header: ({ column }) => <DataTableColumnHeader column={column} title="账号" />,
-      cell: ({ row }) => (
-        <span className="font-medium">{row.original.email ?? row.original.phone ?? "未填写"}</span>
-      ),
+      cell: ({ row }) => {
+        const account = row.original.email ?? row.original.phone ?? "未填写";
+        return (
+          <div>
+            <span className="font-medium">{account}</span>
+            <span className="block text-xs text-muted-foreground">{row.original.username}</span>
+          </div>
+        );
+      },
       filterFn: (row, _columnId, filterValue: string) =>
-        [row.original.email, row.original.phone].some((value) =>
+        [row.original.email, row.original.phone, row.original.username].some((value) =>
           value?.toLowerCase().includes(filterValue.toLowerCase()),
         ),
     },
     {
-      accessorKey: "roleName",
+      id: "roleName",
+      accessorFn: (member) =>
+        getAssignedRoles(member)
+          .map((role) => role.name)
+          .join("、"),
       header: ({ column }) => <DataTableColumnHeader column={column} title="角色" />,
-      cell: ({ row }) => row.original.roleName,
-      filterFn: (row, _columnId, filterValue: unknown) => {
+      cell: ({ row }) =>
+        getAssignedRoles(row.original)
+          .map((role) => role.name)
+          .join("、"),
+      filterFn: (row, _columnId, filterValue: string[] | undefined) => {
         if (!filterValue) return true;
-        return row.getValue("roleName") === filterValue;
+        const assignedIds = new Set(getAssignedRoles(row.original).map((role) => role.id));
+        return filterValue.some((roleId) => assignedIds.has(roleId));
       },
     },
     {
@@ -71,7 +91,7 @@ export function createMemberColumns({
             member={row.original}
             permissions={permissions}
             roles={roles}
-            onRoleChange={(roleId) => onRoleChange(row.original.id, roleId)}
+            onRoleChange={(roleIds) => onRoleChange(row.original.id, roleIds)}
             onStatusChange={(status) => onStatusChange(row.original.id, status)}
           />
         </div>

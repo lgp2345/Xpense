@@ -5,6 +5,7 @@ import { and, count, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { AppDb, AppDbExecutor, AppDbTransaction } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import {
+  organizationMembershipRoles,
   organizationMemberships,
   permissions,
   refreshSessions,
@@ -34,7 +35,7 @@ export class IamRepository {
   constructor(@Inject(DB) private readonly db: AppDb) {}
 
   async listMembers(organizationId: string): Promise<IamMember[]> {
-    return this.db
+    const members = await this.db
       .select({
         ...memberSelectFields,
         userStatus: users.status,
@@ -47,6 +48,37 @@ export class IamRepository {
       .innerJoin(users, eq(organizationMemberships.userId, users.id))
       .innerJoin(roles, eq(organizationMemberships.roleId, roles.id))
       .where(eq(organizationMemberships.organizationId, organizationId));
+
+    if (members.length === 0) return [];
+
+    const additionalRoles = await this.db
+      .select({
+        membershipId: organizationMembershipRoles.membershipId,
+        id: roles.id,
+        key: roles.key,
+        name: roles.name,
+      })
+      .from(organizationMembershipRoles)
+      .innerJoin(roles, eq(organizationMembershipRoles.roleId, roles.id))
+      .where(
+        inArray(
+          organizationMembershipRoles.membershipId,
+          members.map((member) => member.id),
+        ),
+      );
+    const additionalRolesByMembershipId = Map.groupBy(additionalRoles, (role) => role.membershipId);
+
+    return members.map((member) => ({
+      ...member,
+      roles: [
+        { id: member.roleId, key: member.roleKey, name: member.roleName },
+        ...(additionalRolesByMembershipId.get(member.id) ?? []).map(({ id, key, name }) => ({
+          id,
+          key,
+          name,
+        })),
+      ],
+    }));
   }
 
   async findMemberById(
@@ -68,7 +100,7 @@ export class IamRepository {
       );
     const [member] = lockForUpdate ? await query.for("update").limit(1) : await query.limit(1);
 
-    return member ?? null;
+    return member ? this.attachRoles(member, executor) : null;
   }
 
   async findMemberByOrganizationAndUser(
@@ -89,20 +121,32 @@ export class IamRepository {
       )
       .limit(1);
 
-    return member ?? null;
+    return member ? this.attachRoles(member, executor) : null;
   }
 
   async createMember(
     input: CreateMemberInput,
     executor: AppDbExecutor = this.db,
   ): Promise<IamMember> {
+    const additionalRoleIds = this.additionalRoleIds(input.roleId, input.roleIds);
     const [member] = await executor
       .insert(organizationMemberships)
-      .values(input)
+      .values({
+        organizationId: input.organizationId,
+        userId: input.userId,
+        roleId: input.roleId,
+        status: input.status,
+      })
       .returning({ id: organizationMemberships.id });
 
     if (!member) {
       throw new Error("Failed to create organization member");
+    }
+
+    if (additionalRoleIds.length > 0) {
+      await executor
+        .insert(organizationMembershipRoles)
+        .values(additionalRoleIds.map((roleId) => ({ membershipId: member.id, roleId })));
     }
 
     const createdMember = await this.findMemberById(input.organizationId, member.id, executor);
@@ -118,10 +162,17 @@ export class IamRepository {
     input: UpdateMemberInput,
     executor: AppDbExecutor = this.db,
   ): Promise<IamMember> {
+    const primaryRoleId = input.roleId ?? input.roleIds?.[0];
+    const roleChangeRequested = input.roleId !== undefined || input.roleIds !== undefined;
+
+    if (roleChangeRequested && primaryRoleId === undefined) {
+      throw new Error("At least one organization member role is required");
+    }
+
     await executor
       .update(organizationMemberships)
       .set({
-        roleId: input.roleId,
+        ...(primaryRoleId !== undefined ? { roleId: primaryRoleId } : {}),
         status: input.status,
         updatedAt: new Date(),
       })
@@ -131,6 +182,19 @@ export class IamRepository {
           eq(organizationMemberships.id, input.memberId),
         ),
       );
+
+    if (primaryRoleId !== undefined) {
+      await executor
+        .delete(organizationMembershipRoles)
+        .where(eq(organizationMembershipRoles.membershipId, input.memberId));
+
+      const additionalRoleIds = this.additionalRoleIds(primaryRoleId, input.roleIds);
+      if (additionalRoleIds.length > 0) {
+        await executor
+          .insert(organizationMembershipRoles)
+          .values(additionalRoleIds.map((roleId) => ({ membershipId: input.memberId, roleId })));
+      }
+    }
 
     const updatedMember = await this.findMemberById(input.organizationId, input.memberId, executor);
 
@@ -391,7 +455,16 @@ export class IamRepository {
       .where(
         and(
           eq(organizationMemberships.organizationId, organizationId),
-          eq(organizationMemberships.roleId, roleId),
+          or(
+            eq(organizationMemberships.roleId, roleId),
+            inArray(
+              organizationMemberships.id,
+              this.db
+                .select({ membershipId: organizationMembershipRoles.membershipId })
+                .from(organizationMembershipRoles)
+                .where(eq(organizationMembershipRoles.roleId, roleId)),
+            ),
+          ),
         ),
       );
 
@@ -405,5 +478,27 @@ export class IamRepository {
       ...row,
       key: row.key as PermissionKey,
     }));
+  }
+
+  private async attachRoles(member: IamMember, executor: AppDbExecutor): Promise<IamMember> {
+    const additionalRoles = await executor
+      .select({ id: roles.id, key: roles.key, name: roles.name })
+      .from(organizationMembershipRoles)
+      .innerJoin(roles, eq(organizationMembershipRoles.roleId, roles.id))
+      .where(eq(organizationMembershipRoles.membershipId, member.id));
+
+    return {
+      ...member,
+      roles: [
+        { id: member.roleId, key: member.roleKey, name: member.roleName },
+        ...additionalRoles,
+      ],
+    };
+  }
+
+  private additionalRoleIds(primaryRoleId: string, roleIds?: string[]): string[] {
+    if (!roleIds) return [];
+
+    return [...new Set(roleIds.filter((roleId) => roleId !== primaryRoleId))];
   }
 }

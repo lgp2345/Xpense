@@ -7,13 +7,21 @@ export type IamMember = {
   id: string;
   organizationId: string;
   userId: string;
+  username: string;
   email: string | null;
   phone: string | null;
   roleId: string;
   roleKey: string;
   roleName: string;
+  roles?: IamMemberRole[];
   status: "active" | "disabled";
   joinedAt: Date;
+};
+
+export type IamMemberRole = {
+  id: string;
+  key: string;
+  name: string;
 };
 
 export type IamRole = {
@@ -43,6 +51,7 @@ export type CreateMemberInput = {
   organizationId: string;
   userId: string;
   roleId: string;
+  roleIds?: string[];
   status: "active";
 };
 
@@ -50,6 +59,7 @@ export type UpdateMemberInput = {
   organizationId: string;
   memberId: string;
   roleId?: string;
+  roleIds?: string[];
   status?: "active" | "disabled";
 };
 

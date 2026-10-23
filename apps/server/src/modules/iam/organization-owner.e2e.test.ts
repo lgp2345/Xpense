@@ -40,7 +40,11 @@ describe("owner member HTTP protection", () => {
             method: "POST",
             url: "/api/members/create",
             headers: { authorization: `Bearer ${token}` },
-            payload: { userId: testIds.outsiderUser, roleId: testIds.ownerRole },
+            payload: {
+              phone: "13800000005",
+              username: "不修改原用户名",
+              roleIds: [testIds.ownerRole],
+            },
           })
         : await update(
             token,

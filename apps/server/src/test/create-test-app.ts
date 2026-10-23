@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
 import { type ClientType, type PermissionKey, permissionKeys } from "@xpense/shared";
@@ -27,6 +28,7 @@ import type {
   UpdateMemberInput,
   UpdateRoleInput,
 } from "../modules/iam/iam.types.js";
+import { MemberAccountsRepository } from "../modules/iam/member-accounts.repository.js";
 import {
   type MenuInsertInput,
   MenuRepository,
@@ -78,7 +80,8 @@ import {
 
 type TestUser = {
   id: string;
-  email: string;
+  username: string;
+  email: string | null;
   phone: string | null;
   passwordHash: string;
   status: "active" | "disabled";
@@ -98,6 +101,7 @@ type TestMember = {
   organizationId: string;
   userId: string;
   roleId: string;
+  roleIds?: string[];
   status: "active" | "disabled";
   joinedAt: Date;
 };
@@ -224,12 +228,15 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
       run: <T>(operation: (tx: AppDbTransaction) => Promise<T>) =>
         transactionService.run(async (tx) => {
           const usersBefore = structuredClone(state.users);
+          const membersBefore = structuredClone(state.members);
           const sessionsBefore = structuredClone(state.sessions);
           try {
             return await operation(tx);
           } catch (error) {
             state.users.clear();
             for (const [id, user] of usersBefore) state.users.set(id, user);
+            state.members.clear();
+            for (const [id, member] of membersBefore) state.members.set(id, member);
             state.sessions.clear();
             for (const [id, session] of sessionsBefore) state.sessions.set(id, session);
             throw error;
@@ -267,6 +274,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     .useValue(createAuthRepository(state))
     .overrideProvider(AccessRepository)
     .useValue(createAccessRepository(state))
+    .overrideProvider(MemberAccountsRepository)
+    .useValue(createMemberAccountsRepository(state))
     .overrideProvider(OrganizationsRepository)
     .useValue(createOrganizationsRepository(state))
     .overrideProvider(UserRepository)
@@ -590,6 +599,7 @@ function createMenu(
 function createUser(id: string, email: string, phone: string, isSuperAdmin: boolean): TestUser {
   return {
     id,
+    username: email.slice(0, email.indexOf("@")),
     email,
     phone,
     passwordHash: "password:password",
@@ -617,6 +627,7 @@ function createMember(id: string, userId: string, roleId: string): TestMember {
     organizationId: testIds.organization,
     userId,
     roleId,
+    roleIds: [roleId],
     status: "active",
     joinedAt: new Date("2026-07-09T00:00:00.000Z"),
   };
@@ -805,10 +816,40 @@ function createAccessRepository(state: TestState): Partial<AccessRepository> {
     findActiveMembership: async (userId, organizationId) => {
       const member = findActiveMemberByUser(state, userId, organizationId);
       return member
-        ? { userId: member.userId, organizationId: member.organizationId, roleId: member.roleId }
+        ? {
+            id: member.id,
+            userId: member.userId,
+            organizationId: member.organizationId,
+            roleId: member.roleId,
+          }
         : null;
     },
     listPermissionKeysForRole: async (roleId) => state.roles.get(roleId)?.permissions ?? [],
+    listPermissionKeysForMembership: async (membershipId) =>
+      permissionKeysForMembership(state, membershipId),
+  };
+}
+
+function createMemberAccountsRepository(state: TestState): Partial<MemberAccountsRepository> {
+  return {
+    findByPhone: async (phone) => {
+      const user = [...state.users.values()].find((item) => item.phone === phone);
+      return user ? { id: user.id, username: user.username, status: user.status } : null;
+    },
+    create: async ({ phone, username, passwordHash }) => {
+      const id = randomUUID();
+      state.users.set(id, {
+        id,
+        username,
+        email: null,
+        phone,
+        passwordHash,
+        status: "active",
+        isSuperAdmin: false,
+        initialPasswordUnchanged: true,
+      });
+      return id;
+    },
   };
 }
 
@@ -857,6 +898,7 @@ function createUserRepository(state: TestState): Partial<UserRepository> {
           initialPasswordUnchanged: user.initialPasswordUnchanged ?? true,
           status: user.status,
         },
+        membershipId: null,
         session: { id: session.id, clientType: session.clientType },
       };
       if (authContext.accessScope === "platform")
@@ -869,12 +911,15 @@ function createUserRepository(state: TestState): Partial<UserRepository> {
       if (organization?.status !== "active" || (!user.isSuperAdmin && !role)) return null;
       return {
         ...base,
+        membershipId: member?.id ?? null,
         accessScope: "organization",
         organization: { ...organization, baseCurrency: "CNY", timezone: "Asia/Shanghai" },
         role: role ? { id: role.id, key: role.key, name: role.name } : null,
       };
     },
     listPermissionKeysForRole: async (roleId) => state.roles.get(roleId)?.permissions ?? [],
+    listPermissionKeysForMembership: async (membershipId) =>
+      permissionKeysForMembership(state, membershipId),
   };
 }
 
@@ -897,7 +942,9 @@ function createIamRepository(state: TestState): Partial<IamRepository> {
     },
     createMember: async (input: CreateMemberInput) => {
       const id = `33333333-3333-4333-8333-${String(state.members.size + 1).padStart(12, "0")}`;
-      const member = createMember(id, input.userId, input.roleId);
+      const roleIds = input.roleIds ?? [input.roleId];
+      const member = createMember(id, input.userId, roleIds[0] ?? input.roleId);
+      member.roleIds = roleIds;
       state.members.set(id, member);
       const iamMember = toIamMember(state, member);
 
@@ -916,7 +963,8 @@ function createIamRepository(state: TestState): Partial<IamRepository> {
 
       const nextMember = {
         ...member,
-        roleId: input.roleId ?? member.roleId,
+        roleId: input.roleIds?.[0] ?? input.roleId ?? member.roleId,
+        roleIds: input.roleIds ?? (input.roleId ? [input.roleId] : member.roleIds),
         status: input.status ?? member.status,
       };
       state.members.set(input.memberId, nextMember);
@@ -992,7 +1040,9 @@ function createIamRepository(state: TestState): Partial<IamRepository> {
     },
     countMembersUsingRole: async (organizationId, roleId) =>
       [...state.members.values()].filter(
-        (member) => member.organizationId === organizationId && member.roleId === roleId,
+        (member) =>
+          member.organizationId === organizationId &&
+          (member.roleIds ?? [member.roleId]).includes(roleId),
       ).length,
     listPermissions: async () => permissionKeys.map(toPermission),
   };
@@ -1130,14 +1180,26 @@ function toIamMember(state: TestState, member: TestMember): IamMember | null {
     id: member.id,
     organizationId: member.organizationId,
     userId: member.userId,
+    username: user.username,
     email: user.email,
     phone: user.phone,
     roleId: member.roleId,
     roleKey: role.key,
     roleName: role.name,
+    roles: [...new Set([member.roleId, ...(member.roleIds ?? [])])]
+      .map((roleId) => state.roles.get(roleId))
+      .filter((assignedRole): assignedRole is TestRole => Boolean(assignedRole))
+      .map(({ id, key, name }) => ({ id, key, name })),
     status: member.status,
     joinedAt: member.joinedAt,
   };
+}
+
+function permissionKeysForMembership(state: TestState, membershipId: string): PermissionKey[] {
+  const member = state.members.get(membershipId);
+  if (!member) return [];
+  const roleIds = [...new Set([member.roleId, ...(member.roleIds ?? [])])];
+  return [...new Set(roleIds.flatMap((roleId) => state.roles.get(roleId)?.permissions ?? []))];
 }
 
 function toPermission(key: PermissionKey): IamPermission {

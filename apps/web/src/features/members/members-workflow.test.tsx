@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PermissionKey } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
@@ -10,6 +10,7 @@ const member: IamMember = {
   id: "member-1",
   organizationId: "org-1",
   userId: "user-1",
+  username: "member",
   email: "member@example.com",
   phone: null,
   roleId: "role-member",
@@ -22,6 +23,7 @@ const member: IamMember = {
 const disabledMember: IamMember = {
   ...member,
   id: "member-2",
+  username: "disabled",
   email: "disabled@example.com",
   status: "disabled",
 };
@@ -46,16 +48,29 @@ const roles: IamRole[] = [
     isEditable: true,
   },
 ];
+const budgetRole: IamRole = {
+  id: "role-budget",
+  organizationId: "org-1",
+  key: "budget-manager",
+  name: "预算管理员",
+  description: "管理预算",
+  isSystem: false,
+  isEditable: true,
+};
 
-const validUserId = "b7d2b905-075d-4a18-9340-2f0e0d1dc4f1";
+const validPhone = "13800000001";
 
 function createIamApi(
   overrides: Partial<IamApi> = {},
-): Pick<IamApi, "listMembers" | "createMember" | "updateMember" | "listRoles"> {
+): Pick<
+  IamApi,
+  "listMembers" | "createMember" | "updateMember" | "listRoles" | "listMemberAccounts"
+> {
   return {
     listMembers: vi.fn().mockResolvedValue([member]),
     createMember: vi.fn().mockResolvedValue(member),
     updateMember: vi.fn().mockResolvedValue(member),
+    listMemberAccounts: vi.fn().mockResolvedValue(null),
     listRoles: vi.fn().mockResolvedValue(roles),
     ...overrides,
   };
@@ -64,7 +79,10 @@ function createIamApi(
 function renderMembersPage(
   permissions: PermissionKey[],
   options: {
-    api?: Pick<IamApi, "listMembers" | "createMember" | "updateMember" | "listRoles">;
+    api?: Pick<
+      IamApi,
+      "listMembers" | "createMember" | "updateMember" | "listRoles" | "listMemberAccounts"
+    >;
     members?: IamMember[];
     pageRoles?: IamRole[];
     actorRoleKey?: string;
@@ -109,10 +127,10 @@ describe("MembersPage", () => {
     renderMembersPage(["members:read"], { members });
     await user.click(screen.getByRole("button", { name: "下一页" }));
     expect(screen.getByText("第 2 页，共 3 页")).toBeInTheDocument();
-    await user.type(screen.getByPlaceholderText("搜索邮箱或手机号..."), "member24@");
+    await user.type(screen.getByPlaceholderText("搜索邮箱、手机号或用户名..."), "member24@");
     expect(screen.getByText("member24@example.com")).toBeInTheDocument();
     expect(screen.getByText("第 1 页，共 1 页")).toBeInTheDocument();
-    await user.clear(screen.getByPlaceholderText("搜索邮箱或手机号..."));
+    await user.clear(screen.getByPlaceholderText("搜索邮箱、手机号或用户名..."));
     await user.click(screen.getByRole("button", { name: "下一页" }));
     await user.click(screen.getByRole("combobox", { name: "每页行数" }));
     await user.click(await screen.findByRole("option", { name: "20" }));
@@ -253,7 +271,21 @@ describe("MembersPage", () => {
     );
   });
 
-  it("reports member creation field validation errors before requesting the API", async () => {
+  it("rejects an invalid phone before looking up an account", async () => {
+    const user = userEvent.setup();
+    const api = createIamApi();
+    renderMembersPage(["members:read", "members:create"], { api });
+
+    await user.click(screen.getByRole("button", { name: "新增成员" }));
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), "123");
+    await user.click(screen.getByRole("textbox", { name: "用户名" }));
+
+    expect(await screen.findByText("请输入有效的手机号")).toBeInTheDocument();
+    expect(api.listMemberAccounts).not.toHaveBeenCalled();
+    expect(api.createMember).not.toHaveBeenCalled();
+  });
+
+  it("requires a username and at least one role before creating a member", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
     renderMembersPage(["members:read", "members:create"], { api });
@@ -261,14 +293,31 @@ describe("MembersPage", () => {
     await user.click(screen.getByRole("button", { name: "新增成员" }));
     await user.click(screen.getByRole("button", { name: "添加成员" }));
 
-    expect(screen.getByText("请输入用户 ID")).toBeInTheDocument();
-    expect(screen.getByText("请选择角色")).toBeInTheDocument();
+    expect(screen.getByText("请输入用户名")).toBeInTheDocument();
+    expect(screen.getByText("至少选择一个角色")).toBeInTheDocument();
     expect(api.createMember).not.toHaveBeenCalled();
+  });
 
-    await user.type(screen.getByRole("textbox", { name: "用户 ID" }), "not-a-uuid");
+  it("removes cleared role chips and rejects an empty role selection", async () => {
+    const user = userEvent.setup();
+    const api = createIamApi();
+    renderMembersPage(["members:read", "members:create"], { api });
+
+    await user.click(screen.getByRole("button", { name: "新增成员" }));
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), validPhone);
+    await user.click(screen.getByRole("textbox", { name: "用户名" }));
+    await waitFor(() => expect(api.listMemberAccounts).toHaveBeenCalledWith(validPhone));
+    await user.type(screen.getByRole("textbox", { name: "用户名" }), "new-user");
+    await user.click(screen.getByRole("combobox", { name: "角色" }));
+    await user.click(await screen.findByRole("option", { name: "普通成员" }));
+
+    const dialog = within(screen.getByRole("dialog"));
+    expect(dialog.getByText("普通成员")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(dialog.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "添加成员" }));
 
-    expect(screen.getByText("请输入有效的 UUID")).toBeInTheDocument();
+    expect(await screen.findByText("至少选择一个角色")).toBeInTheDocument();
     expect(api.createMember).not.toHaveBeenCalled();
   });
 
@@ -277,8 +326,9 @@ describe("MembersPage", () => {
     const newMember: IamMember = {
       ...member,
       id: "member-3",
+      username: "new-user",
       email: "new-member@example.com",
-      userId: validUserId,
+      phone: validPhone,
     };
     const api = createIamApi({
       createMember: vi.fn().mockResolvedValue(newMember),
@@ -287,15 +337,19 @@ describe("MembersPage", () => {
     renderMembersPage(["members:read", "members:create"], { api });
 
     await user.click(screen.getByRole("button", { name: "新增成员" }));
-    await user.type(screen.getByRole("textbox", { name: "用户 ID" }), validUserId);
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), validPhone);
+    await user.click(screen.getByRole("textbox", { name: "用户名" }));
+    await waitFor(() => expect(api.listMemberAccounts).toHaveBeenCalledWith(validPhone));
+    await user.type(screen.getByRole("textbox", { name: "用户名" }), "new-user");
     await user.click(screen.getByRole("combobox", { name: "角色" }));
     await user.click(await screen.findByRole("option", { name: "普通成员" }));
     await user.click(screen.getByRole("button", { name: "添加成员" }));
 
     expect(await screen.findByText("new-member@example.com")).toBeInTheDocument();
     expect(api.createMember).toHaveBeenCalledWith({
-      userId: validUserId,
-      roleId: "role-member",
+      phone: validPhone,
+      username: "new-user",
+      roleIds: ["role-member"],
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
@@ -308,28 +362,187 @@ describe("MembersPage", () => {
     renderMembersPage(["members:read", "members:create"], { api });
 
     await user.click(screen.getByRole("button", { name: "新增成员" }));
-    await user.type(screen.getByRole("textbox", { name: "用户 ID" }), validUserId);
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), validPhone);
+    await user.click(screen.getByRole("textbox", { name: "用户名" }));
+    await waitFor(() => expect(api.listMemberAccounts).toHaveBeenCalledWith(validPhone));
+    await user.type(screen.getByRole("textbox", { name: "用户名" }), "new-user");
     await user.click(screen.getByRole("combobox", { name: "角色" }));
     await user.click(await screen.findByRole("option", { name: "普通成员" }));
     await user.click(screen.getByRole("button", { name: "添加成员" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("添加成员失败，请稍后重试。");
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "用户 ID" })).toHaveValue(validUserId);
+    expect(screen.getByRole("textbox", { name: "用户名" })).toHaveValue("new-user");
     expect(screen.queryByText(/authorization=secret/i)).not.toBeInTheDocument();
   });
 
-  it("updates the member role from the row select", async () => {
+  it("reuses and locks the username of an existing account", async () => {
+    const user = userEvent.setup();
+    const api = createIamApi({
+      listMemberAccounts: vi
+        .fn()
+        .mockResolvedValue({ username: "existing-user", status: "active" }),
+    });
+    renderMembersPage(["members:read", "members:create"], { api });
+
+    await user.click(screen.getByRole("button", { name: "新增成员" }));
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), ` ${validPhone} `);
+    await user.click(screen.getByRole("textbox", { name: "用户名" }));
+
+    const username = await screen.findByRole("textbox", { name: "用户名" });
+    await waitFor(() => expect(username).toHaveValue("existing-user"));
+    expect(username).toBeDisabled();
+    await user.click(screen.getByRole("combobox", { name: "角色" }));
+    await user.click(await screen.findByRole("option", { name: "普通成员" }));
+    await user.click(screen.getByRole("button", { name: "添加成员" }));
+
+    await waitFor(() =>
+      expect(api.createMember).toHaveBeenCalledWith({
+        phone: validPhone,
+        username: "existing-user",
+        roleIds: ["role-member"],
+      }),
+    );
+  });
+
+  it("prevents adding a disabled account", async () => {
+    const user = userEvent.setup();
+    const api = createIamApi({
+      listMemberAccounts: vi
+        .fn()
+        .mockResolvedValue({ username: "disabled-user", status: "disabled" }),
+    });
+    renderMembersPage(["members:read", "members:create"], { api });
+
+    await user.click(screen.getByRole("button", { name: "新增成员" }));
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), validPhone);
+    await user.click(screen.getByRole("textbox", { name: "用户名" }));
+    expect(await screen.findByText("该账号已禁用，无法添加成员。")).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "角色" }));
+    await user.click(await screen.findByRole("option", { name: "普通成员" }));
+    await user.click(screen.getByRole("button", { name: "添加成员" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("该账号已禁用，无法添加成员。");
+    expect(api.createMember).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed phone lookup and allows creation after success", async () => {
+    const user = userEvent.setup();
+    const api = createIamApi({
+      listMemberAccounts: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("network"))
+        .mockResolvedValueOnce(null),
+    });
+    renderMembersPage(["members:read", "members:create"], { api });
+
+    await user.click(screen.getByRole("button", { name: "新增成员" }));
+    await user.type(screen.getByRole("textbox", { name: "手机号" }), validPhone);
+    await user.click(screen.getByRole("textbox", { name: "用户名" }));
+    expect(await screen.findByText("手机号查询失败，请重试。")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "重试验证手机号" }));
+    await waitFor(() => expect(api.listMemberAccounts).toHaveBeenCalledTimes(2));
+    await user.type(screen.getByRole("textbox", { name: "用户名" }), "new-user");
+    await user.click(screen.getByRole("combobox", { name: "角色" }));
+    await user.click(await screen.findByRole("option", { name: "普通成员" }));
+    await user.click(screen.getByRole("button", { name: "添加成员" }));
+
+    expect(api.createMember).toHaveBeenCalledWith({
+      phone: validPhone,
+      username: "new-user",
+      roleIds: ["role-member"],
+    });
+  });
+
+  it("ignores stale phone lookup responses after the phone changes", async () => {
+    const user = userEvent.setup();
+    let resolveFirst: ((value: { username: string; status: "active" } | null) => void) | undefined;
+    let resolveSecond: ((value: { username: string; status: "active" } | null) => void) | undefined;
+    const firstRequest = new Promise<{ username: string; status: "active" } | null>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondRequest = new Promise<{ username: string; status: "active" } | null>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const api = createIamApi({
+      listMemberAccounts: vi
+        .fn()
+        .mockReturnValueOnce(firstRequest)
+        .mockReturnValueOnce(secondRequest),
+    });
+    renderMembersPage(["members:read", "members:create"], { api });
+
+    await user.click(screen.getByRole("button", { name: "新增成员" }));
+    const phone = screen.getByRole("textbox", { name: "手机号" });
+    await user.type(phone, validPhone);
+    await user.click(screen.getByRole("textbox", { name: "用户名" }));
+    await waitFor(() => expect(api.listMemberAccounts).toHaveBeenCalledTimes(1));
+    await user.clear(phone);
+    await user.type(phone, "13900000002");
+    await user.click(screen.getByRole("textbox", { name: "用户名" }));
+    await waitFor(() => expect(api.listMemberAccounts).toHaveBeenCalledTimes(2));
+
+    resolveSecond?.({ username: "second-user", status: "active" });
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "用户名" })).toHaveValue("second-user"),
+    );
+    resolveFirst?.({ username: "first-user", status: "active" });
+
+    expect(screen.getByRole("textbox", { name: "用户名" })).toHaveValue("second-user");
+  });
+
+  it("updates several member roles and displays all role names", async () => {
     const user = userEvent.setup();
     const api = createIamApi();
-    renderMembersPage(["members:read", "members:update"], { api, actorRoleKey: "owner" });
+    const multiRoleMember = {
+      ...member,
+      roles: [{ id: "role-member", key: "member", name: "普通成员" }],
+    };
+    renderMembersPage(["members:read", "members:update"], {
+      api,
+      actorRoleKey: "owner",
+      members: [multiRoleMember],
+      pageRoles: [...roles, budgetRole],
+    });
 
     await user.click(screen.getByRole("combobox", { name: /变更 member@example\.com 的角色/ }));
     await user.click(await screen.findByRole("option", { name: "所有者" }));
 
     await waitFor(() =>
-      expect(api.updateMember).toHaveBeenCalledWith("member-1", { roleId: "role-owner" }),
+      expect(api.updateMember).toHaveBeenCalledWith("member-1", {
+        roleIds: ["role-member", "role-owner"],
+      }),
     );
+  });
+
+  it("searches member usernames and filters rows by any assigned role", async () => {
+    const user = userEvent.setup();
+    const multiRoleMember = {
+      ...member,
+      username: "budget-user",
+      roles: [
+        { id: "role-member", key: "member", name: "普通成员" },
+        { id: "role-budget", key: "budget-manager", name: "预算管理员" },
+      ],
+    };
+    renderMembersPage(["members:read"], {
+      members: [multiRoleMember, { ...disabledMember, roles: undefined }],
+      pageRoles: [...roles, budgetRole],
+    });
+
+    expect(screen.getByText("普通成员、预算管理员")).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("搜索邮箱、手机号或用户名..."), "budget-user");
+    expect(screen.getByText("budget-user")).toBeInTheDocument();
+    expect(screen.queryByText("disabled@example.com")).not.toBeInTheDocument();
+    await user.clear(screen.getByPlaceholderText("搜索邮箱、手机号或用户名..."));
+    const roleFilter = screen.getAllByRole("button", { name: "角色" }).shift();
+    if (!roleFilter) throw new Error("角色筛选按钮未渲染");
+    await user.click(roleFilter);
+    await user.click(await screen.findByRole("option", { name: "预算管理员" }));
+    expect(screen.getByText("budget-user")).toBeInTheDocument();
+    expect(screen.queryByText("disabled@example.com")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "重置" }));
+    expect(screen.getByText("disabled@example.com")).toBeInTheDocument();
   });
 
   it("shows a safe error message when a member update fails", async () => {

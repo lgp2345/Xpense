@@ -28,6 +28,7 @@ describe.skipIf(!url)("organization session transactions", () => {
         secondRoleId = randomUUID();
       await db.insert(tables.users).values({
         id: userId,
+        username: "session-user",
         phone: "13800000001",
         passwordHash: "test-hash",
         lastOrganizationId: firstId,

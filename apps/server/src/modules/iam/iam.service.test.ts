@@ -111,6 +111,7 @@ describe("IamService", () => {
       accessService: unknown,
       menuRepository: unknown,
       ownerPolicy: unknown,
+      accounts: unknown,
     ) => IamService;
     const service = new ServiceWithAccess(
       repository,
@@ -119,6 +120,7 @@ describe("IamService", () => {
       accessService,
       {},
       ownerPolicy,
+      { resolve: vi.fn().mockResolvedValue("user-1") },
     );
 
     return {
@@ -199,6 +201,7 @@ describe("IamService", () => {
       accessService: unknown,
       menuRepository: unknown,
       ownerPolicy: unknown,
+      accounts: unknown,
     ) => IamService;
     const service = new ServiceWithAccess(
       repository,
@@ -207,16 +210,75 @@ describe("IamService", () => {
       accessService,
       {},
       { lockOrganization: vi.fn(), assertMemberMutation: vi.fn() },
+      { resolve: vi.fn().mockResolvedValue("user-1") },
     );
 
     return { service, state };
   }
 
+  it("checks every selected role before creating a member", async () => {
+    const { service, repository } = createHarness();
+    repository.listPermissionKeysForRole.mockImplementation(async (id: string) =>
+      id === "excessive" ? ["transactions:delete"] : [],
+    );
+    await expect(
+      service.createMember(authContext, {
+        phone: "13800000009",
+        username: "成员",
+        roleIds: ["role-custom", "excessive"],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(repository.createMember).not.toHaveBeenCalled();
+  });
+
+  it("keeps owner as the primary role when selected after another role", async () => {
+    const { service, repository, transaction, ownerPolicy } = createHarness();
+    repository.findRoleById.mockImplementation(async (_org: string, id: string) =>
+      id === "role-owner" ? protectedRole : editableRole,
+    );
+    await service.createMember(authContext, {
+      phone: "13800000009",
+      username: "成员",
+      roleIds: ["role-custom", "role-owner"],
+    });
+    expect(repository.createMember).toHaveBeenCalledWith(
+      expect.objectContaining({ roleId: "role-owner", roleIds: ["role-owner", "role-custom"] }),
+      transaction,
+    );
+    expect(ownerPolicy.assertMemberMutation).toHaveBeenCalledWith(
+      authContext,
+      null,
+      expect.objectContaining({ roleId: "role-owner" }),
+      transaction,
+    );
+  });
+
+  it("revokes sessions when an additional role changes while primary remains", async () => {
+    const { service, repository, transaction } = createHarness();
+    await service.updateMember(authContext, {
+      id: "member-1",
+      roleIds: ["role-custom", "role-extra"],
+    });
+    expect(repository.updateMember).toHaveBeenCalledWith(
+      expect.objectContaining({ roleIds: ["role-custom", "role-extra"] }),
+      transaction,
+    );
+    expect(repository.revokeActiveSessionsForUserInOrganization).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+      transaction,
+    );
+  });
+
   it("locks the organization before loading or creating a member", async () => {
     const { service, ownerPolicy, repository } = createHarness();
     ownerPolicy.lockOrganization.mockRejectedValue(new ForbiddenException());
     await expect(
-      service.createMember(authContext, { userId: "user-1", roleId: "role-custom" }),
+      service.createMember(authContext, {
+        phone: "13800000009",
+        username: "成员",
+        roleIds: ["role-custom"],
+      }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(repository.findMemberByOrganizationAndUser).not.toHaveBeenCalled();
     expect(repository.createMember).not.toHaveBeenCalled();
@@ -244,13 +306,18 @@ describe("IamService", () => {
     const { auditService, repository, service, transaction } = createHarness();
 
     await expect(
-      service.createMember(authContext, { userId: "user-1", roleId: "role-custom" }),
+      service.createMember(authContext, {
+        phone: "13800000009",
+        username: "成员",
+        roleIds: ["role-custom"],
+      }),
     ).resolves.toEqual(activeMember);
     expect(repository.createMember).toHaveBeenCalledWith(
       {
         organizationId: "org-1",
         userId: "user-1",
         roleId: "role-custom",
+        roleIds: ["role-custom"],
         status: "active",
       },
       transaction,
@@ -270,7 +337,11 @@ describe("IamService", () => {
     repository.findMemberByOrganizationAndUser.mockResolvedValue(activeMember);
 
     await expect(
-      service.createMember(authContext, { userId: "user-1", roleId: "role-custom" }),
+      service.createMember(authContext, {
+        phone: "13800000009",
+        username: "成员",
+        roleIds: ["role-custom"],
+      }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -524,7 +595,11 @@ describe("IamService", () => {
     };
 
     await expect(
-      service.createMember(limitedContext, { userId: "user-1", roleId: "role-custom" }),
+      service.createMember(limitedContext, {
+        phone: "13800000009",
+        username: "成员",
+        roleIds: ["role-custom"],
+      }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(repository.createMember).not.toHaveBeenCalled();
@@ -562,7 +637,11 @@ describe("IamService", () => {
       }),
     ).resolves.toEqual(editableRole);
     await expect(
-      service.createMember(superAdminContext, { userId: "user-1", roleId: "role-custom" }),
+      service.createMember(superAdminContext, {
+        phone: "13800000009",
+        username: "成员",
+        roleIds: ["role-custom"],
+      }),
     ).resolves.toEqual(activeMember);
   });
 
@@ -583,7 +662,11 @@ describe("IamService", () => {
     const { service, state } = createRollbackHarness();
 
     await expect(
-      service.createMember(authContext, { userId: "user-1", roleId: "role-custom" }),
+      service.createMember(authContext, {
+        phone: "13800000009",
+        username: "成员",
+        roleIds: ["role-custom"],
+      }),
     ).rejects.toThrow("audit unavailable");
 
     expect(state.memberCount).toBe(0);
@@ -726,7 +809,11 @@ describe("IamService", () => {
     repository.findMemberByOrganizationAndUser.mockResolvedValue(activeMember);
 
     try {
-      await service.createMember(authContext, { userId: "user-1", roleId: "role-custom" });
+      await service.createMember(authContext, {
+        phone: "13800000009",
+        username: "成员",
+        roleIds: ["role-custom"],
+      });
     } catch (error) {
       expect((error as ConflictException).getResponse()).toMatchObject({
         code: apiErrorCodes.conflict,

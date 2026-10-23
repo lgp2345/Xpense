@@ -39,6 +39,18 @@ import {
 } from "./schema.js";
 
 describe("RBAC database schema", () => {
+  it("requires a username without reserving it uniquely", () => {
+    const config = getTableConfig(users);
+    const username = config.columns.find((column) => column.name === "username");
+    expect(username).toMatchObject({ notNull: true });
+    expect(username?.isUnique).toBe(false);
+    expect(
+      config.indexes
+        .filter((index) => index.config.unique)
+        .flatMap((index) => index.config.columns)
+        .map((column) => ("name" in column ? column.name : undefined)),
+    ).not.toContain("username");
+  });
   it("allows absent email while keeping non-null uniqueness and new account state", () => {
     expect(users.email.notNull).toBe(false);
     const columns = Object.fromEntries(
