@@ -25,12 +25,14 @@ export function OrganizationListPage({
   onQueryChange,
   onDetail,
   onEntered,
+  onCreate,
 }: {
   session: WebSessionDependency;
   query: OrganizationListQuery;
   onQueryChange: (query: OrganizationListQuery) => void;
   onDetail: (id: string) => void;
   onEntered: () => void;
+  onCreate?: () => void;
 }) {
   const userId = useStore(session.authStore, (state) => state.currentUser?.id ?? "");
   const isPlatformAdmin = useStore(
@@ -57,6 +59,7 @@ export function OrganizationListPage({
   return (
     <SecondaryPageLayout
       title="组织管理"
+      actions={onCreate ? <Button onClick={onCreate}>创建组织</Button> : undefined}
       description="查看组织资料、负责人及运行状态，选择组织进入业务工作区。"
       breadcrumbs={[
         { key: "platform", label: "平台管理" },

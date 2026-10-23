@@ -11,3 +11,23 @@ it("uses explicit platform endpoints and bounded query parameters", async () => 
   await api.detail("org");
   expect(client.get).toHaveBeenCalledWith("/organizations/detail?id=org");
 });
+
+it("keeps owner lookup precise and sends initial passwords only in the creation request body", async () => {
+  const client = {
+    get: vi.fn().mockResolvedValue(null),
+    post: vi.fn().mockResolvedValue({ id: "org" }),
+  };
+  const api = createOrganizationsApi(client as never);
+  await api.resolveOwner("13800000001");
+  expect(client.get).toHaveBeenCalledWith("/organizations/owner-candidates/list?phone=13800000001");
+  const input = {
+    name: "组织",
+    baseCurrency: "CNY" as const,
+    timezone: "Asia/Shanghai",
+    owners: [
+      { kind: "new" as const, phone: "13800000001", initialPassword: "sample-initial-password" },
+    ],
+  };
+  await api.create(input);
+  expect(client.post).toHaveBeenCalledWith("/organizations/create", input);
+});

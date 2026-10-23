@@ -13,6 +13,7 @@ function OrganizationListRoute() {
   const navigate = Route.useNavigate();
   return (
     <OrganizationListPage
+      onCreate={() => void navigate({ to: "/platform/organizations/new" })}
       session={session}
       query={query}
       onQueryChange={(search) => void navigate({ search, replace: true })}
