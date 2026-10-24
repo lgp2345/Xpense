@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -26,6 +26,24 @@ function Harness({
 
 describe("DateRangePicker time selection", () => {
   afterEach(() => vi.useRealTimers());
+
+  it("keeps the configured year range available in the calendar dropdown", async () => {
+    const user = userEvent.setup();
+    render(<DateRangePicker aria-label="日期范围" />);
+    await user.click(screen.getByRole("button", { name: "日期范围" }));
+    await screen.findByRole("grid");
+
+    const year = screen.getByRole("combobox", { name: "Choose the Year" });
+    await user.click(year);
+    const yearOptions = await screen.findByRole("listbox");
+    expect(within(yearOptions).getByRole("option", { name: "1900" })).toBeInTheDocument();
+    expect(within(yearOptions).getByRole("option", { name: "2100" })).toBeInTheDocument();
+
+    await user.click(within(yearOptions).getByRole("option", { name: "2027" }));
+
+    expect(screen.getByRole("combobox", { name: "Choose the Year" })).toHaveTextContent("2027");
+    expect(screen.getByRole("grid")).toBeInTheDocument();
+  });
 
   it.each([
     ["一个月", "2026-11-04"],

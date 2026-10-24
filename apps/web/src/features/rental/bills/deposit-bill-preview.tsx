@@ -1,6 +1,8 @@
 import type { RentalBillPreview } from "@xpense/shared";
+import { ChevronRight } from "lucide-react";
 import { DatePickerInput } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { formatBillAmount } from "./bill-format";
 import type { BillGenerationValues } from "./bill-generation-form";
@@ -187,34 +189,43 @@ export function DepositBillPreview({
       ) : null}
 
       {preview.existingCount > 0 ? (
-        <details className="border-t pt-4">
-          <summary className="cursor-pointer font-medium text-sm">
+        <Collapsible className="border-t pt-4">
+          <CollapsibleTrigger
+            type="button"
+            className="group inline-flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left text-sm font-medium outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            <ChevronRight
+              aria-hidden="true"
+              className="size-4 transition-transform group-data-[panel-open]:rotate-90"
+            />
             查看已生成账单（{preview.existingCount}）
-          </summary>
-          <section aria-label="已生成的押金账单" className="space-y-3 mt-3">
-            {existing.length ? (
-              existing.map((item) => (
-                <div
-                  key={item.sourceKey}
-                  className="border-b text-sm grid py-3 gap-2 sm:gap-4 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
-                >
-                  <p className="break-words">
-                    {item.lines.find((line) => line.kind === "deposit")?.label ?? "押金"}
-                  </p>
-                  <p className="tabular-nums">
-                    {formatBillAmount(item.amountMinor, item.currencyCode ?? currencyCode)}
-                  </p>
-                  <p className="text-muted-foreground">
-                    到期日 <span>{item.dueDate ?? "未设置"}</span>
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">本页没有已生成的押金账单。</p>
-            )}
-            <DepositPreviewPagination {...{ preview, busy, valid, onPageChange }} />
-          </section>
-        </details>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <section aria-label="已生成的押金账单" className="space-y-3 mt-3">
+              {existing.length ? (
+                existing.map((item) => (
+                  <div
+                    key={item.sourceKey}
+                    className="border-b text-sm grid py-3 gap-2 sm:gap-4 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+                  >
+                    <p className="break-words">
+                      {item.lines.find((line) => line.kind === "deposit")?.label ?? "押金"}
+                    </p>
+                    <p className="tabular-nums">
+                      {formatBillAmount(item.amountMinor, item.currencyCode ?? currencyCode)}
+                    </p>
+                    <p className="text-muted-foreground">
+                      到期日 <span>{item.dueDate ?? "未设置"}</span>
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">本页没有已生成的押金账单。</p>
+              )}
+              <DepositPreviewPagination {...{ preview, busy, valid, onPageChange }} />
+            </section>
+          </CollapsibleContent>
+        </Collapsible>
       ) : null}
     </div>
   );

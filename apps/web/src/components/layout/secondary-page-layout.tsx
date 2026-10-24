@@ -7,6 +7,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 
 export type SecondaryPageBreadcrumb = {
   key: string;
@@ -59,14 +60,16 @@ export function SecondaryPageLayout({
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="flex flex-1 min-w-0 gap-3 items-start">
             {onBack ? (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="返回上一页"
                 onClick={onBack}
               >
                 <ArrowLeft aria-hidden="true" className="size-6" />
-              </button>
+              </Button>
             ) : null}
             <div className="space-y-2 flex-1 min-w-0">
               <div className="flex flex-wrap min-h-9 gap-x-3 gap-y-2 items-center">

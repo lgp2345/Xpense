@@ -20,6 +20,7 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
 import { ApiError } from "../../../services/api-client";
 import type { RentalApi } from "../../../services/rental-api";
@@ -440,7 +441,7 @@ function ReasonField({
 }) {
   return (
     <ActionField label="原因" error={error} errorId="contract-action-reason-error">
-      <textarea
+      <Textarea
         id="contract-action-reason"
         aria-label="原因"
         aria-invalid={Boolean(error)}

@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   clearTenantTypeSpecificValues,
   defaultTenantFormValues,
@@ -377,7 +378,7 @@ function TenantField({
           <Field data-invalid={Boolean(message)}>
             <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
             {multiline ? (
-              <textarea
+              <Textarea
                 id={field.name}
                 className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
                 value={field.state.value}

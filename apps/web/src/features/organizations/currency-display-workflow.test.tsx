@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AppProviders } from "@/components/app-providers";
 import { AccountsPage } from "@/features/bookkeeping/accounts/accounts-page";
@@ -119,6 +120,7 @@ it("shows an existing deposit preview in its original currency inside a USD orga
       />
     </OrganizationCurrencyProvider>,
   );
+  await userEvent.click(screen.getByRole("button", { name: /查看已生成账单/ }));
   expect(await screen.findByText("¥1.01")).toBeInTheDocument();
   expect(screen.queryByText("$1.01")).not.toBeInTheDocument();
 });

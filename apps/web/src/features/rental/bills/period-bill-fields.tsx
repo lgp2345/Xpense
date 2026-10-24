@@ -1,6 +1,7 @@
 import type { RentalPeriodBillContext, RentalPeriodBillPreview } from "@xpense/shared";
 import { useId } from "react";
 import { DatePickerInput } from "@/components/date-picker";
+import { Textarea } from "@/components/ui/textarea";
 import { BillingPeriodSelect } from "./billing-period-select";
 import { MeterReadingFields } from "./meter-reading-fields";
 import type { PeriodBillDraft } from "./period-bill-form";
@@ -139,7 +140,7 @@ export function PeriodBillFields({
         <label htmlFor={`${fieldId}-note`} className="font-medium">
           备注
         </label>
-        <textarea
+        <Textarea
           id={`${fieldId}-note`}
           aria-label="备注"
           rows={3}

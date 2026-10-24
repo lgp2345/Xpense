@@ -1,10 +1,11 @@
+import { Input as InputPrimitive } from "@base-ui/react/input";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
-    <input
+    <InputPrimitive
       data-slot="input"
       type={type}
       className={cn(
@@ -12,6 +13,9 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         className,
       )}
       {...props}
+      {...(props["aria-label"] && props["aria-labelledby"] === undefined
+        ? { "aria-labelledby": undefined }
+        : {})}
     />
   );
 }

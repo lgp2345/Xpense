@@ -127,7 +127,11 @@ describe("押金账单核对与日期填写", () => {
     });
     expect(await screen.findByText("已有 1 张账单，本次不会重复生成。")).toBeInTheDocument();
     expect(screen.getByText("新增 3 张押金账单")).toBeInTheDocument();
-    await userEvent.click(screen.getByText("查看已生成账单（1）"));
+    const disclosure = screen.getByRole("button", { name: "查看已生成账单（1）" });
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    disclosure.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(disclosure).toHaveAttribute("aria-expanded", "true");
     const existing = screen.getByRole("region", { name: "已生成的押金账单" });
     expect(within(existing).getByText("¥60.00")).toBeInTheDocument();
     expect(within(existing).getByText("2026-10-01")).toBeInTheDocument();

@@ -1,5 +1,7 @@
 import type { RentalBillPreview } from "@xpense/shared";
+import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Table,
   TableBody,
@@ -43,15 +45,24 @@ export function BillPreviewTable({
                     ? "账期账单"
                     : (item.lines.find((line) => line.kind === "deposit")?.label ?? "押金")}
                   {item.lines.length ? (
-                    <details className="mt-2">
-                      <summary className="cursor-pointer text-xs text-muted-foreground">
+                    <Collapsible className="mt-2">
+                      <CollapsibleTrigger
+                        type="button"
+                        className="group inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-left text-xs text-muted-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      >
+                        <ChevronRight
+                          aria-hidden="true"
+                          className="size-3.5 transition-transform group-data-[panel-open]:rotate-90"
+                        />
                         查看计算依据
-                      </summary>
-                      <BillCalculationLines
-                        lines={item.lines}
-                        currencyCode={item.currencyCode ?? currencyCode}
-                      />
-                    </details>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <BillCalculationLines
+                          lines={item.lines}
+                          currencyCode={item.currencyCode ?? currencyCode}
+                        />
+                      </CollapsibleContent>
+                    </Collapsible>
                   ) : null}
                 </TableCell>
                 <TableCell className="whitespace-nowrap">

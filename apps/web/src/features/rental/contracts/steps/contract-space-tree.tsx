@@ -80,20 +80,21 @@ function SpaceRow({
       >
         <div className="min-w-0 flex-1">
           {!search && space.hasChildren ? (
-            <button
+            <Button
               type="button"
+              variant="ghost"
               aria-label={`${expanded ? "收起" : "展开"} ${space.name}`}
               aria-expanded={expanded}
               aria-controls={contentId}
               onClick={() => props.onExpand(space.id)}
-              className="flex max-w-full items-start gap-2 rounded-sm text-left text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-auto max-w-full shrink justify-start rounded-sm px-0 py-0 text-left text-sm font-medium whitespace-normal focus-visible:ring-2"
             >
               <ChevronRight
                 aria-hidden="true"
                 className={`mt-0.5 size-4 shrink-0 ${expanded ? "rotate-90" : ""}`}
               />
               <span className="break-words">{space.name}</span>
-            </button>
+            </Button>
           ) : (
             <p className="break-words text-sm font-medium">
               {search ? spaceLabel(space) : space.name}

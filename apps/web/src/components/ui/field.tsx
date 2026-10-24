@@ -1,3 +1,5 @@
+import { Fieldset as FieldsetPrimitive } from "@base-ui/react/fieldset";
+import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
 import { useMemo } from "react";
 import { Label } from "@/components/ui/label";
@@ -6,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   return (
-    <fieldset
+    <FieldsetPrimitive.Root
       data-slot="field-set"
       className={cn(
         "flex flex-col gap-4",
@@ -14,6 +16,9 @@ function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
         className,
       )}
       {...props}
+      {...(props["aria-label"] && props["aria-labelledby"] === undefined
+        ? { "aria-labelledby": undefined }
+        : {})}
     />
   );
 }
@@ -24,7 +29,8 @@ function FieldLegend({
   ...props
 }: React.ComponentProps<"legend"> & { variant?: "legend" | "label" }) {
   return (
-    <legend
+    <FieldsetPrimitive.Legend
+      id={props.id}
       data-slot="field-legend"
       data-variant={variant}
       className={cn(
@@ -33,7 +39,7 @@ function FieldLegend({
         "data-[variant=label]:text-sm",
         className,
       )}
-      {...props}
+      render={<legend {...props} />}
     />
   );
 }
@@ -75,18 +81,21 @@ const fieldVariants = cva("group/field flex w-full gap-2 data-[invalid=true]:tex
 function Field({
   className,
   orientation = "vertical",
+  ref,
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
-  return (
-    // biome-ignore lint/a11y/useSemanticElements: shadcn Field is a composable group; FieldSet owns fieldset semantics.
-    <div
-      role="group"
-      data-slot="field"
-      data-orientation={orientation}
-      className={cn(fieldVariants({ orientation }), className)}
-      {...props}
-    />
-  );
+  // Field also groups compound controls and popovers; keep validation owned by TanStack Form.
+  return useRender({
+    defaultTagName: "div",
+    ref,
+    props: {
+      role: "group",
+      "data-slot": "field",
+      "data-orientation": orientation,
+      ...props,
+      className: cn(fieldVariants({ orientation }), className),
+    },
+  });
 }
 
 function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
@@ -127,19 +136,21 @@ function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
-  return (
-    <p
-      data-slot="field-description"
-      className={cn(
+function FieldDescription({ className, ref, ...props }: React.ComponentProps<"p">) {
+  return useRender({
+    defaultTagName: "p",
+    ref,
+    props: {
+      "data-slot": "field-description",
+      ...props,
+      className: cn(
         "text-sm leading-normal font-normal text-muted-foreground group-has-[[data-orientation=horizontal]]/field:text-balance",
         "last:mt-0 nth-last-2:-mt-1 [[data-variant=legend]+&]:-mt-1.5",
         "[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",
         className,
-      )}
-      {...props}
-    />
-  );
+      ),
+    },
+  });
 }
 
 function FieldSeparator({
@@ -176,6 +187,7 @@ function FieldError({
   className,
   children,
   errors,
+  ref,
   ...props
 }: React.ComponentProps<"div"> & {
   errors?: Array<{ message?: string } | undefined>;
@@ -204,20 +216,18 @@ function FieldError({
     );
   }, [children, errors]);
 
-  if (!content) {
-    return null;
-  }
-
-  return (
-    <div
-      role="alert"
-      data-slot="field-error"
-      className={cn("text-sm font-normal text-destructive", className)}
-      {...props}
-    >
-      {content}
-    </div>
-  );
+  return useRender({
+    defaultTagName: "div",
+    enabled: Boolean(content),
+    ref,
+    props: {
+      role: "alert",
+      "data-slot": "field-error",
+      ...props,
+      className: cn("text-sm font-normal text-destructive", className),
+      children: content,
+    },
+  });
 }
 
 export {

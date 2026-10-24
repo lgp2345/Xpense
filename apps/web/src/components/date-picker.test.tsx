@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -45,23 +45,49 @@ describe("DatePickerInput", () => {
     expect(onChange).toHaveBeenLastCalledWith(undefined);
   });
 
-  it("opens a localized calendar by keyboard, changes years and selects a day", async () => {
+  it("changes month and year without closing the calendar, then selects a day", async () => {
     const user = userEvent.setup();
     render(<Harness />);
     const input = screen.getByLabelText("日期");
     input.focus();
     await user.keyboard("{ArrowDown}");
-    const selects = await screen.findAllByRole("combobox");
-    expect(selects).toHaveLength(2);
-    const year = selects.find((select) => (select as HTMLSelectElement).value === "2024");
-    expect(year).toBeDefined();
-    await user.selectOptions(year as HTMLSelectElement, "2023");
+    const year = await screen.findByRole("combobox", { name: "Choose the Year" });
+
+    await user.click(year);
+    const yearOptions = await screen.findByRole("listbox");
+    await user.click(within(yearOptions).getByRole("option", { name: "2023" }));
+    expect(screen.getByRole("grid")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Choose the Year" })).toHaveTextContent("2023");
+
+    await user.click(screen.getByRole("combobox", { name: "Choose the Month" }));
+    const monthOptions = await screen.findByRole("listbox");
+    await user.click(within(monthOptions).getByRole("option", { name: "3月" }));
+    expect(screen.getByRole("grid")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Choose the Month" })).toHaveTextContent("3月");
+
     const day = screen
       .getAllByRole("button")
-      .find((button) => button.dataset.day === new Date(2023, 1, 15).toLocaleDateString());
+      .find((button) => button.dataset.day === new Date(2023, 2, 15).toLocaleDateString());
     await user.click(day as HTMLButtonElement);
-    expect(input).toHaveValue("2023-02-15");
+    expect(input).toHaveValue("2023-03-15");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("keeps the calendar open and restores focus when Escape closes the year select", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole("button", { name: "选择日期" }));
+    await screen.findByRole("grid");
+
+    const year = screen.getByRole("combobox", { name: "Choose the Year" });
+    await user.click(year);
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("grid")).toBeInTheDocument();
+    expect(year).toHaveFocus();
   });
 
   it("preserves local time when selecting a different date", async () => {
@@ -120,10 +146,8 @@ describe("DateRangePicker", () => {
     await user.click(screen.getByRole("button", { name: label }));
 
     expect(trigger).toHaveTextContent(`2026-10-05 - ${end}`);
-    const selects = screen.getAllByRole("combobox");
-    expect(selects.map((select) => (select as HTMLSelectElement).value)).toEqual(
-      expect.arrayContaining(["9", "2026"]),
-    );
+    expect(screen.getByRole("combobox", { name: "Choose the Month" })).toHaveTextContent("10月");
+    expect(screen.getByRole("combobox", { name: "Choose the Year" })).toHaveTextContent("2026");
     const start = screen
       .getAllByRole("button")
       .find((button) => button.dataset.day === new Date(2026, 9, 5).toLocaleDateString());

@@ -2,8 +2,20 @@
 
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import * as React from "react";
-import { type DayButton, DayPicker, getDefaultClassNames } from "react-day-picker";
+import {
+  type DayButton,
+  DayPicker,
+  type DropdownProps,
+  getDefaultClassNames,
+} from "react-day-picker";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 function Calendar({
@@ -122,6 +134,7 @@ function Calendar({
           return <ChevronDownIcon className={cn("size-4", className)} {...props} />;
         },
         DayButton: CalendarDayButton,
+        Dropdown: CalendarDropdown,
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>
@@ -135,6 +148,45 @@ function Calendar({
       }}
       {...props}
     />
+  );
+}
+
+function CalendarDropdown({
+  "aria-label": ariaLabel,
+  className,
+  disabled,
+  onChange,
+  options,
+  style,
+  value,
+}: DropdownProps) {
+  return (
+    <Select
+      value={String(value ?? "")}
+      disabled={disabled}
+      onValueChange={(nextValue) =>
+        onChange?.({ target: { value: nextValue } } as React.ChangeEvent<HTMLSelectElement>)
+      }
+    >
+      <SelectTrigger
+        aria-label={ariaLabel}
+        className={cn(
+          "h-8 border-0 bg-transparent px-2 py-0 font-medium shadow-none focus-visible:ring-2 focus-visible:ring-ring/50",
+          className,
+        )}
+        size="sm"
+        style={style}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options?.map((option) => (
+          <SelectItem key={option.value} value={String(option.value)} disabled={option.disabled}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

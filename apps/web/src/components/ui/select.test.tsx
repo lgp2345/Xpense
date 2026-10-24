@@ -2,7 +2,25 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { expect, it } from "vitest";
+import { Field, FieldLabel } from "./field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
+
+it("keeps an explicit trigger name instead of replacing it with the field label", () => {
+  render(
+    <Field>
+      <FieldLabel>空间类型</FieldLabel>
+      <Select value="room">
+        <SelectTrigger aria-label="批量空间类型">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="room">房间</SelectItem>
+        </SelectContent>
+      </Select>
+    </Field>,
+  );
+  expect(screen.getByRole("combobox", { name: "批量空间类型" })).toHaveTextContent("房间");
+});
 
 function Example({ initial = "a" }: { initial?: string }) {
   const [value, setValue] = useState(initial);

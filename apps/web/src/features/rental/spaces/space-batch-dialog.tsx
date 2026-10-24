@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { parseSpaceBatch } from "./space-batch-parser";
 import { spaceTypeOptions } from "./space-form-schema";
 
@@ -103,7 +104,7 @@ export function SpaceBatchDialog({ propertyId, parentId, onCreate }: SpaceBatchD
         <FieldGroup className="grid gap-4">
           <Field data-invalid={parsed.errors.length > 0}>
             <FieldLabel htmlFor="space-batch-lines">空间列表</FieldLabel>
-            <textarea
+            <Textarea
               aria-label="空间列表"
               className="min-h-36 rounded-md border bg-background p-2 text-sm"
               id="space-batch-lines"

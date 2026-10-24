@@ -5,6 +5,13 @@ import { DateRangePicker } from "@/components/date-range-picker";
 import { FilterActions, FilterFields, FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { isCalendarDate } from "../contracts/contract-action-model";
 
 export { validateRentalBillsSearch } from "./bill-search";
@@ -81,32 +88,36 @@ function FilterForm({
               />
             </label>
           ))}
-          <label className="space-y-1 text-sm">
+          <label className="space-y-1 text-sm" htmlFor="bill-filter-type">
             <span>费用分类</span>
-            <select
-              className="h-9 w-full rounded-md border bg-background px-3"
+            <Select
               value={values.type}
-              onChange={(event) =>
-                form.setFieldValue("type", event.target.value as typeof values.type)
-              }
+              onValueChange={(value) => form.setFieldValue("type", value as typeof values.type)}
             >
-              <option value="all">全部费用</option>
-              <option value="period">账期账单</option>
-              <option value="deposit">押金</option>
-            </select>
+              <SelectTrigger id="bill-filter-type" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部费用</SelectItem>
+                <SelectItem value="period">账期账单</SelectItem>
+                <SelectItem value="deposit">押金</SelectItem>
+              </SelectContent>
+            </Select>
           </label>
-          <label className="space-y-1 text-sm">
+          <label className="space-y-1 text-sm" htmlFor="bill-filter-status">
             <span>账单状态</span>
-            <select
-              className="h-9 w-full rounded-md border bg-background px-3"
+            <Select
               value={values.status}
-              onChange={(event) =>
-                form.setFieldValue("status", event.target.value as typeof values.status)
-              }
+              onValueChange={(value) => form.setFieldValue("status", value as typeof values.status)}
             >
-              <option value="active">有效</option>
-              <option value="voided">作废</option>
-            </select>
+              <SelectTrigger id="bill-filter-status" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">有效</SelectItem>
+                <SelectItem value="voided">作废</SelectItem>
+              </SelectContent>
+            </Select>
           </label>
           <div className="space-y-1 text-sm">
             <label htmlFor="bill-due-date-range">到期日范围</label>

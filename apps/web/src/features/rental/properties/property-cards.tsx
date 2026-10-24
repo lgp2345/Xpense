@@ -88,14 +88,15 @@ export function PropertyCards({
                       loadDetail={getProperty ? () => getProperty(property.id) : undefined}
                       onUpdate={onUpdate}
                     />
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       aria-label={`${property.isActive ? "停用" : "启用"} ${property.name}`}
-                      className="rounded-md border px-3 py-1.5 text-sm"
                       onClick={() => void onSetStatus(property, !property.isActive)}
                     >
                       {property.isActive ? "停用" : "启用"}
-                    </button>
+                    </Button>
                   </>
                 ) : null}
                 {canDelete ? (
@@ -106,13 +107,14 @@ export function PropertyCards({
                   />
                 ) : null}
                 {canCreateContract && property.isActive ? (
-                  <button
+                  <Button
                     type="button"
-                    className="rounded-md border px-3 py-1.5 text-sm"
+                    variant="outline"
+                    size="sm"
                     onClick={() => onCreateContract?.(property.id)}
                   >
                     新建合同
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             ) : null}

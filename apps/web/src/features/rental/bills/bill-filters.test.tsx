@@ -28,11 +28,48 @@ it("解析分页/费用/日期，拒绝非法日期和枚举", () => {
   expect(validateRentalBillsSearch({ type: "period" })).toEqual({ type: "period" });
 });
 it("支持按账期账单过滤", async () => {
+  const user = userEvent.setup();
   const onChange = vi.fn();
   render(<BillFilters search={{}} onChange={onChange} />);
-  await userEvent.selectOptions(screen.getByLabelText("费用分类"), "period");
-  await userEvent.click(screen.getByRole("button", { name: "查询" }));
+  const category = screen.getByRole("combobox", { name: "费用分类" });
+  await user.click(category);
+  await user.click(await screen.findByRole("option", { name: "账期账单" }));
+  await user.click(screen.getByRole("button", { name: "查询" }));
   expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ type: "period", page: 1 }));
+});
+
+it("从查询参数恢复费用分类与状态，并在重置后清空筛选", async () => {
+  const user = userEvent.setup();
+  const onChange = vi.fn();
+  render(
+    <BillFilters
+      search={{ type: "deposit", status: "voided", page: 3, pageSize: 50 }}
+      onChange={onChange}
+    />,
+  );
+
+  screen.getByRole("combobox", { name: "费用分类" });
+  screen.getByRole("combobox", { name: "账单状态" });
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(onChange).toHaveBeenLastCalledWith({
+    type: "deposit",
+    status: "voided",
+    page: 1,
+    pageSize: 50,
+  });
+
+  await user.click(screen.getByRole("combobox", { name: "账单状态" }));
+  await user.click(await screen.findByRole("option", { name: "有效" }));
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(onChange).toHaveBeenLastCalledWith({
+    type: "deposit",
+    status: "active",
+    page: 1,
+    pageSize: 50,
+  });
+
+  await user.click(screen.getByRole("button", { name: "重置" }));
+  expect(onChange).toHaveBeenLastCalledWith({ status: "active", page: 1, pageSize: 50 });
 });
 it("筛选重置页码，并拦截反向日期", async () => {
   const onChange = vi.fn();

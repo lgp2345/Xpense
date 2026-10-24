@@ -74,15 +74,16 @@ export function PageTabs({
               key={tab.identity}
               ref={isActive ? activeTabRef : undefined}
             >
-              <button
+              <Button
                 aria-current={isActive ? 'page' : undefined}
-                className="h-full outline-none flex-1 text-left min-w-0 px-3 truncate focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-2"
+                className="h-full min-w-0 basis-0 grow shrink justify-start rounded-none px-3 text-left truncate focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-2"
                 onClick={() => onActivate(tab.identity)}
                 title={tab.title}
                 type="button"
+                variant="ghost"
               >
                 {tab.title}
-              </button>
+              </Button>
               <Button
                 aria-label={`关闭“${tab.title}”`}
                 className="rounded-sm mr-1 opacity-60 size-6 hover:opacity-100"

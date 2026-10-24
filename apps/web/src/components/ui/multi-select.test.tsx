@@ -79,4 +79,23 @@ describe("MultipleSelector", () => {
     expect(screen.getByLabelText("已选角色")).toBeEmptyDOMElement();
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it("键盘激活移除按钮只移除一次", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <MultipleSelector
+        value={[{ value: "role-001", label: "账务管理员" }]}
+        onChange={onChange}
+        inputProps={{ "aria-label": "角色" }}
+      />,
+    );
+
+    const remove = screen.getByRole("button", { name: "Remove" });
+    remove.focus();
+    await user.keyboard("{Enter}");
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith([]);
+  });
 });

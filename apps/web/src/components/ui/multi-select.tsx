@@ -4,6 +4,7 @@ import { Command as CommandPrimitive, useCommandState } from "cmdk";
 import { XIcon } from "lucide-react";
 import * as React from "react";
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
@@ -482,9 +483,11 @@ const MultipleSelector = ({
                 data-disabled={disabled || undefined}
               >
                 {option.label}
-                <button
+                <Button
                   type="button"
                   disabled={disabled || option.fixed}
+                  variant="ghost"
+                  size="icon"
                   className="border border-transparent rounded-r-md flex outline-hidden outline-none -inset-y-px -right-px p-0 transition-[color,box-shadow] text-muted-foreground/80 absolute items-center justify-center size-7 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -499,7 +502,7 @@ const MultipleSelector = ({
                   aria-label="Remove"
                 >
                   <XIcon size={14} aria-hidden="true" />
-                </button>
+                </Button>
               </div>
             );
           })}
@@ -540,7 +543,7 @@ const MultipleSelector = ({
               inputProps?.className,
             )}
           />
-          <button
+          <Button
             type="button"
             disabled={disabled}
             onClick={() => {
@@ -556,9 +559,11 @@ const MultipleSelector = ({
                 "hidden",
             )}
             aria-label="Clear all"
+            variant="ghost"
+            size="icon"
           >
             <XIcon size={16} aria-hidden="true" />
-          </button>
+          </Button>
         </div>
       </div>
       <div className="relative">

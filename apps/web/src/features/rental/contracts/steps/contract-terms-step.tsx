@@ -3,6 +3,7 @@ import { DateRangePicker } from "@/components/date-range-picker";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useOrganizationCurrency } from "@/features/organizations/organization-currency";
 import { ContractChargeFields } from "../../charges/contract-charge-fields";
 import {
@@ -108,7 +109,7 @@ export function ContractTermsStep({
         <ContractPaymentFields values={values} onChange={onChange} />
         <Field data-invalid={contractFeedbackProps(errors, "note")["aria-invalid"]}>
           <FieldLabel htmlFor="contract-note">备注</FieldLabel>
-          <textarea
+          <Textarea
             id="contract-note"
             {...contractFeedbackProps(errors, "note")}
             className="min-h-20 rounded-md border border-input bg-transparent px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive md:text-sm"

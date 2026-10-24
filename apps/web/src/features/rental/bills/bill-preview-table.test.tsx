@@ -29,7 +29,11 @@ it("确认前可展开原付款账期的每月片段及完整参考分母", asyn
       onPageChange={vi.fn()}
     />,
   );
-  await userEvent.click(screen.getByText("查看计算依据"));
+  const disclosure = screen.getByRole("button", { name: "查看计算依据" });
+  expect(disclosure).toHaveAttribute("aria-expanded", "false");
+  disclosure.focus();
+  await userEvent.keyboard(" ");
+  expect(disclosure).toHaveAttribute("aria-expanded", "true");
   expect(screen.getByText("2026-02-01 至 2026-02-28")).toBeInTheDocument();
   expect(screen.getByText(/覆盖 28 天.*参考 28 天/)).toBeInTheDocument();
 });

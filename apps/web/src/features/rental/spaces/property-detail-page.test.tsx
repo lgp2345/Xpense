@@ -344,7 +344,7 @@ describe("property space contract connections", () => {
     const section = screen.getByRole("region", { name: "当前房产合同" });
     await user.type(within(section).getByLabelText("合同号、空间名称或承租人"), "  101  ");
     await user.click(within(section).getByRole("combobox", { name: "合同状态" }));
-    await user.click(screen.getByRole("option", { name: "进行中" }));
+    await user.click(await screen.findByRole("option", { name: "进行中" }));
     await user.click(within(section).getByRole("button", { name: "应用筛选" }));
     await waitFor(() =>
       expect(listContracts).toHaveBeenLastCalledWith({

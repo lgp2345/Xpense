@@ -61,6 +61,9 @@ function SelectTrigger({
         className,
       )}
       {...props}
+      {...(props["aria-label"] && props["aria-labelledby"] === undefined
+        ? { "aria-labelledby": undefined }
+        : {})}
     >
       {children}
       <SelectPrimitive.Icon>
