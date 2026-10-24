@@ -118,14 +118,19 @@ export function MembersPage({
     }
   }
 
-  async function handleRoleChange(memberId: string, roleIds: string[]) {
-    const succeeded = await runMutation(
-      () => api.updateMember(memberId, { roleIds }),
-      "更新成员角色失败，请稍后重试。",
-    );
+  async function handleEdit(member: IamMember, input: MemberFormValues) {
+    setErrorMessage(null);
+    await api.updateMember(member.id, {
+      roleIds: input.roleIds,
+      ...(input.status !== member.status ? { status: input.status } : {}),
+    });
+    toast.success("成员已更新");
 
-    if (succeeded) {
-      toast.success("成员角色已更新");
+    try {
+      await refreshMembers();
+      await onMembersChanged?.();
+    } catch {
+      setErrorMessage("加载成员列表失败，请稍后重试。");
     }
   }
 
@@ -162,7 +167,7 @@ export function MembersPage({
       canManageOwners,
       permissions: memberActionPermissions,
       roles: roleItems,
-      onRoleChange: handleRoleChange,
+      onEdit: handleEdit,
       onStatusChange: handleStatusChange,
     }),
   );

@@ -163,7 +163,7 @@ describe("MembersPage", () => {
     expect(await screen.findByText("member@example.com")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "新增成员" })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("combobox", { name: /变更 member@example\.com 的角色/ }),
+      screen.queryByRole("button", { name: "编辑 member@example.com" }),
     ).not.toBeInTheDocument();
   });
 
@@ -203,9 +203,7 @@ describe("MembersPage", () => {
     // 禁用成员：启用按钮可点击，禁用按钮 disabled + tooltip
     expect(screen.getByRole("button", { name: "启用 disabled@example.com" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "禁用 disabled@example.com" })).toBeDisabled();
-    expect(
-      screen.getByRole("combobox", { name: /变更 member@example\.com 的角色/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "编辑 member@example.com" })).toBeInTheDocument();
   });
 
   it("hides role change controls without members.update permission", async () => {
@@ -215,7 +213,7 @@ describe("MembersPage", () => {
 
     expect(await screen.findByText("member@example.com")).toBeInTheDocument();
     expect(
-      screen.queryByRole("combobox", { name: /变更 member@example\.com 的角色/ }),
+      screen.queryByRole("button", { name: "编辑 member@example.com" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "禁用 member@example.com" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "启用 disabled@example.com" })).toBeInTheDocument();
@@ -523,14 +521,123 @@ describe("MembersPage", () => {
       pageRoles: [...roles, budgetRole],
     });
 
-    await user.click(screen.getByRole("combobox", { name: /变更 member@example\.com 的角色/ }));
+    await user.click(screen.getByRole("button", { name: "编辑 member@example.com" }));
+    await user.click(screen.getByRole("combobox", { name: "角色" }));
     await user.click(await screen.findByRole("option", { name: "所有者" }));
+    expect(api.updateMember).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "保存修改" }));
 
     await waitFor(() =>
       expect(api.updateMember).toHaveBeenCalledWith("member-1", {
         roleIds: ["role-member", "role-owner"],
       }),
     );
+  });
+
+  it.each([
+    {
+      status: "active",
+      nextStatus: "disabled",
+      permission: "members:disable",
+      currentLabel: "已启用",
+      nextLabel: "已禁用",
+    },
+    {
+      status: "disabled",
+      nextStatus: "active",
+      permission: "members:enable",
+      currentLabel: "已禁用",
+      nextLabel: "已启用",
+    },
+  ] as const)("opens an email-only member editor and changes $status to $nextStatus", async ({
+    status,
+    nextStatus,
+    permission,
+    currentLabel,
+    nextLabel,
+  }) => {
+    const user = userEvent.setup();
+    const updated = { ...member, status: nextStatus };
+    const api = createIamApi({ listMembers: vi.fn().mockResolvedValue([updated]) });
+    renderMembersPage(["members:read", "members:update", permission], {
+      api,
+      members: [{ ...member, status }],
+    });
+    await user.click(screen.getByRole("button", { name: "编辑 member@example.com" }));
+    expect(screen.getByRole("heading", { name: "编辑成员" })).toBeInTheDocument();
+    expect(screen.getByLabelText("手机号")).toBeDisabled();
+    expect(screen.getByLabelText("用户名")).toHaveValue("member");
+    expect(screen.getByLabelText("用户名")).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "状态" })).toHaveTextContent(currentLabel);
+    expect(within(screen.getByRole("dialog")).getByText("普通成员")).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "状态" }));
+    await user.click(await screen.findByRole("option", { name: nextLabel }));
+    expect(api.updateMember).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "保存修改" }));
+    await waitFor(() =>
+      expect(api.updateMember).toHaveBeenCalledWith("member-1", {
+        roleIds: ["role-member"],
+        status: nextStatus,
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByText(nextLabel)).toBeInTheDocument();
+    expect(api.listMemberAccounts).not.toHaveBeenCalled();
+    expect(api.createMember).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "active",
+    "disabled",
+  ] as const)("protects %s status without permission and restores cancelled edits", async (status) => {
+    const user = userEvent.setup();
+    const api = createIamApi();
+    renderMembersPage(["members:read", "members:update"], {
+      api,
+      pageRoles: [...roles, budgetRole],
+      members: [{ ...member, status }],
+    });
+    await user.click(screen.getByRole("button", { name: "编辑 member@example.com" }));
+    expect(screen.getByRole("combobox", { name: "状态" })).toBeDisabled();
+    await user.click(screen.getByRole("combobox", { name: "角色" }));
+    await user.click(await screen.findByRole("option", { name: "预算管理员" }));
+    await user.click(screen.getByRole("button", { name: "取消" }));
+    expect(api.updateMember).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "编辑 member@example.com" }));
+    expect(within(screen.getByRole("dialog")).queryByText("预算管理员")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("dialog")).getByText("普通成员")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "保存修改" }));
+    await waitFor(() =>
+      expect(api.updateMember).toHaveBeenCalledWith("member-1", { roleIds: ["role-member"] }),
+    );
+  });
+
+  it("keeps edits after save fails and disables controls while saving", async () => {
+    const user = userEvent.setup();
+    let rejectSave: (error: Error) => void = () => {};
+    const api = createIamApi({
+      updateMember: vi.fn(
+        () =>
+          new Promise<IamMember>((_, reject) => {
+            rejectSave = reject;
+          }),
+      ),
+    });
+    renderMembersPage(["members:read", "members:update", "members:disable"], { api });
+    await user.click(screen.getByRole("button", { name: "编辑 member@example.com" }));
+    await user.click(screen.getByRole("combobox", { name: "状态" }));
+    await user.click(await screen.findByRole("option", { name: "已禁用" }));
+    await user.click(screen.getByRole("button", { name: "保存修改" }));
+    await waitFor(() => expect(api.updateMember).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("button", { name: "正在保存..." })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "角色" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "状态" })).toBeDisabled();
+    rejectSave(new Error("network failure"));
+    expect(await within(screen.getByRole("dialog")).findByRole("alert")).toHaveTextContent(
+      "保存成员失败，请稍后重试。",
+    );
+    expect(screen.getByRole("combobox", { name: "状态" })).toHaveTextContent("已禁用");
+    expect(screen.getByRole("button", { name: "保存修改" })).toBeEnabled();
   });
 
   it("searches member usernames and filters rows by any assigned role", async () => {
@@ -620,6 +727,10 @@ describe("负责人操作保护", () => {
         actorRoleKey={roleKey}
       />,
     );
+    expect(screen.getByRole("button", { name: "编辑 member@example.com" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
     const button = screen.getByRole("button", { name: "禁用 member@example.com" });
     expect(button).toHaveAttribute("aria-disabled", "true");
     button.focus();
@@ -639,6 +750,10 @@ describe("负责人操作保护", () => {
         permissions={["roles:read", "members:update", "members:disable"]}
         isSuperAdmin
       />,
+    );
+    expect(screen.getByRole("button", { name: "编辑 member@example.com" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
     );
     const button = screen.getByRole("button", { name: "禁用 member@example.com" });
     expect(button).toHaveAttribute("aria-disabled", "true");

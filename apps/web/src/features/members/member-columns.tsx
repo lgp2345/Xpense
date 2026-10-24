@@ -4,13 +4,14 @@ import { DataTableColumnHeader } from "@/components/data-table";
 import type { ClientColumnDef } from "@/components/data-table/use-client-table";
 import type { IamMember, IamRole } from "../../services/iam-api";
 import { MemberActions } from "./member-actions";
+import type { MemberFormValues } from "./member-form-schema";
 
 type MemberColumnsOptions = {
   isMutating: boolean;
   canManageOwners: boolean;
   permissions: readonly PermissionKey[];
   roles: IamRole[];
-  onRoleChange: (memberId: string, roleIds: string[]) => Promise<void>;
+  onEdit: (member: IamMember, input: MemberFormValues) => Promise<void>;
   onStatusChange: (memberId: string, status: "active" | "disabled") => Promise<void>;
 };
 
@@ -27,7 +28,7 @@ export function createMemberColumns({
   canManageOwners,
   permissions,
   roles,
-  onRoleChange,
+  onEdit,
   onStatusChange,
 }: MemberColumnsOptions): MemberColumnDef[] {
   return [
@@ -91,7 +92,7 @@ export function createMemberColumns({
             member={row.original}
             permissions={permissions}
             roles={roles}
-            onRoleChange={(roleIds) => onRoleChange(row.original.id, roleIds)}
+            onEdit={(input) => onEdit(row.original, input)}
             onStatusChange={(status) => onStatusChange(row.original.id, status)}
           />
         </div>

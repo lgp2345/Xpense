@@ -10,6 +10,7 @@ export type MemberAccountLookupState =
 
 type MemberPhoneFieldProps = {
   phone: string;
+  readOnly?: boolean;
   phoneError: string | null;
   lookupState: MemberAccountLookupState;
   phoneFieldError?: string;
@@ -20,6 +21,7 @@ type MemberPhoneFieldProps = {
 
 export function MemberPhoneField({
   phone,
+  readOnly = false,
   phoneError,
   lookupState,
   phoneFieldError,
@@ -47,10 +49,11 @@ export function MemberPhoneField({
     <Field data-invalid={phoneInvalid}>
       <FieldLabel htmlFor="phone">手机号</FieldLabel>
       <Input
+        disabled={readOnly}
         autoComplete="tel"
         id="phone"
         inputMode="tel"
-        placeholder="输入中国大陆手机号"
+        placeholder={readOnly ? "未填写手机号" : "输入中国大陆手机号"}
         type="tel"
         value={phone}
         onBlur={onPhoneBlur}
@@ -85,6 +88,7 @@ export function MemberPhoneField({
 
 type MemberUsernameFieldProps = {
   username: string;
+  readOnly?: boolean;
   lookupState: MemberAccountLookupState;
   currentPhone: string;
   fieldError?: string;
@@ -94,6 +98,7 @@ type MemberUsernameFieldProps = {
 
 export function MemberUsernameField({
   username,
+  readOnly = false,
   lookupState,
   currentPhone,
   fieldError,
@@ -101,7 +106,7 @@ export function MemberUsernameField({
   onChange,
 }: MemberUsernameFieldProps) {
   const currentLookup = lookupState?.phone === currentPhone.trim() ? lookupState : null;
-  const locked = currentLookup?.status === "found";
+  const locked = readOnly || currentLookup?.status === "found";
 
   return (
     <Field data-invalid={Boolean(fieldError)}>

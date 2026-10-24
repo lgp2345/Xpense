@@ -30,7 +30,10 @@ export function OrganizationOwnerFields({
     try {
       await onLookup(owner.id);
     } catch {
-      setLookupErrors((previous) => ({ ...previous, [owner.id]: "检查账号失败，请稍后重试。" }));
+      setLookupErrors((previous) => ({
+        ...previous,
+        [owner.id]: "检查账号失败，请稍后重试。",
+      }));
     } finally {
       setChecking((previous) => {
         const next = new Set(previous);
@@ -41,7 +44,7 @@ export function OrganizationOwnerFields({
   }
   return (
     <section className="space-y-4" aria-labelledby="organization-owners-title">
-      <h2 id="organization-owners-title" className="text-base font-semibold">
+      <h2 id="organization-owners-title" className="font-semibold text-base">
         组织负责人
       </h2>
       <p className="text-sm text-muted-foreground">
@@ -54,12 +57,12 @@ export function OrganizationOwnerFields({
           <fieldset
             key={owner.id}
             disabled={disabled}
-            className="space-y-3 border-b border-border pb-4"
+            className="border-b border-border space-y-3 pb-4"
           >
-            <legend className="mb-3 text-sm font-medium">负责人 {index + 1}</legend>
+            <legend className="font-medium text-sm mb-3">负责人</legend>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
               <Field className="flex-1">
-                <FieldLabel htmlFor={phoneId}>负责人 {index + 1} 手机号</FieldLabel>
+                <FieldLabel htmlFor={phoneId}>负责人 手机号</FieldLabel>
                 <Input
                   id={phoneId}
                   inputMode="tel"
@@ -106,7 +109,7 @@ export function OrganizationOwnerFields({
                 </p>
                 {owner.candidate.status === "active" ? (
                   <Field>
-                    <label htmlFor={`${owner.id}-confirmed`} className="flex items-center gap-2">
+                    <label htmlFor={`${owner.id}-confirmed`} className="flex gap-2 items-center">
                       <Checkbox
                         id={`${owner.id}-confirmed`}
                         checked={owner.confirmed}

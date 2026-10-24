@@ -12,9 +12,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import MultipleSelector from "@/components/ui/multi-select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { IamMember, IamRole } from "../../services/iam-api";
+import { MemberFormDialog } from "./member-form-dialog";
+import type { MemberFormValues } from "./member-form-schema";
 
 type MemberActionsProps = {
   isMutating: boolean;
@@ -22,7 +23,7 @@ type MemberActionsProps = {
   member: IamMember;
   permissions: readonly PermissionKey[];
   roles: IamRole[];
-  onRoleChange: (roleIds: string[]) => Promise<void>;
+  onEdit: (input: MemberFormValues) => Promise<void>;
   onStatusChange: (status: "active" | "disabled") => Promise<void>;
 };
 
@@ -32,7 +33,7 @@ export function MemberActions({
   member,
   permissions,
   roles,
-  onRoleChange,
+  onEdit,
   onStatusChange,
 }: MemberActionsProps) {
   const canUpdateRole = permissions.includes("members:update");
@@ -41,13 +42,6 @@ export function MemberActions({
   const isActive = member.status === "active";
 
   const account = member.email ?? member.phone ?? "未填写";
-  const assignedRoles = member.roles?.length
-    ? member.roles
-    : [{ id: member.roleId, key: member.roleKey, name: member.roleName }];
-  const selectedRoleOptions = assignedRoles.map((role) => ({ value: role.id, label: role.name }));
-  const roleOptions = roles
-    .filter((role) => canManageOwners || role.key !== "owner")
-    .map((role) => ({ value: role.id, label: role.name }));
   const protectedOwner = member.roleKey === "owner";
   const reason =
     protectedOwner && !canManageOwners
@@ -73,18 +67,14 @@ export function MemberActions({
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       {canUpdateRole && reason ? (
-        disabledButton("变更角色", reason, `变更 ${account} 的角色`)
+        disabledButton("编辑", reason, `编辑 ${account}`)
       ) : canUpdateRole ? (
-        <MultipleSelector
-          className="w-44"
-          commandProps={{ label: `变更 ${account} 的角色` }}
+        <MemberFormDialog
+          member={member}
+          roles={roles.filter((role) => canManageOwners || role.key !== "owner")}
+          permissions={permissions}
           disabled={isMutating}
-          inputProps={{ "aria-label": `变更 ${account} 的角色` }}
-          options={roleOptions}
-          placeholder="选择角色"
-          value={selectedRoleOptions}
-          onChange={(selected) => void onRoleChange(selected.map((role) => role.value))}
-          badgeClassName="max-w-full"
+          onSubmit={onEdit}
         />
       ) : null}
 

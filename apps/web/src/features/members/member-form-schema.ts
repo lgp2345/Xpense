@@ -15,4 +15,7 @@ export const memberFormSchema = z.object({
     }),
 });
 
+/** 编辑只修改组织成员关系，历史账号可没有手机号。 */
+export const memberEditFormSchema = memberFormSchema.extend({ phone: z.string() });
+
 export type MemberFormValues = z.infer<typeof memberFormSchema>;
