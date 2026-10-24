@@ -57,6 +57,36 @@ const activeMember = {
 };
 
 describe("IamService", () => {
+  it.each([
+    editableRole,
+    protectedRole,
+  ])("loads menus using the target role permissions for $key", async (role) => {
+    const { repository, service } = createHarness();
+    repository.findRoleById.mockResolvedValue(role);
+    repository.listPermissionKeysForRole.mockResolvedValue(["roles:read"]);
+    const getVisibleMenus = vi.spyOn(service, "getVisibleMenus").mockResolvedValue([]);
+
+    await expect(
+      service.listRoleMenus({ ...authContext, isSuperAdmin: true }, role.id),
+    ).resolves.toEqual([]);
+
+    expect(repository.findRoleById).toHaveBeenCalledWith(authContext.organizationId, role.id);
+    expect(getVisibleMenus).toHaveBeenCalledWith({
+      ...authContext,
+      isSuperAdmin: false,
+      permissions: ["roles:read"],
+    });
+  });
+
+  it("rejects roles outside the organization before reading their permissions", async () => {
+    const { repository, service } = createHarness();
+    repository.findRoleById.mockResolvedValue(null);
+    await expect(service.listRoleMenus(authContext, "other-role")).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(repository.listPermissionKeysForRole).not.toHaveBeenCalled();
+  });
+
   function createHarness() {
     const repository = {
       listMembers: vi.fn().mockResolvedValue([activeMember]),

@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from "@nestjs/common";
 import {
@@ -228,6 +229,21 @@ export class IamService {
 
   listRoles(authContext: AuthContext): Promise<IamRoleWithPermissions[]> {
     return this.repository.listRoles(authContext.organizationId);
+  }
+
+  async listRoleMenus(authContext: AuthContext, roleId: string): Promise<AuthorizedMenuNode[]> {
+    try {
+      const role = await this.repository.findRoleById(authContext.organizationId, roleId);
+      if (!role) {
+        throw new NotFoundException({ code: apiErrorCodes.notFound, message: "角色不存在" });
+      }
+
+      const permissions = await this.repository.listPermissionKeysForRole(role.id);
+      return await this.getVisibleMenus({ ...authContext, permissions, isSuperAdmin: false });
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException("加载角色菜单失败，请稍后重试。", { cause: error });
+    }
   }
 
   async createRole(authContext: AuthContext, dto: CreateRoleDto): Promise<IamRole> {

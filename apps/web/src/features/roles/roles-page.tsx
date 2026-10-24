@@ -19,6 +19,7 @@ import { RoleTable } from "./role-table";
 type RolesApi = Pick<
   IamApi,
   | "listRoles"
+  | "getRoleMenus"
   | "createRole"
   | "deleteRole"
   | "getPermissionTree"
@@ -185,6 +186,7 @@ export function RolesPage({
   const table = useClientTable(
     roles,
     createRoleColumns({
+      onViewMenus: api.getRoleMenus,
       canUpdatePermissions,
       isMutating,
       permissions,

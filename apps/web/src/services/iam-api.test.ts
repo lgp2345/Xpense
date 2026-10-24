@@ -4,6 +4,12 @@ import type { ApiClient } from "./api-client";
 import { createIamApi } from "./iam-api";
 
 describe("createIamApi", () => {
+  it("requests menus for the selected role with an encoded query", async () => {
+    const { api, client } = createHarness();
+    await api.getRoleMenus("role&1");
+    expect(client.get).toHaveBeenCalledWith("/roles/menus/list?roleId=role%261");
+  });
+
   function createHarness() {
     const client = {
       get: vi.fn().mockResolvedValue({}),

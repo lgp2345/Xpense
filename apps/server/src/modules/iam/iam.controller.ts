@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Query, UseGuards } from "@nestjs/common";
 
-import type { PermissionTreeNode } from "@xpense/shared";
+import type { AuthorizedMenuNode, PermissionTreeNode } from "@xpense/shared";
 
 import type { AuthContext } from "../../common/auth/auth-context.js";
 import { CurrentAuthContext } from "../../common/auth/current-auth-context.decorator.js";
@@ -16,6 +16,7 @@ import {
   type MemberAccountQueryDto,
   memberAccountQuerySchema,
 } from "./dto/member-account-query.dto.js";
+import { type RoleMenusQueryDto, roleMenusQuerySchema } from "./dto/role-menus-query.dto.js";
 import { type UpdateMemberDto, updateMemberSchema } from "./dto/update-member.dto.js";
 import { type UpdateRoleDto, updateRoleSchema } from "./dto/update-role.dto.js";
 import { AuthGuard } from "./guards/auth.guard.js";
@@ -67,6 +68,15 @@ export class IamController {
   @RequirePermission("roles:read")
   listRoles(@CurrentAuthContext() authContext: AuthContext): Promise<IamRoleWithPermissions[]> {
     return this.iamService.listRoles(authContext);
+  }
+
+  @Get("roles/menus/list")
+  @RequirePermission("roles:read")
+  listRoleMenus(
+    @CurrentAuthContext() authContext: AuthContext,
+    @Query({ schema: roleMenusQuerySchema }) query: RoleMenusQueryDto,
+  ): Promise<AuthorizedMenuNode[]> {
+    return this.iamService.listRoleMenus(authContext, query.roleId);
   }
 
   @Post("roles/create")

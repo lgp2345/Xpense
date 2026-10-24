@@ -185,6 +185,8 @@ export function createIamApi(client: ApiClient) {
     updateMember: (memberId: string, input: UpdateMemberRequest) =>
       client.post<IamMember>("/members/update", { id: memberId, ...input }),
     listRoles: () => client.get<IamRoleWithPermissions[]>("/roles/list"),
+    getRoleMenus: (roleId: string) =>
+      client.get<AuthorizedMenuNode[]>(`/roles/menus/list?roleId=${encodeURIComponent(roleId)}`),
     createRole: (input: CreateRoleRequest) => client.post<IamRole>("/roles/create", input),
     updateRole: (roleId: string, input: UpdateRoleRequest) =>
       client.post<IamRole>("/roles/update", { id: roleId, ...input }),

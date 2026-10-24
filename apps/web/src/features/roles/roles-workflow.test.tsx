@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { PermissionKey, PermissionTreeNode } from "@xpense/shared";
+import type { AuthorizedMenuNode, PermissionKey, PermissionTreeNode } from "@xpense/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import type { IamApi, IamRoleWithPermissions } from "../../services/iam-api";
@@ -85,6 +85,7 @@ const permissionTree: PermissionTreeNode[] = [
 type RolesApi = Pick<
   IamApi,
   | "listRoles"
+  | "getRoleMenus"
   | "createRole"
   | "deleteRole"
   | "getPermissionTree"
@@ -95,6 +96,7 @@ type RolesApi = Pick<
 function createIamApi(overrides: Partial<RolesApi> = {}): RolesApi {
   return {
     listRoles: vi.fn().mockResolvedValue([systemRole, customRole]),
+    getRoleMenus: vi.fn().mockResolvedValue([]),
     createRole: vi.fn().mockResolvedValue(customRole),
     deleteRole: vi.fn().mockResolvedValue(undefined),
     getPermissionTree: vi.fn().mockResolvedValue(permissionTree),
@@ -133,6 +135,96 @@ function getOtherPermissionTree(): PermissionTreeNode {
 }
 
 describe("RolesPage", () => {
+  it.each([
+    systemRole,
+    customRole,
+  ])("shows read-only menus for $name with only roles:read", async (role) => {
+    const user = userEvent.setup();
+    const menus: AuthorizedMenuNode[] = [
+      {
+        id: 1,
+        parentId: null,
+        name: "组织管理",
+        sortOrder: 1,
+        type: "directory",
+        icon: null,
+        isVisible: true,
+        routeKey: null,
+        path: null,
+        url: null,
+        permissionCode: null,
+        isExternal: null,
+        keepAlive: null,
+        children: [
+          {
+            id: 2,
+            parentId: 1,
+            name: "角色管理",
+            sortOrder: 1,
+            type: "menu",
+            icon: null,
+            isVisible: true,
+            routeKey: "Roles",
+            path: "/roles",
+            url: null,
+            permissionCode: "roles:read",
+            isExternal: false,
+            keepAlive: false,
+            children: [],
+          },
+        ],
+      },
+    ];
+    const api = createIamApi({ getRoleMenus: vi.fn().mockResolvedValue(menus) });
+    renderRolesPage(["roles:read"], { api });
+
+    expect(api.getRoleMenus).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: `查看 ${role.name} 的菜单` }));
+
+    const dialog = await screen.findByRole("dialog", { name: `${role.name}的菜单` });
+    expect(await within(dialog).findByText("组织管理")).toBeInTheDocument();
+    expect(within(dialog).getByText("角色管理")).toBeInTheDocument();
+    expect(within(dialog).getByText("/roles")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /保存/ })).not.toBeInTheDocument();
+    expect(api.getRoleMenus).toHaveBeenCalledWith(role.id);
+    expect(api.getPermissionTree).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "关闭" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("shows an empty state when the role has no visible menus", async () => {
+    const user = userEvent.setup();
+    renderRolesPage(["roles:read"], { api: createIamApi() });
+    await user.click(screen.getByRole("button", { name: "查看 账务管理员 的菜单" }));
+    expect(await screen.findByText("该角色暂无可见菜单。")).toBeInTheDocument();
+  });
+
+  it("shows loading and lets users retry a failed menu request", async () => {
+    const user = userEvent.setup();
+    let rejectRequest: (error: Error) => void = () => {};
+    const api = createIamApi({
+      getRoleMenus: vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise((_, reject) => {
+              rejectRequest = reject;
+            }),
+        )
+        .mockResolvedValue([]),
+    });
+    renderRolesPage(["roles:read"], { api });
+    await user.click(screen.getByRole("button", { name: "查看 所有者 的菜单" }));
+    expect(screen.getByRole("status")).toHaveTextContent("正在加载菜单...");
+    rejectRequest(new Error("internal-detail"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("加载角色菜单失败，请稍后重试。");
+    expect(screen.queryByText("internal-detail")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "重试" }));
+    expect(await screen.findByText("该角色暂无可见菜单。")).toBeInTheDocument();
+    expect(api.getRoleMenus).toHaveBeenCalledTimes(2);
+  });
+
   it("loads the role list without requesting the permission tree when permission updates are unavailable", async () => {
     const api = createIamApi({
       getPermissionTree: vi.fn().mockRejectedValue(new Error("forbidden")),

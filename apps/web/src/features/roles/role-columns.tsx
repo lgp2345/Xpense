@@ -1,4 +1,4 @@
-import type { PermissionKey, PermissionTreeNode } from "@xpense/shared";
+import type { AuthorizedMenuNode, PermissionKey, PermissionTreeNode } from "@xpense/shared";
 import { DataTableColumnHeader } from "@/components/data-table";
 import type { ClientColumnDef } from "@/components/data-table/use-client-table";
 import {
@@ -15,6 +15,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { IamRoleWithPermissions, UpdateRoleRequest } from "../../services/iam-api";
 import { RoleEditorDialog, type RoleEditorInput } from "./role-editor-dialog";
+import { RoleMenusDialog } from "./role-menus-dialog";
 
 type RoleColumnsOptions = {
   canUpdatePermissions: boolean;
@@ -23,6 +24,7 @@ type RoleColumnsOptions = {
   permissionTree: readonly PermissionTreeNode[];
   onDelete: (roleId: string) => Promise<boolean>;
   onUpdate: (roleId: string, input: UpdateRoleRequest) => Promise<boolean>;
+  onViewMenus: (roleId: string) => Promise<AuthorizedMenuNode[]>;
 };
 
 type RoleColumnDef = ClientColumnDef<IamRoleWithPermissions>;
@@ -34,6 +36,7 @@ export function createRoleColumns({
   permissionTree,
   onDelete,
   onUpdate,
+  onViewMenus,
 }: RoleColumnsOptions): RoleColumnDef[] {
   const canUpdate = permissions.includes("roles:update");
   const canDelete = permissions.includes("roles:delete");
@@ -76,11 +79,12 @@ export function createRoleColumns({
     },
     {
       id: "actions",
-      header: () => <span className="sr-only">操作</span>,
+      header: () => <span>操作</span>,
       cell: ({ row }) => {
         const role = row.original;
         return (
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <RoleMenusDialog role={role} loadMenus={onViewMenus} />
             {role.isEditable && (canUpdate || canUpdatePermissions) ? (
               <RoleEditorDialog
                 canEditMetadata={canUpdate}
