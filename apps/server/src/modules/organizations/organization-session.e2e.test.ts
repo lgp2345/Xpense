@@ -44,6 +44,60 @@ describe("organization session and account preference", () => {
     });
   }
 
+  async function listOrganizations(accessToken: string) {
+    const response = await harness.app.inject({
+      method: "GET",
+      url: "/api/user/organizations",
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(response.statusCode).toBe(200);
+    return response.json().data;
+  }
+
+  it.each([
+    TEST_PHONES.super,
+    TEST_PHONES.superNonMember,
+  ])("lists all active organizations for super admin %s before and after entering an organization", async (phone) => {
+    await setup();
+    harness.state.organizations.set("disabled-org", {
+      id: "disabled-org",
+      name: "Disabled",
+      status: "disabled",
+    });
+    const expected = [
+      { id: testIds.organization, name: "Acme", status: "active" },
+      { id: testIds.otherOrganization, name: "Other", status: "active" },
+    ];
+    const token = (await login(phone)).json().data.accessToken;
+    expect(await listOrganizations(token)).toEqual(expected);
+    const entered = await switchTo(token, testIds.otherOrganization);
+    expect(entered.statusCode).toBe(200);
+    expect(await listOrganizations(entered.json().data.accessToken)).toEqual(expected);
+  });
+
+  it("keeps ordinary accounts limited to active memberships in active organizations", async () => {
+    await setup();
+    const token = (await login()).json().data.accessToken;
+    const expected = [{ id: testIds.organization, name: "Acme", status: "active" }];
+    expect(await listOrganizations(token)).toEqual(expected);
+    addSecondMembership();
+    harness.state.organizations.set(testIds.otherOrganization, {
+      id: testIds.otherOrganization,
+      name: "Other",
+      status: "disabled",
+    });
+    expect(await listOrganizations(token)).toEqual(expected);
+    harness.state.organizations.set(testIds.otherOrganization, {
+      id: testIds.otherOrganization,
+      name: "Other",
+      status: "active",
+    });
+    const member = harness.state.members.get("33333333-3333-4333-8333-333333333399");
+    if (!member) throw new Error("Missing membership fixture");
+    harness.state.members.set(member.id, { ...member, status: "disabled" });
+    expect(await listOrganizations(token)).toEqual(expected);
+  });
+
   it("shares the last successful target across devices without changing existing sessions", async () => {
     await setup();
     const first = (await login()).json().data;

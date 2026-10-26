@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import type { AppDb, AppDbExecutor } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
@@ -20,6 +20,18 @@ export type ActiveMembership = {
 @Injectable()
 export class OrganizationsRepository {
   constructor(@Inject(DB) private readonly db: AppDb) {}
+
+  async listActiveOrganizations(): Promise<UserOrganization[]> {
+    return this.db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        status: organizations.status,
+      })
+      .from(organizations)
+      .where(eq(organizations.status, "active"))
+      .orderBy(asc(organizations.name), asc(organizations.id));
+  }
 
   async listActiveOrganizationsForUser(userId: string): Promise<UserOrganization[]> {
     return this.db

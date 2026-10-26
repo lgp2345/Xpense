@@ -20,7 +20,9 @@ export class OrganizationsService {
   ) {}
 
   listOrganizations(authContext: SessionAuthContext): Promise<UserOrganization[]> {
-    return this.repository.listActiveOrganizationsForUser(authContext.userId);
+    return authContext.isSuperAdmin
+      ? this.repository.listActiveOrganizations()
+      : this.repository.listActiveOrganizationsForUser(authContext.userId);
   }
 
   async switchCurrentOrganization(

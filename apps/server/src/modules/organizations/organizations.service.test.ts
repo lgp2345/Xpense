@@ -25,6 +25,7 @@ function createHarness(isSuperAdmin = false) {
   ];
   const lockOrder: string[] = [];
   const repository = {
+    listActiveOrganizations: vi.fn().mockResolvedValue(organizations),
     listActiveOrganizationsForUser: vi.fn().mockResolvedValue(organizations),
     findActiveMembership: vi
       .fn()
@@ -101,15 +102,41 @@ function createHarness(isSuperAdmin = false) {
 }
 
 describe("OrganizationsService", () => {
-  it("lists only the user's memberships even in platform scope", async () => {
+  it.each([
+    { accessScope: "platform", organizationId: null },
+    { accessScope: "organization", organizationId: "org-a" },
+  ] as const)("lists all active organizations for a super admin in $accessScope scope", async (context) => {
     const { service, repository } = createHarness(true);
-    await service.listOrganizations({
-      ...authContext,
-      isSuperAdmin: true,
-      accessScope: "platform",
-      organizationId: null,
-    });
+    repository.listActiveOrganizationsForUser.mockResolvedValue([]);
+    await expect(
+      service.listOrganizations({
+        ...authContext,
+        isSuperAdmin: true,
+        ...context,
+      }),
+    ).resolves.toEqual([
+      { id: "org-a", name: "A", status: "active" },
+      { id: "org-b", name: "B", status: "active" },
+    ]);
+    expect(repository.listActiveOrganizations).toHaveBeenCalledOnce();
+    expect(repository.listActiveOrganizationsForUser).not.toHaveBeenCalled();
+  });
+
+  it("lists only the user's memberships for an ordinary account", async () => {
+    const { service, repository } = createHarness();
+    const memberships = [{ id: "org-a", name: "A", status: "active" }];
+    repository.listActiveOrganizationsForUser.mockResolvedValue(memberships);
+    await expect(service.listOrganizations(authContext)).resolves.toEqual(memberships);
     expect(repository.listActiveOrganizationsForUser).toHaveBeenCalledWith("user-1");
+    expect(repository.listActiveOrganizations).not.toHaveBeenCalled();
+  });
+
+  it("propagates a failed platform organization query", async () => {
+    const { service, repository } = createHarness(true);
+    repository.listActiveOrganizations.mockRejectedValue(new Error("database unavailable"));
+    await expect(service.listOrganizations({ ...authContext, isSuperAdmin: true })).rejects.toThrow(
+      "database unavailable",
+    );
   });
 
   it("commits the current session and shared preference, preserving other device targets", async () => {

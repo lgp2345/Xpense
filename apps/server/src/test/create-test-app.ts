@@ -824,6 +824,10 @@ function createMemberAccountsRepository(state: TestState): Partial<MemberAccount
 
 function createOrganizationsRepository(state: TestState): Partial<OrganizationsRepository> {
   return {
+    listActiveOrganizations: async () =>
+      [...state.organizations.values()]
+        .filter((organization) => organization.status === "active")
+        .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
     listActiveOrganizationsForUser: async (userId) =>
       [...state.members.values()]
         .filter((member) => member.userId === userId && member.status === "active")
