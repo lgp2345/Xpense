@@ -54,7 +54,7 @@ type PropertyTableProps = {
   ) => Promise<void>;
 };
 
-/** 大屏房产表格，保留账本标识在数据层而不展示给终端用户。 */
+/** 大屏房产表格。 */
 export function PropertyTable({
   getProperty,
   canGenerateBills,

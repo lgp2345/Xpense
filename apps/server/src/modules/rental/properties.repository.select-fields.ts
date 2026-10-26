@@ -7,7 +7,6 @@ import { normalizeContractTime } from "./contract-time.rules.js";
 export const propertyRecordFields = {
   id: rentalProperties.id,
   organizationId: rentalProperties.organizationId,
-  ledgerId: rentalProperties.ledgerId,
   name: rentalProperties.name,
   type: rentalProperties.type,
   customTypeName: rentalProperties.customTypeName,
@@ -48,7 +47,6 @@ const propertySpaceCountFields = {
 /** 房产列表摘要字段；空间数量使用相关标量子查询，避免加载或连接空间行。 */
 export const propertySummaryFields = {
   id: rentalProperties.id,
-  ledgerId: rentalProperties.ledgerId,
   name: rentalProperties.name,
   type: rentalProperties.type,
   customTypeName: rentalProperties.customTypeName,

@@ -103,15 +103,6 @@ function createSession(overrides: Partial<WebSessionDependency> = {}): WebSessio
       session: { id: "session-1", clientType: "web_pc" },
       status: "authenticated",
     }),
-    bookkeepingApi: {
-      getMonthlyStatistics: vi.fn().mockResolvedValue({
-        incomeMinor: 100,
-        expenseMinor: 20,
-        netMinor: 80,
-        currency: "CNY",
-        expenseCategories: [],
-      }),
-    } as unknown as WebSessionDependency["bookkeepingApi"],
     iamApi: {
       listMembers: vi.fn().mockResolvedValue([]),
       listRoles: vi.fn().mockResolvedValue([]),
@@ -156,15 +147,10 @@ describe("Dashboard and IAM file routes", () => {
     expect((MenusRoute.options as { path?: string }).path).toBe(expected.Menus);
   });
 
-  it("renders Dashboard with the injected bookkeeping API and organization", async () => {
-    const { session } = renderRoute("/");
+  it("renders the authenticated home route", async () => {
+    renderRoute("/");
 
     expect(await screen.findByRole("heading", { name: "仪表盘" })).toBeInTheDocument();
-    await waitFor(() =>
-      expect(session.bookkeepingApi.getMonthlyStatistics).toHaveBeenCalledWith(
-        expect.objectContaining({ month: expect.any(String) }),
-      ),
-    );
   });
 
   it("renders Members with the injected IAM API and permissions", async () => {

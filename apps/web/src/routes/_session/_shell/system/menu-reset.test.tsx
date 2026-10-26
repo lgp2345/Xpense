@@ -33,7 +33,6 @@ function createSession(isSuperAdmin = false): WebSessionDependency {
       session: { id: "session-1", clientType: "web_pc" },
       status: "authenticated",
     }),
-    bookkeepingApi: {} as WebSessionDependency["bookkeepingApi"],
     iamApi: {} as WebSessionDependency["iamApi"],
     menuStore: createMenuStore(),
     rentalBillsApi: {} as WebSessionDependency["rentalBillsApi"],

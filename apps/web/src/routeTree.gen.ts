@@ -15,9 +15,6 @@ import { Route as FoundationRouteImport } from './routes/foundation'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SessionShellRouteImport } from './routes/_session/_shell'
 import { Route as SessionForbiddenRouteImport } from './routes/_session/forbidden'
-import { Route as AuthenticatedbookkeepingAccountsRouteImport } from './routes/_authenticated/(bookkeeping)/accounts'
-import { Route as AuthenticatedbookkeepingCategoriesRouteImport } from './routes/_authenticated/(bookkeeping)/categories'
-import { Route as AuthenticatedbookkeepingTransactionsRouteImport } from './routes/_authenticated/(bookkeeping)/transactions'
 import { Route as AuthenticatedcoreIndexRouteImport } from './routes/_authenticated/(core)/index'
 import { Route as AuthenticatediamAuditLogsRouteImport } from './routes/_authenticated/(iam)/audit-logs'
 import { Route as AuthenticatediamMembersRouteImport } from './routes/_authenticated/(iam)/members'
@@ -68,24 +65,6 @@ const SessionForbiddenRoute = SessionForbiddenRouteImport.update({
   path: '/forbidden',
   getParentRoute: () => SessionRoute,
 } as any)
-const AuthenticatedbookkeepingAccountsRoute =
-  AuthenticatedbookkeepingAccountsRouteImport.update({
-    id: '/(bookkeeping)/accounts',
-    path: '/accounts',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedbookkeepingCategoriesRoute =
-  AuthenticatedbookkeepingCategoriesRouteImport.update({
-    id: '/(bookkeeping)/categories',
-    path: '/categories',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedbookkeepingTransactionsRoute =
-  AuthenticatedbookkeepingTransactionsRouteImport.update({
-    id: '/(bookkeeping)/transactions',
-    path: '/transactions',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedcoreIndexRoute = AuthenticatedcoreIndexRouteImport.update({
   id: '/(core)/',
   path: '/',
@@ -220,9 +199,6 @@ export interface FileRoutesByFullPath {
   '/foundation': typeof FoundationRoute
   '/login': typeof LoginRoute
   '/forbidden': typeof SessionForbiddenRoute
-  '/accounts': typeof AuthenticatedbookkeepingAccountsRoute
-  '/categories': typeof AuthenticatedbookkeepingCategoriesRoute
-  '/transactions': typeof AuthenticatedbookkeepingTransactionsRoute
   '/audit-logs': typeof AuthenticatediamAuditLogsRoute
   '/members': typeof AuthenticatediamMembersRoute
   '/menus': typeof AuthenticatediamMenusRoute
@@ -250,9 +226,6 @@ export interface FileRoutesByTo {
   '/foundation': typeof FoundationRoute
   '/login': typeof LoginRoute
   '/forbidden': typeof SessionForbiddenRoute
-  '/accounts': typeof AuthenticatedbookkeepingAccountsRoute
-  '/categories': typeof AuthenticatedbookkeepingCategoriesRoute
-  '/transactions': typeof AuthenticatedbookkeepingTransactionsRoute
   '/audit-logs': typeof AuthenticatediamAuditLogsRoute
   '/members': typeof AuthenticatediamMembersRoute
   '/menus': typeof AuthenticatediamMenusRoute
@@ -283,9 +256,6 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_session/_shell': typeof SessionShellRouteWithChildren
   '/_session/forbidden': typeof SessionForbiddenRoute
-  '/_authenticated/(bookkeeping)/accounts': typeof AuthenticatedbookkeepingAccountsRoute
-  '/_authenticated/(bookkeeping)/categories': typeof AuthenticatedbookkeepingCategoriesRoute
-  '/_authenticated/(bookkeeping)/transactions': typeof AuthenticatedbookkeepingTransactionsRoute
   '/_authenticated/(iam)/audit-logs': typeof AuthenticatediamAuditLogsRoute
   '/_authenticated/(iam)/members': typeof AuthenticatediamMembersRoute
   '/_authenticated/(iam)/menus': typeof AuthenticatediamMenusRoute
@@ -316,9 +286,6 @@ export interface FileRouteTypes {
     | '/foundation'
     | '/login'
     | '/forbidden'
-    | '/accounts'
-    | '/categories'
-    | '/transactions'
     | '/audit-logs'
     | '/members'
     | '/menus'
@@ -346,9 +313,6 @@ export interface FileRouteTypes {
     | '/foundation'
     | '/login'
     | '/forbidden'
-    | '/accounts'
-    | '/categories'
-    | '/transactions'
     | '/audit-logs'
     | '/members'
     | '/menus'
@@ -378,9 +342,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/_session/_shell'
     | '/_session/forbidden'
-    | '/_authenticated/(bookkeeping)/accounts'
-    | '/_authenticated/(bookkeeping)/categories'
-    | '/_authenticated/(bookkeeping)/transactions'
     | '/_authenticated/(iam)/audit-logs'
     | '/_authenticated/(iam)/members'
     | '/_authenticated/(iam)/menus'
@@ -455,27 +416,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/forbidden'
       preLoaderRoute: typeof SessionForbiddenRouteImport
       parentRoute: typeof SessionRoute
-    }
-    '/_authenticated/(bookkeeping)/accounts': {
-      id: '/_authenticated/(bookkeeping)/accounts'
-      path: '/accounts'
-      fullPath: '/accounts'
-      preLoaderRoute: typeof AuthenticatedbookkeepingAccountsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/(bookkeeping)/categories': {
-      id: '/_authenticated/(bookkeeping)/categories'
-      path: '/categories'
-      fullPath: '/categories'
-      preLoaderRoute: typeof AuthenticatedbookkeepingCategoriesRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/(bookkeeping)/transactions': {
-      id: '/_authenticated/(bookkeeping)/transactions'
-      path: '/transactions'
-      fullPath: '/transactions'
-      preLoaderRoute: typeof AuthenticatedbookkeepingTransactionsRouteImport
-      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/(core)/': {
       id: '/_authenticated/(core)/'
@@ -635,9 +575,6 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
-  AuthenticatedbookkeepingAccountsRoute: typeof AuthenticatedbookkeepingAccountsRoute
-  AuthenticatedbookkeepingCategoriesRoute: typeof AuthenticatedbookkeepingCategoriesRoute
-  AuthenticatedbookkeepingTransactionsRoute: typeof AuthenticatedbookkeepingTransactionsRoute
   AuthenticatediamAuditLogsRoute: typeof AuthenticatediamAuditLogsRoute
   AuthenticatediamMembersRoute: typeof AuthenticatediamMembersRoute
   AuthenticatediamMenusRoute: typeof AuthenticatediamMenusRoute
@@ -658,11 +595,6 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedbookkeepingAccountsRoute: AuthenticatedbookkeepingAccountsRoute,
-  AuthenticatedbookkeepingCategoriesRoute:
-    AuthenticatedbookkeepingCategoriesRoute,
-  AuthenticatedbookkeepingTransactionsRoute:
-    AuthenticatedbookkeepingTransactionsRoute,
   AuthenticatediamAuditLogsRoute: AuthenticatediamAuditLogsRoute,
   AuthenticatediamMembersRoute: AuthenticatediamMembersRoute,
   AuthenticatediamMenusRoute: AuthenticatediamMenusRoute,

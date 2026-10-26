@@ -101,24 +101,6 @@ describe.skipIf(!url)("organization management HTTP and real transactions", () =
         expect(
           await pg.db.select().from(tables.menus).where(eq(tables.menus.organizationId, org.id)),
         ).not.toHaveLength(0);
-        expect(
-          await pg.db
-            .select()
-            .from(tables.ledgers)
-            .where(eq(tables.ledgers.organizationId, org.id)),
-        ).toHaveLength(1);
-        expect(
-          await pg.db
-            .select()
-            .from(tables.accounts)
-            .where(eq(tables.accounts.organizationId, org.id)),
-        ).toHaveLength(1);
-        expect(
-          await pg.db
-            .select()
-            .from(tables.categories)
-            .where(eq(tables.categories.organizationId, org.id)),
-        ).not.toHaveLength(0);
         const list = await app.inject({
           method: "GET",
           url: "/api/organizations/list?page=1&pageSize=1&name=新建",

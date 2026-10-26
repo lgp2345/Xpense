@@ -19,7 +19,7 @@ describe("space contract list HTTP", () => {
     undefined,
     "related",
   ] as const)("passes validated space and pagination scope to the organization repository (%s)", async (spaceScope) => {
-    harness = await createTestApp({ bookkeeping: true, rental: true });
+    harness = await createTestApp({ rental: true });
     const { accessToken } = await login(harness.app, TEST_PHONES.owner);
     const input = {
       propertyId: rentalTestIds.property,
@@ -49,7 +49,7 @@ describe("space contract list HTTP", () => {
   });
 
   it("requires authentication and rejects invalid space ids", async () => {
-    harness = await createTestApp({ bookkeeping: true, rental: true });
+    harness = await createTestApp({ rental: true });
     const anonymous = await harness.app.inject({
       method: "GET",
       url: `/api/rental-contracts/list?spaceId=${rentalTestIds.childSpace}`,
@@ -66,7 +66,7 @@ describe("space contract list HTTP", () => {
   });
 
   it("keeps space contract filtering behind contract read permission", async () => {
-    harness = await createTestApp({ bookkeeping: true, rental: true });
+    harness = await createTestApp({ rental: true });
     const role = harness.state.roles.get(testIds.viewerRole);
     if (!role) throw new Error("Missing viewer test role");
     role.permissions = role.permissions.filter((key) => key !== "rental_contracts:read");

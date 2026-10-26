@@ -75,7 +75,7 @@ const allPermissions = [
   },
   {
     id: "permission-transactions-delete",
-    key: "transactions:delete" as const,
+    key: "rental_properties:delete" as const,
     name: "删除交易",
     resource: "transactions",
     action: "delete",
@@ -168,7 +168,7 @@ const roleChainPermissions = [
 
 function createHarness(options: { auditFails?: boolean; role?: typeof editableRole | null } = {}) {
   const committed = {
-    permissions: ["members:read", "transactions:delete"] as PermissionKey[],
+    permissions: ["members:read", "rental_properties:delete"] as PermissionKey[],
     auditCount: 0,
   };
   const transaction = {
@@ -239,7 +239,7 @@ describe("PermissionTreeService", () => {
         ...node.children.map((x) => x.permissionCode),
       ]),
     ).toContain("members:read");
-    expect(JSON.stringify(result)).not.toContain("transactions:delete");
+    expect(JSON.stringify(result)).not.toContain("rental_properties:delete");
   });
 
   it("hides a child permission when its required ancestor is above the operator ceiling", async () => {
@@ -258,7 +258,7 @@ describe("PermissionTreeService", () => {
 
     const result = await service.getPermissionTree({ ...authContext, isSuperAdmin: true });
 
-    expect(JSON.stringify(result)).toContain("transactions:delete");
+    expect(JSON.stringify(result)).toContain("rental_properties:delete");
   });
 
   it("preserves an existing deep permission that the tree correctly hides from the actor", async () => {
@@ -298,18 +298,18 @@ describe("PermissionTreeService", () => {
 
   it("allows an actor to remove an existing permission in the actual grantable set", async () => {
     const { committed, repository, service } = createHarness();
-    committed.permissions = ["members:read", "members:create", "transactions:delete"];
+    committed.permissions = ["members:read", "members:create", "rental_properties:delete"];
 
     await service.editRolePermissions(authContext, {
       roleId: "role-1",
       permissionKeys: ["members:read"],
     });
 
-    expect(committed.permissions).toEqual(["members:read", "transactions:delete"]);
+    expect(committed.permissions).toEqual(["members:read", "rental_properties:delete"]);
     expect(repository.replaceRolePermissions).toHaveBeenCalledWith(
       {
         roleId: "role-1",
-        permissionKeys: ["members:read", "transactions:delete"],
+        permissionKeys: ["members:read", "rental_properties:delete"],
       },
       expect.anything(),
     );
@@ -328,7 +328,7 @@ describe("PermissionTreeService", () => {
     expect(repository.replaceRolePermissions).toHaveBeenCalledWith(
       {
         roleId: "role-1",
-        permissionKeys: ["members:create", "members:read", "transactions:delete"],
+        permissionKeys: ["members:create", "members:read", "rental_properties:delete"],
       },
       transaction,
     );
@@ -344,7 +344,7 @@ describe("PermissionTreeService", () => {
     expect(committed.permissions).toEqual([
       "members:create",
       "members:read",
-      "transactions:delete",
+      "rental_properties:delete",
     ]);
     expect(auditService.appendRequired).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -368,7 +368,7 @@ describe("PermissionTreeService", () => {
     await expect(
       service.editRolePermissions(authContext, {
         roleId: "role-1",
-        permissionKeys: ["transactions:delete"],
+        permissionKeys: ["rental_properties:delete"],
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(repository.lockRoleById).not.toHaveBeenCalled();
@@ -401,7 +401,7 @@ describe("PermissionTreeService", () => {
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.replaceRolePermissions).not.toHaveBeenCalled();
-    expect(committed.permissions).toEqual(["members:read", "transactions:delete"]);
+    expect(committed.permissions).toEqual(["members:read", "rental_properties:delete"]);
   });
 
   it("rejects removing a manageable ancestor required by an unmanageable existing child", async () => {
@@ -449,7 +449,7 @@ describe("PermissionTreeService", () => {
       }),
     ).rejects.toThrow("audit unavailable");
     expect(committed).toEqual({
-      permissions: ["members:read", "transactions:delete"],
+      permissions: ["members:read", "rental_properties:delete"],
       auditCount: 0,
     });
   });

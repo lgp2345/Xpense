@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { createBookkeepingTestState } from "./bookkeeping-test-state.js";
 import {
   applyRentalMutationEffect,
   createRentalMutationFixtureRegistry,
@@ -95,7 +94,6 @@ describe("RentalMutationFixtureRegistry", () => {
     const readFixtures = createRentalQueryFixtureRegistry();
     const fakes = createRentalRepositoryFakes(
       state,
-      createBookkeepingTestState(),
       readFixtures,
       createRentalMutationFixtureRegistry(),
     );
@@ -153,7 +151,6 @@ describe("RentalMutationFixtureRegistry", () => {
     const state = createRentalTestState();
     const tenants = createRentalRepositoryFakes(
       state,
-      createBookkeepingTestState(),
       createRentalQueryFixtureRegistry(),
       createRentalMutationFixtureRegistry(),
     ).tenantsRepository;
@@ -196,7 +193,6 @@ describe("RentalMutationFixtureRegistry", () => {
     readFixtures.registerRead("tenants.reference", [organizationId, rentalTestIds.tenant], true);
     const tenants = createRentalRepositoryFakes(
       state,
-      createBookkeepingTestState(),
       readFixtures,
       createRentalMutationFixtureRegistry(),
     ).tenantsRepository;
@@ -307,7 +303,6 @@ describe("RentalMutationFixtureRegistry", () => {
     const registry = createRentalMutationFixtureRegistry();
     const relations = createRentalRepositoryFakes(
       state,
-      createBookkeepingTestState(),
       createRentalQueryFixtureRegistry(),
       registry,
     ).contractRelationsRepository;
@@ -419,7 +414,6 @@ describe("RentalMutationFixtureRegistry", () => {
     const registry = createRentalMutationFixtureRegistry();
     const relations = createRentalRepositoryFakes(
       state,
-      createBookkeepingTestState(),
       createRentalQueryFixtureRegistry(),
       registry,
     ).contractRelationsRepository;

@@ -8,11 +8,6 @@ import { parseServerEnv, type ServerEnv } from "../config/env.schema.js";
 import { copyMenuTemplate } from "../modules/iam/menu-template.js";
 import { createMenuTemplateExecutor } from "../modules/iam/menu-template-executor.js";
 import {
-  type BookkeepingDefaultsContext,
-  initializeBookkeepingDefaults,
-} from "./bookkeeping-defaults.js";
-import { createBookkeepingDefaultsExecutor } from "./bookkeeping-defaults-executor.js";
-import {
   organizationMemberships,
   organizations,
   permissions,
@@ -62,8 +57,6 @@ export type SeedRbacWorkflowDependencies<TExecutor> = {
     env: ServerEnv,
     roleIdByKey: Map<SystemRoleKey, string>,
   ): Promise<BootstrapSeedResult | undefined>;
-  /** 在当前事务中幂等补齐 bootstrap 组织的默认记账数据。 */
-  initializeDefaults(executor: TExecutor, context: BookkeepingDefaultsContext): Promise<void>;
   /** 在当前事务中为本次新建的 bootstrap 组织复制菜单模板。 */
   initializeMenu(executor: TExecutor, organizationId: string): Promise<void>;
 };
@@ -112,13 +105,6 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
         isEditable: false,
         permissions: [
           "dashboard:read",
-          "ledgers:read",
-          "accounts:read",
-          "categories:read",
-          "transactions:read",
-          "transactions:create",
-          "transactions:update",
-          "statistics:read",
           "rental_properties:read",
           "rental_spaces:read",
           "rental_tenants:read",
@@ -133,11 +119,6 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
         isEditable: false,
         permissions: [
           "dashboard:read",
-          "ledgers:read",
-          "accounts:read",
-          "categories:read",
-          "transactions:read",
-          "statistics:read",
           "rental_properties:read",
           "rental_spaces:read",
           "rental_tenants:read",
@@ -150,14 +131,14 @@ export function buildRbacSeedPlan(): RbacSeedPlan {
 }
 
 /**
- * 在单个数据库事务内初始化 RBAC、bootstrap 组织及其默认业务数据。
+ * 在单个数据库事务内初始化 RBAC、bootstrap 组织及其菜单。
  *
  * @param db 能开启事务并将事务 executor 交给回调的数据库入口。
  * @param env 已校验的服务端环境配置。
  * @param dependencies 可选的事务工作流依赖；生产环境省略时使用真实数据库实现。
  * @returns seed 完成后无返回值。
  * @throws 任一工作流步骤失败时传播异常并由数据库回滚整个事务。
- * @remarks defaults 与菜单均接收事务回调提供的 executor，不使用事务外数据库实例。
+ * @remarks 菜单接收事务回调提供的 executor，不使用事务外数据库实例。
  */
 export async function seedRbac<TExecutor = SeedTransaction>(
   db: { transaction(callback: (executor: TExecutor) => Promise<void>): Promise<void> },
@@ -173,13 +154,6 @@ export async function seedRbac<TExecutor = SeedTransaction>(
     const roleIdByKey = await workflow.prepareRbac(tx, plan);
     const bootstrap = await workflow.resolveBootstrap(tx, env, roleIdByKey);
 
-    if (bootstrap) {
-      await workflow.initializeDefaults(tx, {
-        organizationId: bootstrap.organization.id,
-        actorUserId: bootstrap.actorUserId,
-      });
-    }
-
     if (bootstrap && shouldInitializeMenuTemplate(bootstrap.organization.created)) {
       await workflow.initializeMenu(tx, bootstrap.organization.id);
     }
@@ -194,9 +168,6 @@ export function shouldInitializeMenuTemplate(organizationWasCreated: boolean): b
 const defaultSeedRbacWorkflowDependencies: SeedRbacWorkflowDependencies<SeedTransaction> = {
   prepareRbac: prepareRbacSeed,
   resolveBootstrap: seedBootstrapData,
-  async initializeDefaults(executor, context) {
-    await initializeBookkeepingDefaults(createBookkeepingDefaultsExecutor(executor), context);
-  },
   async initializeMenu(executor, organizationId) {
     await copyMenuTemplate(organizationId, createMenuTemplateExecutor(executor));
   },

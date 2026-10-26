@@ -7,7 +7,6 @@ import type { AppDb } from "../db/db.module.js";
 import { DB } from "../db/db.tokens.js";
 import { AuditRepository } from "../modules/audit/audit.repository.js";
 import { AuditService } from "../modules/audit/audit.service.js";
-import { BookkeepingWriteLockRepository } from "../modules/bookkeeping/bookkeeping-write-lock.repository.js";
 import { AccessService } from "../modules/iam/access.service.js";
 import { BillingStartsRepository } from "../modules/rental/billing-starts.repository.js";
 import { BillsRepository } from "../modules/rental/bills.repository.js";
@@ -17,6 +16,7 @@ import { ContractsRepository } from "../modules/rental/contracts.repository.js";
 import { ContractsPolicyService } from "../modules/rental/contracts-policy.service.js";
 import { FinanceRequestsRepository } from "../modules/rental/finance-requests.repository.js";
 import { MeterReadingsRepository } from "../modules/rental/meter-readings.repository.js";
+import { OrganizationWriteLockRepository } from "../modules/rental/organization-write-lock.repository.js";
 import { PeriodBillVoidService } from "../modules/rental/period-bill-void.service.js";
 import { PeriodBillsService } from "../modules/rental/period-bills.service.js";
 import { PropertiesRepository } from "../modules/rental/properties.repository.js";
@@ -55,7 +55,7 @@ export function createRentalPostgresServices(db: AppDb) {
       RentalFinanceSourceService,
       SettlementProjectionService,
       ContractsPolicyService,
-      BookkeepingWriteLockRepository,
+      OrganizationWriteLockRepository,
       PropertiesRepository,
       SpacesRepository,
       TenantsRepository,

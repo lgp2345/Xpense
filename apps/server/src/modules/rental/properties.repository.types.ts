@@ -19,7 +19,6 @@ export type PropertyListInput = {
 export type RentalPropertyRecord = {
   id: string;
   organizationId: string;
-  ledgerId: string;
   name: string;
   type: RentalPropertyType;
   customTypeName: string | null;
@@ -42,7 +41,6 @@ export type RentalPropertyRecord = {
 export type RentalPropertySummaryRecord = Pick<
   RentalPropertyRecord,
   | "id"
-  | "ledgerId"
   | "name"
   | "type"
   | "customTypeName"

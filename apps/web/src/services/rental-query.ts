@@ -1,5 +1,4 @@
 import { type QueryClient, queryOptions } from "@tanstack/react-query";
-import { bookkeepingKeys } from "./bookkeeping-query";
 import type {
   ListRentalContractsQuery,
   ListRentalPropertiesQuery,
@@ -382,7 +381,7 @@ export async function invalidateDeletedContractMutation(
   ]);
 }
 
-/** 房产写成功后刷新房产数据与其服务端伴生账本。 */
+/** 房产写成功后刷新房产列表与受影响的详情缓存。 */
 export async function invalidatePropertyMutation(
   queryClient: QueryClient,
   organizationId: string,
@@ -390,7 +389,6 @@ export async function invalidatePropertyMutation(
 ): Promise<void> {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: rentalKeys.propertiesListRoot(organizationId) }),
-    queryClient.invalidateQueries({ queryKey: bookkeepingKeys.ledgers(organizationId) }),
     ...(propertyId
       ? [
           queryClient.invalidateQueries({
@@ -411,7 +409,6 @@ export async function invalidateDeletedPropertyMutation(
   queryClient.removeQueries({ queryKey: rentalKeys.spacesRoot(organizationId, propertyId) });
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: rentalKeys.propertiesListRoot(organizationId) }),
-    queryClient.invalidateQueries({ queryKey: bookkeepingKeys.ledgers(organizationId) }),
   ]);
 }
 

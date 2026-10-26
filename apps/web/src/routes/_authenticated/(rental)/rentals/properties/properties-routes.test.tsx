@@ -23,7 +23,6 @@ import { Route as PropertiesRoute, validateRentalPropertiesSearch } from "./inde
 const propertyId = "123e4567-e89b-42d3-a456-426614174000";
 const property: RentalPropertyDetail = {
   id: propertyId,
-  ledgerId: "ledger-1",
   name: "阳光公寓",
   type: "apartment_building",
   customTypeName: null,
@@ -91,7 +90,6 @@ function session(api: Partial<RentalApi> = {}): WebSessionDependency {
         "rental_contracts:update",
       ] as PermissionKey[],
     }),
-    bookkeepingApi: {} as never,
     iamApi: {
       getAuthorizedMenus: vi.fn().mockResolvedValue(menus),
       resolveMenuRoute: vi.fn(),

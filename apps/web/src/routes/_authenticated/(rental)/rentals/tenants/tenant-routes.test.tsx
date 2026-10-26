@@ -87,7 +87,6 @@ function session(api: Partial<RentalApi> = {}): WebSessionDependency {
         "rental_tenants:delete",
       ] as PermissionKey[],
     }),
-    bookkeepingApi: {} as never,
     iamApi: {
       getAuthorizedMenus: vi.fn().mockResolvedValue(menus),
       resolveMenuRoute: vi.fn(),

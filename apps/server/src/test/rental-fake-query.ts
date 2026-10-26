@@ -87,7 +87,6 @@ export type RentalMutationInput =
 type RentalMutationCounterKey =
   | "nextPropertyId"
   | "nextSpaceId"
-  | "nextLedgerId"
   | "nextTenantId"
   | "nextContractId"
   | "nextContractSpaceId"

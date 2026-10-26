@@ -18,8 +18,8 @@ const authContext: AuthContext = {
     "members:enable",
     "members:disable",
     "roles:permissions:update",
-    "transactions:read",
-    "transactions:create",
+    "rental_properties:read",
+    "rental_properties:create",
   ],
 };
 
@@ -107,11 +107,11 @@ describe("IamService", () => {
       listPermissions: vi.fn().mockResolvedValue([
         {
           id: "permission-1",
-          key: "transactions:read" as PermissionKey,
-          name: "transactions:read",
+          key: "rental_properties:read" as PermissionKey,
+          name: "rental_properties:read",
           resource: "transactions",
           action: "read",
-          description: "transactions:read",
+          description: "rental_properties:read",
         },
       ]),
     };
@@ -249,7 +249,7 @@ describe("IamService", () => {
   it("checks every selected role before creating a member", async () => {
     const { service, repository } = createHarness();
     repository.listPermissionKeysForRole.mockImplementation(async (id: string) =>
-      id === "excessive" ? ["transactions:delete"] : [],
+      id === "excessive" ? ["rental_properties:delete"] : [],
     );
     await expect(
       service.createMember(authContext, {
@@ -522,7 +522,7 @@ describe("IamService", () => {
         key: "bookkeeper",
         name: "Bookkeeper",
         description: "Handles books",
-        permissionKeys: ["transactions:read", "transactions:create"],
+        permissionKeys: ["rental_properties:read", "rental_properties:create"],
       }),
     ).resolves.toEqual(editableRole);
 
@@ -538,7 +538,7 @@ describe("IamService", () => {
     expect(repository.replaceRolePermissions).toHaveBeenCalledWith(
       {
         roleId: "role-custom",
-        permissionKeys: ["transactions:read", "transactions:create"],
+        permissionKeys: ["rental_properties:read", "rental_properties:create"],
       },
       transaction,
     );
@@ -572,7 +572,7 @@ describe("IamService", () => {
       service.createRole(withoutPermissionUpdate, {
         key: "bookkeeper",
         name: "Bookkeeper",
-        permissionKeys: ["transactions:read"],
+        permissionKeys: ["rental_properties:read"],
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
@@ -591,7 +591,7 @@ describe("IamService", () => {
       service.createRole(limitedContext, {
         key: "administrator",
         name: "Administrator",
-        permissionKeys: ["transactions:delete"],
+        permissionKeys: ["rental_properties:delete"],
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
@@ -600,7 +600,7 @@ describe("IamService", () => {
 
   it.each([
     { permissionKeys: [] as PermissionKey[] },
-    { permissionKeys: ["transactions:delete"] as PermissionKey[] },
+    { permissionKeys: ["rental_properties:delete"] as PermissionKey[] },
   ])("rejects the legacy permissionKeys field in role profile updates: $permissionKeys", async ({
     permissionKeys,
   }) => {
@@ -638,7 +638,7 @@ describe("IamService", () => {
 
   it("rejects creating a member with a role above the actor's permission ceiling", async () => {
     const { repository, service } = createHarness();
-    repository.listPermissionKeysForRole.mockResolvedValue(["transactions:delete"]);
+    repository.listPermissionKeysForRole.mockResolvedValue(["rental_properties:delete"]);
     const limitedContext = {
       ...authContext,
       permissions: ["members:create"] as PermissionKey[],
@@ -657,7 +657,7 @@ describe("IamService", () => {
 
   it("rejects assigning a member role above the actor's permission ceiling", async () => {
     const { repository, service } = createHarness();
-    repository.listPermissionKeysForRole.mockResolvedValue(["transactions:delete"]);
+    repository.listPermissionKeysForRole.mockResolvedValue(["rental_properties:delete"]);
     const limitedContext = {
       ...authContext,
       permissions: ["members:update"] as PermissionKey[],
@@ -672,7 +672,7 @@ describe("IamService", () => {
 
   it("allows super admins to grant and assign permissions above their role", async () => {
     const { repository, service } = createHarness();
-    repository.listPermissionKeysForRole.mockResolvedValue(["transactions:delete"]);
+    repository.listPermissionKeysForRole.mockResolvedValue(["rental_properties:delete"]);
     const superAdminContext = {
       ...authContext,
       isSuperAdmin: true,
@@ -683,7 +683,7 @@ describe("IamService", () => {
       service.createRole(superAdminContext, {
         key: "administrator",
         name: "Administrator",
-        permissionKeys: ["transactions:delete"],
+        permissionKeys: ["rental_properties:delete"],
       }),
     ).resolves.toEqual(editableRole);
     await expect(

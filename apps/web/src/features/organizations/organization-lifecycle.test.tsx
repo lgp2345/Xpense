@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { useStore } from "zustand";
 import { AppProviders } from "@/components/app-providers";
 import { ChangePasswordPage } from "@/features/auth/change-password-page";
-import { AccountsPage } from "@/features/bookkeeping/accounts/accounts-page";
+import { PeriodBillPreview } from "@/features/rental/bills/period-bill-preview";
 import { LoginPage } from "@/pages/login-page";
 import {
   createWebSession,
@@ -15,6 +15,23 @@ import {
 } from "@/services/web-session";
 import { createAuthStore } from "@/stores/auth-store";
 import { OrganizationCurrencyProvider } from "./organization-currency";
+
+const periodPreview = {
+  period: { periodStart: "2026-10-01", periodEnd: "2026-10-31" },
+  amountMinor: 101,
+  lines: [
+    {
+      kind: "rent_period",
+      label: "租金",
+      sortOrder: 0,
+      amountMinor: 101,
+      coveredDays: 31,
+      referenceDays: 31,
+      baseRentAmountMinor: 101,
+    },
+  ],
+  missingFields: [],
+} as never;
 
 function context(currency = "CNY", changed = false) {
   return {
@@ -35,7 +52,7 @@ function context(currency = "CNY", changed = false) {
       status: "active" as const,
     },
     role: { id: "owner-role", key: "owner", name: "组织负责人" },
-    permissions: ["accounts:read" as const],
+    permissions: ["rental_properties:read" as const],
     session: {
       id: changed ? "password-session" : `credential-${currency}`,
       clientType: "web_pc" as const,
@@ -62,11 +79,6 @@ describe("组织用户界面生命周期", () => {
       }),
     });
     Object.assign(session.iamApi, { getAuthorizedMenus: vi.fn().mockResolvedValue([]) });
-    Object.assign(session.bookkeepingApi, {
-      listAccounts: vi
-        .fn()
-        .mockResolvedValue([{ id: "a", name: "现金账户", type: "cash", balanceMinor: 101 }]),
-    });
     function Lifecycle() {
       const [stage, setStage] = useState("login");
       const organization = useStore(session.authStore, (s) => s.currentOrganization);
@@ -75,7 +87,7 @@ describe("组织用户界面生命周期", () => {
           {stage === "login" ? (
             <LoginPage
               session={session}
-              onAuthenticated={() => setStage("accounts")}
+              onAuthenticated={() => setStage("rental")}
               onChangePassword={() => setStage("password")}
             />
           ) : (
@@ -88,17 +100,13 @@ describe("组织用户界面生命周期", () => {
               >
                 切换美元组织
               </button>
-              <button type="button" onClick={() => setStage("accounts")}>
-                访问账户
+              <button type="button" onClick={() => setStage("rental")}>
+                访问租赁业务
               </button>
               {stage === "password" ? (
                 <ChangePasswordPage session={session} />
               ) : (
-                <AccountsPage
-                  organizationId={organization?.id ?? ""}
-                  api={session.bookkeepingApi}
-                  permissions={["accounts:read"]}
-                />
+                <PeriodBillPreview preview={periodPreview} />
               )}
             </>
           )}
@@ -115,9 +123,9 @@ describe("组织用户界面生命周期", () => {
     await user.type(screen.getByLabelText("验证码"), "test");
     await user.click(screen.getByRole("button", { name: "登录" }));
     expect(await screen.findByText("您尚未修改初始密码，请及时修改。")).toBeInTheDocument();
-    expect(await screen.findByText("¥1.01")).toBeInTheDocument();
+    expect(await screen.findByText("应收 ¥1.01")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "切换美元组织" }));
-    expect(await screen.findByText("$1.01")).toBeInTheDocument();
+    expect(await screen.findByText("应收 $1.01")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "修改密码" }));
     for (const [name, value] of [
       ["当前密码", "custom-initial"],
@@ -129,8 +137,8 @@ describe("组织用户界面生命周期", () => {
     await waitFor(() => expect(session.authStore.getState().accessToken).toBe("password-token"));
     expect(session.authStore.getState().currentOrganization?.baseCurrency).toBe("USD");
     expect(session.authStore.getState().currentUser?.initialPasswordUnchanged).toBe(false);
-    await user.click(screen.getByRole("button", { name: "访问账户" }));
-    expect(await screen.findByText("$1.01")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "访问租赁业务" }));
+    expect(await screen.findByText("应收 $1.01")).toBeInTheDocument();
   });
   it("does not revive a logged-out account when startup restoration returns late", async () => {
     let finish!: (value: { accessToken: string }) => void;

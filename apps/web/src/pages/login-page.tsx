@@ -50,10 +50,10 @@ export function LoginPage({
           <section aria-labelledby="login-title" className={styles.formPanel}>
             <header>
               <h2 id="login-title" className="text-2xl font-semibold tracking-tight">
-                登录到你的账本
+                登录到你的工作区
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                欢迎回来，继续打理你的收支与租务。
+                欢迎回来，继续管理你的租赁业务。
               </p>
             </header>
             <LoginForm

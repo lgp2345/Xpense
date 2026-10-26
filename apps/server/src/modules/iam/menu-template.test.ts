@@ -195,9 +195,6 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
 
     expect(routeKeys).toEqual([
       "Dashboard",
-      "Transactions",
-      "Accounts",
-      "Categories",
       "RentalProperties",
       "RentalPropertyDetail",
       "RentalTenants",
@@ -217,121 +214,41 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
     ]);
   });
 
-  it("defines the bookkeeping hierarchy with its action permissions", () => {
-    const bookkeepingNodes = DEFAULT_MENU_TEMPLATE.filter(
-      (node) =>
-        node.templateKey === "bookkeeping" ||
-        node.templateKey.startsWith("transactions") ||
-        node.templateKey.startsWith("accounts") ||
-        node.templateKey.startsWith("categories"),
-    ).map((node) => ({
-      key: node.templateKey,
-      parent: node.parentTemplateKey,
-      type: node.type,
-      route: node.routeKey,
-      permission: node.permissionCode,
-    }));
-
-    expect(bookkeepingNodes).toEqual([
-      { key: "bookkeeping", parent: null, type: "directory", route: null, permission: null },
-      {
-        key: "transactions",
-        parent: "bookkeeping",
-        type: "menu",
-        route: "Transactions",
-        permission: "transactions:read",
-      },
-      {
-        key: "transactions.create",
-        parent: "transactions",
-        type: "button",
-        route: null,
-        permission: "transactions:create",
-      },
-      {
-        key: "transactions.update",
-        parent: "transactions",
-        type: "button",
-        route: null,
-        permission: "transactions:update",
-      },
-      {
-        key: "transactions.delete",
-        parent: "transactions",
-        type: "button",
-        route: null,
-        permission: "transactions:delete",
-      },
-      {
-        key: "accounts",
-        parent: "bookkeeping",
-        type: "menu",
-        route: "Accounts",
-        permission: "accounts:read",
-      },
-      {
-        key: "accounts.create",
-        parent: "accounts",
-        type: "button",
-        route: null,
-        permission: "accounts:create",
-      },
-      {
-        key: "accounts.update",
-        parent: "accounts",
-        type: "button",
-        route: null,
-        permission: "accounts:update",
-      },
-      {
-        key: "accounts.delete",
-        parent: "accounts",
-        type: "button",
-        route: null,
-        permission: "accounts:delete",
-      },
-      {
-        key: "categories",
-        parent: "bookkeeping",
-        type: "menu",
-        route: "Categories",
-        permission: "categories:read",
-      },
-      {
-        key: "categories.create",
-        parent: "categories",
-        type: "button",
-        route: null,
-        permission: "categories:create",
-      },
-      {
-        key: "categories.update",
-        parent: "categories",
-        type: "button",
-        route: null,
-        permission: "categories:update",
-      },
-      {
-        key: "categories.delete",
-        parent: "categories",
-        type: "button",
-        route: null,
-        permission: "categories:delete",
-      },
+  it("does not register bookkeeping pages, menu nodes, or permissions", () => {
+    const removedRoutes = new Set(["Transactions", "Accounts", "Categories"]);
+    const removedPermissions = new Set([
+      "ledgers:read",
+      "accounts:read",
+      "accounts:create",
+      "accounts:update",
+      "accounts:delete",
+      "categories:read",
+      "categories:create",
+      "categories:update",
+      "categories:delete",
+      "transactions:read",
+      "transactions:create",
+      "transactions:update",
+      "transactions:delete",
+      "statistics:read",
     ]);
+
+    expect(DEFAULT_MENU_TEMPLATE.map((node) => node.templateKey)).not.toContain("bookkeeping");
+    expect(DEFAULT_MENU_TEMPLATE.some((node) => removedRoutes.has(node.routeKey ?? ""))).toBe(
+      false,
+    );
+    expect(
+      DEFAULT_MENU_TEMPLATE.some((node) => removedPermissions.has(node.permissionCode ?? "")),
+    ).toBe(false);
   });
 
-  it("sorts bookkeeping after dashboard and before access control", () => {
+  it("sorts dashboard before access control", () => {
     const dashboard = DEFAULT_MENU_TEMPLATE.find((node) => node.templateKey === "dashboard");
-    const bookkeeping = DEFAULT_MENU_TEMPLATE.find((node) => node.templateKey === "bookkeeping");
     const accessControl = DEFAULT_MENU_TEMPLATE.find(
       (node) => node.templateKey === "access-control",
     );
 
-    expect(bookkeeping?.sortOrder).toBeGreaterThan(dashboard?.sortOrder ?? Number.MAX_SAFE_INTEGER);
-    expect(bookkeeping?.sortOrder).toBeLessThan(
-      accessControl?.sortOrder ?? Number.MIN_SAFE_INTEGER,
-    );
+    expect(dashboard?.sortOrder).toBeLessThan(accessControl?.sortOrder ?? Number.MIN_SAFE_INTEGER);
   });
 
   it("defines the rental hierarchy with hidden detail/create pages and every action button", () => {
@@ -573,15 +490,6 @@ describe("DEFAULT_MENU_TEMPLATE", () => {
     );
 
     expect(buttonPermissions).toEqual([
-      "transactions:create",
-      "transactions:update",
-      "transactions:delete",
-      "accounts:create",
-      "accounts:update",
-      "accounts:delete",
-      "categories:create",
-      "categories:update",
-      "categories:delete",
       "rental_properties:create",
       "rental_properties:update",
       "rental_properties:delete",

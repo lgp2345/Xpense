@@ -67,7 +67,7 @@ describe("member account and multiple role HTTP flow", () => {
       headers: memberHeaders,
     });
     expect(current.json().data.permissions).toEqual(
-      expect.arrayContaining(["members:create", "transactions:read"]),
+      expect.arrayContaining(["members:create", "rental_properties:read"]),
     );
     const update = await harness.app.inject({
       method: "POST",
@@ -87,7 +87,7 @@ describe("member account and multiple role HTTP flow", () => {
       headers: { authorization: `Bearer ${fresh.json().data.accessToken}` },
     });
     expect(changed.json().data.permissions).toContain("members:create");
-    expect(changed.json().data.permissions).not.toContain("transactions:read");
+    expect(changed.json().data.permissions).not.toContain("rental_properties:read");
   });
 
   it("角色只作为附加角色使用时仍禁止删除", async () => {

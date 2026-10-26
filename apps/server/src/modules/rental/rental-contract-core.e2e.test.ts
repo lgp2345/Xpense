@@ -2,10 +2,7 @@ import type { RentalContractDetail, RentalPropertyDetail } from "@xpense/shared"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { login, parseJson, TEST_PHONES, testIds } from "../../test/auth-test-helpers.js";
-import {
-  bookkeepingTestIds,
-  cloneBookkeepingTestState,
-} from "../../test/bookkeeping-test-state.js";
+
 import { createTestApp, type TestAppHarness } from "../../test/create-test-app.js";
 import { _spaceConflict } from "../../test/rental-fake-query.js";
 import { cloneRentalTestState, rentalTestIds } from "../../test/rental-test-harness.js";
@@ -198,7 +195,6 @@ function registerPropertyDetail(setup: TestAppHarness, id: string): void {
   );
   setup.state.rentalQuery.registerRead("properties.detail", [testIds.organization, id], {
     id,
-    ledgerId: "44444444-4444-4444-8444-444444444101",
     name: propertyPayload.name,
     type: propertyPayload.type,
     customTypeName: propertyPayload.customTypeName,
@@ -371,7 +367,6 @@ function registerPreStartCorrectionFixture(
   const propertyFixture: RentalPropertyRecord = {
     id: rentalTestIds.property,
     organizationId: testIds.organization,
-    ledgerId: "44444444-4444-4444-8444-444444444401",
     name: "测试房产",
     type: "apartment_building",
     customTypeName: null,
@@ -988,7 +983,6 @@ function expectCorrectionRetryOracle(setup: TestAppHarness, auditLogsBefore: unk
   for (const counter of [
     "nextPropertyId",
     "nextSpaceId",
-    "nextLedgerId",
     "nextTenantId",
     "nextContractId",
     "nextContractSpaceId",
@@ -1008,33 +1002,6 @@ function expectCorrectionRetryOracle(setup: TestAppHarness, auditLogsBefore: unk
       metadata: { changedFields: ["note"] },
     }),
   ]);
-  expect([...setup.state.bookkeeping.ledgers.keys()]).toEqual([
-    bookkeepingTestIds.ledger,
-    bookkeepingTestIds.otherLedger,
-  ]);
-  expect([...setup.state.bookkeeping.accounts.keys()]).toEqual([
-    bookkeepingTestIds.account,
-    bookkeepingTestIds.otherAccount,
-  ]);
-  expect([...setup.state.bookkeeping.categories.keys()]).toEqual([
-    bookkeepingTestIds.incomeCategory,
-    bookkeepingTestIds.expenseCategory,
-    bookkeepingTestIds.otherIncomeCategory,
-  ]);
-  expect([...setup.state.bookkeeping.transactions.keys()]).toEqual([
-    bookkeepingTestIds.otherTransaction,
-  ]);
-  expect(setup.state.bookkeeping.movements).toEqual([
-    {
-      organizationId: testIds.otherOrganization,
-      transactionId: bookkeepingTestIds.otherTransaction,
-      accountId: bookkeepingTestIds.otherAccount,
-      amountMinor: 100,
-    },
-  ]);
-  expect(setup.state.bookkeeping.nextAccountId).toBe(1);
-  expect(setup.state.bookkeeping.nextCategoryId).toBe(1);
-  expect(setup.state.bookkeeping.nextTransactionId).toBe(1);
 }
 
 describe("Rental HTTP e2e", () => {
@@ -1052,7 +1019,7 @@ describe("Rental HTTP e2e", () => {
   });
 
   async function createHarness(): Promise<TestAppHarness> {
-    harness = await createTestApp({ bookkeeping: true, rental: true });
+    harness = await createTestApp({ rental: true });
     registerCoreFixtures(harness);
     return harness;
   }
@@ -1446,7 +1413,7 @@ describe("Rental HTTP e2e", () => {
     expect(state.rental.contractCounters.get(`${testIds.organization}/2026`)).toBe(1);
   });
 
-  it("retries a draft contract after repository failure without bookkeeping residue", async () => {
+  it("retries a draft contract after repository failure without partial rental writes", async () => {
     const { app, state } = await createHarness();
     const headers = await authorization(app, TEST_PHONES.owner);
     const before = cloneRentalTestState(state.rental);
@@ -1878,7 +1845,6 @@ describe("Rental HTTP e2e", () => {
       registerPreStartCorrectionFixture(harness as TestAppHarness);
       const headers = await authorization(app, TEST_PHONES.owner);
       const before = cloneRentalTestState(state.rental);
-      const bookkeepingBefore = cloneBookkeepingTestState(state.bookkeeping);
       const auditLogsBefore = structuredClone(state.auditLogs);
       if (fault === "repository") {
         state.rental.failNextRepositoryOperation = "contracts.updateHeader";
@@ -1903,7 +1869,6 @@ describe("Rental HTTP e2e", () => {
         "INTERNAL_ERROR",
       );
       expect(cloneRentalTestState(state.rental)).toEqual(before);
-      expect(cloneBookkeepingTestState(state.bookkeeping)).toEqual(bookkeepingBefore);
       expect(state.rental.auditEntries).toEqual([]);
       expect(state.auditLogs).toEqual(auditLogsBefore);
       const retried = expectOk<RentalContractDetail>(
@@ -2084,7 +2049,6 @@ describe("Rental HTTP e2e", () => {
       registerCorrectionConflictFixture(setup, scenario.status, scenario.startDate);
       const headers = await authorization(setup.app, TEST_PHONES.owner);
       const before = cloneRentalTestState(setup.state.rental);
-      const bookkeepingBefore = cloneBookkeepingTestState(setup.state.bookkeeping);
       const auditLogsBefore = structuredClone(setup.state.auditLogs);
       expectApiError(
         await setup.app.inject({
@@ -2100,7 +2064,6 @@ describe("Rental HTTP e2e", () => {
         "CONFLICT",
       );
       expect(cloneRentalTestState(setup.state.rental)).toEqual(before);
-      expect(cloneBookkeepingTestState(setup.state.bookkeeping)).toEqual(bookkeepingBefore);
       expect(setup.state.auditLogs).toEqual(auditLogsBefore);
       expect(setup.state.rental.auditEntries).toEqual([]);
       await setup.app.close();
@@ -2124,7 +2087,6 @@ describe("Rental HTTP e2e", () => {
     );
     const headers = await authorization(setup.app, TEST_PHONES.owner);
     const rentalBefore = cloneRentalTestState(setup.state.rental);
-    const bookkeepingBefore = cloneBookkeepingTestState(setup.state.bookkeeping);
     const auditLogsBefore = structuredClone(setup.state.auditLogs);
     expectApiError(
       await setup.app.inject({
@@ -2137,7 +2099,6 @@ describe("Rental HTTP e2e", () => {
       "NOT_FOUND",
     );
     expect(cloneRentalTestState(setup.state.rental)).toEqual(rentalBefore);
-    expect(cloneBookkeepingTestState(setup.state.bookkeeping)).toEqual(bookkeepingBefore);
     expect(setup.state.auditLogs).toEqual(auditLogsBefore);
     expect(setup.state.rental.auditEntries).toEqual([]);
     await setup.app.close();
@@ -2280,7 +2241,7 @@ describe("Rental HTTP e2e", () => {
       },
     ];
     for (const testCase of cases) {
-      const setup = await createTestApp({ bookkeeping: true, rental: true });
+      const setup = await createTestApp({ rental: true });
       harness = setup;
       registerCoreFixtures(setup);
       const headers = await authorization(setup.app, TEST_PHONES.owner);

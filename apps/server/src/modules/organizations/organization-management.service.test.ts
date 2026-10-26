@@ -78,7 +78,7 @@ describe("organization creation", () => {
       "owner-role",
       h.tx,
     );
-    expect(h.initializer.initialize).toHaveBeenCalledWith(h.tx, "org", "actor");
+    expect(h.initializer.initialize).toHaveBeenCalledWith(h.tx, "org");
     expect(h.audit.appendRequired).toHaveBeenCalledWith(
       expect.objectContaining({ actorUserId: "actor", action: "organization.created" }),
       h.tx,

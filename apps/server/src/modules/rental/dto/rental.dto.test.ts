@@ -38,7 +38,7 @@ import { updateRentalPropertySchema } from "./update-property.dto.js";
 import { updateRentalSpaceSchema } from "./update-space.dto.js";
 import { updateTenantSchema } from "./update-tenant.dto.js";
 
-const ledgerId = "123e4567-e89b-12d3-a456-426614174000";
+const forbiddenOrganizationId = "123e4567-e89b-12d3-a456-426614174000";
 const propertyId = "223e4567-e89b-12d3-a456-426614174000";
 const spaceId = "323e4567-e89b-12d3-a456-426614174000";
 const tenantId = "423e4567-e89b-12d3-a456-426614174000";
@@ -116,7 +116,7 @@ describe("rental DTO schemas", () => {
     ).toThrow();
     expect(() =>
       createRentalPropertySchema.parse({
-        ledgerId,
+        ledgerId: forbiddenOrganizationId,
         name: "仓库",
         type: "warehouse",
         countryCode: "CN",
@@ -141,7 +141,7 @@ describe("rental DTO schemas", () => {
     });
     expect(deletePropertySchema.parse({ id: propertyId })).toEqual({ id: propertyId });
     expect(() =>
-      deletePropertySchema.parse({ id: propertyId, organizationId: ledgerId }),
+      deletePropertySchema.parse({ id: propertyId, organizationId: forbiddenOrganizationId }),
     ).toThrow();
   });
 
@@ -152,7 +152,11 @@ describe("rental DTO schemas", () => {
     });
     expect(() => spaceSubtreeDepthSchema.parse({ propertyId })).toThrow();
     expect(() =>
-      spaceSubtreeDepthSchema.parse({ propertyId, id: spaceId, organizationId: ledgerId }),
+      spaceSubtreeDepthSchema.parse({
+        propertyId,
+        id: spaceId,
+        organizationId: forbiddenOrganizationId,
+      }),
     ).toThrow();
   });
 
@@ -166,7 +170,9 @@ describe("rental DTO schemas", () => {
       customTypeName: null,
     });
     expect(() => updateRentalPropertySchema.parse({ id: propertyId })).toThrow();
-    expect(() => updateRentalPropertySchema.parse({ id: propertyId, ledgerId })).toThrow();
+    expect(() =>
+      updateRentalPropertySchema.parse({ id: propertyId, ledgerId: forbiddenOrganizationId }),
+    ).toThrow();
     expect(() => updateRentalPropertySchema.parse({ id: propertyId, isActive: false })).toThrow();
   });
 
@@ -262,7 +268,7 @@ describe("rental DTO schemas", () => {
     });
     expect(() => updateRentalSpaceSchema.parse({ id: spaceId })).toThrow();
     expect(() =>
-      updateRentalSpaceSchema.parse({ id: spaceId, organizationId: ledgerId }),
+      updateRentalSpaceSchema.parse({ id: spaceId, organizationId: forbiddenOrganizationId }),
     ).toThrow();
     expect(moveRentalSpaceSchema.parse({ id: spaceId, parentId: null, sortOrder: 3 })).toEqual({
       id: spaceId,
@@ -336,7 +342,7 @@ describe("rental DTO schemas", () => {
       createTenantSchema.parse({
         type: "individual",
         name: "张三",
-        organizationId: ledgerId,
+        organizationId: forbiddenOrganizationId,
       }),
     ).toThrow();
     expect(() =>
@@ -361,7 +367,7 @@ describe("rental DTO schemas", () => {
       pageSize: 20,
     });
     expect(() => listTenantsSchema.parse({ page: 0 })).toThrow();
-    expect(() => listTenantsSchema.parse({ organizationId: ledgerId })).toThrow();
+    expect(() => listTenantsSchema.parse({ organizationId: forbiddenOrganizationId })).toThrow();
     expect(tenantDetailSchema.parse({ id: tenantId })).toEqual({ id: tenantId });
     expect(setTenantStatusSchema.parse({ id: tenantId, isActive: false })).toEqual({
       id: tenantId,
@@ -401,7 +407,7 @@ describe("rental DTO schemas", () => {
       pageSize: 20,
     });
     expect(() => listContractsSchema.parse({ status: "confirmed" })).toThrow();
-    expect(() => listContractsSchema.parse({ organizationId: ledgerId })).toThrow();
+    expect(() => listContractsSchema.parse({ organizationId: forbiddenOrganizationId })).toThrow();
     expect(contractDetailSchema.parse({ id: contractId })).toEqual({ id: contractId });
     expect(
       checkContractAvailabilitySchema.parse({
@@ -535,7 +541,9 @@ describe("rental DTO schemas", () => {
       note: "年租合同",
       rentAmountMinor: 300_000,
     });
-    expect(() => createContractSchema.parse({ ...validDraft, organizationId: ledgerId })).toThrow();
+    expect(() =>
+      createContractSchema.parse({ ...validDraft, organizationId: forbiddenOrganizationId }),
+    ).toThrow();
     expect(() =>
       createContractSchema.parse({ ...validDraft, createdByUserId: tenantId }),
     ).toThrow();
@@ -696,7 +704,7 @@ describe("rental DTO schemas", () => {
         effectiveDate: "2026-06-01",
         reason: "变更付款人",
         parties: [{ tenantId, isPrimaryPayer: true }],
-        organizationId: ledgerId,
+        organizationId: forbiddenOrganizationId,
       }),
     ).toThrow();
     expect(
@@ -729,7 +737,7 @@ describe("rental DTO schemas", () => {
         contractId,
         tenantId,
         validFrom: "2026-01-01",
-        organizationId: ledgerId,
+        organizationId: forbiddenOrganizationId,
       }),
     ).toThrow();
   });

@@ -43,7 +43,7 @@ const roles: IamRole[] = [
     organizationId: "org-1",
     key: "member",
     name: "普通成员",
-    description: "可查看账本",
+    description: "可查看组织",
     isSystem: false,
     isEditable: true,
   },

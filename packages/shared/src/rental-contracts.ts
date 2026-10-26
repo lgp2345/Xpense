@@ -1,4 +1,4 @@
-import type { PageResult } from "./bookkeeping.js";
+import type { PageResult } from "./pagination.js";
 import type { RentalContractChargeSetup } from "./rental-charges.js";
 import type {
   RentalGender,

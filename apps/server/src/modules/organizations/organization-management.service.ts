@@ -94,7 +94,7 @@ export class OrganizationManagementService {
             );
         }
         await this.repository.addOwners(organization.id, userIds, roleId, tx);
-        await this.initializer.initialize(tx, organization.id, ctx.userId);
+        await this.initializer.initialize(tx, organization.id);
         await this.audit.appendRequired(
           {
             organizationId: organization.id,

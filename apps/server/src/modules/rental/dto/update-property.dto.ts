@@ -5,7 +5,7 @@ const nameSchema = z.string().trim().min(1).max(120);
 const optionalAreaSchema = z.string().trim().min(1).max(120).nullable().optional();
 const customTypeNameSchema = z.string().trim().min(1).max(120).nullable().optional();
 
-/** 更新租赁房产请求校验规则。状态和账本由独立流程维护。 */
+/** 更新租赁房产请求校验规则。状态由独立流程维护。 */
 export const updateRentalPropertySchema = z
   .object({
     id: z.string().uuid(),

@@ -89,7 +89,6 @@ describe("PropertiesRepository", () => {
   it("returns numeric space aggregates with an accurate paged total", async () => {
     const item = {
       id: "property-1",
-      ledgerId: "ledger-1",
       name: "阳光公寓",
       type: "apartment_building",
       customTypeName: null,
@@ -218,7 +217,6 @@ describe("PropertiesRepository", () => {
     const executor = { insert, update } as never;
     const createInput = {
       organizationId: "organization-1",
-      ledgerId: "ledger-1",
       name: "阳光公寓",
       type: "apartment_building" as const,
       customTypeName: null,

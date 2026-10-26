@@ -8,8 +8,8 @@ import type { RentalPropertyType, RentalSpaceType } from "@xpense/shared";
 
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
-import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import type { ContractReferenceSummary } from "./contracts.repository.types.js";
+import { OrganizationWriteLockRepository } from "./organization-write-lock.repository.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import type { RentalPropertyRecord } from "./properties.repository.types.js";
 import { assertCustomTypeName, findBatchConflicts, mergeSpaceUpdate } from "./rental.rules.js";
@@ -31,7 +31,7 @@ export class SpacesPolicyService {
   constructor(
     private readonly repository: SpacesRepository,
     private readonly propertiesRepository: PropertiesRepository,
-    private readonly writeLockRepository: BookkeepingWriteLockRepository,
+    private readonly writeLockRepository: OrganizationWriteLockRepository,
   ) {}
 
   /** 在所有空间写规则读取前锁定可信认证组织。 */

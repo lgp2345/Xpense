@@ -94,7 +94,7 @@ export function MemberActions({
               <AlertDialogHeader>
                 <AlertDialogTitle>确认禁用成员</AlertDialogTitle>
                 <AlertDialogDescription>
-                  禁用后，该成员将无法继续访问当前账本。
+                  禁用后，该成员将无法继续访问当前组织。
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

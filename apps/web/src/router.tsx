@@ -7,11 +7,9 @@ import {
   getBrowserPageWorkspaceStorage,
   type PageWorkspaceStorage,
 } from "@/components/layout/page-workspace-persistence";
-import { didBookkeepingScopeChange } from "@/routes/-shared/bookkeeping-cache-scope";
 import { didRentalScopeChange } from "@/routes/-shared/rental-cache-scope";
 import { RouteAccessPending } from "@/routes/-shared/status";
 import { routeTree } from "./routeTree.gen";
-import { clearBookkeepingQueries } from "./services/bookkeeping-query";
 import {
   clearOrganizationSettingsQueries,
   clearOrganizationsQueries,
@@ -95,7 +93,6 @@ export function AppRouter({
     let isActive = true;
     let restore = restoreRef.current;
 
-    clearBookkeepingQueries(queryClient);
     clearRentalQueries(queryClient);
     clearOrganizationsQueries(queryClient);
     clearOrganizationSettingsQueries(queryClient);
@@ -146,14 +143,8 @@ export function AppRouter({
       ) {
         clearPageWorkspacesForUser(activePageWorkspaceStorage, previousState.currentUser.id);
       }
-      if (
-        didBookkeepingScopeChange(state, previousState) ||
-        state.role?.key !== previousState.role?.key
-      )
+      if (didRentalScopeChange(state, previousState) || state.role?.key !== previousState.role?.key)
         clearOrganizationSettingsQueries(queryClient);
-      if (didBookkeepingScopeChange(state, previousState)) {
-        clearBookkeepingQueries(queryClient);
-      }
       if (didRentalScopeChange(state, previousState)) {
         clearRentalQueries(queryClient);
       }

@@ -9,7 +9,6 @@ import { DbModule } from "./db/db.module.js";
 import { FoundationModule } from "./foundation/foundation.module.js";
 import { AuditModule } from "./modules/audit/audit.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
-import { BookkeepingModule } from "./modules/bookkeeping/bookkeeping.module.js";
 import { IamModule } from "./modules/iam/iam.module.js";
 import { OrganizationsModule } from "./modules/organizations/organizations.module.js";
 import { RentalModule } from "./modules/rental/rental.module.js";
@@ -25,7 +24,6 @@ import { UserModule } from "./modules/user/user.module.js";
     IamModule,
     UserModule,
     AuditModule,
-    BookkeepingModule,
     RentalModule,
   ],
   providers: [

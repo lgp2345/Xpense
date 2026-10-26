@@ -1,7 +1,6 @@
 import type { RentalContractDetail } from "@xpense/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { login, parseJson, TEST_PHONES, testIds } from "../../test/auth-test-helpers.js";
-import { cloneBookkeepingTestState } from "../../test/bookkeeping-test-state.js";
 import {
   createTestApp,
   type TestAppHarness,
@@ -540,7 +539,6 @@ function expectChangePartiesSuccessState(
   });
   expect(setup.state.rental.nextPropertyId).toBe(1);
   expect(setup.state.rental.nextSpaceId).toBe(1);
-  expect(setup.state.rental.nextLedgerId).toBe(1);
   expect(setup.state.rental.nextTenantId).toBe(1);
   expect(setup.state.rental.nextContractId).toBe(1);
   expect(setup.state.rental.nextContractSpaceId).toBe(1);
@@ -549,14 +547,6 @@ function expectChangePartiesSuccessState(
   expect(setup.state.rental.nextDepositId).toBe(1);
   expect(setup.state.rental.nextSnapshotId).toBe(1);
   expect(setup.state.rental.nextActionId).toBe(1);
-  expect(setup.state.bookkeeping.ledgers).toEqual(before.bookkeeping.ledgers);
-  expect(setup.state.bookkeeping.accounts).toEqual(before.bookkeeping.accounts);
-  expect(setup.state.bookkeeping.categories).toEqual(before.bookkeeping.categories);
-  expect(setup.state.bookkeeping.transactions).toEqual(before.bookkeeping.transactions);
-  expect(setup.state.bookkeeping.movements).toEqual(before.bookkeeping.movements);
-  expect(setup.state.bookkeeping.nextAccountId).toBe(1);
-  expect(setup.state.bookkeeping.nextCategoryId).toBe(1);
-  expect(setup.state.bookkeeping.nextTransactionId).toBe(1);
 }
 
 const TERMINATION_REASON = "固定提前终止";
@@ -835,7 +825,7 @@ function registerInvalidTerminationFixture(
 
 function expectTerminationSuccessState(
   setup: TestAppHarness,
-  before: ReturnType<typeof snapshotTransactionState>,
+  _before: ReturnType<typeof snapshotTransactionState>,
   terminationDate: string,
   actorUserId: string,
 ): void {
@@ -918,7 +908,6 @@ function expectTerminationSuccessState(
   expect(setup.state.auditLogs.at(-1)?.metadata).toEqual({ terminationDate });
   expect(setup.state.rental.nextPropertyId).toBe(1);
   expect(setup.state.rental.nextSpaceId).toBe(1);
-  expect(setup.state.rental.nextLedgerId).toBe(1);
   expect(setup.state.rental.nextTenantId).toBe(1);
   expect(setup.state.rental.nextContractId).toBe(1);
   expect(setup.state.rental.nextContractSpaceId).toBe(1);
@@ -927,14 +916,6 @@ function expectTerminationSuccessState(
   expect(setup.state.rental.nextDepositId).toBe(1);
   expect(setup.state.rental.nextSnapshotId).toBe(1);
   expect(setup.state.rental.nextActionId).toBe(1);
-  expect(setup.state.bookkeeping.ledgers).toEqual(before.bookkeeping.ledgers);
-  expect(setup.state.bookkeeping.accounts).toEqual(before.bookkeeping.accounts);
-  expect(setup.state.bookkeeping.categories).toEqual(before.bookkeeping.categories);
-  expect(setup.state.bookkeeping.transactions).toEqual(before.bookkeeping.transactions);
-  expect(setup.state.bookkeeping.movements).toEqual(before.bookkeeping.movements);
-  expect(setup.state.bookkeeping.nextAccountId).toBe(1);
-  expect(setup.state.bookkeeping.nextCategoryId).toBe(1);
-  expect(setup.state.bookkeeping.nextTransactionId).toBe(1);
 }
 
 function restoredContractResponse() {
@@ -957,7 +938,7 @@ function restoredContractResponse() {
 
 function expectRevokeSuccessState(
   setup: TestAppHarness,
-  before: ReturnType<typeof snapshotTransactionState>,
+  _before: ReturnType<typeof snapshotTransactionState>,
   actorUserId: string,
 ): void {
   expect(setup.state.rental.contracts.get(rentalTestIds.contract)).toEqual({
@@ -1048,7 +1029,6 @@ function expectRevokeSuccessState(
   });
   expect(setup.state.rental.nextPropertyId).toBe(1);
   expect(setup.state.rental.nextSpaceId).toBe(1);
-  expect(setup.state.rental.nextLedgerId).toBe(1);
   expect(setup.state.rental.nextTenantId).toBe(1);
   expect(setup.state.rental.nextContractId).toBe(1);
   expect(setup.state.rental.nextContractSpaceId).toBe(1);
@@ -1057,14 +1037,6 @@ function expectRevokeSuccessState(
   expect(setup.state.rental.nextDepositId).toBe(1);
   expect(setup.state.rental.nextSnapshotId).toBe(1);
   expect(setup.state.rental.nextActionId).toBe(2);
-  expect(setup.state.bookkeeping.ledgers).toEqual(before.bookkeeping.ledgers);
-  expect(setup.state.bookkeeping.accounts).toEqual(before.bookkeeping.accounts);
-  expect(setup.state.bookkeeping.categories).toEqual(before.bookkeeping.categories);
-  expect(setup.state.bookkeeping.transactions).toEqual(before.bookkeeping.transactions);
-  expect(setup.state.bookkeeping.movements).toEqual(before.bookkeeping.movements);
-  expect(setup.state.bookkeeping.nextAccountId).toBe(1);
-  expect(setup.state.bookkeeping.nextCategoryId).toBe(1);
-  expect(setup.state.bookkeeping.nextTransactionId).toBe(1);
 }
 
 function registerRevokeFixtures(
@@ -1732,7 +1704,6 @@ function expectRenewalSuccessState(
   expect(setup.state.rental.nextDepositId).toBe(2);
   expect(setup.state.rental.nextPropertyId).toBe(1);
   expect(setup.state.rental.nextSpaceId).toBe(1);
-  expect(setup.state.rental.nextLedgerId).toBe(1);
   expect(setup.state.rental.nextTenantId).toBe(1);
   expect(setup.state.rental.nextChangeId).toBe(1);
   expect(setup.state.rental.nextSnapshotId).toBe(1);
@@ -1756,14 +1727,6 @@ function expectRenewalSuccessState(
     requestId: expect.any(String),
     createdAt: expect.any(Date),
   });
-  expect(setup.state.bookkeeping.ledgers).toEqual(before.bookkeeping.ledgers);
-  expect(setup.state.bookkeeping.accounts).toEqual(before.bookkeeping.accounts);
-  expect(setup.state.bookkeeping.categories).toEqual(before.bookkeeping.categories);
-  expect(setup.state.bookkeeping.transactions).toEqual(before.bookkeeping.transactions);
-  expect(setup.state.bookkeeping.movements).toEqual(before.bookkeeping.movements);
-  expect(setup.state.bookkeeping.nextAccountId).toBe(1);
-  expect(setup.state.bookkeeping.nextCategoryId).toBe(1);
-  expect(setup.state.bookkeeping.nextTransactionId).toBe(1);
 }
 
 function registerRenewInvalidSource(setup: TestAppHarness, status: "draft" | "cancelled"): void {
@@ -1986,7 +1949,6 @@ function registerChangePartiesFixture(
   const property = {
     id: rentalTestIds.property,
     organizationId: testIds.organization,
-    ledgerId: "44444444-4444-4444-8444-444444444401",
     name: "测试房产",
     type: "other" as const,
     customTypeName: "长租公寓",
@@ -2385,7 +2347,6 @@ function _expectOrdinaryResponseNotToContainSensitiveValues(
 function snapshotTransactionState(setup: TestAppHarness) {
   return {
     rental: cloneRentalTestState(setup.state.rental),
-    bookkeeping: cloneBookkeepingTestState(setup.state.bookkeeping),
     auditLogs: structuredClone(setup.state.auditLogs),
     rentalAuditEntries: structuredClone(setup.state.rental.auditEntries),
   };
@@ -2396,7 +2357,6 @@ function expectTransactionStateUnchanged(
   snapshot: ReturnType<typeof snapshotTransactionState>,
 ): void {
   expect(cloneRentalTestState(setup.state.rental)).toEqual(snapshot.rental);
-  expect(cloneBookkeepingTestState(setup.state.bookkeeping)).toEqual(snapshot.bookkeeping);
   expect(structuredClone(setup.state.auditLogs)).toEqual(snapshot.auditLogs);
   expect(structuredClone(setup.state.rental.auditEntries)).toEqual(snapshot.rentalAuditEntries);
 }
@@ -2406,7 +2366,6 @@ function expectRentalCountersUnchanged(setup: TestAppHarness): void {
   for (const counter of [
     "nextPropertyId",
     "nextSpaceId",
-    "nextLedgerId",
     "nextTenantId",
     "nextContractId",
     "nextContractSpaceId",
@@ -2435,7 +2394,7 @@ describe("Rental HTTP e2e", () => {
   });
 
   async function createHarness(options: TestAppOptions = {}): Promise<TestAppHarness> {
-    harness = await createTestApp({ bookkeeping: true, rental: true, ...options });
+    harness = await createTestApp({ rental: true, ...options });
     registerSpaceAncestors(harness, rentalTestIds.childSpace, rentalTestIds.parentSpace);
     const tenant = harness.state.rental.tenants.get(rentalTestIds.tenant);
     if (tenant) {
@@ -2467,11 +2426,6 @@ describe("Rental HTTP e2e", () => {
   it("restores contract relations, snapshots, counters and audit after confirmation audit failure", async () => {
     const { app, state } = await createHarness();
     const headers = await authorization(app, TEST_PHONES.owner);
-    const bookkeepingLedgers = state.bookkeeping.ledgers;
-    const bookkeepingAccounts = state.bookkeeping.accounts;
-    const bookkeepingCategories = state.bookkeeping.categories;
-    const bookkeepingTransactions = state.bookkeeping.transactions;
-    const bookkeepingMovements = state.bookkeeping.movements;
     const auditLogs = state.auditLogs;
     const rentalAuditEntries = state.rental.auditEntries;
     const room = expectOk<{ id: string }>(
@@ -2522,12 +2476,6 @@ describe("Rental HTTP e2e", () => {
       "2027-02-01",
     );
     const before = cloneRentalTestState(state.rental);
-    const bookkeepingBefore = cloneBookkeepingTestState(state.bookkeeping);
-    const bookkeepingCounters = {
-      nextAccountId: state.bookkeeping.nextAccountId,
-      nextCategoryId: state.bookkeeping.nextCategoryId,
-      nextTransactionId: state.bookkeeping.nextTransactionId,
-    };
     const auditBefore = state.auditLogs.map((entry) => ({ ...entry }));
     state.rentalQuery.registerSpaceConflict(
       {
@@ -2549,12 +2497,6 @@ describe("Rental HTTP e2e", () => {
     });
     expectApiError(auditFailure, 500, "INTERNAL_ERROR");
     expect(cloneRentalTestState(state.rental)).toEqual(before);
-    expect(cloneBookkeepingTestState(state.bookkeeping)).toEqual(bookkeepingBefore);
-    expect(state.bookkeeping.ledgers).toBe(bookkeepingLedgers);
-    expect(state.bookkeeping.accounts).toBe(bookkeepingAccounts);
-    expect(state.bookkeeping.categories).toBe(bookkeepingCategories);
-    expect(state.bookkeeping.transactions).toBe(bookkeepingTransactions);
-    expect(state.bookkeeping.movements).toBe(bookkeepingMovements);
     expect(state.auditLogs).toEqual(auditBefore);
     expect(state.auditLogs).toBe(auditLogs);
     expect(state.rental.auditEntries).toBe(rentalAuditEntries);
@@ -2593,9 +2535,6 @@ describe("Rental HTTP e2e", () => {
     expect(state.rental.nextDepositId).toBe(before.nextDepositId);
     expect(state.rental.nextChangeId).toBe(before.nextChangeId);
     expect(state.rental.nextActionId).toBe(before.nextActionId);
-    expect(state.bookkeeping.nextAccountId).toBe(bookkeepingCounters.nextAccountId);
-    expect(state.bookkeeping.nextCategoryId).toBe(bookkeepingCounters.nextCategoryId);
-    expect(state.bookkeeping.nextTransactionId).toBe(bookkeepingCounters.nextTransactionId);
   });
 
   it("retries confirmation after relation repository failure without snapshot or lease residue", async () => {
@@ -2635,12 +2574,6 @@ describe("Rental HTTP e2e", () => {
       "2027-04-01",
     );
     const before = cloneRentalTestState(state.rental);
-    const bookkeepingBefore = cloneBookkeepingTestState(state.bookkeeping);
-    const bookkeepingLedgers = state.bookkeeping.ledgers;
-    const bookkeepingAccounts = state.bookkeeping.accounts;
-    const bookkeepingCategories = state.bookkeeping.categories;
-    const bookkeepingTransactions = state.bookkeeping.transactions;
-    const bookkeepingMovements = state.bookkeeping.movements;
     state.rentalQuery.registerSpaceConflict(
       {
         organizationId: testIds.organization,
@@ -2661,12 +2594,6 @@ describe("Rental HTTP e2e", () => {
     });
     expectApiError(relationFailure, 500, "INTERNAL_ERROR");
     expect(cloneRentalTestState(state.rental)).toEqual(before);
-    expect(cloneBookkeepingTestState(state.bookkeeping)).toEqual(bookkeepingBefore);
-    expect(state.bookkeeping.ledgers).toBe(bookkeepingLedgers);
-    expect(state.bookkeeping.accounts).toBe(bookkeepingAccounts);
-    expect(state.bookkeeping.categories).toBe(bookkeepingCategories);
-    expect(state.bookkeeping.transactions).toBe(bookkeepingTransactions);
-    expect(state.bookkeeping.movements).toBe(bookkeepingMovements);
     expect(state.rental.snapshots.has(draft.id)).toBe(false);
     const readsBeforeRetry = state.rentalQuery.readCalls.length;
     const confirmed = expectOk<{ id: string }>(
@@ -2725,7 +2652,6 @@ describe("Rental HTTP e2e", () => {
         registerCancelMutation(harness as TestAppHarness, actorUserId);
         const headers = await authorization(app, phone);
         const auditLogsBeforeRequest = structuredClone(state.auditLogs);
-        const bookkeepingBefore = cloneBookkeepingTestState(state.bookkeeping);
         const cancelled = expectOk<RentalContractDetail>(
           await app.inject({
             method: "POST",
@@ -2773,10 +2699,8 @@ describe("Rental HTTP e2e", () => {
         expect(state.rental.nextActionId).toBe(1);
         expect(state.rental.nextPropertyId).toBe(1);
         expect(state.rental.nextSpaceId).toBe(1);
-        expect(state.rental.nextLedgerId).toBe(1);
         expect(state.rental.nextTenantId).toBe(1);
         expect(state.rental.nextContractId).toBe(1);
-        expect(cloneBookkeepingTestState(state.bookkeeping)).toEqual(bookkeepingBefore);
         expect(state.rental.auditEntries).toEqual([
           { action: "rental_contract.cancelled", targetId: rentalTestIds.contract, metadata: {} },
         ]);
@@ -2878,7 +2802,6 @@ describe("Rental HTTP e2e", () => {
     expect(state.rental.changes).toEqual(new Map());
     expect(state.rental.actions).toEqual(new Map());
     expectRentalCountersUnchanged(harness as TestAppHarness);
-    expect(cloneBookkeepingTestState(state.bookkeeping)).toEqual(before.bookkeeping);
     expect(state.auditLogs).toEqual([
       ...auditLogsBefore,
       expect.objectContaining({
@@ -2979,7 +2902,6 @@ describe("Rental HTTP e2e", () => {
     expect(state.rental.changes).toEqual(new Map());
     expect(state.rental.actions).toEqual(new Map());
     expectRentalCountersUnchanged(harness as TestAppHarness);
-    expect(cloneBookkeepingTestState(state.bookkeeping)).toEqual(before.bookkeeping);
     expect(state.auditLogs).toEqual([
       ...auditLogsBefore,
       expect.objectContaining({
@@ -3258,14 +3180,6 @@ describe("Rental HTTP e2e", () => {
     expect(setup.state.rental.snapshots).toEqual(before.rental.snapshots);
     expect(setup.state.rental.actions).toEqual(before.rental.actions);
     expect(setup.state.rental.contractCounters).toEqual(before.rental.contractCounters);
-    expect(setup.state.bookkeeping.ledgers).toEqual(before.bookkeeping.ledgers);
-    expect(setup.state.bookkeeping.accounts).toEqual(before.bookkeeping.accounts);
-    expect(setup.state.bookkeeping.categories).toEqual(before.bookkeeping.categories);
-    expect(setup.state.bookkeeping.transactions).toEqual(before.bookkeeping.transactions);
-    expect(setup.state.bookkeeping.movements).toEqual(before.bookkeeping.movements);
-    expect(setup.state.bookkeeping.nextAccountId).toBe(1);
-    expect(setup.state.bookkeeping.nextCategoryId).toBe(1);
-    expect(setup.state.bookkeeping.nextTransactionId).toBe(1);
     expect(setup.state.rental.nextPartyPeriodId).toBe(2);
     expect(setup.state.rental.nextChangeId).toBe(2);
     expect(setup.state.rental.changes.get(CHANGE_PARTIES_CONTRACT_ID)).toEqual([
@@ -3308,7 +3222,6 @@ describe("Rental HTTP e2e", () => {
     expect(setup.state.rental.contractCounters).toEqual(new Map());
     expect(setup.state.rental.nextPropertyId).toBe(1);
     expect(setup.state.rental.nextSpaceId).toBe(1);
-    expect(setup.state.rental.nextLedgerId).toBe(1);
     expect(setup.state.rental.nextTenantId).toBe(1);
     expect(setup.state.rental.nextContractId).toBe(1);
     expect(setup.state.rental.nextContractSpaceId).toBe(1);
@@ -4128,7 +4041,6 @@ describe("Rental HTTP e2e", () => {
       expect(setup.state.rental.deposits.get(RENEWAL_CONTRACT_ID)).toEqual([
         { ...RENEWAL_DEPOSIT, finalAmountMinor: 50000 },
       ]);
-      expect(setup.state.bookkeeping).toEqual(beforeConfirm.bookkeeping);
     } else {
       if (expectedStatus === 409) _expectSafeConflict(response);
       else expectApiError(response, 404, "NOT_FOUND");

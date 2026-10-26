@@ -1,6 +1,4 @@
 import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
-import { useStore } from "zustand";
-
 import { requireRegisteredRouteAccess } from "@/routes/-shared/access";
 import {
   defineRegisteredPage,
@@ -8,7 +6,6 @@ import {
   RegisteredRouteLeaf,
 } from "@/routes/-shared/registered-page";
 import { RouteAccessPending } from "@/routes/-shared/status";
-import type { WebSessionDependency } from "@/services/web-session";
 
 export const Route = createFileRoute("/_authenticated/(core)/")({
   staticData: { routeKey: "Dashboard" },
@@ -20,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/(core)/")({
     registeredPage: defineRegisteredPage({
       routeKey: "Dashboard",
       cacheParams: params,
-      render: ({ session }) => <DashboardRoutePage session={session} />,
+      render: () => <DashboardPageLazy />,
     }),
   }),
   component: RegisteredRouteLeaf,
@@ -31,12 +28,3 @@ const DashboardPageLazy = lazyRouteComponent(
   () => import("@/pages/dashboard-page"),
   "DashboardPage",
 );
-
-function DashboardRoutePage({ session }: { session: WebSessionDependency }) {
-  const organizationId = useStore(
-    session.authStore,
-    (state) => state.currentOrganization?.id ?? "",
-  );
-
-  return <DashboardPageLazy api={session.bookkeepingApi} organizationId={organizationId} />;
-}

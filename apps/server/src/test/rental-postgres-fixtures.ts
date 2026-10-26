@@ -14,7 +14,6 @@ export async function insertRentalPostgresFixture(
 ) {
   const userId = randomUUID();
   const organizationId = randomUUID();
-  const ledgerId = randomUUID();
   const propertyId = randomUUID();
   const spaceId = randomUUID();
   const tenantId = randomUUID();
@@ -41,17 +40,9 @@ export async function insertRentalPostgresFixture(
       VALUES (${userId}, ${`${userId}@example.invalid`}, 'unused-test-hash')`);
   await db.execute(sql`INSERT INTO organizations (id, name, created_by_user_id)
     VALUES (${organizationId}, ${`隔离租赁测试-${organizationId}`}, ${userId})`);
-  await db.insert(tables.ledgers).values({
-    id: ledgerId,
-    organizationId,
-    name: "租赁测试账本",
-    type: "rental",
-    createdByUserId: userId,
-  });
   await db.insert(tables.rentalProperties).values({
     id: propertyId,
     organizationId,
-    ledgerId,
     name: "测试房产",
     type: "residential_unit",
     countryCode: "CN",

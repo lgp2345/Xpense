@@ -88,7 +88,10 @@ describe.skipIf(!url)("组织管理完整 HTTP 生命周期", () => {
           true,
         );
         // 初始状态不阻止业务请求。
-        expect(await request("/accounts/list", owner.accessToken)).toHaveLength(1);
+        expect(await request("/rental-properties/list", owner.accessToken)).toMatchObject({
+          items: [],
+          total: 0,
+        });
         owner = await request("/user/current-organization", owner.accessToken, {
           organizationId: cny.id,
         });

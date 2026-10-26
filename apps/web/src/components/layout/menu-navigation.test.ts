@@ -279,10 +279,10 @@ describe("menu navigation projection", () => {
       "Sessions",
       "AuditLogs",
       "Menus",
-      "Transactions",
-      "Accounts",
-      "Categories",
       "RentalProperties",
+      "RentalTenants",
+      "RentalContracts",
+      "RentalBills",
     ];
     const iconTree = menuIconKeys.map((icon, index) =>
       createInternalMenu(index + 100, routeKeys[index] as RouteKey, icon),

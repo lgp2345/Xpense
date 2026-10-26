@@ -10,7 +10,6 @@ import { PropertyDetailPage } from "./property-detail-page";
 
 const detail: RentalPropertyDetail = {
   id: "123e4567-e89b-42d3-a456-426614174000",
-  ledgerId: "223e4567-e89b-42d3-a456-426614174000",
   name: "阳光公寓",
   type: "apartment_building",
   customTypeName: null,
@@ -760,7 +759,7 @@ describe("PropertyDetailPage", () => {
     expect(screen.queryByText("阻塞原因：下级空间已有合同")).not.toBeInTheDocument();
   });
 
-  it("shows loading and an independently useful property header without ledger leakage", async () => {
+  it("shows loading and an independently useful property header", async () => {
     let resolve: ((value: RentalPropertyDetail) => void) | undefined;
     renderPage({
       getProperty: vi.fn(
@@ -775,7 +774,6 @@ describe("PropertyDetailPage", () => {
     expect(await screen.findByRole("heading", { name: "阳光公寓" })).toBeInTheDocument();
     expect(screen.getByText("停用")).toBeInTheDocument();
     expect(screen.getByText(/广东省 深圳市 南山区 科技园路 88 号/)).toBeInTheDocument();
-    expect(screen.queryByText(detail.ledgerId)).not.toBeInTheDocument();
   });
 
   it("distinguishes missing and failed property detail responses", async () => {

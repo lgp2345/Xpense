@@ -49,7 +49,6 @@ function registerPropertyDetail(
   );
   setup.state.rentalQuery.registerRead("properties.detail", [testIds.organization, id], {
     id,
-    ledgerId: "44444444-4444-4444-8444-000000000101",
     name,
     type: propertyPayload.type,
     customTypeName: propertyPayload.customTypeName,
@@ -452,7 +451,7 @@ describe("Rental HTTP e2e", () => {
   });
 
   async function createHarness(): Promise<TestAppHarness> {
-    harness = await createTestApp({ bookkeeping: true, rental: true });
+    harness = await createTestApp({ rental: true });
     registerPropertyDetail(harness);
     registerPropertyDetail(harness, rentalTestIds.property, "测试房产");
     registerPropertyList(harness);
@@ -640,7 +639,6 @@ describe("Rental HTTP e2e", () => {
 
   it("reveals a confirmed contract history through real decrypt and audits without leaking ordinary identity", async () => {
     const setup = await createTestApp({
-      bookkeeping: true,
       rental: true,
       managerPermissions: ["rental_contracts:read", "rental_tenants:sensitive_read"],
     });
@@ -780,7 +778,6 @@ describe("Rental HTTP e2e", () => {
     ] as const;
     for (const testCase of cases) {
       const setup = await createTestApp({
-        bookkeeping: true,
         rental: true,
         managerPermissions: ["rental_contracts:read", "rental_tenants:sensitive_read"],
       });
@@ -974,7 +971,6 @@ describe("Rental HTTP e2e", () => {
         items: [
           {
             id: propertyId,
-            ledgerId: "44444444-4444-4444-8444-000000000101",
             name,
             type: propertyPayload.type,
             customTypeName: propertyPayload.customTypeName,
@@ -996,18 +992,13 @@ describe("Rental HTTP e2e", () => {
     );
   }
 
-  it("owner creates a property with its rental ledger and manages a four-level space tree", async () => {
+  it("owner creates an organization-owned property and manages a four-level space tree", async () => {
     const { app, state } = await createHarness();
     const headers = await authorization(app, "13800000001");
     const property = await createProperty(headers);
 
     expect(property).toMatchObject({ ...propertyPayload, isActive: true });
-    expect(state.bookkeeping.ledgers.get(property.ledgerId)).toMatchObject({
-      organizationId: testIds.organization,
-      name: propertyPayload.name,
-      type: "rental",
-      isDefault: false,
-    });
+    expect(property).not.toHaveProperty("ledgerId");
     expect(state.rental.properties.get(property.id)?.customTypeName).toBe("长租公寓");
 
     const root = expectOk<{ id: string }>(
@@ -1329,7 +1320,6 @@ describe("Rental HTTP e2e", () => {
       }),
     );
     expect(renamed.name).toBe("阳光公寓二期");
-    expect(state.bookkeeping.ledgers.get(property.ledgerId)?.name).toBe("阳光公寓二期");
 
     const left = expectOk<{ id: string }>(
       await app.inject({
@@ -1493,10 +1483,6 @@ describe("Rental HTTP e2e", () => {
       }),
     );
     expect(state.rental.properties.get(property.id)?.deletedAt).toBeInstanceOf(Date);
-    expect(state.bookkeeping.ledgers.get(property.ledgerId)).toMatchObject({
-      name: "阳光公寓二期",
-      deletedAt: expect.any(Date),
-    });
   });
 
   it("keeps member and viewer rental access read-only while allowing administrator writes", async () => {
@@ -1743,10 +1729,9 @@ describe("Rental HTTP e2e", () => {
     ]);
   });
 
-  it("restores generated ledger, property, spaces and audit state when required audit fails", async () => {
+  it("restores property, spaces and audit state when required audit fails", async () => {
     const { app, state } = await createHarness();
     const headers = await authorization(app, "13800000001");
-    const ledgerCount = state.bookkeeping.ledgers.size;
     const propertyCount = state.rental.properties.size;
     const spaceCount = state.rental.spaces.size;
     const auditCount = state.auditLogs.length;
@@ -1762,7 +1747,6 @@ describe("Rental HTTP e2e", () => {
       500,
       "INTERNAL_ERROR",
     );
-    expect(state.bookkeeping.ledgers).toHaveLength(ledgerCount);
     expect(state.rental.properties).toHaveLength(propertyCount);
     expect(state.rental.spaces).toHaveLength(spaceCount);
     expect(state.auditLogs).toHaveLength(auditCount);

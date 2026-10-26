@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import MultipleSelector, { type Option } from "./multi-select";
 
 const options = [
-  { value: "role-001", label: "账务管理员" },
+  { value: "role-001", label: "租务管理员" },
   { value: "role-002", label: "普通成员" },
 ];
 
@@ -38,7 +38,7 @@ describe("MultipleSelector", () => {
     const props = { options, commandProps: { label: "角色" }, onChange };
     const view = render(<MultipleSelector {...props} />);
     await user.click(screen.getByRole("combobox", { name: "角色" }));
-    const option = await screen.findByRole("option", { name: "账务管理员" });
+    const option = await screen.findByRole("option", { name: "租务管理员" });
     view.rerender(<MultipleSelector {...props} disabled />);
     await user.click(option);
     expect(onChange).not.toHaveBeenCalled();
@@ -49,7 +49,7 @@ describe("MultipleSelector", () => {
     render(
       <MultipleSelector
         disabled
-        value={[{ value: "role-001", label: "账务管理员" }]}
+        value={[{ value: "role-001", label: "租务管理员" }]}
         onChange={onChange}
       />,
     );
@@ -60,8 +60,8 @@ describe("MultipleSelector", () => {
     const user = userEvent.setup();
     render(<SelectorForm onSubmit={vi.fn()} />);
     const input = screen.getByRole("combobox", { name: "角色" });
-    await user.type(input, "账务");
-    await user.click(await screen.findByRole("option", { name: "账务管理员" }));
+    await user.type(input, "租务");
+    await user.click(await screen.findByRole("option", { name: "租务管理员" }));
     await user.type(input, "普通");
     await user.click(await screen.findByRole("option", { name: "普通成员" }));
     expect(screen.getByLabelText("已选角色")).toHaveTextContent("role-001,role-002");
@@ -74,7 +74,7 @@ describe("MultipleSelector", () => {
     const onSubmit = vi.fn();
     render(<SelectorForm onSubmit={onSubmit} />);
     await user.click(screen.getByRole("combobox", { name: "角色" }));
-    await user.click(await screen.findByRole("option", { name: "账务管理员" }));
+    await user.click(await screen.findByRole("option", { name: "租务管理员" }));
     await user.click(screen.getByRole("button", { name: "Remove" }));
     expect(screen.getByLabelText("已选角色")).toBeEmptyDOMElement();
     expect(onSubmit).not.toHaveBeenCalled();
@@ -85,7 +85,7 @@ describe("MultipleSelector", () => {
     const onChange = vi.fn();
     render(
       <MultipleSelector
-        value={[{ value: "role-001", label: "账务管理员" }]}
+        value={[{ value: "role-001", label: "租务管理员" }]}
         onChange={onChange}
         inputProps={{ "aria-label": "角色" }}
       />,

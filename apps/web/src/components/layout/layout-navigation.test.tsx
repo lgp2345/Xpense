@@ -43,14 +43,14 @@ const businessMenu: AuthorizedMenuNode = {
   id: 1,
   parentId: null,
   type: "menu",
-  name: "交易记录",
+  name: "房产管理",
   sortOrder: 0,
   icon: "ReceiptText",
   isVisible: true,
-  routeKey: "Transactions",
-  path: "/transactions",
+  routeKey: "RentalProperties",
+  path: "/rentals/properties",
   url: null,
-  permissionCode: "transactions:read",
+  permissionCode: "rental_properties:read",
   isExternal: false,
   keepAlive: false,
   children: [],
@@ -80,13 +80,13 @@ async function setup(context = organizationContext) {
   });
   const router = createRouter({
     routeTree: root.addChildren(
-      ["/", "/transactions", "/platform/organizations", "/system/menu-reset"].map((path) =>
+      ["/", "/rentals/properties", "/platform/organizations", "/system/menu-reset"].map((path) =>
         createRoute({ getParentRoute: () => root, path, component: () => <p>页面内容</p> }),
       ),
     ),
     history: createMemoryHistory({
       initialEntries: [
-        context.accessScope === "platform" ? "/platform/organizations" : "/transactions",
+        context.accessScope === "platform" ? "/platform/organizations" : "/rentals/properties",
       ],
     }),
   });
@@ -104,11 +104,11 @@ describe("统一侧栏导航", () => {
   it("超级管理员从组织菜单末尾进入平台页面并保留当前组织", async () => {
     const h = await setup();
     h.show();
-    const transactions = await screen.findByRole("link", { name: "交易记录" });
+    const properties = await screen.findByRole("link", { name: "房产管理" });
     const organizations = screen.getByRole("link", { name: "组织管理" });
     const reset = screen.getByRole("link", { name: "菜单恢复" });
     expect(
-      transactions.compareDocumentPosition(organizations) & Node.DOCUMENT_POSITION_FOLLOWING,
+      properties.compareDocumentPosition(organizations) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
     expect(
       organizations.compareDocumentPosition(reset) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -122,7 +122,7 @@ describe("统一侧栏导航", () => {
       accessScope: "organization",
       currentOrganization: organization,
     });
-    expect(screen.getByRole("link", { name: "交易记录" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "房产管理" })).toBeVisible();
 
     await userEvent.click(reset);
     await waitFor(() => expect(h.router.state.location.pathname).toBe("/system/menu-reset"));
@@ -136,7 +136,7 @@ describe("统一侧栏导航", () => {
       user: { ...organizationContext.user, isSuperAdmin: false },
     });
     h.show();
-    expect(await screen.findByRole("link", { name: "交易记录" })).toBeVisible();
+    expect(await screen.findByRole("link", { name: "房产管理" })).toBeVisible();
     expect(screen.queryByRole("link", { name: "组织管理" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "菜单恢复" })).not.toBeInTheDocument();
   });
@@ -160,7 +160,7 @@ describe("统一侧栏导航", () => {
       accessScope: "organization",
       currentOrganization: organization,
     });
-    expect(await screen.findByRole("link", { name: "交易记录" })).toBeVisible();
+    expect(await screen.findByRole("link", { name: "房产管理" })).toBeVisible();
   });
 
   it("平台页加载组织失败时可重试", async () => {

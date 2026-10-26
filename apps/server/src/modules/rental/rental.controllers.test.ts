@@ -8,7 +8,6 @@ import {
 } from "@nestjs/common/constants.js";
 import { describe, expect, it, vi } from "vitest";
 import { AppModule } from "../../app.module.js";
-import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import { REQUIRE_PERMISSION_KEY } from "../iam/decorators/require-permission.decorator.js";
 import { AuthGuard } from "../iam/guards/auth.guard.js";
 import { RbacGuard } from "../iam/guards/rbac.guard.js";
@@ -27,6 +26,7 @@ import { FinanceRequestsRepository } from "./finance-requests.repository.js";
 import { MeterReadingsController } from "./meter-readings.controller.js";
 import { MeterReadingsRepository } from "./meter-readings.repository.js";
 import { MeterReadingsService } from "./meter-readings.service.js";
+import { OrganizationWriteLockRepository } from "./organization-write-lock.repository.js";
 import { PeriodBillsController } from "./period-bills.controller.js";
 import { PeriodBillsService } from "./period-bills.service.js";
 import { PropertiesController } from "./properties.controller.js";
@@ -34,8 +34,6 @@ import { PropertiesRepository } from "./properties.repository.js";
 import { PropertiesService } from "./properties.service.js";
 import { PropertiesPolicyService } from "./properties-policy.service.js";
 import { PropertyBillingController } from "./property-billing.controller.js";
-import { PropertyBillingRepository } from "./property-billing.repository.js";
-import { PropertyBillingService } from "./property-billing.service.js";
 import { RentalModule } from "./rental.module.js";
 import { RentalCashController } from "./rental-cash.controller.js";
 import { RentalCashService } from "./rental-cash.service.js";
@@ -151,7 +149,7 @@ describe("rental property controller", () => {
     ]);
     expect(Reflect.getMetadata(MODULE_METADATA.PROVIDERS, RentalModule)).toEqual(
       expect.arrayContaining([
-        BookkeepingWriteLockRepository,
+        OrganizationWriteLockRepository,
         PropertiesRepository,
         PropertiesPolicyService,
         PropertiesService,

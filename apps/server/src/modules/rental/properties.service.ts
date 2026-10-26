@@ -10,7 +10,6 @@ import { apiErrorCodes } from "../../common/errors/api-error.js";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
 import { AuditService } from "../audit/audit.service.js";
-import { RentalLedgerBoundaryService } from "../bookkeeping/rental-ledger-boundary.service.js";
 import { ContractReferenceService } from "./contract-reference.service.js";
 import type { CreatePropertyDto } from "./dto/create-property.dto.js";
 import type { DeletePropertyDto } from "./dto/delete-property.dto.js";
@@ -26,13 +25,12 @@ import type {
 } from "./properties.repository.types.js";
 import { PropertiesPolicyService } from "./properties-policy.service.js";
 
-/** 编排租赁房产、伴生账本、组织隔离、事务和必需审计。 */
+/** 编排租赁房产、组织隔离、事务和必需审计。 */
 @Injectable()
 export class PropertiesService {
   constructor(
     private readonly repository: PropertiesRepository,
     private readonly policy: PropertiesPolicyService,
-    private readonly ledgerBoundary: RentalLedgerBoundaryService,
     private readonly auditService: AuditService,
     private readonly transactions: DatabaseTransactionService,
     private readonly contractReference: ContractReferenceService,
@@ -62,7 +60,7 @@ export class PropertiesService {
     return toPropertyDetail(property);
   }
 
-  /** 在同一事务中创建伴生租赁账本、房产和必需审计。 */
+  /** 在同一事务中创建房产和必需审计。 */
   create(authContext: AuthContext, dto: CreatePropertyDto): Promise<RentalPropertyDetail> {
     return this.transactions.run(async (transaction) => {
       await this.policy.lockWriteScope(authContext.organizationId, transaction);
@@ -72,21 +70,11 @@ export class PropertiesService {
         undefined,
         transaction,
       );
-      const ledger = await this.ledgerBoundary.create(
-        {
-          organizationId: authContext.organizationId,
-          name: dto.name,
-          actorUserId: authContext.userId,
-        },
-        transaction,
-      );
-
       let property: RentalPropertyRecord;
       try {
         property = await this.repository.create(
           {
             organizationId: authContext.organizationId,
-            ledgerId: ledger.id,
             name: dto.name,
             type: dto.type,
             customTypeName: dto.customTypeName ?? null,
@@ -113,7 +101,7 @@ export class PropertiesService {
           targetType: "rental_property",
           targetId: property.id,
           result: "succeeded",
-          metadata: { ledgerId: ledger.id, type: property.type },
+          metadata: { type: property.type },
         },
         transaction,
       );
@@ -122,7 +110,7 @@ export class PropertiesService {
     });
   }
 
-  /** 更新房产资料，并仅在名称变化时同步伴生账本名称。 */
+  /** 更新房产资料，并在名称变化时校验组织内名称唯一性。 */
   update(authContext: AuthContext, dto: UpdatePropertyDto): Promise<RentalPropertyDetail> {
     return this.transactions.run(async (transaction) => {
       await this.policy.lockWriteScope(authContext.organizationId, transaction);
@@ -143,17 +131,6 @@ export class PropertiesService {
           transaction,
         );
       }
-      if (nameChanged) {
-        await this.ledgerBoundary.rename(
-          {
-            organizationId: authContext.organizationId,
-            id: current.ledgerId,
-            name: next.name,
-          },
-          transaction,
-        );
-      }
-
       try {
         await this.repository.update(next, transaction);
       } catch (error) {
@@ -176,7 +153,7 @@ export class PropertiesService {
     });
   }
 
-  /** 只改变房产自身状态，不改写账本或空间状态。 */
+  /** 只改变房产自身状态，空间状态单独管理。 */
   setStatus(authContext: AuthContext, dto: SetPropertyStatusDto): Promise<RentalPropertyDetail> {
     return this.transactions.run(async (transaction) => {
       await this.policy.lockWriteScope(authContext.organizationId, transaction);
@@ -231,7 +208,7 @@ export class PropertiesService {
     });
   }
 
-  /** 仅在无活动空间和账本历史交易时软删除房产及伴生账本。 */
+  /** 仅在无活动空间时软删除房产并保留租赁历史关联。 */
   delete(authContext: AuthContext, dto: DeletePropertyDto): Promise<void> {
     return this.transactions.run(async (transaction) => {
       await this.policy.lockWriteScope(authContext.organizationId, transaction);
@@ -241,25 +218,12 @@ export class PropertiesService {
         transaction,
       );
       await this.policy.assertNoActiveSpaces(current, transaction);
-      await this.ledgerBoundary.assertDeletable(
-        authContext.organizationId,
-        current.ledgerId,
-        transaction,
-      );
       await this.repository.softDelete(
         {
           organizationId: authContext.organizationId,
           id: current.id,
           deletedByUserId: authContext.userId,
           updatedByUserId: authContext.userId,
-        },
-        transaction,
-      );
-      await this.ledgerBoundary.softDelete(
-        {
-          organizationId: authContext.organizationId,
-          id: current.ledgerId,
-          actorUserId: authContext.userId,
         },
         transaction,
       );
@@ -271,7 +235,7 @@ export class PropertiesService {
           targetType: "rental_property",
           targetId: current.id,
           result: "succeeded",
-          metadata: { ledgerId: current.ledgerId },
+          metadata: {},
         },
         transaction,
       );
@@ -300,7 +264,6 @@ export class PropertiesService {
 function toPropertySummary(property: RentalPropertySummaryRecord): RentalPropertySummary {
   return {
     id: property.id,
-    ledgerId: property.ledgerId,
     name: property.name,
     type: property.type,
     customTypeName: property.customTypeName,

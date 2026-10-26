@@ -12,7 +12,6 @@ function createContractSession(): WebSessionDependency {
     organizationsApi: {} as WebSessionDependency["organizationsApi"],
     authApi: {} as WebSessionDependency["authApi"],
     authStore: createAuthStore(),
-    bookkeepingApi: {} as WebSessionDependency["bookkeepingApi"],
     iamApi: {} as WebSessionDependency["iamApi"],
     menuStore: createMenuStore(),
     rentalBillsApi: {} as WebSessionDependency["rentalBillsApi"],

@@ -3,8 +3,6 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AppProviders } from "@/components/app-providers";
-import { AccountsPage } from "@/features/bookkeeping/accounts/accounts-page";
-import { formatTransactionAmount } from "@/features/bookkeeping/transactions/transaction-columns";
 import { BillCashBatchReview } from "@/features/rental/bills/bill-cash-batch-items";
 import { billFixture as billSummary } from "@/features/rental/bills/bill-test-fixtures";
 import { PeriodBillPreview } from "@/features/rental/bills/period-bill-preview";
@@ -28,12 +26,7 @@ const preview = {
   missingFields: [],
 } as never;
 describe("organization currency workflow", () => {
-  it("changes accounts, transaction signs, previews and unrounded unit-price strings across organization contexts", async () => {
-    const api = {
-      listAccounts: vi
-        .fn()
-        .mockResolvedValue([{ id: "a", name: "余额账户", type: "cash", balanceMinor: 101 }]),
-    } as never;
+  it("changes rental previews and unrounded unit-price strings across organization contexts", async () => {
     const finance = {
       getChargeTerms: vi.fn().mockResolvedValue({
         waterCollectionEnabled: true,
@@ -46,7 +39,6 @@ describe("organization currency workflow", () => {
     const ui = (currencyCode: string) => (
       <AppProviders queryClient={queryClient}>
         <OrganizationCurrencyProvider currencyCode={currencyCode}>
-          <AccountsPage organizationId={currencyCode} api={api} permissions={[]} />
           <PeriodBillPreview preview={preview} />
           <ContractChargesSection
             organizationId={currencyCode}
@@ -59,14 +51,12 @@ describe("organization currency workflow", () => {
       </AppProviders>
     );
     const view = render(ui("CNY"));
-    expect(await screen.findByText("¥1.01")).toBeInTheDocument();
+    expect(await screen.findByText("应收 ¥1.01")).toBeInTheDocument();
     expect(await screen.findByText("水费单价 ¥1.2345 / 立方米")).toBeInTheDocument();
     view.rerender(ui("USD"));
     expect(await screen.findByText("$1.01")).toBeInTheDocument();
     expect(await screen.findByText("水费单价 $1.2345 / 立方米")).toBeInTheDocument();
     expect(screen.getByText("应收 $1.01")).toBeInTheDocument();
-    expect(formatTransactionAmount(1, "expense", "USD")).toBe("-$0.01");
-    expect(formatTransactionAmount(0, "income", "USD")).toBe("+$0.00");
   });
   it("preserves historical bill currency and groups batch totals by each snapshot, using bigint sums", () => {
     const cny = {

@@ -15,7 +15,7 @@ describe("space filter HTTP", () => {
     await harness?.app.close();
   });
   it("combines empty keyword, effective state, lease status and paging within the organization", async () => {
-    harness = await createTestApp({ bookkeeping: true, rental: true });
+    harness = await createTestApp({ rental: true });
     const { accessToken } = await login(harness.app, TEST_PHONES.owner);
     const input = {
       keyword: "",
@@ -40,7 +40,7 @@ describe("space filter HTTP", () => {
     });
   });
   it("rejects invalid lease and effective state filters through the HTTP boundary", async () => {
-    harness = await createTestApp({ bookkeeping: true, rental: true });
+    harness = await createTestApp({ rental: true });
     const { accessToken } = await login(harness.app, TEST_PHONES.owner);
     for (const filter of ["leaseStatus=cancelled", "isEffectivelyActive=yes"]) {
       const response = await harness.app.inject({

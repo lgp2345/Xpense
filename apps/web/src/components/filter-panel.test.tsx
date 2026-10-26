@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { AuditLogFilters } from "@/features/audit/audit-log-filters";
-import { TransactionFilters } from "@/features/bookkeeping/transactions/transaction-filters";
 import { BillFilters } from "@/features/rental/bills/bill-filters";
 import { ContractBillFilters } from "@/features/rental/bills/contract-bill-filters";
 import { ContractFilters } from "@/features/rental/contracts/contract-filters";
@@ -53,7 +52,6 @@ describe("筛选表单折叠", () => {
   });
   it.each([
     "审计",
-    "交易",
     "合同",
     "房产",
     "租客",
@@ -64,15 +62,6 @@ describe("筛选表单折叠", () => {
     const onChange = vi.fn();
     const panels = {
       审计: <AuditLogFilters search={{ action: "查询" }} onChange={onChange} />,
-      交易: (
-        <TransactionFilters
-          search={{}}
-          accounts={[]}
-          categories={[]}
-          ledgers={[]}
-          onApply={onChange}
-        />
-      ),
       合同: <ContractFilters search={{}} onApply={onChange} />,
       房产: <PropertyFilters search={{}} onApply={onChange} />,
       租客: <TenantFilters search={{}} onApply={onChange} />,

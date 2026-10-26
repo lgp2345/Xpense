@@ -1,4 +1,4 @@
-import type { PageResult } from "./bookkeeping.js";
+import type { PageResult } from "./pagination.js";
 
 /** 租赁房产可用类型。 */
 export const rentalPropertyTypes = [
@@ -35,7 +35,6 @@ export type RentalSpaceType = (typeof rentalSpaceTypes)[number];
 /** 租赁房产摘要。 */
 export type RentalPropertySummary = {
   id: string;
-  ledgerId: string;
   name: string;
   type: RentalPropertyType;
   customTypeName: string | null;

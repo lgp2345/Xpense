@@ -2,7 +2,6 @@ import type { PermissionKey, RentalTenantDetail } from "@xpense/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { login, parseJson, TEST_PHONES, testIds } from "../../test/auth-test-helpers.js";
-import { cloneBookkeepingTestState } from "../../test/bookkeeping-test-state.js";
 import { createTestApp, type TestAppHarness } from "../../test/create-test-app.js";
 import { cloneRentalTestState, rentalTestIds } from "../../test/rental-test-harness.js";
 import { FIXED_RENTAL_NOW } from "../../test/rental-test-state.js";
@@ -139,7 +138,6 @@ function expectSafeConflict(response: InjectResponse): void {
 function snapshotTransactionState(setup: TestAppHarness) {
   return {
     rental: cloneRentalTestState(setup.state.rental),
-    bookkeeping: cloneBookkeepingTestState(setup.state.bookkeeping),
     auditLogs: structuredClone(setup.state.auditLogs),
   };
 }
@@ -149,7 +147,6 @@ function expectTransactionStateUnchanged(
   snapshot: ReturnType<typeof snapshotTransactionState>,
 ): void {
   expect(cloneRentalTestState(setup.state.rental)).toEqual(snapshot.rental);
-  expect(cloneBookkeepingTestState(setup.state.bookkeeping)).toEqual(snapshot.bookkeeping);
   expect(structuredClone(setup.state.auditLogs)).toEqual(snapshot.auditLogs);
 }
 
@@ -165,7 +162,7 @@ async function createTenantMutationScenario(
   actorUserId: string = testIds.ownerUser,
   actorPhone: string = TEST_PHONES.owner,
 ) {
-  const setup = await createTestApp({ bookkeeping: true, rental: true });
+  const setup = await createTestApp({ rental: true });
   registerTenantDetail(setup, generatedTenantId, "故障场景租户");
   setup.state.rentalQuery.registerRead(
     "tenants.documentConflict",
@@ -288,7 +285,7 @@ describe("Rental HTTP e2e", () => {
   });
 
   async function createHarness(): Promise<TestAppHarness> {
-    harness = await createTestApp({ bookkeeping: true, rental: true });
+    harness = await createTestApp({ rental: true });
     registerTenantDetail(harness);
     harness.state.rentalQuery.registerRead(
       "tenants.documentConflict",
@@ -371,7 +368,6 @@ describe("Rental HTTP e2e", () => {
     ];
     for (const testCase of permissionCases) {
       const setup = await createTestApp({
-        bookkeeping: true,
         rental: true,
         managerPermissions: testCase.permissions,
       });
@@ -1387,7 +1383,6 @@ describe("Rental HTTP e2e", () => {
 
     for (const testCase of cases) {
       const setup = await createTestApp({
-        bookkeeping: true,
         rental: true,
         managerPermissions: testCase.permissions,
       });

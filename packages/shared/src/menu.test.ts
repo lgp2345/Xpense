@@ -106,9 +106,6 @@ describe("organization menu shared contract", () => {
       "Sessions",
       "AuditLogs",
       "Menus",
-      "Transactions",
-      "Accounts",
-      "Categories",
       "RentalProperties",
       "RentalPropertyDetail",
       "RentalTenants",
@@ -122,9 +119,9 @@ describe("organization menu shared contract", () => {
     ]);
     expect(ROUTE_DEFINITIONS.OrganizationSettings.path).toBe("/organization-settings");
     expect(ROUTE_DEFINITIONS.Menus.path).toBe("/menus");
-    expect(ROUTE_DEFINITIONS.Transactions.path).toBe("/transactions");
-    expect(ROUTE_DEFINITIONS.Accounts.path).toBe("/accounts");
-    expect(ROUTE_DEFINITIONS.Categories.path).toBe("/categories");
+    expect(ROUTE_DEFINITIONS).not.toHaveProperty("Transactions");
+    expect(ROUTE_DEFINITIONS).not.toHaveProperty("Accounts");
+    expect(ROUTE_DEFINITIONS).not.toHaveProperty("Categories");
     expect(ROUTE_DEFINITIONS.RentalProperties.path).toBe("/rentals/properties");
     expect(ROUTE_DEFINITIONS.RentalPropertyDetail.path).toBe("/rentals/properties/$propertyId");
     expect(ROUTE_DEFINITIONS.RentalTenants.path).toBe("/rentals/tenants");

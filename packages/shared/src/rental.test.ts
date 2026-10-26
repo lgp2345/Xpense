@@ -13,7 +13,6 @@ import { rentalPropertyTypes, rentalSpaceTypes } from "./rental.js";
 
 const propertyDetailContract = {
   id: "property-1",
-  ledgerId: "ledger-1",
   name: "阳光公寓",
   type: "apartment_building",
   customTypeName: null,
@@ -78,7 +77,7 @@ describe("rental contracts", () => {
     ]);
   });
 
-  it("keeps companion ledger identity server-generated", () => {
+  it("keeps rental backing ledger identity out of the shared API", () => {
     const request = {
       name: "阳光公寓",
       type: "apartment_building",
@@ -87,6 +86,7 @@ describe("rental contracts", () => {
     } satisfies CreateRentalPropertyRequest;
 
     expect(request).not.toHaveProperty("ledgerId");
+    expect(propertyDetailContract).not.toHaveProperty("ledgerId");
   });
 
   it("keeps property profile, status, and deletion requests separated", () => {

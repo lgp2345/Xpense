@@ -65,9 +65,6 @@ const routePermissions = {
   Sessions: "sessions:read",
   AuditLogs: "audit_logs:read",
   Menus: "menus:read",
-  Transactions: "transactions:read",
-  Accounts: "accounts:read",
-  Categories: "categories:read",
   RentalProperties: "rental_properties:read",
   RentalPropertyDetail: "rental_properties:read",
   RentalTenants: "rental_tenants:read",
@@ -168,7 +165,6 @@ function createSession(): WebSessionDependency {
     organizationsApi: {} as WebSessionDependency["organizationsApi"],
     authApi: {} as WebSessionDependency["authApi"],
     authStore: createAuthStore(),
-    bookkeepingApi: {} as WebSessionDependency["bookkeepingApi"],
     iamApi: {} as WebSessionDependency["iamApi"],
     menuStore: createMenuStore(),
     rentalBillsApi: {} as WebSessionDependency["rentalBillsApi"],
@@ -326,33 +322,16 @@ describe("generated router integration gate", () => {
     await act(async () => rentalView.unmount());
   });
 
-  it("uses an injected bookkeeping API through the generated route tree", async () => {
-    const listTransactions = vi
-      .fn()
-      .mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
-    const bookkeeping = await createReadySession(
-      [authorizedMenu("Transactions", 2)],
-      createAuthenticatedStore(["transactions:read"]),
-      (mock) => {
-        mock
-          .onGet(/\/transactions\/list/)
-          .reply(200, mockEnvelope({ items: [], total: 0, page: 1, pageSize: 20 }));
-      },
-    );
-    bookkeeping.session.bookkeepingApi.listTransactions = listTransactions;
-    bookkeeping.session.bookkeepingApi.listPersonalLedgers = vi.fn().mockResolvedValue([]);
-    bookkeeping.session.bookkeepingApi.listAccounts = vi.fn().mockResolvedValue([]);
-    bookkeeping.session.bookkeepingApi.listCategories = vi.fn().mockResolvedValue([]);
-    const bookkeepingRouter = createAppRouter({
+  it("does not register removed bookkeeping URLs", async () => {
+    const router = createAppRouter({
       history: createMemoryHistory({ initialEntries: ["/transactions"] }),
-      session: bookkeeping.session,
+      session: createSession(),
     });
-    await bookkeepingRouter.load();
-    await import("@/features/bookkeeping/transactions/transactions-page");
-    const bookkeepingView = renderRouter(bookkeepingRouter);
-    expect(await screen.findByRole("heading", { name: "交易记录" })).toBeInTheDocument();
-    expect(listTransactions).toHaveBeenCalled();
-    await act(async () => bookkeepingView.unmount());
+    await router.load();
+    const view = renderRouter(router);
+
+    expect(await screen.findByRole("heading", { name: "页面不存在" })).toBeInTheDocument();
+    await act(async () => view.unmount());
   });
 
   it("keeps the restore gate and mounts after a failed restore", async () => {
@@ -662,18 +641,17 @@ describe("generated router integration gate", () => {
   });
 
   it("keeps a keepAlive page instance while search changes refresh its data", async () => {
-    const listTransactions = vi
+    const listProperties = vi
       .fn()
       .mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
     const harness = await createReadySession(
-      [authorizedMenu("Transactions", 1, true), authorizedMenu("Roles", 2)],
-      createAuthenticatedStore(["transactions:read", "roles:read"]),
+      [authorizedMenu("RentalProperties", 1, true), authorizedMenu("Roles", 2)],
+      createAuthenticatedStore(["rental_properties:read", "roles:read"]),
     );
-    harness.session.bookkeepingApi.listTransactions = listTransactions;
-    harness.session.bookkeepingApi.listLedgers = vi.fn().mockResolvedValue([]);
+    harness.session.rentalApi.listProperties = listProperties;
     harness.session.iamApi.listRoles = vi.fn().mockResolvedValue([]);
     const router = createAppRouter({
-      history: createMemoryHistory({ initialEntries: ["/transactions"] }),
+      history: createMemoryHistory({ initialEntries: ["/rentals/properties"] }),
       session: harness.session,
     });
     render(
@@ -682,7 +660,7 @@ describe("generated router integration gate", () => {
       </AppProviders>,
     );
     expect(
-      await screen.findByRole("heading", { name: "交易记录" }, { timeout: 3_000 }),
+      await screen.findByRole("heading", { name: "房产管理" }, { timeout: 3_000 }),
     ).toBeInTheDocument();
     const input = screen.getByRole("textbox", { name: "关键词" });
     fireEvent.change(input, { target: { value: "draft" } });
@@ -692,11 +670,11 @@ describe("generated router integration gate", () => {
       params: { propertyId: "", tenantId: "", contractId: "" },
     });
     expect(await screen.findByRole("heading", { name: "角色管理" })).toBeInTheDocument();
-    await router.navigate({ to: "/transactions", search: { keyword: "房租" } });
-    expect(await screen.findByRole("heading", { name: "交易记录" })).toBeInTheDocument();
+    await router.navigate({ to: "/rentals/properties", search: { keyword: "房租" } });
+    expect(await screen.findByRole("heading", { name: "房产管理" })).toBeInTheDocument();
     const restoredInput = screen.getByRole("textbox", { name: "关键词" });
     expect(restoredInput).toBe(input);
     expect(restoredInput).toHaveValue("房租");
-    expect(listTransactions).toHaveBeenCalledWith(expect.objectContaining({ keyword: "房租" }));
+    expect(listProperties).toHaveBeenCalledWith(expect.objectContaining({ keyword: "房租" }));
   });
 });

@@ -1,4 +1,3 @@
-import { LedgersRepository } from "../modules/bookkeeping/ledgers.repository.js";
 import { ContractRelationsRepository } from "../modules/rental/contract-relations.repository.js";
 import { ContractsRepository } from "../modules/rental/contracts.repository.js";
 import { PropertiesRepository } from "../modules/rental/properties.repository.js";
@@ -6,7 +5,6 @@ import type { CreateRentalPropertyInput } from "../modules/rental/properties.rep
 import { SpacesRepository } from "../modules/rental/spaces.repository.js";
 import type { CreateRentalSpaceInput } from "../modules/rental/spaces.repository.types.js";
 import { TenantsRepository } from "../modules/rental/tenants.repository.js";
-import type { BookkeepingTestState } from "./bookkeeping-test-state.js";
 import { createRentalBillingFakes } from "./rental-billing-fakes.js";
 import {
   applyRentalMutationEffect,
@@ -26,7 +24,6 @@ import {
 
 export function createRentalRepositoryFakes(
   state: RentalTestState,
-  bookkeeping: BookkeepingTestState,
   readFixtures: RentalQueryFixtureRegistry,
   mutationFixtures: RentalMutationFixtureRegistry,
 ) {
@@ -37,8 +34,6 @@ export function createRentalRepositoryFakes(
     tenantsRepository: createTenantsRepository(state, readFixtures, mutationFixtures),
     contractsRepository: createContractsRepository(state, readFixtures, mutationFixtures),
     contractRelationsRepository: createContractRelationsRepository(state, mutationFixtures),
-    extendLedgersRepository: (repository: Partial<LedgersRepository>) =>
-      Object.assign(repository, createRentalLedgersRepository(state, bookkeeping)),
   };
   assertRepositoryCapabilities("bills", fakes.billsRepository, ["matchingFinancialBills"]);
   assertRepositoryCapabilities("properties", fakes.propertiesRepository, [
@@ -571,85 +566,6 @@ function createSpacesRepository(
         updatedByUserId: input.updatedByUserId,
         updatedAt: new Date(),
       });
-    },
-  };
-}
-
-function createRentalLedgersRepository(state: RentalTestState, bookkeeping: BookkeepingTestState) {
-  return {
-    createRental: async (input: {
-      organizationId: string;
-      name: string;
-      createdByUserId: string;
-    }) => {
-      const now = new Date();
-      const id = nextUuid("44444444-4444-4444-8444", state.nextLedgerId++ + 100);
-      const ledger = {
-        id,
-        organizationId: input.organizationId,
-        name: input.name,
-        type: "rental" as const,
-        isDefault: false,
-        deletedAt: null,
-        createdAt: now,
-        updatedAt: now,
-      };
-      bookkeeping.ledgers.set(id, ledger);
-      return {
-        id,
-        name: ledger.name,
-        type: ledger.type,
-        isDefault: false,
-        createdAt: now,
-        updatedAt: now,
-      };
-    },
-    renameActiveRental: async (input: { organizationId: string; id: string; name: string }) => {
-      const ledger = bookkeeping.ledgers.get(input.id);
-      if (
-        !ledger ||
-        ledger.organizationId !== input.organizationId ||
-        ledger.type !== "rental" ||
-        ledger.deletedAt
-      ) {
-        return false;
-      }
-      bookkeeping.ledgers.set(input.id, { ...ledger, name: input.name, updatedAt: new Date() });
-      return true;
-    },
-    findActiveRental: async (organizationId: string, id: string) => {
-      const ledger = bookkeeping.ledgers.get(id);
-      return ledger?.organizationId === organizationId &&
-        ledger.type === "rental" &&
-        ledger.deletedAt === null
-        ? { id }
-        : null;
-    },
-    hasAnyTransactionReference: async (organizationId: string, ledgerId: string) =>
-      [...bookkeeping.transactions.values()].some(
-        (transaction) =>
-          transaction.organizationId === organizationId && transaction.ledgerId === ledgerId,
-      ),
-    softDeleteActiveRental: async (input: {
-      organizationId: string;
-      id: string;
-      deletedByUserId: string;
-    }) => {
-      const ledger = bookkeeping.ledgers.get(input.id);
-      if (
-        !ledger ||
-        ledger.organizationId !== input.organizationId ||
-        ledger.type !== "rental" ||
-        ledger.deletedAt
-      ) {
-        return false;
-      }
-      bookkeeping.ledgers.set(input.id, {
-        ...ledger,
-        deletedAt: new Date(),
-        updatedAt: new Date(),
-      });
-      return true;
     },
   };
 }

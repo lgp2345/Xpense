@@ -464,7 +464,7 @@ describe("IAM e2e", () => {
       payload: {
         key: "elevated",
         name: "Elevated",
-        permissionKeys: ["transactions:delete"],
+        permissionKeys: ["rental_properties:delete"],
       },
     });
 
@@ -484,12 +484,14 @@ describe("IAM e2e", () => {
       },
       payload: {
         id: testIds.managerRole,
-        permissionKeys: ["transactions:delete"],
+        permissionKeys: ["rental_properties:delete"],
       },
     });
 
     expect(response.statusCode).toBe(400);
-    expect(state.roles.get(testIds.managerRole)?.permissions).not.toContain("transactions:delete");
+    expect(state.roles.get(testIds.managerRole)?.permissions).not.toContain(
+      "rental_properties:delete",
+    );
   });
 
   it("POST /members/create rejects assigning a role above a non-super-admin actor", async () => {
@@ -528,14 +530,14 @@ describe("IAM e2e", () => {
       payload: {
         key: "super-managed",
         name: "Super managed",
-        permissionKeys: ["transactions:delete"],
+        permissionKeys: ["rental_properties:delete"],
       },
     });
 
     expect(response.statusCode).toBe(200);
     expect(
       state.roles.get(parseJson<{ data: { id: string } }>(response).data.id)?.permissions,
-    ).toEqual(["transactions:delete"]);
+    ).toEqual(["rental_properties:delete"]);
   });
 
   it("allows a super admin to assign a role above their assigned role", async () => {
@@ -584,7 +586,7 @@ describe("IAM e2e", () => {
       name: "Read only",
       description: "Read-only role",
     });
-    expect(state.roles.get(testIds.viewerRole)?.permissions).toEqual(["transactions:read"]);
+    expect(state.roles.get(testIds.viewerRole)?.permissions).toEqual(["rental_properties:read"]);
   });
 
   it("POST /roles/update rejects permissionKeys instead of changing permissions", async () => {
@@ -605,7 +607,7 @@ describe("IAM e2e", () => {
     });
 
     expectApiError(response, 400, "VALIDATION_FAILED");
-    expect(state.roles.get(testIds.viewerRole)?.permissions).toEqual(["transactions:read"]);
+    expect(state.roles.get(testIds.viewerRole)?.permissions).toEqual(["rental_properties:read"]);
   });
 
   it("POST /roles/update validates id in the request body", async () => {
@@ -667,7 +669,7 @@ describe("IAM e2e", () => {
 
   it("GET /permissions/tree applies the actor ceiling and ancestor closure recursively", async () => {
     const { app } = await createHarness({
-      managerPermissions: ["roles:permissions:update", "menus:create", "transactions:read"],
+      managerPermissions: ["roles:permissions:update", "menus:create", "rental_properties:read"],
     });
     const { accessToken } = await login(app, "13800000002");
 
@@ -682,9 +684,9 @@ describe("IAM e2e", () => {
     expect(response.statusCode).toBe(200);
     const permissionCodes = collectPermissionCodes(expectOk<PermissionTreeNode[]>(response));
 
-    expect(permissionCodes).toEqual(["roles:permissions:update", "transactions:read"]);
+    expect(permissionCodes).toEqual(["rental_properties:read", "roles:permissions:update"]);
     expect(permissionCodes).not.toContain("menus:create");
-    expect(permissionCodes).not.toContain("transactions:delete");
+    expect(permissionCodes).not.toContain("rental_properties:delete");
     expect(permissionCodes).not.toContain("audit_logs:read");
   });
 
@@ -780,9 +782,9 @@ describe("IAM e2e", () => {
     expect(response.statusCode).toBe(200);
     expect(expectOk(response)).toBeNull();
     expect(state.roles.get(testIds.viewerRole)?.permissions).toEqual([
+      "rental_properties:read",
       "roles:read",
       "roles:update",
-      "transactions:read",
     ]);
   });
 
@@ -836,7 +838,7 @@ describe("IAM e2e", () => {
       },
       payload: {
         roleId: testIds.viewerRole,
-        permissionKeys: ["transactions:delete"],
+        permissionKeys: ["rental_properties:delete"],
       },
     });
 

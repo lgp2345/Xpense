@@ -133,7 +133,6 @@ function createSession(mode: "pending" | "error" = "pending"): WebSessionDepende
         ]),
       ],
     }),
-    bookkeepingApi: {} as never,
     iamApi: { getAuthorizedMenus: vi.fn().mockResolvedValue(tree) } as never,
     menuStore,
     rentalApi: {

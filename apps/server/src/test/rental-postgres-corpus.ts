@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 const firstMigration = "20260704154322_pink_sauron";
 const firstHash = "ddb4761829e97154667c6f07f4a0e2183b0194e33545a73d86949ae8234d41c0";
 const reviewedHashes: Record<string, string> = {
+  "20261026055429_remove_bookkeeping":
+    "71690d247ef962ef1c063fcbfa8d21755110584b1a53eec52bc8f9c7dcac6c5a",
   "20261023135954_member_usernames_and_multiple_roles":
     "707e42031337ad747884b1b9aee31f5442746efe5437eadb78211412c43cdaaf",
   "20261023002049_organization_settings_menus":
@@ -100,9 +102,9 @@ export async function copyRentalMigrationCorpus(
   const root = fileURLToPath(new URL("../db/migrations/", import.meta.url));
   const names = (await readdir(root)).filter((name) => /^\d{14}_/.test(name)).sort();
   if (
-    names.length !== 24 ||
+    names.length !== 25 ||
     names[0] !== firstMigration ||
-    names.at(-1) !== "20261023135954_member_usernames_and_multiple_roles"
+    names.at(-1) !== "20261026055429_remove_bookkeeping"
   ) {
     throw new Error("迁移目录已变化，须重新核对演练范围");
   }

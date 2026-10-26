@@ -245,7 +245,7 @@ describe("navigation helpers", () => {
 });
 
 describe("buildAuthorizedMenuTree", () => {
-  it("只为 member 和 viewer 返回只读记账与租赁导航且不泄露按钮", () => {
+  it("只为 member 和 viewer 返回只读租赁导航且不注册记账导航", () => {
     const rows = materializeDefaultTemplate();
     const plan = buildRbacSeedPlan();
 
@@ -255,31 +255,11 @@ describe("buildAuthorizedMenuTree", () => {
         organizationId,
         permissionCodes: permissions,
       });
-      const bookkeeping = tree.find((node) => node.name === "记账管理");
-      const resolvedBookkeepingNodes = flattenAuthorizedMenuTree(bookkeeping ? [bookkeeping] : []);
+      const resolvedNodes = flattenAuthorizedMenuTree(tree);
+      const removedRoutes = new Set(["Transactions", "Accounts", "Categories"]);
 
-      expect(
-        resolvedBookkeepingNodes.map((node) => ({
-          type: node.type,
-          routeKey: node.routeKey,
-          permissionCode: node.permissionCode,
-        })),
-      ).toEqual([
-        { type: "directory", routeKey: null, permissionCode: null },
-        {
-          type: "menu",
-          routeKey: "Transactions",
-          permissionCode: "transactions:read",
-        },
-        { type: "menu", routeKey: "Accounts", permissionCode: "accounts:read" },
-        { type: "menu", routeKey: "Categories", permissionCode: "categories:read" },
-      ]);
-      expect(resolvedBookkeepingNodes.some((node) => node.type === "button")).toBe(false);
-      expect(
-        resolvedBookkeepingNodes
-          .flatMap((node) => (node.permissionCode ? [node.permissionCode] : []))
-          .every((permissionCode) => permissionCode.endsWith(":read")),
-      ).toBe(true);
+      expect(tree.some((node) => node.name === "记账管理")).toBe(false);
+      expect(resolvedNodes.some((node) => removedRoutes.has(node.routeKey ?? ""))).toBe(false);
 
       const rental = tree.find((node) => node.name === "租赁管理");
       const resolvedRentalNodes = flattenAuthorizedMenuTree(rental ? [rental] : []);

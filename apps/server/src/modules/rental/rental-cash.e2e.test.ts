@@ -2,8 +2,6 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DatabaseTransactionService } from "../../db/database-transaction.service.js";
 import { testIds } from "../../test/auth-test-helpers.js";
-import { bookkeepingRepositoryTokens } from "../../test/bookkeeping-test-harness.js";
-import { cloneBookkeepingTestState } from "../../test/bookkeeping-test-state.js";
 import { createRentalFinanceHttpHarness } from "../../test/rental-finance-http-harness.js";
 import { cloneRentalTestState } from "../../test/rental-test-state.js";
 import { FinanceRequestsRepository } from "./finance-requests.repository.js";
@@ -33,14 +31,13 @@ describe("租赁收退款 HTTP", () => {
     if (harness) await harness.app.close();
   });
 
-  it("用账单详情版本连续收款，按目标权限列历史且不写记账流水", async () => {
+  it("用账单详情版本连续收款并按目标权限列历史", async () => {
     const bill = await createPeriodBill();
     const firstRead = await getBill(bill.id);
     const receiptAmount = Math.max(
       1,
       Math.min(100_000, Math.floor(firstRead.financial.outstandingMinor / 3)),
     );
-    const originalBookkeeping = cloneBookkeepingTestState(harness.state.bookkeeping);
     const unauthenticatedList = await harness.request(
       `/rental-cash/list?kind=bill&billId=${bill.id}`,
       undefined,
@@ -76,19 +73,6 @@ describe("租赁收退款 HTTP", () => {
       `/rental-cash/list?kind=settlement&settlementId=${randomUUID()}`,
     );
     expect(ownerSettlementMissing.statusCode).toBe(404);
-
-    const accountWrites = harness.app.get(bookkeepingRepositoryTokens.AccountsRepository) as {
-      writeOpeningBalance: (...args: unknown[]) => unknown;
-    };
-    const transactionWrites = harness.app.get(
-      bookkeepingRepositoryTokens.TransactionsRepository,
-    ) as {
-      create: (...args: unknown[]) => unknown;
-      update: (...args: unknown[]) => unknown;
-    };
-    const writeOpeningBalance = vi.spyOn(accountWrites, "writeOpeningBalance");
-    const createTransaction = vi.spyOn(transactionWrites, "create");
-    const updateTransaction = vi.spyOn(transactionWrites, "update");
 
     const first = await harness.request("/rental-receipts/create", {
       target: { kind: "bill", billId: bill.id },
@@ -135,10 +119,6 @@ describe("租赁收退款 HTTP", () => {
       receiptAmount,
       receiptAmount,
     ]);
-    expect(writeOpeningBalance).not.toHaveBeenCalled();
-    expect(createTransaction).not.toHaveBeenCalled();
-    expect(updateTransaction).not.toHaveBeenCalled();
-    expect(harness.state.bookkeeping).toEqual(originalBookkeeping);
   });
 
   it("来源取消并归零后仍可按原账单 ID 退还已收现金", async () => {

@@ -7,8 +7,8 @@ import {
 
 import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDbExecutor } from "../../db/db.module.js";
-import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import type { ContractReferenceSummary } from "./contracts.repository.types.js";
+import { OrganizationWriteLockRepository } from "./organization-write-lock.repository.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import type {
   RentalPropertyRecord,
@@ -24,7 +24,7 @@ const PROPERTY_NAME_UNIQUE_CONSTRAINT = "rental_properties_active_name_unique";
 export class PropertiesPolicyService {
   constructor(
     private readonly repository: PropertiesRepository,
-    private readonly writeLockRepository: BookkeepingWriteLockRepository,
+    private readonly writeLockRepository: OrganizationWriteLockRepository,
   ) {}
 
   /** 在任何房产写规则读取前锁定当前组织的稳定竞争行。 */

@@ -1,6 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
-import { bookkeepingKeys } from "./bookkeeping-query";
 import type { RentalApi } from "./rental-api";
 import {
   clearRentalQueries,
@@ -96,13 +95,11 @@ describe("rental query cache", () => {
     ).toEqual(["rental", "org-a"]);
   });
 
-  it("invalidates only data affected by property and space writes, then removes every rental scope", async () => {
+  it("invalidates affected rental data and clears every rental scope", async () => {
     const client = new QueryClient();
     const organizationId = "org-a";
     const propertyId = "property-1";
     const keys = {
-      rawBookkeepingLedgers: bookkeepingKeys.ledgers(organizationId),
-      personalBookkeepingLedgers: bookkeepingKeys.personalLedgers(organizationId),
       children: rentalKeys.children(organizationId, {
         propertyId,
         parentId: null,
@@ -131,8 +128,6 @@ describe("rental query cache", () => {
     await invalidatePropertyMutation(client, organizationId, propertyId);
     expect(client.getQueryState(keys.properties)?.isInvalidated).toBe(true);
     expect(client.getQueryState(keys.detail)?.isInvalidated).toBe(true);
-    expect(client.getQueryState(keys.rawBookkeepingLedgers)?.isInvalidated).toBe(true);
-    expect(client.getQueryState(keys.personalBookkeepingLedgers)?.isInvalidated).toBe(false);
     expect(client.getQueryState(keys.otherDetail)?.isInvalidated).toBe(false);
     expect(client.getQueryState(keys.children)?.isInvalidated).toBe(false);
 
@@ -159,7 +154,7 @@ describe("rental query cache", () => {
 
     clearRentalQueries(client);
     expect(client.getQueryState(keys.properties)).toBeUndefined();
-    expect(client.getQueryState(keys.rawBookkeepingLedgers)).toBeDefined();
+    expect(client.getQueryState(keys.children)).toBeUndefined();
   });
 
   it("keeps tenant, contract, and draft keys isolated by organization", () => {

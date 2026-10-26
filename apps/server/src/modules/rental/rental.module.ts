@@ -2,8 +2,6 @@ import { Module } from "@nestjs/common";
 import { DbModule } from "../../db/db.module.js";
 import { AuditModule } from "../audit/audit.module.js";
 import { AuthModule } from "../auth/auth.module.js";
-import { BookkeepingModule } from "../bookkeeping/bookkeeping.module.js";
-import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import { IamModule } from "../iam/iam.module.js";
 import { BillAdjustmentsRepository } from "./bill-adjustments.repository.js";
 import { BillingLifecycleService } from "./billing-lifecycle.service.js";
@@ -29,6 +27,7 @@ import { FinanceRequestsRepository } from "./finance-requests.repository.js";
 import { MeterReadingsController } from "./meter-readings.controller.js";
 import { MeterReadingsRepository } from "./meter-readings.repository.js";
 import { MeterReadingsService } from "./meter-readings.service.js";
+import { OrganizationWriteLockRepository } from "./organization-write-lock.repository.js";
 import { PeriodBillVoidService } from "./period-bill-void.service.js";
 import { PeriodBillsController } from "./period-bills.controller.js";
 import { PeriodBillsService } from "./period-bills.service.js";
@@ -63,7 +62,7 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
 
 /** 组合租赁房产、空间、租户与合同接口，同时保持仓储为模块私有实现。 */
 @Module({
-  imports: [AuditModule, AuthModule, BookkeepingModule, DbModule, IamModule],
+  imports: [AuditModule, AuthModule, DbModule, IamModule],
   controllers: [
     PropertyBillingController,
     BillsController,
@@ -105,7 +104,7 @@ import { TenantsPolicyService } from "./tenants-policy.service.js";
     BillsReadService,
     BillsRepository,
 
-    BookkeepingWriteLockRepository,
+    OrganizationWriteLockRepository,
     ContractsRepository,
     ContractRelationsRepository,
     ContractsPolicyService,

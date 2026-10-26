@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -131,7 +130,6 @@ export function PropertyFormDialog({
       <DialogContent className="max-h-[90dvh] overflow-y-auto" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{isEditing ? "编辑房产" : "新增房产"}</DialogTitle>
-          <DialogDescription>每个房产会维护独立账务，但此处不会显示账本标识。</DialogDescription>
         </DialogHeader>
         <form
           noValidate

@@ -35,7 +35,6 @@ import { testIds } from "./auth-test-helpers.js";
 
 export const rentalTestIds = {
   foreignProperty: "88888888-8888-4888-8888-888888888801",
-  foreignLedger: "44444444-4444-4444-8444-444444444499",
   foreignSpace: "99999999-9999-4999-8999-999999999901",
   property: "77777777-7777-4777-8777-777777777701",
   parentSpace: "99999999-9999-4999-8999-999999999902",
@@ -80,7 +79,6 @@ export type RentalTestState = {
   contractCounters: Map<string, number>;
   nextPropertyId: number;
   nextSpaceId: number;
-  nextLedgerId: number;
   nextTenantId: number;
   nextContractId: number;
   nextContractSpaceId: number;
@@ -148,7 +146,6 @@ export function createRentalTestState(): RentalTestState {
   const property = createPropertyRecord({
     id: rentalTestIds.property,
     organizationId: testIds.organization,
-    ledgerId: "44444444-4444-4444-8444-444444444401",
     name: "测试房产",
     createdByUserId: testIds.ownerUser,
     createdAt,
@@ -242,7 +239,6 @@ export function createRentalTestState(): RentalTestState {
         createPropertyRecord({
           id: rentalTestIds.foreignProperty,
           organizationId: testIds.otherOrganization,
-          ledgerId: rentalTestIds.foreignLedger,
           name: "其他组织房产",
           createdByUserId: testIds.outsiderUser,
           createdAt,
@@ -266,7 +262,6 @@ export function createRentalTestState(): RentalTestState {
     ]),
     nextPropertyId: 1,
     nextSpaceId: 1,
-    nextLedgerId: 1,
     tenants: new Map([
       [tenant.id, tenant],
       [foreignTenant.id, foreignTenant],
@@ -330,7 +325,6 @@ export function cloneRentalTestState(state: RentalTestState): RentalTestState {
     contractCounters: new Map(state.contractCounters),
     nextPropertyId: state.nextPropertyId,
     nextSpaceId: state.nextSpaceId,
-    nextLedgerId: state.nextLedgerId,
     nextTenantId: state.nextTenantId,
     nextContractId: state.nextContractId,
     nextContractSpaceId: state.nextContractSpaceId,
@@ -420,7 +414,6 @@ export function restoreRentalTestState(state: RentalTestState, snapshot: RentalT
   replaceMap(state.contractCounters, snapshot.contractCounters);
   state.nextPropertyId = snapshot.nextPropertyId;
   state.nextSpaceId = snapshot.nextSpaceId;
-  state.nextLedgerId = snapshot.nextLedgerId;
   state.nextTenantId = snapshot.nextTenantId;
   state.nextContractId = snapshot.nextContractId;
   state.nextContractSpaceId = snapshot.nextContractSpaceId;
@@ -512,7 +505,6 @@ export function unique(values: string[]): string[] {
 export function createPropertyRecord(input: {
   id: string;
   organizationId: string;
-  ledgerId: string;
   name: string;
   createdByUserId: string;
   createdAt: Date;
@@ -528,7 +520,6 @@ export function createPropertyRecord(input: {
   return {
     id: input.id,
     organizationId: input.organizationId,
-    ledgerId: input.ledgerId,
     name: input.name,
     type: input.type ?? "apartment_building",
     customTypeName: input.customTypeName ?? null,

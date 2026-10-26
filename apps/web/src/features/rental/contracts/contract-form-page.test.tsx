@@ -195,7 +195,6 @@ function baseApi(overrides: Partial<RentalApi> = {}): RentalApi {
       items: [
         {
           id: propertyId,
-          ledgerId: "ledger-1",
           name: "阳光公寓",
           type: "apartment_building",
           customTypeName: null,
@@ -216,7 +215,6 @@ function baseApi(overrides: Partial<RentalApi> = {}): RentalApi {
     } satisfies RentalPropertyPage),
     getProperty: vi.fn().mockResolvedValue({
       id: propertyId,
-      ledgerId: "ledger-1",
       name: "阳光公寓",
       type: "apartment_building",
       customTypeName: null,
@@ -548,7 +546,6 @@ describe("ContractFormPage", () => {
     const otherPropertyId = "77777777-7777-4777-8777-777777777777";
     const otherProperty = {
       id: otherPropertyId,
-      ledgerId: "ledger-1",
       name: "海棠公寓",
       type: "apartment_building" as const,
       customTypeName: null,
@@ -567,7 +564,6 @@ describe("ContractFormPage", () => {
         items: [
           {
             id: propertyId,
-            ledgerId: "ledger-1",
             name: "阳光公寓",
             type: "apartment_building",
             customTypeName: null,

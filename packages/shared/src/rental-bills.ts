@@ -1,4 +1,4 @@
-import type { PageResult } from "./bookkeeping.js";
+import type { PageResult } from "./pagination.js";
 import type { RentalFinancialBalance } from "./rental-cash.js";
 import type { RentalContractSpace } from "./rental-contracts.js";
 

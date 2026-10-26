@@ -162,7 +162,7 @@ export function RoleEditorDialog({
                       <Input
                         autoComplete="off"
                         id={field.name}
-                        placeholder="例如 bookkeeper"
+                        placeholder="例如 operator"
                         disabled={(isEditing && !canEditMetadata) || !isEditable}
                         readOnly={isEditing}
                         value={field.state.value}

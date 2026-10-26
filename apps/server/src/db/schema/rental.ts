@@ -15,7 +15,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { ledgers } from "./bookkeeping.js";
 import { organizations, users } from "./identity.js";
 
 /** 租赁房产类型。 */
@@ -29,7 +28,7 @@ const timestamps = {
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 };
 
-/** 组织租赁账本对应的房产；一个租赁账本只能绑定一处房产。 */
+/** 组织内独立管理的租赁房产。 */
 export const rentalProperties = snakeCase.table(
   "rental_properties",
   {
@@ -37,7 +36,6 @@ export const rentalProperties = snakeCase.table(
     organizationId: uuid()
       .notNull()
       .references(() => organizations.id),
-    ledgerId: uuid().notNull(),
     name: text().notNull(),
     type: rentalPropertyType().notNull(),
     /** 仅当类型为 other 时填写的自定义房产类型名称。 */
@@ -64,12 +62,6 @@ export const rentalProperties = snakeCase.table(
   },
   (table) => [
     unique("rental_properties_organization_id_unique").on(table.organizationId, table.id),
-    unique("rental_properties_organization_ledger_unique").on(table.organizationId, table.ledgerId),
-    foreignKey({
-      name: "rental_properties_organization_ledger_fk",
-      columns: [table.organizationId, table.ledgerId],
-      foreignColumns: [ledgers.organizationId, ledgers.id],
-    }),
     check(
       "rental_properties_custom_type_name_check",
       sql`(${table.type} = 'other' AND ${table.customTypeName} IS NOT NULL) OR (${table.type} <> 'other' AND ${table.customTypeName} IS NULL)`,

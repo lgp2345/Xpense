@@ -22,7 +22,7 @@ export function LoginShowcase() {
         <img
           className={styles.heroImage}
           src="/images/login-home-ledger.webp"
-          alt="打开的账本承托着一栋房屋，钥匙连接日常记账与租务管理"
+          alt="钥匙与房屋主题插画，展示租赁管理场景"
           width={1536}
           height={1024}
           fetchPriority="high"

@@ -39,7 +39,7 @@ const permissions = [
   { key: "members:read" as const, name: "查看成员" },
   { key: "members:create" as const, name: "创建成员" },
   { key: "members:update" as const, name: "更新成员" },
-  { key: "transactions:create" as const, name: "创建交易" },
+  { key: "rental_properties:create" as const, name: "创建房产" },
   { key: "audit_logs:read" as const, name: "审计日志" },
 ];
 
@@ -119,7 +119,7 @@ describe("permission tree", () => {
       "audit_logs:read",
       "members:create",
       "members:update",
-      "transactions:create",
+      "rental_properties:create",
     ]);
     expect(other?.children.every((node) => typeof node.id === "number" && node.id < 0)).toBe(true);
   });

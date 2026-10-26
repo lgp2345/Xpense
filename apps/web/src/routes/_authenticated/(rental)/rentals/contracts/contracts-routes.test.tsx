@@ -48,7 +48,7 @@ vi.mock("@/features/rental/contracts/contract-detail-page", () => ({
   ContractDetailPage: () => null,
 }));
 
-const ledgerId = "123e4567-e89b-42d3-a456-426614174000";
+const resourceId = "123e4567-e89b-42d3-a456-426614174000";
 const accountId = "223e4567-e89b-42d3-a456-426614174000";
 const categoryId = "323e4567-e89b-42d3-a456-426614174000";
 const contractId = "423e4567-e89b-42d3-a456-426614174000";
@@ -98,7 +98,6 @@ function session(
       },
       permissions,
     }),
-    bookkeepingApi: {} as never,
     iamApi: {
       getAuthorizedMenus: vi.fn().mockResolvedValue(menus),
       resolveMenuRoute: vi.fn().mockResolvedValue(menus[0]),
@@ -124,7 +123,7 @@ describe("rental contract file routes", () => {
       validateRentalContractsSearch({
         keyword: "  合同  ",
         propertyId: ` ${accountId} `,
-        tenantId: ` ${ledgerId} `,
+        tenantId: ` ${resourceId} `,
         status: "active",
         startDateFrom: "2026-01-01",
         startDateTo: "2026-12-31",
@@ -134,7 +133,7 @@ describe("rental contract file routes", () => {
     ).toEqual({
       keyword: "合同",
       propertyId: accountId,
-      tenantId: ledgerId,
+      tenantId: resourceId,
       status: "active",
       startDateFrom: "2026-01-01",
       startDateTo: "2026-12-31",
@@ -157,15 +156,15 @@ describe("rental contract file routes", () => {
   it("normalizes create seeds by trimming, filtering UUIDs, and stable deduplication", () => {
     expect(
       validateRentalContractCreateSearch({
-        draftId: ` ${ledgerId} `,
+        draftId: ` ${resourceId} `,
         propertyId: ` ${accountId} `,
-        spaceIds: [ledgerId, ` ${ledgerId} `, "not-a-uuid", categoryId],
+        spaceIds: [resourceId, ` ${resourceId} `, "not-a-uuid", categoryId],
       }),
-    ).toEqual({ draftId: ledgerId, propertyId: accountId, spaceIds: [ledgerId, categoryId] });
-    expect(validateRentalContractCreateSearch({ spaceId: ledgerId })).toEqual({});
-    expect(validateRentalContractCreateSearch({ propertyId: "bad", spaceIds: [ledgerId] })).toEqual(
-      {},
-    );
+    ).toEqual({ draftId: resourceId, propertyId: accountId, spaceIds: [resourceId, categoryId] });
+    expect(validateRentalContractCreateSearch({ spaceId: resourceId })).toEqual({});
+    expect(
+      validateRentalContractCreateSearch({ propertyId: "bad", spaceIds: [resourceId] }),
+    ).toEqual({});
   });
 
   it("keeps route URLs, route keys, props, and create metadata distinct", async () => {

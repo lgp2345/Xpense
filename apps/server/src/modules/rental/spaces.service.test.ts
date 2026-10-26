@@ -17,7 +17,6 @@ function propertyRecord(overrides: Record<string, unknown> = {}) {
   return {
     id: "property-1",
     organizationId: "organization-1",
-    ledgerId: "ledger-1",
     name: "阳光公寓",
     type: "apartment_building" as const,
     customTypeName: null,

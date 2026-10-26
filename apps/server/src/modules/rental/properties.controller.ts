@@ -43,7 +43,7 @@ export class PropertiesController {
     return this.service.detail(authContext, dto);
   }
 
-  /** 创建房产及服务端生成的伴生租赁账本。 */
+  /** 创建当前组织的租赁房产。 */
   @Post("create")
   @HttpCode(200)
   @RequirePermission("rental_properties:create")
@@ -54,7 +54,7 @@ export class PropertiesController {
     return this.service.create(authContext, dto);
   }
 
-  /** 更新房产资料并按需同步账本名称。 */
+  /** 更新当前组织的房产资料。 */
   @Post("update")
   @HttpCode(200)
   @RequirePermission("rental_properties:update")

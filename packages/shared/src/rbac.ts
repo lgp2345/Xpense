@@ -29,36 +29,6 @@ const sessionPermissions = ["sessions:read", "sessions:revoke"] as const;
 // ── 审计日志 ──────────────────────────────────────
 const auditPermissions = ["audit_logs:read"] as const;
 
-// ── 记账 ──────────────────────────────────────────
-const transactionPermissions = [
-  "transactions:read",
-  "transactions:create",
-  "transactions:update",
-  "transactions:delete",
-] as const;
-
-// ── 账本 ──────────────────────────────────────────
-const ledgerPermissions = ["ledgers:read"] as const;
-
-// ── 账户 ──────────────────────────────────────────
-const accountPermissions = [
-  "accounts:read",
-  "accounts:create",
-  "accounts:update",
-  "accounts:delete",
-] as const;
-
-// ── 分类 ──────────────────────────────────────────
-const categoryPermissions = [
-  "categories:read",
-  "categories:create",
-  "categories:update",
-  "categories:delete",
-] as const;
-
-// ── 统计 ──────────────────────────────────────────
-const statisticsPermissions = ["statistics:read"] as const;
-
 // ── 租赁 ──────────────────────────────────────────
 const rentalPermissions = [
   "rental_properties:read",
@@ -112,11 +82,6 @@ export const permissionKeys = [
   ...rolePermissions,
   ...sessionPermissions,
   ...auditPermissions,
-  ...ledgerPermissions,
-  ...accountPermissions,
-  ...categoryPermissions,
-  ...transactionPermissions,
-  ...statisticsPermissions,
   ...rentalPermissions,
   ...rentalFinancePermissions,
 ] as const;

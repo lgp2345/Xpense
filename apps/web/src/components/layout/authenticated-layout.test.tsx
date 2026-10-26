@@ -158,7 +158,7 @@ function DescriptorProbe({ search, session }: { search: string; session: WebSess
   );
 }
 
-function registeredMenu(routeKey: "Members" | "Transactions", id: number): AuthorizedMenuNode {
+function registeredMenu(routeKey: "Members" | "RentalProperties", id: number): AuthorizedMenuNode {
   return {
     id,
     parentId: null,
@@ -168,9 +168,9 @@ function registeredMenu(routeKey: "Members" | "Transactions", id: number): Autho
     icon: null,
     isVisible: true,
     routeKey,
-    path: routeKey === "Members" ? "/members" : "/transactions",
+    path: routeKey === "Members" ? "/members" : "/rentals/properties",
     url: null,
-    permissionCode: routeKey === "Members" ? "members:read" : "transactions:read",
+    permissionCode: routeKey === "Members" ? "members:read" : "rental_properties:read",
     isExternal: false,
     keepAlive: true,
     children: [],
@@ -182,7 +182,7 @@ function createDescriptor(
   cacheParams: PageCacheParams = {},
 ): RegisteredPageDescriptor {
   return {
-    routeKey: "Transactions",
+    routeKey: "RentalProperties",
     cacheParams,
     render: ({ session }) => <DescriptorProbe search={search} session={session} />,
   };
@@ -195,11 +195,11 @@ describe("AuthenticatedLayout", () => {
     store.getState().setCurrentUserContext(userContext);
     const instance = axios.create();
     const mock = new MockAdapter(instance);
-    const transactionsMenu = registeredMenu("Transactions", 3);
+    const propertiesMenu = registeredMenu("RentalProperties", 3);
     mock.onGet("http://localhost:4000/menus").reply(200, {
       code: "OK",
       message: "ok",
-      data: [transactionsMenu],
+      data: [propertiesMenu],
     });
     const session = createWebSession({
       authStore: store,
@@ -212,22 +212,22 @@ describe("AuthenticatedLayout", () => {
     const rootRoute = createRootRoute({
       component: () => <AuthenticatedLayout session={session} />,
     });
-    const transactionsRoute = createRoute({
+    const propertiesRoute = createRoute({
       getParentRoute: () => rootRoute,
-      path: "/transactions",
-      staticData: { routeKey: "Transactions" },
+      path: "/rentals/properties",
+      staticData: { routeKey: "RentalProperties" },
       validateSearch: (search: Record<string, unknown>) => ({
         page: typeof search.page === "number" ? search.page : 1,
       }),
       beforeLoad: ({ search }) => ({
-        registeredMenu: transactionsMenu,
+        registeredMenu: propertiesMenu,
         registeredPage: createDescriptor(`page=${search.page}`),
       }),
       component: () => null,
     });
     const router = createRouter({
-      routeTree: rootRoute.addChildren([transactionsRoute]),
-      history: createMemoryHistory({ initialEntries: ["/transactions?page=1"] }),
+      routeTree: rootRoute.addChildren([propertiesRoute]),
+      history: createMemoryHistory({ initialEntries: ["/rentals/properties?page=1"] }),
     });
 
     render(
@@ -237,13 +237,15 @@ describe("AuthenticatedLayout", () => {
     );
 
     const originalNode = await screen.findByTestId("cached-probe");
-    expect(screen.getByRole("button", { name: "Transactions" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "RentalProperties" })).toHaveAttribute(
       "aria-current",
       "page",
     );
     await user.type(screen.getByRole("textbox", { name: "descriptor input" }), "retained state");
 
-    await act(async () => router.navigate({ to: "/transactions", search: { page: 2 } } as never));
+    await act(async () =>
+      router.navigate({ to: "/rentals/properties", search: { page: 2 } } as never),
+    );
 
     expect(screen.getByTestId("cached-probe")).toBe(originalNode);
     expect(screen.getByRole("textbox", { name: "descriptor input" })).toHaveValue("retained state");
@@ -256,11 +258,11 @@ describe("AuthenticatedLayout", () => {
     store.getState().setCurrentUserContext(userContext);
     const instance = axios.create();
     const mock = new MockAdapter(instance);
-    const transactionsMenu = registeredMenu("Transactions", 3);
+    const propertiesMenu = registeredMenu("RentalProperties", 3);
     mock.onGet("http://localhost:4000/menus").reply(200, {
       code: "OK",
       message: "ok",
-      data: [transactionsMenu],
+      data: [propertiesMenu],
     });
     const session = createWebSession({
       authStore: store,
@@ -273,15 +275,15 @@ describe("AuthenticatedLayout", () => {
     const rootRoute = createRootRoute({
       component: () => <AuthenticatedLayout session={session} />,
     });
-    const transactionsRoute = createRoute({
+    const propertiesRoute = createRoute({
       getParentRoute: () => rootRoute,
-      path: "/transactions",
-      staticData: { routeKey: "Transactions" },
+      path: "/rentals/properties",
+      staticData: { routeKey: "RentalProperties" },
       validateSearch: (search: Record<string, unknown>) => ({
         page: typeof search.page === "number" ? search.page : 1,
       }),
       beforeLoad: ({ search }) => ({
-        registeredMenu: transactionsMenu,
+        registeredMenu: propertiesMenu,
         registeredPage: createDescriptor(`page=${search.page}`),
       }),
       component: () => null,
@@ -292,8 +294,8 @@ describe("AuthenticatedLayout", () => {
       component: () => null,
     });
     const router = createRouter({
-      routeTree: rootRoute.addChildren([transactionsRoute, membersRoute]),
-      history: createMemoryHistory({ initialEntries: ["/transactions?page=1"] }),
+      routeTree: rootRoute.addChildren([propertiesRoute, membersRoute]),
+      history: createMemoryHistory({ initialEntries: ["/rentals/properties?page=1"] }),
     });
 
     render(
@@ -306,7 +308,9 @@ describe("AuthenticatedLayout", () => {
     await user.type(screen.getByRole("textbox", { name: "descriptor input" }), "retained state");
 
     await act(async () => router.navigate({ to: "/members" } as never));
-    await act(async () => router.navigate({ to: "/transactions", search: { page: 2 } } as never));
+    await act(async () =>
+      router.navigate({ to: "/rentals/properties", search: { page: 2 } } as never),
+    );
 
     expect(screen.getByTestId("cached-probe")).toBe(originalNode);
     expect(screen.getByRole("textbox", { name: "descriptor input" })).toHaveValue("retained state");
@@ -394,7 +398,7 @@ describe("AuthenticatedLayout", () => {
       .loadMenusForOrganization("org-1", session.iamApi.getAuthorizedMenus);
     const descriptorRender = vi.fn(() => <p>descriptor page</p>);
     const wrongDescriptor: RegisteredPageDescriptor = {
-      routeKey: "Transactions",
+      routeKey: "RentalProperties",
       cacheParams: {},
       render: descriptorRender,
     };

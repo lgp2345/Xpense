@@ -1,4 +1,4 @@
-import type { PageResult } from "./bookkeeping.js";
+import type { PageResult } from "./pagination.js";
 
 /** 租赁租户的可用类型。 */
 export const rentalTenantTypes = ["individual", "company"] as const;

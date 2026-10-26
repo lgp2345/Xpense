@@ -10,18 +10,6 @@ import {
   shouldInitializeMenuTemplate,
 } from "./seed-rbac.js";
 
-const bookkeepingWritePermissionKeys = [
-  "transactions:create",
-  "transactions:update",
-  "transactions:delete",
-  "accounts:create",
-  "accounts:update",
-  "accounts:delete",
-  "categories:create",
-  "categories:update",
-  "categories:delete",
-] as const satisfies readonly PermissionKey[];
-const bookkeepingWritePermissions = new Set<PermissionKey>(bookkeepingWritePermissionKeys);
 const rentalReadPermissionKeys = [
   "rental_properties:read",
   "rental_spaces:read",
@@ -146,53 +134,20 @@ describe("buildRbacSeedPlan", () => {
     }
   });
 
-  it("grants the confirmed bookkeeping and rental read permissions to member", () => {
+  it("grants member only dashboard and rental read permissions", () => {
     const member = buildRbacSeedPlan().roles.find((role) => role.key === "member");
 
     expect(member?.permissions.toSorted()).toEqual(
-      [
-        "dashboard:read",
-        "ledgers:read",
-        "accounts:read",
-        "categories:read",
-        "transactions:read",
-        "transactions:create",
-        "transactions:update",
-        "statistics:read",
-        "rental_properties:read",
-        "rental_spaces:read",
-        "rental_tenants:read",
-        "rental_contracts:read",
-        "rental_bills:read",
-      ].sort(),
+      ["dashboard:read", ...rentalReadPermissionKeys].sort(),
     );
-    expect(member?.permissions).toEqual(
-      expect.arrayContaining(["transactions:create", "transactions:update"]),
-    );
-    expect(member?.permissions.some((permission) => permission.endsWith(":delete"))).toBe(false);
   });
 
-  it("grants viewer only dashboard, bookkeeping, and rental read permissions", () => {
+  it("grants viewer only dashboard and rental read permissions", () => {
     const viewer = buildRbacSeedPlan().roles.find((role) => role.key === "viewer");
 
     expect(viewer?.permissions.toSorted()).toEqual(
-      [
-        "dashboard:read",
-        "ledgers:read",
-        "accounts:read",
-        "categories:read",
-        "transactions:read",
-        "statistics:read",
-        "rental_properties:read",
-        "rental_spaces:read",
-        "rental_tenants:read",
-        "rental_contracts:read",
-        "rental_bills:read",
-      ].sort(),
+      ["dashboard:read", ...rentalReadPermissionKeys].sort(),
     );
-    expect(
-      viewer?.permissions.filter((permission) => bookkeepingWritePermissions.has(permission)),
-    ).toEqual([]);
   });
 
   it("defines the confirmed system roles in order", () => {
@@ -211,8 +166,8 @@ describe("buildRbacSeedPlan", () => {
   });
 });
 
-describe("seedRbac bookkeeping orchestration", () => {
-  it("passes the transaction executor and resolved bootstrap context to defaults", async () => {
+describe("seedRbac organization orchestration", () => {
+  it("initializes only the menu template for a newly created organization", async () => {
     const bootstrap: BootstrapSeedResult = {
       organization: { id: "organization-1", created: true },
       actorUserId: "user-1",
@@ -233,13 +188,6 @@ describe("seedRbac bookkeeping orchestration", () => {
         insideTransaction: true,
       },
     ]);
-    expect(harness.defaultsCalls).toEqual([
-      {
-        executor: harness.transactionExecutor,
-        context: { organizationId: "organization-1", actorUserId: "user-1" },
-        insideTransaction: true,
-      },
-    ]);
     expect(harness.menuCalls).toEqual([
       {
         executor: harness.transactionExecutor,
@@ -249,16 +197,15 @@ describe("seedRbac bookkeeping orchestration", () => {
     ]);
   });
 
-  it("does not initialize defaults or menus when bootstrap data is absent", async () => {
+  it("does not initialize menus when bootstrap data is absent", async () => {
     const harness = createSeedHarness(undefined);
 
     await seedRbac(harness.db, {} as ServerEnv, harness.dependencies);
 
-    expect(harness.defaultsCalls).toEqual([]);
     expect(harness.menuCalls).toEqual([]);
   });
 
-  it("reinitializes idempotent defaults but keeps menus unchanged for an existing organization", async () => {
+  it("does not create defaults or change menus for an existing organization", async () => {
     const harness = createSeedHarness({
       organization: { id: "organization-1", created: false },
       actorUserId: "user-1",
@@ -266,7 +213,6 @@ describe("seedRbac bookkeeping orchestration", () => {
 
     await seedRbac(harness.db, {} as ServerEnv, harness.dependencies);
 
-    expect(harness.defaultsCalls).toHaveLength(1);
     expect(harness.menuCalls).toEqual([]);
   });
 });
@@ -276,11 +222,6 @@ type FakeTransactionExecutor = { readonly kind: "transaction" };
 function createSeedHarness(bootstrap: BootstrapSeedResult | undefined) {
   const transactionExecutor: FakeTransactionExecutor = { kind: "transaction" };
   let insideTransaction = false;
-  const defaultsCalls: Array<{
-    executor: FakeTransactionExecutor;
-    context: { organizationId: string; actorUserId: string };
-    insideTransaction: boolean;
-  }> = [];
   const menuCalls: Array<{
     executor: FakeTransactionExecutor;
     organizationId: string;
@@ -305,9 +246,6 @@ function createSeedHarness(bootstrap: BootstrapSeedResult | undefined) {
       workflowCalls.push({ step: "resolve-bootstrap", executor, insideTransaction });
       return bootstrap;
     },
-    async initializeDefaults(executor, context) {
-      defaultsCalls.push({ executor, context, insideTransaction });
-    },
     async initializeMenu(executor, organizationId) {
       menuCalls.push({ executor, organizationId, insideTransaction });
     },
@@ -328,7 +266,6 @@ function createSeedHarness(bootstrap: BootstrapSeedResult | undefined) {
     dependencies,
     transactionExecutor,
     workflowCalls,
-    defaultsCalls,
     menuCalls,
   };
 }

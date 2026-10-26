@@ -19,7 +19,6 @@ import { PropertiesPage } from "./properties-page";
 
 const property: RentalPropertySummary = {
   id: "123e4567-e89b-42d3-a456-426614174000",
-  ledgerId: "223e4567-e89b-42d3-a456-426614174000",
   name: "阳光公寓",
   type: "apartment_building",
   customTypeName: null,
@@ -209,10 +208,9 @@ describe("PropertiesPage", () => {
     expect(screen.getByRole("button", { name: "下一页" })).toBeDisabled();
   });
 
-  it("renders desktop table without exposing ledger IDs", async () => {
+  it("renders the desktop property table", async () => {
     renderPage();
     expect(await screen.findByRole("table")).toBeInTheDocument();
-    expect(screen.queryByText(property.ledgerId)).not.toBeInTheDocument();
     expect(screen.getByText("共 12 个空间，可出租 10 个")).toBeInTheDocument();
   });
 

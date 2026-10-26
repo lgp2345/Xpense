@@ -29,7 +29,7 @@ describe("createIamApi", () => {
     await api.createMember({ phone: "13800000001", username: "lin", roleIds: ["role-1"] });
     await api.updateMember("member-1", { roleIds: ["role-1", "role-2"] });
     await api.listRoles();
-    await api.createRole({ key: "bookkeeper", name: "Bookkeeper", permissionKeys: [] });
+    await api.createRole({ key: "operator", name: "Operator", permissionKeys: [] });
     await api.updateRole("role-1", { permissionKeys: ["roles:read"] });
     await api.deleteRole("role-1");
     await api.listPermissions();
@@ -47,8 +47,8 @@ describe("createIamApi", () => {
     });
     expect(client.get).toHaveBeenNthCalledWith(3, "/roles/list");
     expect(client.post).toHaveBeenNthCalledWith(3, "/roles/create", {
-      key: "bookkeeper",
-      name: "Bookkeeper",
+      key: "operator",
+      name: "Operator",
       permissionKeys: [],
     });
     expect(client.post).toHaveBeenNthCalledWith(4, "/roles/update", {

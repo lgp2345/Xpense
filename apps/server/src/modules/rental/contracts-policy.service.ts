@@ -11,7 +11,6 @@ import { apiErrorCodes } from "../../common/errors/api-error.js";
 import type { AppDb, AppDbExecutor } from "../../db/db.module.js";
 import { DB } from "../../db/db.tokens.js";
 import { organizations } from "../../db/schema.js";
-import { BookkeepingWriteLockRepository } from "../bookkeeping/bookkeeping-write-lock.repository.js";
 import { assertContractAggregate, type ContractAggregateValue } from "./contract.rules.js";
 import { findSpaceConflicts } from "./contract-conflicts.queries.js";
 import { organizationDate } from "./contract-date.rules.js";
@@ -22,6 +21,7 @@ import type {
   RentalContractRecord,
   RentalContractSpaceConflictRecord,
 } from "./contracts.repository.types.js";
+import { OrganizationWriteLockRepository } from "./organization-write-lock.repository.js";
 import { PropertiesRepository } from "./properties.repository.js";
 import type { RentalPropertyRecord } from "./properties.repository.types.js";
 import { SpacesRepository } from "./spaces.repository.js";
@@ -43,7 +43,7 @@ type ConfirmationScopeInput = ContractAggregateValue & {
 export class ContractsPolicyService {
   constructor(
     @Inject(DB) private readonly db: AppDb,
-    private readonly writeLockRepository: BookkeepingWriteLockRepository,
+    private readonly writeLockRepository: OrganizationWriteLockRepository,
     private readonly propertiesRepository: PropertiesRepository,
     private readonly spacesRepository: SpacesRepository,
     private readonly tenantsRepository: TenantsRepository,
