@@ -157,7 +157,7 @@ describe("PropertiesPage", () => {
     expect(api.listProperties).toHaveBeenCalledWith({ keyword: "阳光", page: 2, pageSize: 50 });
     await user.clear(screen.getByRole("textbox", { name: "关键词" }));
     await user.type(screen.getByRole("textbox", { name: "关键词" }), "  花园  ");
-    await user.click(screen.getByRole("button", { name: "应用筛选" }));
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(onSearchChange).toHaveBeenLastCalledWith({
       keyword: "花园",
       page: undefined,

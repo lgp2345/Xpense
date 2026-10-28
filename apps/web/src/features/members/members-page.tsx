@@ -213,6 +213,8 @@ export function MembersPage({
             filters={[
               {
                 columnId: "roleName",
+                mode: "multiple",
+                allLabel: "全部角色",
                 title: "角色",
                 options: roleItems.map((role) => ({
                   label: role.name,
@@ -221,6 +223,8 @@ export function MembersPage({
               },
               {
                 columnId: "status",
+                mode: "single",
+                allLabel: "全部状态",
                 title: "状态",
                 options: [
                   { label: "已启用", value: "active" },

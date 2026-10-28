@@ -50,6 +50,7 @@ describe("合同应收覆盖", () => {
     await userEvent.click(await screen.findByRole("option", { name: "押金" }));
     await userEvent.click(screen.getByRole("combobox", { name: "合同账单状态" }));
     await userEvent.click(await screen.findByRole("option", { name: "作废历史" }));
+    await userEvent.click(screen.getByRole("button", { name: "查询" }));
     await waitFor(() =>
       expect(api.listBills).toHaveBeenLastCalledWith(
         expect.objectContaining({ contractId: "contract", type: "deposit", status: "voided" }),
@@ -120,11 +121,6 @@ describe("合同应收覆盖", () => {
     await user.keyboard("{ArrowDown}");
     await waitFor(() => expect(screen.getByRole("option", { name: "押金" })).toHaveFocus());
     await user.keyboard("{Enter}");
-    await waitFor(() =>
-      expect(api.listBills).toHaveBeenLastCalledWith(
-        expect.objectContaining({ type: "deposit", status: "active" }),
-      ),
-    );
     expect(screen.getByRole("combobox", { name: "合同账单费用" })).toHaveTextContent("押金");
     await waitFor(() =>
       expect(screen.getByRole("combobox", { name: "合同账单费用" })).toHaveFocus(),
@@ -136,6 +132,14 @@ describe("合同应收覆盖", () => {
     await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
     await waitFor(() =>
       expect(screen.getByRole("combobox", { name: "合同账单状态" })).toHaveFocus(),
+    );
+    await user.tab();
+    expect(screen.getByRole("button", { name: "查询" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(api.listBills).toHaveBeenLastCalledWith(
+        expect.objectContaining({ type: "deposit", status: "active" }),
+      ),
     );
   });
 
@@ -263,6 +267,7 @@ describe("合同应收覆盖", () => {
     await user.click(await screen.findByRole("option", { name: "账期账单" }));
     await user.click(screen.getByRole("combobox", { name: "合同账单状态" }));
     await user.click(await screen.findByRole("option", { name: "作废历史" }));
+    await user.click(screen.getByRole("button", { name: "查询" }));
     await waitFor(() =>
       expect(api.listBills).toHaveBeenLastCalledWith(
         expect.objectContaining({ contractId: "contract", type: "period", status: "voided" }),

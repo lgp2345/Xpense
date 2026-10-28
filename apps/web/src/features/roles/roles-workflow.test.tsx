@@ -535,3 +535,28 @@ describe("RolesPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
+
+it("类型单选仅在查询后匹配系统或自定义角色，全部类型及重置恢复完整列表", async () => {
+  const user = userEvent.setup();
+  renderRolesPage(["roles:read"]);
+  const type = screen.getByRole("combobox", { name: "类型" });
+  expect(type).toHaveTextContent("全部类型");
+  await user.click(type);
+  await user.click(await screen.findByRole("option", { name: "系统角色" }));
+  expect(screen.getByText("租务管理员")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(screen.queryByText("租务管理员")).not.toBeInTheDocument();
+  expect(screen.getByText("所有者")).toBeVisible();
+  await user.click(type);
+  await user.click(await screen.findByRole("option", { name: "自定义角色" }));
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(screen.queryByText("所有者")).not.toBeInTheDocument();
+  expect(screen.getByText("租务管理员")).toBeVisible();
+  await user.click(type);
+  await user.click(await screen.findByRole("option", { name: "全部类型" }));
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(screen.getByText("所有者")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "重置" }));
+  expect(type).toHaveTextContent("全部类型");
+  expect(screen.getByText("租务管理员")).toBeVisible();
+});

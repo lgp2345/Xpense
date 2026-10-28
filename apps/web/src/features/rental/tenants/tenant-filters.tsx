@@ -75,7 +75,7 @@ export function TenantFilters({
     setDraft((current) => ({ ...current, [key]: value }));
   return (
     <FilterPanel>
-      <FilterFields className="lg:grid-cols-3">
+      <FilterFields>
         <Text label="关键词" value={draft.keyword} onChange={(value) => update("keyword", value)} />
         <FilterSelect
           label="租客类型"
@@ -121,10 +121,13 @@ export function TenantFilters({
           onChange={(value) => update("documentNumber", value)}
         />
         <FilterActions>
-          <Button onClick={() => onApply(toSearch(draft, normalized.pageSize))}>应用筛选</Button>
+          <Button onClick={() => onApply(toSearch(draft, normalized.pageSize))}>查询</Button>
           <Button
             variant="outline"
-            onClick={() => onApply({ page: undefined, pageSize: normalized.pageSize })}
+            onClick={() => {
+              setDraft(toDraft(normalizeRentalTenantsQuery({})));
+              onApply({ page: undefined, pageSize: normalized.pageSize });
+            }}
           >
             重置
           </Button>

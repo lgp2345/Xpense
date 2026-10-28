@@ -319,7 +319,7 @@ describe("property space contract connections", () => {
     const section = await screen.findByRole("region", { name: "空间管理" });
     await user.click(within(section).getByRole("combobox", { name: "空间租赁状态" }));
     await user.click(await screen.findByRole("option", { name: "出租中" }));
-    await user.click(within(section).getByRole("button", { name: "应用筛选" }));
+    await user.click(within(section).getByRole("button", { name: "查询" }));
     await user.click(await within(section).findByRole("button", { name: "查看 A 座 的合同" }));
     expect(await within(section).findByRole("status")).toHaveTextContent("正在打开空间合同");
     expect(onNavigateContract).not.toHaveBeenCalled();
@@ -344,7 +344,7 @@ describe("property space contract connections", () => {
     await user.type(within(section).getByLabelText("合同号、空间名称或承租人"), "  101  ");
     await user.click(within(section).getByRole("combobox", { name: "合同状态" }));
     await user.click(await screen.findByRole("option", { name: "进行中" }));
-    await user.click(within(section).getByRole("button", { name: "应用筛选" }));
+    await user.click(within(section).getByRole("button", { name: "查询" }));
     await waitFor(() =>
       expect(listContracts).toHaveBeenLastCalledWith({
         propertyId: detail.id,
@@ -389,7 +389,7 @@ describe("property space contract connections", () => {
     expect(searchSpaces).not.toHaveBeenCalled();
     await user.click(
       within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
-        name: "应用筛选",
+        name: "查询",
       }),
     );
     await waitFor(() =>
@@ -423,7 +423,7 @@ describe("property space contract connections", () => {
       await new Promise((resolve) => setTimeout(resolve, 350));
     });
     expect(searchSpaces).not.toHaveBeenCalled();
-    await user.click(within(section).getByRole("button", { name: "应用筛选" }));
+    await user.click(within(section).getByRole("button", { name: "查询" }));
     await waitFor(() =>
       expect(searchSpaces).toHaveBeenLastCalledWith({
         propertyId: detail.id,
@@ -432,7 +432,7 @@ describe("property space contract connections", () => {
         pageSize: 20,
       }),
     );
-    await user.click(within(section).getByRole("button", { name: /^清空$/ }));
+    await user.click(within(section).getByRole("button", { name: /^重置$/ }));
     expect(within(section).getByLabelText("搜索空间")).toHaveValue("");
     expect(await within(section).findByRole("row", { name: /A 座/ })).toBeInTheDocument();
   });
@@ -849,7 +849,7 @@ describe("PropertyDetailPage", () => {
     await user.type(screen.getByLabelText("搜索空间"), "B-101");
     await user.click(
       within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
-        name: "应用筛选",
+        name: "查询",
       }),
     );
     expect(await screen.findByRole("button", { name: /B-101/ })).toBeInTheDocument();
@@ -922,7 +922,7 @@ describe("PropertyDetailPage", () => {
     await user.type(screen.getByLabelText("搜索空间"), "1");
     await user.click(
       within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
-        name: "应用筛选",
+        name: "查询",
       }),
     );
     expect(await screen.findByRole("button", { name: /101/ })).toBeInTheDocument();
@@ -994,7 +994,7 @@ describe("PropertyDetailPage", () => {
     await user.type(screen.getByLabelText("搜索空间"), "B-101");
     await user.click(
       within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
-        name: "应用筛选",
+        name: "查询",
       }),
     );
     await user.click(await screen.findByRole("button", { name: /B-101/ }));
@@ -1046,7 +1046,7 @@ describe("PropertyDetailPage", () => {
     await user.type(screen.getByLabelText("搜索空间"), "B-101");
     await user.click(
       within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
-        name: "应用筛选",
+        name: "查询",
       }),
     );
     await user.click(await screen.findByRole("button", { name: /B-101/ }));
@@ -1109,7 +1109,7 @@ describe("PropertyDetailPage", () => {
     await user.type(screen.getByLabelText("搜索空间"), "B-101");
     await user.click(
       within(screen.getByRole("region", { name: "空间管理" })).getByRole("button", {
-        name: "应用筛选",
+        name: "查询",
       }),
     );
     await user.click(await screen.findByRole("button", { name: /B-101/ }));

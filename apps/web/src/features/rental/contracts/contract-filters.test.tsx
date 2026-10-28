@@ -12,7 +12,7 @@ describe("contract date filters", () => {
     await user.click(screen.getByRole("combobox", { name: "合同状态" }));
     expect(await screen.findByRole("listbox")).toBeInTheDocument();
     await user.click(await screen.findByRole("option", { name: "进行中" }));
-    await user.click(screen.getByRole("button", { name: "应用筛选" }));
+    await user.click(screen.getByRole("button", { name: "查询" }));
 
     expect(onApply).toHaveBeenLastCalledWith({ status: "active", page: 1, pageSize: 20 });
   });
@@ -34,14 +34,14 @@ describe("contract date filters", () => {
     );
     expect(screen.queryByRole("button", { name: "开始日期范围" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "结束日期范围" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "应用筛选" }));
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(onApply).toHaveBeenLastCalledWith({
       startDateFrom: "2026-08-01",
       endDateTo: "2027-07-31",
       page: 1,
       pageSize: 20,
     });
-    await user.click(screen.getByRole("button", { name: "清空" }));
+    await user.click(screen.getByRole("button", { name: "重置" }));
     expect(onApply).toHaveBeenLastCalledWith({ page: 1, pageSize: 20 });
   });
 
@@ -68,7 +68,7 @@ it("selects both lease bounds in one picker and preserves URL date format", asyn
   expect(day).toBeDefined();
   await user.click(day as HTMLButtonElement);
   await user.keyboard("{Escape}");
-  await user.click(screen.getByRole("button", { name: "应用筛选" }));
+  await user.click(screen.getByRole("button", { name: "查询" }));
   expect(onApply).toHaveBeenLastCalledWith({
     startDateFrom: "2026-10-05",
     endDateTo: "2026-10-15",

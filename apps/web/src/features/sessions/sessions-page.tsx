@@ -206,6 +206,8 @@ export function SessionsPage({
             filters={[
               {
                 columnId: "status",
+                mode: "single",
+                allLabel: "全部状态",
                 title: "状态",
                 options: [
                   { label: "有效", value: "active" },

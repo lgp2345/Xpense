@@ -114,7 +114,7 @@ describe("ContractsPage", () => {
     });
 
     await screen.findByRole("link", { name: "RC-2026-000001" });
-    await user.click(screen.getByRole("button", { name: "应用筛选" }));
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(onSearchChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ keyword: "RC-2026", page: 1, pageSize: 20 }),
     );
@@ -133,7 +133,7 @@ describe("ContractsPage", () => {
     await screen.findByRole("link", { name: "RC-2026-000001" });
     await user.type(screen.getByLabelText("房产"), "property-2");
     await user.type(screen.getByLabelText("租户"), "tenant-2");
-    await user.click(screen.getByRole("button", { name: "应用筛选" }));
+    await user.click(screen.getByRole("button", { name: "查询" }));
 
     expect(onSearchChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ propertyId: "property-2", tenantId: "tenant-2", page: 1 }),

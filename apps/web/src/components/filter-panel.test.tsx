@@ -88,22 +88,16 @@ describe("筛选表单折叠", () => {
   });
   it("合同账单折叠后保留费用和状态，且不触发筛选", async () => {
     const user = userEvent.setup();
-    const onTypeChange = vi.fn();
-    const onStatusChange = vi.fn();
+    const onApply = vi.fn();
     render(
-      <ContractBillFilters
-        values={{ type: "deposit", status: "voided" }}
-        onTypeChange={onTypeChange}
-        onStatusChange={onStatusChange}
-      />,
+      <ContractBillFilters values={{ type: "deposit", status: "voided" }} onApply={onApply} />,
     );
     await user.click(screen.getByRole("button", { name: "收起筛选" }));
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "展开筛选" }));
     expect(screen.getByRole("combobox", { name: "合同账单费用" })).toHaveTextContent("押金");
     expect(screen.getByRole("combobox", { name: "合同账单状态" })).toHaveTextContent("作废历史");
-    expect(onTypeChange).not.toHaveBeenCalled();
-    expect(onStatusChange).not.toHaveBeenCalled();
+    expect(onApply).not.toHaveBeenCalled();
   });
   it("清空空间筛选时同时清除关键词和状态", async () => {
     const user = userEvent.setup();
@@ -116,7 +110,7 @@ describe("筛选表单折叠", () => {
         onChange={onChange}
       />,
     );
-    await user.click(screen.getByRole("button", { name: /^清空$/ }));
+    await user.click(screen.getByRole("button", { name: /^重置$/ }));
     expect(screen.getByRole("textbox", { name: "搜索空间" })).toHaveValue("");
     expect(screen.getByRole("combobox", { name: "空间有效状态" })).toHaveTextContent(
       "全部有效状态",

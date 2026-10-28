@@ -153,13 +153,16 @@ export function ContractFilters({
             />
           </Field>
           <FilterActions>
-            <Button type="submit">应用筛选</Button>
+            <Button type="submit">查询</Button>
             <Button
               type="button"
               variant="outline"
-              onClick={() => onApply({ page: 1, pageSize: search.pageSize ?? 20 })}
+              onClick={() => {
+                setDraft(toDraft({}));
+                onApply({ page: 1, pageSize: search.pageSize ?? 20 });
+              }}
             >
-              清空
+              重置
             </Button>
           </FilterActions>
         </FilterFields>

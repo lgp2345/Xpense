@@ -1,4 +1,3 @@
-import { useForm, useStore } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PermissionKey } from "@xpense/shared";
 import { useState } from "react";
@@ -11,11 +10,7 @@ import type { RentalFinanceApi } from "../../../services/rental-finance-api";
 import { invalidateRentalFinance } from "../../../services/rental-finance-query";
 import { formatBillAmount as formatMoney } from "./bill-format";
 import { BillGenerationDialog } from "./bill-generation-dialog";
-import {
-  ContractBillFilters,
-  type ContractBillFiltersValue,
-  contractBillFiltersSchema,
-} from "./contract-bill-filters";
+import { ContractBillFilters, type ContractBillFiltersValue } from "./contract-bill-filters";
 import { PeriodBillDialog } from "./period-bill-dialog";
 
 type Props = {
@@ -40,11 +35,10 @@ export function ContractBillsSection({
 
   const [open, setOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
-  const form = useForm({
-    defaultValues: { type: "all", status: "active" } as ContractBillFiltersValue,
-    validators: { onChange: contractBillFiltersSchema },
+  const [filters, setFilters] = useState<ContractBillFiltersValue>({
+    type: "all",
+    status: "active",
   });
-  const filters = useStore(form.store, (state) => state.values);
   const queryClient = useQueryClient();
   const read = permissions.includes("rental_bills:read");
   const query = useQuery({
@@ -86,11 +80,7 @@ export function ContractBillsSection({
         <p className="text-xs text-muted-foreground">
           租金只读；电、水、固定费用与额外费用均以服务端预览为准。
         </p>
-        <ContractBillFilters
-          values={filters}
-          onTypeChange={(value) => form.setFieldValue("type", value)}
-          onStatusChange={(value) => form.setFieldValue("status", value)}
-        />
+        <ContractBillFilters values={filters} onApply={setFilters} />
         {query.isPending || list.isPending ? <p role="status">正在读取账单…</p> : null}
         {query.isError || list.isError ? (
           <div>

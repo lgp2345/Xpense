@@ -237,6 +237,8 @@ export function RolesPage({
             filters={[
               {
                 columnId: "isSystem",
+                mode: "single",
+                allLabel: "全部类型",
                 title: "类型",
                 options: [
                   { label: "系统角色", value: "true" },

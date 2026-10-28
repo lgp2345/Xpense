@@ -253,7 +253,7 @@ describe("rental property file routes", () => {
     const historyLength = history.length;
     const historyIndex = (history.location.state as { __TSR_index: number }).__TSR_index;
     await user.type(keyword, "A");
-    await user.click(screen.getByRole("button", { name: "应用筛选" }));
+    await user.click(screen.getByRole("button", { name: "查询" }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ keyword: "阳光A" }));
     expect((history.location.state as { __TSR_index: number }).__TSR_index).toBe(historyIndex);
     expect(history.length).toBe(historyLength);

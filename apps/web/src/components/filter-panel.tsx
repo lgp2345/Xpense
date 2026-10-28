@@ -37,7 +37,10 @@ export function FilterPanel({ children, actions }: { children: ReactNode; action
 export function FilterFields({ className, ...props }: ComponentProps<typeof FieldGroup>) {
   return (
     <FieldGroup
-      className={cn("grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4", className)}
+      className={cn(
+        "grid min-w-0 gap-3 *:min-w-0 sm:grid-cols-2 lg:grid-cols-4 [&_[data-slot=select-trigger]]:text-base md:[&_[data-slot=select-trigger]]:text-sm",
+        className,
+      )}
       {...props}
     />
   );

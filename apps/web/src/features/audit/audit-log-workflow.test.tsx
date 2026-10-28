@@ -181,6 +181,9 @@ describe("AuditLogsPage", () => {
     await user.clear(screen.getByRole("textbox", { name: "操作" }));
     await user.type(screen.getByRole("textbox", { name: "操作" }), "member.disabled");
 
+    expect(onSearchChange).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(onSearchChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
         action: "member.disabled",
@@ -216,6 +219,9 @@ describe("AuditLogsPage", () => {
 
     await user.clear(screen.getByRole("textbox", { name: "操作" }));
 
+    expect(onSearchChange).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(onSearchChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
         action: undefined,
@@ -258,6 +264,9 @@ describe("AuditLogsPage", () => {
       .find((button) => button.dataset.day === new Date(2026, 7, 15).toLocaleDateString());
     await user.click(endDay as HTMLButtonElement);
 
+    expect(onSearchChange).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(onSearchChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
         action: "role.created",
@@ -297,6 +306,9 @@ describe("AuditLogsPage", () => {
     );
     await user.click(screen.getByRole("button", { name: "清除日期范围" }));
 
+    expect(onSearchChange).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(onSearchChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
         from: undefined,
@@ -345,6 +357,9 @@ describe("AuditLogsPage", () => {
     expect(endDay).toBeDefined();
     await user.click(endDay as HTMLButtonElement);
 
+    expect(onSearchChange).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(onSearchChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
         from: format(firstOfMonth, "yyyy-MM-dd"),

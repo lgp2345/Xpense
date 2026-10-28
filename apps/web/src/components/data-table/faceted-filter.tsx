@@ -1,4 +1,5 @@
 import { CheckIcon, PlusCircleIcon } from "lucide-react";
+import { useId } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,9 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 type DataTableFacetedFilterProps = {
+  id?: string;
+  value: string[];
+  onChange: (value: string[] | undefined) => void;
   // biome-ignore lint/suspicious/noExplicitAny: tanstack v9 type system requires any for generic components
   column?: any;
   title?: string;
@@ -26,16 +30,36 @@ type DataTableFacetedFilterProps = {
   }[];
 };
 
-export function DataTableFacetedFilter({ column, title, options }: DataTableFacetedFilterProps) {
+export function DataTableFacetedFilter({
+  id,
+  value,
+  onChange,
+  column,
+  title,
+  options,
+}: DataTableFacetedFilterProps) {
+  const summaryId = useId();
   const facets = column?.getFacetedUniqueValues();
-  const filterValue = column?.getFilterValue() as string[];
-  const selectedValues = new Set(filterValue ?? []);
+  const selectedValues = new Set(value);
 
   return (
     <Popover>
+      <span id={summaryId} className="sr-only">
+        {selectedValues.size
+          ? `已选择：${options
+              .filter((option) => selectedValues.has(option.value))
+              .map((option) => option.label)
+              .join("、")}`
+          : "未选择筛选条件"}
+      </span>
       <PopoverTrigger
         render={
-          <Button className="h-8 border-dashed" size="sm" variant="outline">
+          <Button
+            id={id}
+            aria-describedby={summaryId}
+            className="h-9 w-full justify-start text-base md:text-sm"
+            variant="outline"
+          >
             <PlusCircleIcon className="size-4" />
             {title}
             {selectedValues.size > 0 ? (
@@ -44,21 +68,25 @@ export function DataTableFacetedFilter({ column, title, options }: DataTableFace
                 <Badge className="rounded-sm px-1 font-normal lg:hidden" variant="secondary">
                   {selectedValues.size}
                 </Badge>
-                <div className="hidden space-x-1 lg:flex">
+                <div className="hidden min-w-0 flex-1 gap-1 lg:flex">
                   {selectedValues.size > 2 ? (
-                    <Badge className="rounded-sm px-1 font-normal" variant="secondary">
-                      {selectedValues.size} 项已选
+                    <Badge
+                      className="min-w-0 shrink rounded-sm px-1 font-normal"
+                      variant="secondary"
+                    >
+                      <span className="truncate">{selectedValues.size} 项已选</span>
                     </Badge>
                   ) : (
                     options
                       .filter((option) => selectedValues.has(option.value))
                       .map((option) => (
                         <Badge
-                          className="rounded-sm px-1 font-normal"
+                          className="min-w-0 shrink rounded-sm px-1 font-normal"
                           key={option.value}
+                          title={option.label}
                           variant="secondary"
                         >
-                          {option.label}
+                          <span className="truncate">{option.label}</span>
                         </Badge>
                       ))
                   )}
@@ -86,7 +114,7 @@ export function DataTableFacetedFilter({ column, title, options }: DataTableFace
                         selectedValues.add(option.value);
                       }
                       const filterValues = Array.from(selectedValues);
-                      column?.setFilterValue(filterValues.length ? filterValues : undefined);
+                      onChange(filterValues.length ? filterValues : undefined);
                     }}
                   >
                     <div
@@ -116,7 +144,7 @@ export function DataTableFacetedFilter({ column, title, options }: DataTableFace
                 <CommandGroup>
                   <CommandItem
                     className="justify-center text-center"
-                    onSelect={() => column?.setFilterValue(undefined)}
+                    onSelect={() => onChange(undefined)}
                   >
                     清除筛选
                   </CommandItem>

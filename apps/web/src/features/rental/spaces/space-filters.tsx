@@ -119,7 +119,7 @@ export function SpaceFilters({
             </Select>
           </Field>
           <FilterActions>
-            <Button type="submit">应用筛选</Button>
+            <Button type="submit">查询</Button>
             <Button
               type="button"
               variant="outline"
@@ -128,7 +128,7 @@ export function SpaceFilters({
                 onChange({});
               }}
             >
-              清空
+              重置
             </Button>
           </FilterActions>
         </FilterFields>

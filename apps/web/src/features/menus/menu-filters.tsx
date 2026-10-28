@@ -44,7 +44,7 @@ export function MenuFilters({
           void form.handleSubmit();
         }}
       >
-        <FilterFields className="lg:grid-cols-3">
+        <FilterFields>
           {fields.map(({ key, label, placeholder }) => (
             <form.Field key={key} name={key}>
               {(field) => (

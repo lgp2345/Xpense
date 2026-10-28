@@ -63,8 +63,7 @@ export function createMemberColumns({
           .join("、"),
       filterFn: (row, _columnId, filterValue: string[] | undefined) => {
         if (!filterValue) return true;
-        const assignedIds = new Set(getAssignedRoles(row.original).map((role) => role.id));
-        return filterValue.some((roleId) => assignedIds.has(roleId));
+        return getAssignedRoles(row.original).some((role) => filterValue.includes(role.id));
       },
     },
     {

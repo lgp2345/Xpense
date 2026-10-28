@@ -94,7 +94,13 @@ export function AuditLogsPage({
         <p className="text-sm text-muted-foreground">组织访问控制</p>
       </header>
 
-      <AuditLogFilters search={search} onChange={onSearchChange ?? (() => undefined)} />
+      <AuditLogFilters
+        search={search}
+        onChange={onSearchChange ?? (() => undefined)}
+        actions={
+          isLoading && logItems.length === 0 ? undefined : <DataTableViewOptions table={table} />
+        }
+      />
 
       {errorMessage ? (
         <div
@@ -116,9 +122,6 @@ export function AuditLogsPage({
         <ListPageSkeleton label="正在加载审计日志..." />
       ) : (
         <>
-          <div className="flex justify-end">
-            <DataTableViewOptions table={table} />
-          </div>
           <AuditLogTable table={table} />
           <Pagination
             aria-label="审计日志分页"

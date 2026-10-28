@@ -172,13 +172,15 @@ describe("Dashboard and IAM file routes", () => {
     }
   });
 
-  it("validates AuditLogs search and replaces the URL on filter changes", async () => {
+  it("validates AuditLogs search and replaces the URL only after submitting filters", async () => {
     const user = userEvent.setup();
     await import("@/features/audit/audit-logs-page");
     const { router, session } = renderRoute("/audit-logs?page=2");
 
     expect(await screen.findByRole("heading", { name: "审计日志" })).toBeInTheDocument();
     await user.type(screen.getByLabelText("操作"), "role.created");
+    expect(router.state.location.search).toEqual({ page: 2 });
+    await user.click(screen.getByRole("button", { name: "查询" }));
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/audit-logs");

@@ -107,6 +107,8 @@ describe("MembersPage", () => {
     expect(screen.getByText("13800000001")).toBeInTheDocument();
     await user.type(screen.getByRole("textbox"), "13800000001");
     expect(screen.getByText("13800000001")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(screen.queryByText("disabled@example.com")).not.toBeInTheDocument();
   });
 
@@ -128,9 +130,11 @@ describe("MembersPage", () => {
     await user.click(screen.getByRole("button", { name: "下一页" }));
     expect(screen.getByText("第 2 页，共 3 页")).toBeInTheDocument();
     await user.type(screen.getByPlaceholderText("搜索邮箱、手机号或用户名..."), "member24@");
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(screen.getByText("member24@example.com")).toBeInTheDocument();
     expect(screen.getByText("第 1 页，共 1 页")).toBeInTheDocument();
     await user.clear(screen.getByPlaceholderText("搜索邮箱、手机号或用户名..."));
+    await user.click(screen.getByRole("button", { name: "查询" }));
     await user.click(screen.getByRole("button", { name: "下一页" }));
     await user.click(screen.getByRole("combobox", { name: "每页行数" }));
     await user.click(await screen.findByRole("option", { name: "20" }));
@@ -657,14 +661,19 @@ describe("MembersPage", () => {
 
     expect(screen.getByText("普通成员、预算管理员")).toBeInTheDocument();
     await user.type(screen.getByPlaceholderText("搜索邮箱、手机号或用户名..."), "budget-user");
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(screen.getByText("budget-user")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(screen.queryByText("disabled@example.com")).not.toBeInTheDocument();
     await user.clear(screen.getByPlaceholderText("搜索邮箱、手机号或用户名..."));
-    const roleFilter = screen.getAllByRole("button", { name: "角色" }).shift();
-    if (!roleFilter) throw new Error("角色筛选按钮未渲染");
+    await user.click(screen.getByRole("button", { name: "查询" }));
+    const roleFilter = screen.getByRole("combobox", { name: "角色" });
     await user.click(roleFilter);
     await user.click(await screen.findByRole("option", { name: "预算管理员" }));
     expect(screen.getByText("budget-user")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "查询" }));
     expect(screen.queryByText("disabled@example.com")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "重置" }));
     expect(screen.getByText("disabled@example.com")).toBeInTheDocument();
@@ -761,4 +770,88 @@ describe("负责人操作保护", () => {
     await user.keyboard("{Enter}");
     expect(await screen.findByRole("tooltip")).toHaveTextContent("至少保留一位有效组织负责人");
   });
+});
+
+it("成员状态使用单选，查询后匹配启用或禁用成员，全部状态恢复所有结果", async () => {
+  const user = userEvent.setup();
+  renderMembersPage(["members:read"], { members: [member, disabledMember] });
+  const status = screen.getByRole("combobox", { name: "状态" });
+  expect(status).toHaveTextContent("全部状态");
+  await user.click(status);
+  await user.click(await screen.findByRole("option", { name: "已禁用" }));
+  expect(screen.getByText("member@example.com")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(screen.queryByText("member@example.com")).not.toBeInTheDocument();
+  expect(screen.getByText("disabled@example.com")).toBeInTheDocument();
+  await user.click(status);
+  await user.click(await screen.findByRole("option", { name: "已启用" }));
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(screen.getByText("member@example.com")).toBeInTheDocument();
+  expect(screen.queryByText("disabled@example.com")).not.toBeInTheDocument();
+  await user.click(status);
+  await user.click(await screen.findByRole("option", { name: "全部状态" }));
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(screen.getByText("disabled@example.com")).toBeInTheDocument();
+});
+
+it("角色列出全部可读取角色，未分配角色也可选，全部角色清除条件", async () => {
+  const user = userEvent.setup();
+  renderMembersPage(["members:read"], { members: [member], pageRoles: [...roles, budgetRole] });
+  const role = screen.getByRole("combobox", { name: "角色" });
+  await user.click(role);
+  expect(await screen.findByRole("option", { name: "所有者" })).toBeVisible();
+  expect(screen.getByRole("option", { name: "普通成员" })).toBeVisible();
+  expect(screen.getByRole("option", { name: "预算管理员" })).toBeVisible();
+  expect(screen.getByRole("option", { name: "全部角色" })).toBeVisible();
+  await user.click(screen.getByRole("option", { name: "预算管理员" }));
+  await user.keyboard("{Escape}");
+  expect(screen.getByText("member@example.com")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(screen.queryByText("member@example.com")).not.toBeInTheDocument();
+  await user.click(role);
+  await user.click(await screen.findByRole("option", { name: "全部角色" }));
+  await user.keyboard("{Escape}");
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(screen.getByText("member@example.com")).toBeVisible();
+});
+
+it("成员角色可多选，按任一所选角色匹配，修改选择后需再次查询", async () => {
+  const user = userEvent.setup();
+  const budgetMember: IamMember = {
+    ...member,
+    id: "budget",
+    email: "budget@example.com",
+    roleId: budgetRole.id,
+    roleKey: budgetRole.key,
+    roleName: budgetRole.name,
+  };
+  const ownerMember: IamMember = {
+    ...member,
+    id: "owner",
+    email: "owner@example.com",
+    roleId: "role-owner",
+    roleKey: "owner",
+    roleName: "所有者",
+  };
+  renderMembersPage(["members:read"], {
+    members: [member, budgetMember, ownerMember],
+    pageRoles: [...roles, budgetRole],
+  });
+  const role = screen.getByRole("combobox", { name: "角色" });
+  await user.click(role);
+  await user.click(await screen.findByRole("option", { name: "普通成员" }));
+  await user.click(role);
+  await user.click(await screen.findByRole("option", { name: "预算管理员" }));
+  expect(screen.getByText("owner@example.com")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(screen.getByText("member@example.com")).toBeVisible();
+  expect(screen.getByText("budget@example.com")).toBeVisible();
+  expect(screen.queryByText("owner@example.com")).not.toBeInTheDocument();
+  await user.click(screen.getAllByRole("button", { name: "Remove" })[0] as HTMLElement);
+  expect(screen.getByText("member@example.com")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(screen.queryByText("member@example.com")).not.toBeInTheDocument();
+  expect(screen.getByText("budget@example.com")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "重置" }));
+  expect(screen.getByText("owner@example.com")).toBeVisible();
 });

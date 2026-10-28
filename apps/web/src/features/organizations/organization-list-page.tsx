@@ -5,19 +5,12 @@ import { useStore } from "zustand";
 import { SecondaryPageLayout } from "@/components/layout/secondary-page-layout";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/lib/toast";
 import { organizationsQueryOptions } from "@/services/organizations-query";
 import { switchWebOrganization, type WebSessionDependency } from "@/services/web-session";
 import { OrganizationRow } from "./organization-columns";
+import { OrganizationFilters } from "./organization-filters";
 
 export function OrganizationListPage({
   session,
@@ -66,36 +59,7 @@ export function OrganizationListPage({
         { key: "organizations", label: "组织管理" },
       ]}
     >
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Input
-          aria-label="组织名称"
-          placeholder="搜索组织名称"
-          className="sm:max-w-sm"
-          value={query.name ?? ""}
-          onChange={(event) =>
-            onQueryChange({ ...query, page: 1, name: event.target.value || undefined })
-          }
-        />
-        <Select
-          value={query.status ?? "all"}
-          onValueChange={(value) =>
-            onQueryChange({
-              ...query,
-              page: 1,
-              status: value === "active" || value === "disabled" ? value : undefined,
-            })
-          }
-        >
-          <SelectTrigger aria-label="组织状态" className="w-full sm:w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部状态</SelectItem>
-            <SelectItem value="active">启用</SelectItem>
-            <SelectItem value="disabled">停用</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <OrganizationFilters query={query} onApply={onQueryChange} />
       {result.isPending ? (
         <p role="status">正在加载组织…</p>
       ) : result.isError ? (

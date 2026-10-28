@@ -4,6 +4,7 @@ import { z } from "zod";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { FilterActions, FilterFields, FilterPanel } from "@/components/filter-panel";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -79,17 +80,17 @@ function FilterForm({
               ["propertyId", "房产 ID"],
             ] as const
           ).map(([key, label]) => (
-            <label className="space-y-1 text-sm" key={key} htmlFor={`bill-filter-${key}`}>
-              <span>{label}</span>
+            <Field key={key}>
+              <FieldLabel htmlFor={`bill-filter-${key}`}>{label}</FieldLabel>
               <Input
                 id={`bill-filter-${key}`}
                 value={values[key]}
                 onChange={(event) => form.setFieldValue(key, event.target.value)}
               />
-            </label>
+            </Field>
           ))}
-          <label className="space-y-1 text-sm" htmlFor="bill-filter-type">
-            <span>费用分类</span>
+          <Field>
+            <FieldLabel htmlFor="bill-filter-type">费用分类</FieldLabel>
             <Select
               value={values.type}
               onValueChange={(value) => form.setFieldValue("type", value as typeof values.type)}
@@ -103,9 +104,9 @@ function FilterForm({
                 <SelectItem value="deposit">押金</SelectItem>
               </SelectContent>
             </Select>
-          </label>
-          <label className="space-y-1 text-sm" htmlFor="bill-filter-status">
-            <span>账单状态</span>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="bill-filter-status">账单状态</FieldLabel>
             <Select
               value={values.status}
               onValueChange={(value) => form.setFieldValue("status", value as typeof values.status)}
@@ -118,9 +119,9 @@ function FilterForm({
                 <SelectItem value="voided">作废</SelectItem>
               </SelectContent>
             </Select>
-          </label>
-          <div className="space-y-1 text-sm">
-            <label htmlFor="bill-due-date-range">到期日范围</label>
+          </Field>
+          <Field className="sm:col-span-2">
+            <FieldLabel htmlFor="bill-due-date-range">到期日范围</FieldLabel>
             <DateRangePicker
               id="bill-due-date-range"
               aria-label="到期日范围"
@@ -131,15 +132,22 @@ function FilterForm({
                 form.setFieldValue("dueDateTo", to ?? "");
               }}
             />
-          </div>
+          </Field>
           <FilterActions>
             <Button type="submit">查询</Button>
             <Button
               type="button"
               variant="outline"
-              onClick={() =>
-                onChange({ status: "active", page: 1, pageSize: search.pageSize ?? 20 })
-              }
+              onClick={() => {
+                form.setFieldValue("keyword", "");
+                form.setFieldValue("contractId", "");
+                form.setFieldValue("propertyId", "");
+                form.setFieldValue("type", "all");
+                form.setFieldValue("status", "active");
+                form.setFieldValue("dueDateFrom", "");
+                form.setFieldValue("dueDateTo", "");
+                onChange({ status: "active", page: 1, pageSize: search.pageSize ?? 20 });
+              }}
             >
               重置
             </Button>

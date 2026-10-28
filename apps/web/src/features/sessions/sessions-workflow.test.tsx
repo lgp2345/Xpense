@@ -37,7 +37,7 @@ function renderSessionsPage(
     api?: SessionsApi;
     currentSessionId?: string;
     onCurrentSessionRevoked?: () => void;
-    sessions?: (typeof currentSession)[];
+    sessions?: Pick<SessionResponse, "id" | "clientType" | "status" | "lastUsedAt">[];
   } = {},
 ) {
   render(
@@ -219,4 +219,30 @@ describe("SessionsPage", () => {
     expect(await screen.findByText("当前设备")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   });
+});
+
+it("会话状态单选仅查询后生效，全部和重置恢复有效及已撤销会话", async () => {
+  const user = userEvent.setup();
+  renderSessionsPage(["sessions:read"], {
+    sessions: [currentSession, { ...otherSession, status: "revoked" }],
+  });
+  const status = screen.getByRole("combobox", { name: "状态" });
+  const table = screen.getByRole("table");
+  await user.click(status);
+  await user.click(await screen.findByRole("option", { name: "有效" }));
+  expect(table).toHaveTextContent("已撤销");
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(table).not.toHaveTextContent("已撤销");
+  await user.click(status);
+  await user.click(await screen.findByRole("option", { name: "已撤销" }));
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(table).toHaveTextContent("已撤销");
+  expect(table).not.toHaveTextContent("有效");
+  await user.click(status);
+  await user.click(await screen.findByRole("option", { name: "全部状态" }));
+  await user.click(screen.getByRole("button", { name: "查询" }));
+  expect(table).toHaveTextContent("有效");
+  expect(table).toHaveTextContent("已撤销");
+  await user.click(screen.getByRole("button", { name: "重置" }));
+  expect(status).toHaveTextContent("全部状态");
 });

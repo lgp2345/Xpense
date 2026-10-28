@@ -93,11 +93,14 @@ export function PropertyFilters({ search, onApply }: PropertyFiltersProps) {
               })
             }
           >
-            应用筛选
+            查询
           </Button>
           <Button
             variant="outline"
-            onClick={() => onApply({ page: undefined, pageSize: search.pageSize ?? 20 })}
+            onClick={() => {
+              setDraft(toDraft({}));
+              onApply({ page: undefined, pageSize: search.pageSize ?? 20 });
+            }}
           >
             重置
           </Button>
