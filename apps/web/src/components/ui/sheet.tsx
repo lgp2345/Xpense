@@ -32,12 +32,14 @@ function SheetContent({
   className,
   children,
   side = "right",
+  keepMounted = false,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Popup> & {
   side?: "top" | "right" | "bottom" | "left";
+  keepMounted?: boolean;
 }) {
   return (
-    <SheetPrimitive.Portal>
+    <SheetPrimitive.Portal keepMounted={keepMounted}>
       <SheetOverlay />
       <SheetPrimitive.Viewport className="fixed inset-0 z-50">
         <SheetPrimitive.Popup

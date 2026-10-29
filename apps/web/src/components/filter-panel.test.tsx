@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AuditLogFilters } from "@/features/audit/audit-log-filters";
 import { BillFilters } from "@/features/rental/bills/bill-filters";
@@ -10,6 +10,72 @@ import { PropertyFilters } from "@/features/rental/properties/property-filters";
 import { SpaceFilters } from "@/features/rental/spaces/space-filters";
 import { TenantFilters } from "@/features/rental/tenants/tenant-filters";
 import { FilterPanel } from "./filter-panel";
+
+afterEach(() => vi.restoreAllMocks());
+
+function mobileViewport() {
+  const matchMedia = window.matchMedia;
+  vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+    ...matchMedia(query),
+    matches: query === "(max-width: 767px)",
+  }));
+}
+
+describe("移动端筛选抽屉", () => {
+  it("点击标题打开 Sheet，关闭后保留输入且工具按钮仍在页面上", async () => {
+    mobileViewport();
+    const user = userEvent.setup();
+    render(
+      <FilterPanel actions={<button type="button">显示列</button>}>
+        <input aria-label="搜索条件" defaultValue="原始条件" />
+      </FilterPanel>,
+    );
+    const trigger = screen.getByRole("button", { name: "打开筛选" });
+    expect(trigger.querySelector(".lucide-text-search")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "显示列" })).toBeVisible();
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "筛选条件" });
+    await user.type(within(dialog).getByRole("textbox"), "草稿");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    await user.click(trigger);
+    expect(screen.getByRole("textbox")).toHaveValue("原始条件草稿");
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "显示列" })).toBeVisible();
+  });
+
+  it("房产筛选在 Sheet 内继续支持查询和重置", async () => {
+    mobileViewport();
+    const user = userEvent.setup();
+    const onApply = vi.fn();
+    render(<PropertyFilters search={{}} onApply={onApply} />);
+    await user.click(screen.getByRole("button", { name: "打开筛选" }));
+    await user.type(screen.getByRole("textbox", { name: "关键词" }), "房产");
+    expect(onApply).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "查询" }));
+    expect(onApply).toHaveBeenLastCalledWith({ keyword: "房产", page: undefined, pageSize: 20 });
+    await user.click(screen.getByRole("button", { name: "重置" }));
+    expect(screen.getByRole("textbox", { name: "关键词" })).toHaveValue("");
+    expect(onApply).toHaveBeenLastCalledWith({ page: undefined, pageSize: 20 });
+  });
+
+  it("Sheet 内的表单支持回车提交，选择框可用", async () => {
+    mobileViewport();
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<SpaceFilters keyword="401" onChange={onChange} />);
+    await user.click(screen.getByRole("button", { name: "打开筛选" }));
+    await user.click(screen.getByRole("combobox", { name: "空间有效状态" }));
+    await user.click(await screen.findByRole("option", { name: /^无效$/ }));
+    expect(onChange).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("textbox", { name: "搜索空间" }));
+    await user.keyboard("{Enter}");
+    expect(onChange).toHaveBeenLastCalledWith({ keyword: "401", effectiveStatus: "inactive" });
+  });
+});
 
 describe("筛选表单折叠", () => {
   it("收起后保留独立工具按钮且不会提交外围表单", async () => {
